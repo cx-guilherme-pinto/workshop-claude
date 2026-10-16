@@ -1,20 +1,20 @@
 # Benchmark de custo e tempo
 
-Gerado em 2026-10-16 14:48 a partir de `benchmark/results.csv`. O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13).
+Gerado em 2026-10-16 17:02 a partir de `benchmark/results.csv`. O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13).
 
-## Modo participante (10 execuções)
+## Modo participante (16 execuções)
 
 | métrica | mínimo | média | máximo | desvio padrão |
 |---|---|---|---|---|
-| custo total | US$ 0,90 | US$ 1,03 | US$ 1,12 | US$ 0,0588 |
-| custo Haiku | US$ 0,0255 | US$ 0,0289 | US$ 0,0313 | US$ 0,0019 |
-| custo Sonnet | US$ 0,55 | US$ 0,68 | US$ 0,76 | US$ 0,0558 |
+| custo total | US$ 0,90 | US$ 1,02 | US$ 1,12 | US$ 0,0524 |
+| custo Haiku | US$ 0,0255 | US$ 0,0289 | US$ 0,0313 | US$ 0,0018 |
+| custo Sonnet | US$ 0,55 | US$ 0,67 | US$ 0,76 | US$ 0,0501 |
 | custo Opus | US$ 0,31 | US$ 0,32 | US$ 0,34 | US$ 0,0104 |
-| duração | 3,5 min | 4,0 min | 4,8 min | 0,5 min |
+| duração | 3,5 min | 4,1 min | 4,8 min | 0,4 min |
 | agentes | 22 | 22,1 | 23 | 0,3 |
-| custo segundo o Claude Code | US$ 2,24 | US$ 2,45 | US$ 2,68 | US$ 0,12 |
+| custo segundo o Claude Code | US$ 2,24 | US$ 2,45 | US$ 2,68 | US$ 0,10 |
 
-Execuções com sucesso (testes verdes e sem erros): **10/10**.
+Execuções com sucesso (testes verdes e sem erros): **16/16**.
 Critério de aceitação (todas com sucesso, ≤ 20 min, custo máximo ≤ US$ 10, média idealmente ≤ US$ 5): **CUMPRIDO**.
 
 | execução | duração | custo | Haiku | Sonnet | Opus | agentes | verdes | testes | veredito | gate | negações |
@@ -29,6 +29,12 @@ Critério de aceitação (todas com sucesso, ≤ 20 min, custo máximo ≤ US$ 1
 | 20261016-150803-participante-8 | 4,3 min | US$ 0,90 | US$ 0,0287 | US$ 0,55 | US$ 0,33 | 22 | 20 | 155/155 | aprovado_com_reservas | aprovado | 0 |
 | 20261016-151220-participante-9 | 3,5 min | US$ 1,07 | US$ 0,0267 | US$ 0,71 | US$ 0,34 | 22 | 20 | 155/155 | aprovado | aprovado | 0 |
 | 20261016-151550-participante-10 | 3,5 min | US$ 1,03 | US$ 0,0295 | US$ 0,68 | US$ 0,32 | 22 | 20 | 155/155 | aprovado_com_reservas | aprovado | 1 |
+| 20261016-173647-participante-1 | 4,5 min | US$ 1,03 | US$ 0,0298 | US$ 0,66 | US$ 0,34 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-174121-participante-2 | 4,3 min | US$ 0,97 | US$ 0,0313 | US$ 0,63 | US$ 0,31 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-174540-participante-3 | 4,4 min | US$ 1,02 | US$ 0,0258 | US$ 0,68 | US$ 0,32 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-175005-participante-1 | 4,1 min | US$ 0,94 | US$ 0,0282 | US$ 0,59 | US$ 0,33 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 3 |
+| 20261016-175411-participante-2 | 4,0 min | US$ 1,01 | US$ 0,0293 | US$ 0,65 | US$ 0,33 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-175811-participante-3 | 4,2 min | US$ 1,05 | US$ 0,0290 | US$ 0,70 | US$ 0,33 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
 
 ## Modo apresentador (3 execuções)
 

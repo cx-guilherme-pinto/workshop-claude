@@ -12,3 +12,9 @@ id,modo,isolado,duracao_s,custo_total,custo_haiku,custo_sonnet,custo_opus,agente
 20261016-152044-apresentador-gravado,apresentador,0,396,2.5253,0.1649,1.9857,0.3746,107,105,0,665,0,sim,aprovado_com_reservas,aprovado,9.9966,0,0
 20261016-153209-apresentador-gravado,apresentador,0,414,2.5506,0.1695,1.9939,0.3872,107,105,0,665,0,sim,aprovado_com_reservas,aprovado,10.2777,0,0
 20261016-154024-apresentador-1,apresentador,0,473,2.5525,0.1706,1.9997,0.3822,107,105,0,665,0,sim,aprovado_com_reservas,aprovado,10.1153,0,0
+20261016-173647-participante-1,participante,0,273,1.0298,0.0298,0.6620,0.3380,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.4959,0,0
+20261016-174121-participante-2,participante,0,259,0.9726,0.0313,0.6345,0.3068,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.5249,0,0
+20261016-174540-participante-3,participante,0,263,1.0228,0.0258,0.6805,0.3165,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.3843,0,0
+20261016-175005-participante-1,participante,0,245,0.9427,0.0282,0.5875,0.3270,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.3289,3,0
+20261016-175411-participante-2,participante,0,238,1.0107,0.0293,0.6513,0.3302,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.4368,0,0
+20261016-175811-participante-3,participante,0,250,1.0541,0.0290,0.6973,0.3278,22,20,0,167,0,sim,aprovado_com_reservas,aprovado,2.5283,0,0

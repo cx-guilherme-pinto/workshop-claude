@@ -13,7 +13,7 @@ O kit e a app foram construídos noutra máquina, contra um Gitea privado (`repo
 | Peça | Estado | Validado como |
 |---|---|---|
 | Setup (Mac e Windows) | Completo. Instala tudo de raiz, sem admin, e fala inglês desde a D-20 | 115 testes bash, 44 Pester, PSScriptAnalyzer sem erros, ponta a ponta no Mac em HOMEs vazios. **O Windows real nunca foi corrido** |
-| Projeto 1 (Arena) | 100 cartões; 15 no modo participante | Benchmark com as skills em pt (D-16): 10/10, US$ 1,03 de média e 4,0 min. Com as skills em inglês: 3/3, US$ 0,97 a 1,03 e 4,3 a 4,6 min. Apresentador: 3/3, US$ 2,54 e 7,1 min |
+| Projeto 1 (Arena) | 100 cartões; 15 no modo participante | Benchmark com as skills em pt (D-16): 10/10, US$ 1,03 de média e 4,0 min. Com as skills em inglês: 6/6, US$ 0,94 a 1,05 e 4,0 a 4,5 min (Arena em pt e em en; D-20). Apresentador: 3/3, US$ 2,54 e 7,1 min |
 | Projeto 2 (`/task-*`) | Jira pelo MCP, com o `acli` de reserva (D-19); Confluence pelo MCP ou pelo `acli`; GitHub pelo `gh` | Ponta a ponta no projeto de treino (D-18). **Nunca correu num Jira, Confluence ou GitHub corporativo reais** |
 | App Memória v0.4.0 | 4 línguas, registo das chamadas MCP, app portátil | 227 testes, selftest e instalação isolada |
 | Slides | 45 slides, 90 min, em pt e en | Render no LibreOffice |
