@@ -48,7 +48,7 @@ Algo falhou? Cada erro tem um código. Vê [docs/TROUBLESHOOTING.md](docs/TROUBL
 | 7 | MCP do Jira (Atlassian), âmbito utilizador | `~/.claude.json` |
 | 8 | Skills, agentes `ws-*`, hooks de custo e statusline, com merge seguro do `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Projetos do workshop | `~/workshop-claude/` |
-| 10 | App Memória v0.1.0 (opcional, não bloqueia) | `uv tool`, `~/.memoria` |
+| 10 | App Memória v0.2.1 (opcional, não bloqueia) | `uv tool`, `~/.memoria` |
 | 11 | Claude Desktop (opcional, `--sem-desktop` / `-SemDesktop` salta) | `~/Applications` |
 | 12 | Teste final com o Haiku e o custo pelo `pricing.json` | — |
 

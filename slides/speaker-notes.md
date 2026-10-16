@@ -244,7 +244,7 @@ Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadr
 
 [55:00 → 57:00] 2 min · deves estar aqui aos 55 min
 
-São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu PC. O /demo-plan e o /task-plan consultam-na antes de planear.
+São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu PC. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
 
 ### 33. Abre o teu primeiro grafo
 

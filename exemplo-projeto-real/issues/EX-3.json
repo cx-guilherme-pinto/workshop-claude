@@ -9,5 +9,10 @@
     "o servidor devolve 403 nesses casos e 200 para o próprio leitor",
     "teste que reproduz o ataque (leitor 10 a pedir os empréstimos do 11) e passa a falhar com 403",
     "nenhum outro endpoint muda de comportamento"
+  ],
+  "epico": "EX-100",
+  "etiquetas": [
+    "seguranca",
+    "idor"
   ]
 }

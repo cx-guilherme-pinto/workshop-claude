@@ -84,10 +84,15 @@ export function relatorio(projeto, caminhoPlano) {
 
   // Resumo compacto para a extracao de memorias (Haiku).
   const falhas = f.tarefas.filter((t) => t.estado === 'falhou' || t.tentativa > 1);
+  const tarefaInfo = lerJson(join(c.ws, 'tarefa.json'), {});
   const resumoMem = [
     `# Resumo para a memória`,
     `projeto: ${plano.projeto}`,
-    `tarefa: ${plano.tarefa_id || plano.projeto + '-' + plano.modo}`,
+    `tarefa: ${tarefaInfo.id || plano.tarefa_id || plano.projeto + '-' + plano.modo}`,
+    ...(tarefaInfo.epico ? [`epico: ${tarefaInfo.epico}`] : []),
+    ...(tarefaInfo.url ? [`url: ${tarefaInfo.url}`] : []),
+    ...(tarefaInfo.etiquetas?.length ? [`etiquetas: ${tarefaInfo.etiquetas.join(', ')}`] : []),
+    ...(tarefaInfo.titulo ? [`titulo da tarefa: ${tarefaInfo.titulo}`] : []),
     `data: ${new Date().toISOString().slice(0, 10)}`,
     `resultado: ${f.contagem.verde}/${f.total} verdes, ${f.contagem.falhou} falhadas, ${tentativasExtra} repetições`,
     `duracao: ${tempo(duracao)}`,

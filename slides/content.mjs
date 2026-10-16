@@ -293,9 +293,9 @@ allowed-tools:
   {
     seccao: 'Memória', tipo: 'imagem', min: 2,
     titulo: 'A memória do que fizeste',
-    media: 'media/memoria-grafo.png',
-    legenda: 'Lição · fazer · não fazer · histórico, ligados a projetos, tarefas e ficheiros',
-    notas: 'São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu PC. O /demo-plan e o /task-plan consultam-na antes de planear.',
+    media: 'media/memoria-procura.png',
+    legenda: 'Procura por ticket ou épico (ex.: ARENA-1): lições, fazer, não fazer e histórico ligados a projetos, épicos, tarefas e ficheiros',
+    notas: 'São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu PC. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").',
   },
   {
     seccao: 'Memória', tipo: 'faca', min: 3,

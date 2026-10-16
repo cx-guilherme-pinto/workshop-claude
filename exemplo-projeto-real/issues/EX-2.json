@@ -11,5 +11,10 @@
     "GET /livros sem q continua a devolver a lista completa (compatibilidade)",
     "valores de pagina/porPagina inválidos devolvem 400",
     "testes para pesquisa, acentos, paginação e erros"
+  ],
+  "epico": "EX-100",
+  "etiquetas": [
+    "pesquisa",
+    "api"
   ]
 }

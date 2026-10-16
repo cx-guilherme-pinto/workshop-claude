@@ -10,5 +10,10 @@
     "POST /livros e POST /leitores devolvem 400 com a mensagem do erro",
     "Os casos válidos existentes continuam a funcionar",
     "Há testes para os casos válidos e inválidos"
+  ],
+  "epico": "EX-100",
+  "etiquetas": [
+    "validacao",
+    "qualidade"
   ]
 }
