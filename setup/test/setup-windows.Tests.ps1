@@ -182,6 +182,10 @@ Describe 'Python gerido pelo uv' {
     $bad = Read-WsSelftest "Memoria 0.1.0 - Python 3.12.1`n  [FALHOU] SQLite sem FTS5`n  [OK] Interface"
     $bad.Fts5 | Should -BeFalse
     $bad.Falhas | Should -Be @('SQLite sem FTS5')
+    $he = Read-WsSelftest ("Memoria 0.4.0 - Python 3.12.13`r`n  [" + [char]0x05E0 + [char]0x05DB + [char]0x05E9 + [char]0x05DC + "] SQLite FTS5`r`n  [OK] UI`r`n")
+    $he.Python | Should -Be '3.12.13'
+    $he.Falhas | Should -Be @('SQLite FTS5')
+    (Read-WsSelftest "  [FAIL] Python 3.12 missing").Falhas | Should -Be @('Python 3.12 missing')
   }
   It 'nao chama python, python3 nem py' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))

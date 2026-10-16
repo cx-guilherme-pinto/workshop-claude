@@ -121,6 +121,14 @@ eq "$(cat "$WS_TMP/s10.out")" "Memória app 0.1.0 (Python 3.12.13 managed by uv,
 printf '#!/bin/sh\nprintf "Memoria 0.1.0 - Python 3.12.13\\n  [FALHOU] SQLite sem FTS5\\n"; exit 1\n' > "$FAKE"
 ( WS_CUR=10; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memoria_selftest "$FAKE" 0.1.0; printf '%s' "$SW_10" ) > "$WS_TMP/s10.out"
 eq "$(cat "$WS_TMP/s10.out")" "E-MEM-05|SQLite sem FTS5" "selftest falhado -> E-MEM-05"
+# selftest noutra lingua (app >= 0.3.0): resultado pelo codigo de saida, motivo por qualquer etiqueta que nao seja [OK]
+printf '#!/bin/sh\nprintf "lang=%%s\\n" "$MEMORIA_LANG" >&2\nprintf "\340\244\256\340\245\207\340\244\256\340\245\213\340\244\260\340\244\277\340\244\257\340\244\276 0.4.0 \302\267 Python 3.12.13\\n  [\340\244\265\340\244\277\340\244\253\340\244\262] SQLite FTS5\\n  [OK] UI\\n"; exit 1\n' > "$FAKE"
+( WS_CUR=10; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memoria_selftest "$FAKE" 0.4.0; printf '%s' "$SW_10" ) > "$WS_TMP/s10.out"
+eq "$(cat "$WS_TMP/s10.out")" "E-MEM-05|SQLite FTS5" "selftest em hindi -> E-MEM-05 com o motivo"
+grep -q 'lang=en' "$WS_TMP/s10.log" && ok || ko "selftest pedido com MEMORIA_LANG=en"
+printf '#!/bin/sh\nprintf "Memory 0.4.0 \302\267 Python 3.12.13\\n  [OK] SQLite 3.50 with FTS5\\nselftest: OK\\n"\n' > "$FAKE"
+( WS_CUR=10; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memoria_selftest "$FAKE" 0.4.0; printf '%s|%s' "$SD_10" "$SW_10" ) > "$WS_TMP/s10.out"
+eq "$(cat "$WS_TMP/s10.out")" "Memória app 0.4.0 (Python 3.12.13 managed by uv, FTS5 ok)|" "selftest em ingles (app 0.4.0)"
 grep -nE '(^|[;&|(`]|[$][(])[[:space:]]*(python3?|py)([.]exe)?([[:space:]]|$)' "$ROOT/setup/setup-mac.sh" | grep -v '^[0-9]*:[[:space:]]*#' | grep -q . && ko "setup-mac.sh chama python" || ok
 
 # --- passo 7: MCP + Atlassian CLI de reserva (claude e acli falsos, tarball local, sem rede)
