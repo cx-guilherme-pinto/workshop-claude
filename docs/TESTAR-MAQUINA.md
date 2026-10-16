@@ -14,15 +14,19 @@ O script é `tools/testar-maquina.sh` e só funciona em macOS.
 bash tools/levar-para-outra-maquina.sh
 ```
 
-O script cria `dist/levar/` com `workshop-claude.bundle`, `claude-memory-app.bundle` e um `SHA256SUMS`. Os bundles levam todo o histórico, as tags e os branches, mas só o que está commitado. Copia a pasta por AirDrop ou numa pen USB. Na outra máquina:
+O resultado é um zip, `dist/levar/workshop-claude-pacote-<data>.zip`, com:
+- `workshop-claude.bundle` e `claude-memory-app.bundle`: o histórico completo, todos os branches e todas as tags, mas só o que está commitado;
+- `SHA256SUMS`;
+- `LEIA-ME.md`: os passos para verificar, clonar, testar e publicar no GitHub corporativo com o histórico (`git push --mirror`).
+
+Antes de fechar o zip, o script clona cada bundle e confirma que tem o mesmo número de commits que o original. Copia o zip por AirDrop ou numa pen USB e, na outra máquina:
 
 ```bash
+unzip workshop-claude-pacote-*.zip && cd workshop-claude-pacote-*
 shasum -a 256 -c SHA256SUMS
 git clone workshop-claude.bundle workshop-claude
 git clone claude-memory-app.bundle claude-memory-app
 ```
-
-Depois de clonar, o repositório lembra-se do bundle como `origin`. Para publicar no GitHub corporativo, junta outro remoto (secção 5).
 
 ## 2. O que preparar antes
 
