@@ -138,6 +138,14 @@ O que o spike mostrou:
 - **Confiança na pasta:** até a pasta ser confiada, o Claude Code ignora as `permissions.allow` do `.claude/settings.json` do projeto. Para o participante, o primeiro `claude` na pasta mostra o diálogo de confiança, e aceitar faz parte do passo 1 do hands-on (um momento didático). No benchmark, a pasta é pré-confiada na config temporária.
 - Os IDs completos de modelo (`claude-haiku-5-5`) funcionam nos agentes. O alias `haiku` não foi usado, porque pode apontar para outro modelo nesta versão.
 
+## D-14 · Python: nunca o do sistema
+
+- Nenhum participante precisa de ter Python. O único Python usado no kit é o que o **`uv`** descarrega para a app de memória: `uv tool install --managed-python --python 3.12`. O `--managed-python` obriga o uv a usar o seu próprio Python (python-build-standalone, de `releases.astral.sh`), mesmo que exista um Python no sistema. O uv é um binário único, sem dependências, instalado sem admin.
+- Os scripts que correm na máquina do participante (setup, installer, hooks, orquestrador, statusline, skills) **não chamam `python` nem `python3`**: está verificado por `grep`. Isto também evita, no Mac, o `python3` "falso" que abre a instalação das Command Line Tools.
+- **Prova (16 out. 2026, Mac arm64):** com o `PATH` sem nenhum `python` e a pasta de Pythons e a cache do uv vazias, o uv descarregou o CPython 3.12.13, instalou as 39 dependências do PyPI e o `memoria selftest` passou (SQLite 3.53.1 com FTS5).
+- **Validação na máquina do participante:** o passo 10 do setup e o `--check` correm `memoria selftest`, que verifica a versão do Python, o FTS5, o servidor MCP e a interface.
+- Python continua a ser usado **só do lado do organizador** (QA dos slides e scripts de desenvolvimento), nunca na máquina do participante.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.

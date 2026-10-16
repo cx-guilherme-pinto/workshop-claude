@@ -73,9 +73,28 @@ function excluidos() {
   return fora;
 }
 
+// Cartoes que nao fazem parte do plano atual (ex.: os 85 do modo apresentador quando o plano
+// e de participante) tambem ficam de fora: ninguem os vai construir nesta execucao.
+function foraDoPlano() {
+  const plano = lerJson(join(ROOT, 'plan.json'));
+  if (!Array.isArray(plano?.tarefas)) return new Set();
+  const noPlano = new Set(plano.tarefas.filter((t) => t.grupo_tipo === 'cartao').map((t) => t.id));
+  const out = new Set();
+  let ids = [];
+  try {
+    ids = readdirSync(join(ROOT, 'cards')).filter((n) => /^[a-z0-9][a-z0-9-]*$/.test(n));
+  } catch {
+    return out;
+  }
+  for (const id of ids) if (!noPlano.has(id)) out.add(`cards/${id}/card.test.js`);
+  return out;
+}
+
 const todos = descobrir(ROOT);
 const fora = excluidos();
-const correr = todos.filter((f) => !fora.has(f));
+const naoPlaneados = foraDoPlano();
+const correr = todos.filter((f) => !fora.has(f) && !naoPlaneados.has(f));
+if (naoPlaneados.size) console.log(`(${naoPlaneados.size} cartões fora do plano deste modo não entram.)`);
 
 console.log(`Integração: ${correr.length} ficheiro(s) de teste.`);
 if (fora.size) {

@@ -20,6 +20,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | W12 | `-Desinstalar` | O `settings.json` volta ao que era; os agentes, as skills e o MCP saem |
 | W13 | Utilizador com espaço e acentos no nome (ex.: `C:\Users\João Silva`) | Tudo funciona, incluindo os hooks e a statusline |
 | W14 | Windows on ARM (se houver) | Usa os binários arm64 ou dá uma mensagem clara |
+| W15 | Máquina **sem Python** instalado (confirma que `python`/`py` não existem ou que só abrem a Microsoft Store) | O passo da app de memória instala, o uv descarrega o seu próprio Python 3.12, e o `memoria selftest` mostra "Python 3.12.x" e "FTS5" |
 
 ## macOS (Apple Silicon e Intel)
 

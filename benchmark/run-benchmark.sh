@@ -12,13 +12,14 @@ set -euo pipefail
 
 main() {
   local KIT; KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  local MODO=participante N=10 MAX="" GRAVAR=0
+  local MODO=participante N=10 MAX="" GRAVAR=0 SEM_ISOLAMENTO=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --modo) MODO="$2"; shift 2 ;;
       --n) N="$2"; shift 2 ;;
       --max) MAX="$2"; shift 2 ;;
       --gravar) GRAVAR=1; shift ;;
+      --sem-isolamento) SEM_ISOLAMENTO=1; shift ;;
       *) echo "opcao desconhecida: $1" >&2; exit 2 ;;
     esac
   done
@@ -31,7 +32,7 @@ main() {
   if command -v security >/dev/null 2>&1; then
     TOKEN="$(security find-generic-password -s workshop-benchmark-oauth -w 2>/dev/null || true)"
   fi
-  local ISOLADO=0; [ -n "$TOKEN" ] && ISOLADO=1
+  local ISOLADO=0; [ -n "$TOKEN" ] && [ "$SEM_ISOLAMENTO" = 0 ] && ISOLADO=1
   echo "Benchmark: modo=$MODO execucoes=$N paralelo=$MAX isolado=$ISOLADO claude=$(claude --version 2>/dev/null | head -1)"
 
   local i
@@ -52,12 +53,28 @@ main() {
         fs.writeFileSync(cfg+"/.claude.json",JSON.stringify({hasCompletedOnboarding:true,projects:{[arena]:{hasTrustDialogAccepted:true}}},null,2));
       ' "$CFG" "$ARENA"
       ENVV+=(CLAUDE_CONFIG_DIR="$CFG")
-      if command -v memoria >/dev/null 2>&1; then
-        env "${ENVV[@]}" claude mcp add --scope user memoria -- "$(command -v memoria)" mcp >/dev/null 2>&1 || true
+      # App de memoria: a instalada so para o benchmark (benchmark/tmp/bin) ou a do sistema;
+      # cada execucao tem a sua pasta de memorias, para nao tocar em ~/.memoria.
+      local MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
+      [ -x "$MEMBIN" ] || MEMBIN="$(command -v memoria || true)"
+      if [ -n "$MEMBIN" ]; then
+        mkdir -p "$RUN/memoria"
+        env "${ENVV[@]}" claude mcp add --scope user -e MEMORIA_HOME="$RUN/memoria" memoria -- "$MEMBIN" mcp >/dev/null 2>&1 || true
       fi
     else
-      FLAGS+=(--setting-sources project,local --strict-mcp-config
-        --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" "Read" "Edit" "Write" "Glob" "Grep")
+      # Sem isolamento: config do utilizador, mas so as definicoes do projeto e so o MCP da memoria.
+      local MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
+      [ -x "$MEMBIN" ] || MEMBIN="$(command -v memoria || true)"
+      mkdir -p "$RUN/memoria"
+      if [ -n "$MEMBIN" ]; then
+        "$NODE" -e 'const [f,b,h]=process.argv.slice(1);require("fs").writeFileSync(f,JSON.stringify({mcpServers:{memoria:{type:"stdio",command:b,args:["mcp"],env:{MEMORIA_HOME:h}}}}))' "$RUN/mcp.json" "$MEMBIN" "$RUN/memoria"
+      else
+        echo '{"mcpServers":{}}' > "$RUN/mcp.json"
+      fi
+      FLAGS+=(--setting-sources project,local --strict-mcp-config --mcp-config "$RUN/mcp.json"
+        --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" "Read" "Edit" "Write" "Glob" "Grep"
+        "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")
+      TOKEN=""
     fi
 
     local SID; SID="$(uuidgen | tr 'A-Z' 'a-z')"

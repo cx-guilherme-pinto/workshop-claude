@@ -19,7 +19,8 @@ for (const p of passos) {
   const f = join(RUN, `${p}.json`);
   try {
     const j = JSON.parse(readFileSync(f, 'utf8'));
-    claudeTotal += j.total_cost_usd || 0;
+    // Com --resume, o total_cost_usd e cumulativo da sessao: fica o maior.
+    claudeTotal = Math.max(claudeTotal, j.total_cost_usd || 0);
     negacoes += (j.permission_denials || []).length;
     if (j.is_error) erros++;
     resultados[p] = (j.result || '').slice(-200);
@@ -42,9 +43,10 @@ const custoModelo = (n) => (porModelo[n]?.custo || 0).toFixed(4);
 const agentes = Object.values(porModelo).reduce((s, v) => s + (v.agentes || 0), 0);
 
 // Suite completa no fim (testes a passar sim/nao).
-const t = spawnSync(process.execPath, ['--test', '--test-timeout=10000'], { cwd: ARENA, encoding: 'utf8' });
+// Suite do plano (a mesma verificacao da integracao: so os cartoes deste modo).
+const t = spawnSync(process.execPath, ['tools/check-integracao.mjs'], { cwd: ARENA, encoding: 'utf8' });
 const pass = Number((/ℹ pass (\d+)/.exec(t.stdout) || [])[1] || 0);
-const fail = Number((/ℹ fail (\d+)/.exec(t.stdout) || [])[1] || 0);
+const fail = t.status === 0 ? Number((/ℹ fail (\d+)/.exec(t.stdout) || [])[1] || 0) : Math.max(1, Number((/ℹ fail (\d+)/.exec(t.stdout) || [])[1] || 0));
 const veredito = existsSync(join(ARENA, '.workshop/veredito.json')) ? JSON.parse(readFileSync(join(ARENA, '.workshop/veredito.json'), 'utf8')).veredito : '';
 const gate = existsSync(join(ARENA, '.workshop/gate.json')) ? (JSON.parse(readFileSync(join(ARENA, '.workshop/gate.json'), 'utf8')).bloqueado ? 'reprovado' : 'aprovado') : '';
 
