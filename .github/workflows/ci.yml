@@ -1,0 +1,50 @@
+# CI do kit. Funciona em GitHub Actions e em Gitea Actions (que usa .github/workflows quando nao existe .gitea/).
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verificações do kit
+        run: bash tools/test-all.sh --sem-docker
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning setup/setup-mac.sh benchmark/run-benchmark.sh tools/test-all.sh tools/record/*.sh
+
+  powershell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PSScriptAnalyzer (compatibilidade com Windows PowerShell 5.1)
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path setup -Recurse -Severity Error,Warning
+          $r | Format-Table -AutoSize
+          if ($r | Where-Object Severity -eq 'Error') { exit 1 }
+
+  # So no GitHub (o Gitea da intranet nao tem runners Windows/macOS): smoke test real do setup.
+  windows:
+    if: github.server_url == 'https://github.com'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup em modo check (PowerShell 5.1)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File setup/setup-windows.ps1 -Check -Sim
+  macos:
+    if: github.server_url == 'https://github.com'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup em modo check
+        run: bash setup/setup-mac.sh --check --sim
