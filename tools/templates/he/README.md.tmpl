@@ -1,0 +1,79 @@
+# סדנת "Agent Orchestration with Claude"
+
+[English](README.md) · [Português](README.pt.md) · [हिन्दी](README.hi.md) · **עברית**
+
+ערכת הסדנה: setup בפקודה אחת, ה-skills וה-agents, ה-hooks למדידת עלויות, ה-statusline, ה-orchestrator והפרויקטים המעשיים (ה-Security Arena ופרויקט התרגול). גרסת הערכה: **{{WORKSHOP_VERSION}}**.
+
+## התקנה (למשתתפים)
+
+צריך חשבון ב-[Anthropic Console]({{CONSOLE_URL}}) עם קרדיטים. לא צריך הרשאות admin.
+
+**ב-macOS** (Terminal):
+
+```bash
+{{ONE_LINER_MAC}}
+```
+
+**ב-Windows** (PowerShell):
+
+```powershell
+{{ONE_LINER_WINDOWS}}
+```
+
+ה-setup לוקח 10 עד 20 דקות. אם הוא נעצר באמצע, פשוט הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים. המדריך המלא, כולל ההכנות מראש: [docs/he/INSTALL.md](docs/he/INSTALL.md).
+
+## בדיקה (ביום הסדנה)
+
+| | macOS | Windows |
+|---|---|---|
+| בדיקה | `{{CHECK_MAC}}` | `{{CHECK_WINDOWS}}` |
+| אבחון בעזרת Claude | `{{DOCTOR_MAC}}` | `{{DOCTOR_WINDOWS}}` |
+| הסרת ההתקנה | `{{UNINSTALL_MAC}}` | `{{UNINSTALL_WINDOWS}}` |
+
+אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `{{CHECK_MAC_FIRST}}` (ב-macOS) או `{{CHECK_WINDOWS_FIRST}}` (ב-Windows).
+
+משהו נכשל? לכל שגיאה יש קוד. ראו [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) (באנגלית).
+
+## מה ה-setup עושה
+
+| שלב | מה | איפה |
+|---|---|---|
+| 0 | זיהוי המערכת, ה-proxy, TLS interception, OneDrive והרשת | `~/.workshop-claude/ca.pem` (רק אם יש certificate של החברה) |
+| 1 | התקנת git (ב-Mac: Command Line Tools; ב-Windows: Git for Windows, רק למשתמש הנוכחי) | המערכת / `%LOCALAPPDATA%\Programs\Git` |
+| 2 | התקנת Claude Code {{CLAUDE_CODE_VERSION}} (עם ה-installer הרשמי) | `~/.local/bin` |
+| 3 | התחברות ל-Console (`claude auth login --console`) | Keychain / `~/.claude` |
+| 4 | התקנת Node.js (אם כבר יש גרסה {{NODE_MIN_MAJOR}} ומעלה, משתמשים בה; אחרת {{NODE_VERSION}}, עם אימות SHA-256) | `~/.workshop-claude/node` |
+| 5 | התקנת uv {{UV_VERSION}} | `~/.local/bin` |
+| 6 | התקנת GitHub CLI {{GH_VERSION}} והרצת `gh auth login` | `~/.workshop-claude/bin` |
+| 7 | הגדרת Jira MCP (Atlassian) ב-user scope | `~/.claude.json` |
+| 8 | ה-skills, ה-agents מסוג `ws-*`, ה-hooks של העלויות וה-statusline, עם merge בטוח של `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
+| 9 | פרויקטי הסדנה | `~/workshop-claude/` |
+| 10 | אפליקציית Memória {{MEMORY_APP_VERSION}} (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
+| 11 | התקנת Claude Desktop (אופציונלי; ה-flag `{{FLAG_SEM_DESKTOP}}` מדלג עליו) | `~/Applications` |
+| 12 | בדיקה סופית עם Haiku וחישוב העלות לפי `pricing.json` | — |
+
+כל מה שמותקן נרשם ב-`~/.workshop-claude/manifest.json`. גיבוי של `settings.json` נשמר ב-`~/.workshop-claude/backup/`. ה-log (בלי secrets) נמצא ב-`~/.workshop-claude/setup.log`.
+
+**שפות.** ה-setup מדבר רק אנגלית, וגם האופציות שלו באנגלית (האופציות הישנות בפורטוגזית עדיין עובדות), כך שכל ההודעות שתראו על המסך יהיו באנגלית. הוא מזהה את שפת המחשב, ואם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills וה-agents כתובים באנגלית ועונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר; אפשר לכפות אחת מהשפות עם `WORKSHOP_LANG=pt` או `WORKSHOP_LANG=en`.
+
+## מבנה התיקיות
+
+| תיקייה | מה יש בה |
+|---|---|
+| `setup/` | הסקריפטים `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` וקטלוגי ההודעות: `messages.en.json` (מה שה-setup מציג) ו-`messages.pt.json` (ה-TROUBLESHOOTING בפורטוגזית) |
+| `installer/` | ה-installer ב-Node, זהה בשתי המערכות (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
+| `hooks/`, `statusline/`, `orquestrador/` | מדידת עלויות ו-orchestration של ה-swarm |
+| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | ה-skills וה-agents (כתובים באנגלית; עונים בשפה של המשתמש) |
+| `demo-project/`, `exemplo-projeto-real/` | הפרויקטים המעשיים |
+| `tools/` | הכלים `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` והטסטים |
+| `docs/` | המדריכים באנגלית: התקנה, troubleshooting, FAQ, publishing ו-organizer. הגרסה בפורטוגזית ב-`docs/pt/`; מדריך ההתקנה נמצא גם ב-`docs/hi/` וב-`docs/he/` |
+
+## למארגנים
+
+- כל ה-URLs והגרסאות נמצאים ב-`repos.conf`. ה-README הזה נוצר אוטומטית: ערכו את ה-templates ב-`tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) והריצו `node tools/render.mjs`.
+- יצירת release: `tools/build-release.sh {{WORKSHOP_VERSION}}` (יוצר את `dist/{{WORKSHOP_VERSION}}/`) ו-`tools/publish-release.sh {{WORKSHOP_VERSION}}` (יוצר את ה-release בכתובת {{RELEASE_URL}}).
+- בדיקת ה-repository: `node tools/check-repo.mjs`. טסטים: `node --test tools/test/` ו-`bash setup/test/test-mac.sh`.
+- מעבר ל-repositories הציבוריים: [docs/PUBLISHING.md](docs/PUBLISHING.md) (באנגלית).
+- החלטות ומקורות (בפורטוגזית): [DECISIONS.md](DECISIONS.md).
+
+אם רוצים לאמת לפני שמריצים, ה-checksums של SHA-256 נמצאים בכתובת {{SHA256SUMS_URL}}.

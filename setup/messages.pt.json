@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "nota": "Catalogo unico de mensagens do setup (Mac e Windows). docs/TROUBLESHOOTING.md e gerado a partir daqui por tools/render.mjs. Os marcadores {NOME} sao substituidos em tempo de execucao.",
+  "nota": "Catalogo unico de mensagens do setup (Mac e Windows). docs/pt/TROUBLESHOOTING.md e gerado a partir daqui por tools/render.mjs. Os marcadores {NOME} sao substituidos em tempo de execucao.",
   "ui": {
     "titulo": "Setup do workshop «Orquestração de Agentes com Claude» · kit {WORKSHOP_VERSION}",
     "instala": "Vou instalar e configurar, só para o teu utilizador (não preciso de admin):",
@@ -30,7 +30,7 @@
     "estado_falta_check": "Em falta",
     "porque": "Porquê",
     "fazer": "O que fazer",
-    "codigo": "Código {CODIGO} (ver docs/TROUBLESHOOTING.md)",
+    "codigo": "Código {CODIGO} (ver docs/pt/TROUBLESHOOTING.md)",
     "dep_falhou": "Não executado porque o passo {N} falhou.",
     "a_instalar": "A instalar. Pode demorar alguns minutos…",
     "a_descarregar": "A descarregar {O_QUE}…",
@@ -160,7 +160,7 @@
       "so": "todos",
       "causa": "A rede não deixa chegar a um ou mais domínios de que o workshop precisa. Costuma ser uma firewall ou um filtro da empresa.",
       "fazer": [
-        "Pede à equipa de IT para libertar os domínios da lista em docs/TROUBLESHOOTING.md (secção «Domínios necessários»).",
+        "Pede à equipa de IT para libertar os domínios da lista em docs/pt/TROUBLESHOOTING.md (secção «Domínios necessários»).",
         "Em alternativa, usa outra rede (por exemplo, o hotspot do telemóvel) e volta a correr o setup."
       ],
       "mac": [

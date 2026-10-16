@@ -23,7 +23,7 @@ $WsSetupSha256 = ''
 function Invoke-WsBootstrap {
   param([string[]]$PassArgs)
   if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
-    Write-Host 'ERROR: PowerShell is in restricted mode (ConstrainedLanguage). See E-SO-05 in docs/en/TROUBLESHOOTING.md.'
+    Write-Host 'ERROR: PowerShell is in restricted mode (ConstrainedLanguage). See E-SO-05 in docs/TROUBLESHOOTING.md.'
     return
   }
   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -55,7 +55,7 @@ function Invoke-WsBootstrap {
   } catch {
     Write-Host ('ERROR: could not download ' + $url)
     Write-Host ('  ' + $_.Exception.Message)
-    Write-Host 'Check the network or the proxy (see E-NET-01 and E-NET-03 in docs/en/TROUBLESHOOTING.md).'
+    Write-Host 'Check the network or the proxy (see E-NET-01 and E-NET-03 in docs/TROUBLESHOOTING.md).'
     return
   }
   if ($WsSetupSha256) {

@@ -1,6 +1,6 @@
 # Publicar nos repositórios públicos
 
-**Português** · [English](en/PUBLISHING.md)
+[English](../PUBLISHING.md) · **Português**
 
 Hoje o kit aponta para **{{REPO_URL}}** (app de memória: **{{MEMORY_REPO}}**). A troca faz-se num só ficheiro, `repos.conf`, e o resto é gerado.
 
@@ -17,7 +17,7 @@ Hoje o kit aponta para **{{REPO_URL}}** (app de memória: **{{MEMORY_REPO}}**). 
 
    No Windows: `tools/switch-repos.ps1 -WorkshopUrl … -MemoryUrl …`. Para criar as releases no GitHub, muda também `RELEASE_PROVIDER=github`.
 
-2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, este ficheiro e as versões inglesas: `README.en.md` e `docs/en/`) e o build dos slides, que leem o `repos.conf` diretamente.
+2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (os READMEs de todas as línguas, `docs/pt/INSTALL.md`, `docs/pt/TROUBLESHOOTING.md`, este ficheiro e as versões em `docs/`, `docs/hi/` e `docs/he/`) e o build dos slides, que leem o `repos.conf` diretamente.
 
 3. **Criar as releases públicas com as mesmas versões.** Kit `{{WORKSHOP_VERSION}}` e app `{{MEMORY_APP_VERSION}}`:
 

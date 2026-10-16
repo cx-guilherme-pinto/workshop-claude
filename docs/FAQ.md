@@ -1,108 +1,108 @@
-# FAQ — dúvidas frequentes
+# FAQ — frequently asked questions
 
-**Português** · [English](en/FAQ.md)
+**English** · [Português](pt/FAQ.md)
 
-Respostas curtas às perguntas mais prováveis no workshop. Para erros de instalação com código (`E-NET-01`, `E-PERM-01`…), vê o `TROUBLESHOOTING.md`.
+Short answers to the most likely questions at the workshop. For install errors with a code (`E-NET-01`, `E-PERM-01`…), see `TROUBLESHOOTING.md`.
 
-## Instalação
+## Install
 
-**Deu erro de permissão.**
-O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): ele diz qual pasta não tem permissão e o comando para corrigir. Num portátil da empresa, uma pasta bloqueada por política (AppLocker, antivírus) é um caso para a tua equipa de TI.
+**I got a permission error.**
+The script installs everything in your profile and does not need admin rights. Run `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): it tells you which folder has no permission and the command to fix it. On a company laptop, a folder blocked by policy (AppLocker, antivirus) is a case for your IT team.
 
-**Como sei se está tudo pronto?**
-Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
+**How do I know everything is ready?**
+Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/resumo.txt`, and you can show it to whoever helps you.
 
-**Posso correr o script duas vezes?**
-Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
+**Can I run the script twice?**
+Yes. It detects what is already done and skips those steps (⏭️). If it failed halfway, running it again continues from there.
 
-**Estou atrás de um proxy da empresa.**
-O script deteta o proxy do sistema e, se a empresa inspecionar o tráfego HTTPS, exporta os certificados da empresa e configura o Claude Code, o Node e o uv para os usarem. Proxies que só aceitam NTLM ou Kerberos não são suportados. Nesse caso fala com a TI ou usa outra rede.
+**I'm behind a company proxy.**
+The script detects the system proxy and, if your company inspects HTTPS traffic, exports the company certificates and configures Claude Code, Node and uv to use them. Proxies that only accept NTLM or Kerberos are not supported. In that case, talk to IT or use another network.
 
-**O `gh` não autentica.**
-Corre `gh auth login` num terminal novo, escolhe GitHub.com, HTTPS e "Login with a web browser". Se a empresa usar GitHub Enterprise, escolhe-o e indica o servidor. Confirma com `gh auth status`.
+**`gh` does not authenticate.**
+Run `gh auth login` in a new terminal, choose GitHub.com, HTTPS and "Login with a web browser". If your company uses GitHub Enterprise, choose it and enter the server. Confirm with `gh auth status`.
 
-**O Jira não aparece no `/mcp`.**
-1. Confirma com `claude mcp list` que existe uma linha `atlassian`. Se não existir, volta a correr o setup.
-2. Dentro do Claude Code, corre `/mcp`, escolhe `atlassian` e faz login no browser.
-3. Se o login recusar o acesso, o administrador do Jira da tua empresa pode ter limitado os domínios ou as apps permitidas no "Atlassian MCP server". Sem isso, usa a reserva (abaixo) ou o projeto de treino `exemplo-projeto-real/`, que tem as issues em ficheiros locais.
+**Jira does not show up in `/mcp`.**
+1. Confirm with `claude mcp list` that there is an `atlassian` line. If there isn't, run the setup again.
+2. Inside Claude Code, run `/mcp`, choose `atlassian` and log in in the browser.
+3. If the login refuses access, your company's Jira admin may have restricted the domains or the apps allowed in the "Atlassian MCP server". Without that, use the backup (below) or the practice project `exemplo-projeto-real/`, which has the issues in local files.
 
-**O MCP do Jira falha. Há alternativa?**
-Sim: o setup instala o **Atlassian CLI** (`acli`, oficial da Atlassian). Quando as ferramentas do MCP faltam ou dão erro, o `/task-intake` lê a issue com o `acli` e o `/task-report` publica os comentários com ele, sempre com o teu "sim" antes de escrever.
-1. Faz o login uma vez num terminal: `acli auth login` (abre o browser; no terminal, escolhe o mesmo site). Confirma com `acli auth status`.
-2. Se aparecer "site admin must authorize this app", o administrador do Jira tem de aprovar a app ACLI no site (ver `E-ACLI-02` no TROUBLESHOOTING). Também lá está o login com API token, para quando não houver OAuth.
-3. O `acli` não regista horas: no fim, o `/task-report` diz-te quanto tempo registar à mão em *Log work*.
-O mesmo login serve para o Confluence: `acli confluence space list` e `acli confluence page view --id <id>`.
+**The Jira MCP fails. Is there an alternative?**
+Yes: the setup installs the **Atlassian CLI** (`acli`, official from Atlassian). When the MCP tools are missing or fail, `/task-intake` reads the issue with `acli` and `/task-report` posts the comments with it, always after your "yes" before writing.
+1. Log in once in a terminal: `acli auth login` (opens the browser; in the terminal, choose the same site). Confirm with `acli auth status`.
+2. If you see "site admin must authorize this app", the Jira admin has to approve the ACLI app on the site (see `E-ACLI-02` in TROUBLESHOOTING). The API token login, for when there is no OAuth, is also there.
+3. `acli` does not log time: at the end, `/task-report` tells you how much time to log by hand in *Log work*.
+The same login works for Confluence: `acli confluence space list` and `acli confluence page view --id <id>`.
 
-**A app Memória não abre no Windows.**
-Ela precisa do WebView2 da Microsoft. O setup instala-o se faltar. Se mesmo assim não abrir, a app abre a mesma interface no teu browser.
+**The Memória app does not open on Windows.**
+It needs Microsoft WebView2. The setup installs it if it is missing. If it still does not open, the app opens the same interface in your browser.
 
-## Custos
+## Costs
 
-**Quanto já gastei?**
-- A **statusline**, a linha por baixo da caixa de texto, mostra o custo da sessão e o total do projeto. Avisa ao passar US$ 5 e US$ 10.
-- O **`/demo-cost`** dá o relatório completo, por agente, modelo e onda.
-- O valor que é faturado está na Console da Anthropic, em Usage e Cost. Aparece com alguns minutos de atraso.
+**How much have I spent so far?**
+- The **statusline**, the line below the text box, shows the session cost and the project total. It warns you when you pass US$ 5 and US$ 10.
+- **`/demo-cost`** gives the full report, by agent, model and wave.
+- The billed amount is in the Anthropic Console, under Usage and Cost. It shows up with a few minutes of delay.
 
-**Porque é que o `/usage` mostra um valor mais alto do que a statusline?**
-Algumas versões do Claude Code ainda não conhecem os preços dos modelos mais recentes (por exemplo, o Haiku 5.5) e estimam-nos por cima. A statusline e o `/demo-cost` usam os tokens reais e a tabela de preços publicada (`pricing.json`). Quem manda é sempre a Console.
+**Why does `/usage` show a higher value than the statusline?**
+Some Claude Code versions don't know the prices of the newest models yet (for example, Haiku 5.5) and overestimate them. The statusline and `/demo-cost` use the real tokens and the published price table (`pricing.json`). The Console always has the final word.
 
-**O swarm pára se eu passar dos US$ 10?**
-Não. O workshop nunca interrompe uma sessão por custo: só mostra um aviso. O desenho foi medido para ficar perto dos US$ 5 (ver `benchmark/REPORT.md`).
+**Does the swarm stop if I go over US$ 10?**
+No. The workshop never interrupts a session because of cost: it only shows a warning. The design was measured to stay close to US$ 5 (see `benchmark/REPORT.md`).
 
-**Porque é que o orquestrador usa Sonnet e não Opus?**
-Com conta Console, o modelo por defeito é o Opus. O projeto demo fixa Sonnet na sessão principal e põe o Opus só onde vale a pena: planear e rever. O grosso do trabalho vai para o Haiku, cerca de 20 vezes mais barato.
+**Why does the orchestrator use Sonnet and not Opus?**
+With a Console account, the default model is Opus. The demo project pins Sonnet in the main session and uses Opus only where it pays off: planning and reviewing. Most of the work goes to Haiku, about 20 times cheaper.
 
-## Durante o swarm
+## During the swarm
 
-**Como paro o swarm?**
-Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lançados mais. O estado fica guardado em `.workshop/`, por isso voltar a correr `/demo-swarm` (ou `/task-swarm`) retoma onde parou.
+**How do I stop the swarm?**
+Press **Esc** in Claude Code. The running agents finish and no more are launched. The state is saved in `.workshop/`, so running `/demo-swarm` (or `/task-swarm`) again resumes where it stopped.
 
-**Posso fazer uma pergunta sem interromper?**
-Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
+**Can I ask a question without interrupting?**
+Yes: `/btw <question>`. The answer does not go into the main conversation.
 
-**Onde vejo os agentes a trabalhar?**
-- No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/estado`.
-- Noutro terminal: `node tools/workshop/orquestrador/painel.mjs`.
+**Where can I see the agents working?**
+- In the browser: `node server.js` in the Arena folder, then `http://localhost:3000/estado`.
+- In another terminal: `node tools/workshop/orquestrador/painel.mjs`.
 
-**Um cartão ficou vermelho. E agora?**
-O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/check-integracao.mjs e corrige o primeiro teste vermelho com o implementer; para quando estiver tudo verde`.
+**A card turned red. Now what?**
+The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/check-integracao.mjs and fix the first red test with the implementer; stop when everything is green`.
 
-**Apareceu "Do you trust the files in this folder?".**
-É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm pára a pedir autorizações.
+**I got "Do you trust the files in this folder?".**
+That is Claude Code asking if you trust the folder. In the Arena, answer yes: without it, the project permissions (`.claude/settings.json`) stay off and the swarm stops to ask for permission.
 
-**Quero recomeçar a Arena do zero.**
-`/demo-reset`. O histórico de custos fica guardado em `.workshop/historico/`.
+**I want to restart the Arena from scratch.**
+`/demo-reset`. The cost history is kept in `.workshop/historico/`.
 
-## Língua
+## Language
 
-**Porque é que o setup está em inglês?**
-O setup fala só inglês, em todas as máquinas, e as opções também: `--uninstall`, `--no-desktop`, `--yes` e `--replace-statusline` (Windows: `-Uninstall`, `-NoDesktop`, `-Yes` e `-ReplaceStatusline`). As antigas em português (`--desinstalar`, `-SemDesktop`…) continuam a funcionar. Os códigos de erro são os mesmos, e o [TROUBLESHOOTING.md](TROUBLESHOOTING.md) explica-os em português.
+**Why is the setup in English?**
+The setup speaks English only, on every machine, and so do its options: `--uninstall`, `--no-desktop`, `--yes` and `--replace-statusline` (Windows: `-Uninstall`, `-NoDesktop`, `-Yes` and `-ReplaceStatusline`). The old Portuguese ones (`--desinstalar`, `-SemDesktop`…) still work. The error codes are the same in every language, and [TROUBLESHOOTING.md](TROUBLESHOOTING.md) explains them.
 
-**Em que língua me responde o Claude?**
-Na tua. As skills e os agentes estão escritos em inglês, mas respondem na língua de quem os usa. O setup grava a definição `language` do Claude Code com a língua da máquina (português de Portugal ou do Brasil, inglês, hindi ou hebraico), só se ainda não tiveres uma. Se já tinhas, fica a tua.
+**What language does Claude answer in?**
+Yours. The skills and agents are written in English, but they answer in the user's language. The setup writes Claude Code's `language` setting from the machine language (European or Brazilian Portuguese, English, Hindi or Hebrew), only if you don't have one yet. If you already had one, yours stays.
 
-**E a Arena, o orquestrador e a statusline?**
-Seguem a língua da máquina: português numa máquina em português, inglês em todas as outras (incluindo hindi e hebraico). Para forçar uma delas nos textos do kit, define `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` antes de abrir o Claude Code.
+**And the Arena, the orchestrator and the statusline?**
+They follow the machine language: Portuguese on a Portuguese machine, English on all others (Hindi and Hebrew included). To force one of them for the kit texts, set `WORKSHOP_LANG=pt` or `WORKSHOP_LANG=en` before you open Claude Code.
 
-## Funcionalidades
+## Features
 
-**Como encontro tudo o que aprendi num ticket ou num épico?**
-Na app Memória, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memoria` gravam o id, o épico e o URL.
+**How do I find everything I learned on a ticket or an epic?**
+In the Memória app, type the key in the search (e.g. `ABC-123` or the epic `ABC-100`): you see the memories for that ticket, the epic's and the linked tasks. In Claude Code, `/task-intake` does the same by itself before planning. Memories are linked to the ticket because `/task-report` and `/memoria` save the id, the epic and the URL.
 
-**O `/task-intake` lê as páginas do Confluence ligadas na issue?**
-Sim, até 2. Se a descrição da issue do Jira tiver links para páginas do Confluence (`…/wiki/spaces/<espaço>/pages/<id>/…`), o intake lê-as pelo MCP ou, se o MCP falhar, pelo `acli`. Depois guarda um resumo curto de cada uma em `.workshop/tarefa.md`, na secção "Documentação (Confluence)", e o `/task-plan` usa-o.
-- Só lê: nunca escreve no Confluence.
-- Se o MCP falhar e o `acli` não tiver login (`acli auth login`), avisa numa linha e continua sem as páginas.
-- Os links curtos (`…/wiki/x/…`) não têm o id da página e ficam de fora. Na issue, cola o link completo.
+**Does `/task-intake` read the Confluence pages linked in the issue?**
+Yes, up to 2. If the Jira issue description has links to Confluence pages (`…/wiki/spaces/<space>/pages/<id>/…`), the intake reads them through the MCP or, if the MCP fails, through `acli`. Then it saves a short summary of each one in `.workshop/tarefa.md`, in the "Documentação (Confluence)" section, and `/task-plan` uses it.
+- It only reads: it never writes to Confluence.
+- If the MCP fails and `acli` is not logged in (`acli auth login`), it warns you in one line and continues without the pages.
+- Short links (`…/wiki/x/…`) don't have the page id and are left out. In the issue, paste the full link.
 
-**Porque é que o `/schedule` (rotinas) não aparece?**
-As rotinas na cloud exigem uma assinatura claude.ai. Com conta Console, usa o `/loop` (com a sessão aberta) ou uma "rotina local": o agendador do sistema (launchd no Mac, Agendador de Tarefas no Windows) a correr `claude -p "..."`.
+**Why doesn't `/schedule` (routines) show up?**
+Cloud routines require a claude.ai subscription. With a Console account, use `/loop` (with the session open) or a "local routine": the system scheduler (launchd on Mac, Task Scheduler on Windows) running `claude -p "..."`.
 
-**Posso continuar a sessão no telemóvel?**
-O Remote Control também exige uma assinatura claude.ai e não aceita API keys. Com conta Console, não.
+**Can I continue the session on my phone?**
+Remote Control also requires a claude.ai subscription and does not accept API keys. With a Console account, no.
 
-**O Claude Desktop serve para o workshop?**
-Para o hands-on, não: o separador Code do Desktop exige assinatura. O Desktop é instalado à parte, se quiseres usá-lo para conversar (com uma conta claude.ai, até a gratuita). Todo o hands-on corre no Claude Code, no terminal.
+**Is Claude Desktop useful for the workshop?**
+Not for the hands-on: the Desktop Code tab requires a subscription. Desktop is installed separately, in case you want to use it to chat (with a claude.ai account, even the free one). All the hands-on runs in Claude Code, in the terminal.
 
-**E o MCP do GitHub?**
-O workshop usa o `gh` (mais simples e gasta menos contexto). Se quiseres o MCP oficial do GitHub, precisas de um token pessoal (PAT): `claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer <o teu PAT>"}}'`. Não partilhes esse token.
+**What about the GitHub MCP?**
+The workshop uses `gh` (simpler and uses less context). If you want the official GitHub MCP, you need a personal access token (PAT): `claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer <your PAT>"}}'`. Don't share that token.

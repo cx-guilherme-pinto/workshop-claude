@@ -1,62 +1,68 @@
-# CLAUDE.md — kit do workshop "Orquestração de Agentes com Claude"
+# CLAUDE.md — kit for the workshop "Agent Orchestration with Claude"
 
-Kit para algumas centenas de participantes, cada um com a sua conta **Console** (API), em portáteis da empresa com Mac e Windows, **sem admin** e às vezes atrás de proxy. O kit inclui:
-- um setup de um só comando;
-- as skills e os agentes;
-- os hooks de custo e a statusline;
-- o orquestrador;
-- dois projetos práticos: a Arena de Segurança e o projeto de treino;
-- os slides.
+A kit for a few hundred participants, each with their own **Console** (API) account, on company laptops running Mac and Windows, **without admin rights** and sometimes behind a proxy. The kit includes:
+- a one-command setup;
+- the skills and the agents;
+- the cost hooks and the statusline;
+- the orchestrator;
+- two hands-on projects: the Security Arena and the practice project;
+- the slides.
 
-A app Memória vive noutro repositório (`claude-memory-app`), ao lado deste.
+The Memória app lives in another repository (`claude-memory-app`), next to this one.
 
-**Lê primeiro `docs/HANDOVER.md`**, com o estado, o que falta e por onde continuar. As decisões e os porquês estão em `DECISIONS.md` (D-01 a D-20).
+**Read `docs/HANDOVER.md` first**: the current state, what is left and where to pick up. The decisions and the reasons behind them are in `DECISIONS.md` (D-01 to D-21, in Portuguese).
 
-## Mapa
+## Map
 
-| Pasta | O que é |
+| Folder | What it is |
 |---|---|
-| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e os catálogos `messages.en.json` (o que o setup mostra) e `messages.pt.json` (gera a TROUBLESHOOTING em pt). Testes em `setup/test/` |
-| `installer/` | Node sem dependências: instalação ao nível do utilizador, merge do `settings.json`, montagem da Arena, injeção na release e redação |
-| `orquestrador/` | `next-wave`, `grade`, `gate`, `digest`, `report`, `publicar-texto` e `estimate`. O DAG é determinístico (D-07) |
-| `hooks/`, `statusline/`, `pricing.json` | Custo pelos tokens reais dos transcripts × `pricing.json` (D-08). Nunca o `total_cost_usd` |
-| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes, em inglês, que respondem na língua da pessoa (D-20) |
-| `demo-project/` | A Arena (100 cartões; `i18n/en/` sobrepõe-se ao pt). Soluções de referência em `dev/solutions/` (fora do kit) |
-| `exemplo-projeto-real/` | O projeto de treino do Projeto 2 (issues em JSON local) |
-| `benchmark/` | `run-benchmark.sh`, `run-projeto2.sh`, `collect`/`report`/`calibrar` e `REPORT.md` |
-| `slides/` | `build.mjs` + `content.mjs` → `workshop.pptx` e `workshop.en.pptx` (`--lingua en`) |
-| `tools/` | `render.mjs`, `check-repo.mjs`, `switch-repos.sh`, `build-release.sh`, `publish-release.sh`, `test-all.sh`, `testar-maquina.sh`, `levar-para-outra-maquina.sh` e `publicar-github-corporativo.sh` |
+| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` and the catalogs `messages.en.json` (what the setup prints; generates `docs/TROUBLESHOOTING.md`) and `messages.pt.json` (generates `docs/pt/TROUBLESHOOTING.md`). Tests in `setup/test/` |
+| `installer/` | Node with no dependencies: user-level install, `settings.json` merge, Arena assembly, injection into the release, and redaction |
+| `orquestrador/` | `next-wave`, `grade`, `gate`, `digest`, `report`, `publicar-texto` and `estimate`. The DAG is deterministic (D-07) |
+| `hooks/`, `statusline/`, `pricing.json` | Cost from the real tokens in the transcripts × `pricing.json` (D-08). Never `total_cost_usd` |
+| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents, in English, that answer in the user's language (D-20) |
+| `demo-project/` | The Arena (100 cards; `i18n/en/` overlays the pt source). Reference solutions in `dev/solutions/` (not shipped in the kit) |
+| `exemplo-projeto-real/` | The practice project for Project 2 (issues in local JSON) |
+| `benchmark/` | `run-benchmark.sh`, `run-projeto2.sh`, `collect`/`report`/`calibrar` and `REPORT.md` |
+| `slides/` | `build.mjs` + `content.mjs` → `workshop.pptx` and `workshop.en.pptx` (`--lingua en`) |
+| `docs/`, `README.md` | English is the primary version: `README.md` and `docs/` (INSTALL, PUBLISHING, TROUBLESHOOTING, FAQ, ORGANIZER, REPORT, MANUAL-TESTS, HANDOVER, TEST-MACHINE). Portuguese is secondary: `README.pt.md` and `docs/pt/`, with the same file names. Also `README.hi.md`, `README.he.md`, `docs/hi/INSTALL.md` and `docs/he/INSTALL.md` |
+| `tools/` | `render.mjs` (templates in `tools/templates/<lang>/`), `check-repo.mjs`, `switch-repos.sh`, `build-release.sh`, `publish-release.sh`, `test-all.sh`, `test-machine.sh`, `pack-for-transfer.sh` and `publish-to-github.sh` |
 
-## Regras que não se partem
+## Rules that never break
 
-- **URLs e versões só no `repos.conf`.** Depois de mudar, corre `node tools/render.mjs` (README, INSTALAR, PUBLICAR, TROUBLESHOOTING, em pt e en). O `node tools/check-repo.mjs` falha se o servidor antigo aparecer noutro sítio.
-- **Os `.ps1` são só ASCII.** Os textos para o utilizador vêm dos `messages.*.json`, e os dois catálogos têm as mesmas chaves (o check-repo verifica-o).
-- **Skills:** frontmatter com `model`, `allowed-tools` e `disable-model-invocation`. Têm:
-  - a linha **Commands:**: cada comando sozinho, sem `;`, `&&` nem `|`;
-  - a linha **Language:**;
-  - `{{KIT_DIR}}` nas de produção;
-  - um "sim" explícito antes de qualquer escrita no Jira ou no GitHub.
-- **Marcadores que não se traduzem:** `ESTADO: LOTE|FIM|BLOQUEADO`, `<<<CHAMADAS … CHAMADAS>>>`, `GATE: APROVADO|REPROVADO`, `PLANO OK` e semelhantes (lista na D-20).
-- **Tokens:** nunca na linha de comandos, em ficheiros ou em logs. Vão para o `curl` por `-K -` (stdin) e os logs passam pela redação.
-- **Sem admin e sem o Python do sistema** (D-14 e D-15): Node, uv/Python, gh, git portátil e acli vão para o perfil do utilizador.
-- **Nunca cortar por custo:** só avisos aos US$ 5 e aos US$ 10.
-- **Texto do kit:** português de Portugal ou inglês. Ao traduzir, localiza; os termos técnicos (swarm, agent, skill, hook, MCP, worktree…) ficam em inglês. O organizador escreve em português do Brasil; responde-lhe em português.
+- **URLs and versions only in `repos.conf`.** After changing them, run `node tools/render.mjs` (README, INSTALL, PUBLISHING and TROUBLESHOOTING in en and pt, plus README and INSTALL in hi and he; from `tools/templates/<lang>/*.tmpl` and the message catalogs). `node tools/check-repo.mjs` fails if the old server shows up anywhere else.
+- **`.ps1` files are ASCII only.** Text shown to the user comes from the `messages.*.json` files, and both catalogs have the same keys (check-repo verifies it).
+- **Skills:** frontmatter with `model`, `allowed-tools` and `disable-model-invocation`. They have:
+  - the **Commands:** line: each command on its own, with no `;`, `&&` or `|`;
+  - the **Language:** line;
+  - `{{KIT_DIR}}` in the production skills;
+  - an explicit "yes" before any write to Jira or GitHub.
+- **Markers that are never translated:** `ESTADO: LOTE|FIM|BLOQUEADO`, `<<<CHAMADAS … CHAMADAS>>>`, `GATE: APROVADO|REPROVADO`, `PLANO OK` and the like (full list in D-20).
+- **Tokens:** never on the command line, in files or in logs. They reach `curl` through `-K -` (stdin), and logs go through redaction.
+- **No admin and no system Python** (D-14 and D-15): Node, uv/Python, gh, portable git and acli go into the user profile.
+- **Never cut off for cost:** only warnings at US$ 5 and US$ 10.
+- **Languages (D-20):**
+  - the setup prints English only;
+  - skills and agents are written in English and answer in the user's language;
+  - kit texts (docs, slides, Arena, practice project, orchestrator, hooks, statusline) exist in Portuguese (pt-PT) and English. In the repo, English is the primary version and Portuguese the secondary one;
+  - when translating, localise; don't translate word for word. Technical terms (swarm, agent, skill, hook, MCP, worktree, prompt, token…) stay in English in every language;
+  - the organizer writes in Brazilian Portuguese; answer them in Portuguese.
 
-## Testes
+## Tests
 
 ```bash
-bash tools/test-all.sh            # hooks, orquestrador, Arena (pt e en), projeto de treino, check-repo, tools, shellcheck (Docker)
-bash setup/test/test-mac.sh       # funções do setup do Mac (bash 3.2)
+bash tools/test-all.sh            # hooks, orchestrator, Arena (pt and en), practice project, check-repo, tools, shellcheck (Docker)
+bash setup/test/test-mac.sh       # Mac setup functions (bash 3.2)
 ```
 
-**Pester e PSScriptAnalyzer** (Windows), em Docker: imagem `mcr.microsoft.com/powershell:latest`, `--platform linux/amd64` e `-e DOTNET_TieredCompilation=0 -e DOTNET_TieredPGO=0 -e DOTNET_EnableWriteXorExecute=0` (sem estes, a emulação rebenta). Os módulos Pester 5.7 e PSScriptAnalyzer 1.23 vão montados de uma pasta, e o comando é `Invoke-Pester -Path setup/test/setup-windows.Tests.ps1`.
+**Pester and PSScriptAnalyzer** (Windows), in Docker: image `mcr.microsoft.com/powershell:latest`, `--platform linux/amd64` and `-e DOTNET_TieredCompilation=0 -e DOTNET_TieredPGO=0 -e DOTNET_EnableWriteXorExecute=0` (without these, the emulation crashes). The Pester 5.7 and PSScriptAnalyzer 1.23 modules are mounted from a folder, and the command is `Invoke-Pester -Path setup/test/setup-windows.Tests.ps1`.
 
-**Máquina inteira com contas reais** (Jira, Confluence, GitHub corporativo): `bash tools/testar-maquina.sh --ajuda` (guia em `docs/TESTAR-MAQUINA.md`).
+**Whole machine with real accounts** (Jira, Confluence, corporate GitHub): `bash tools/test-machine.sh --help` (guide in `docs/TEST-MACHINE.md`).
 
-**Benchmark:** `benchmark/run-benchmark.sh --n 1 --sem-isolamento` (`BENCH_LINGUA=en` para a Arena em inglês) gasta cerca de US$ 1 por execução. Confirma com o organizador antes de correr mais de uma.
+**Benchmark:** `benchmark/run-benchmark.sh --n 1 --sem-isolamento` (`BENCH_LINGUA=en` for the Arena in English) costs about US$ 1 per run. Check with the organizer before running more than one.
 
-## Publicar
+## Publishing
 
-- **Release:** `tools/build-release.sh <tag>` e `tools/publish-release.sh <tag> [--prerelease]`. A tag tem de ser igual ao `WORKSHOP_VERSION`.
-- **GitHub da empresa:** `tools/publicar-github-corporativo.sh --dono <org> [--servidor <host>] --dry-run` primeiro. Cria os repositórios, envia o histórico, muda os URLs e publica a app e depois o kit, com uma confirmação por passo.
-- **Confirmações:** qualquer push, release ou escrita no Jira ou no GitHub só com o "sim" do organizador na conversa.
+- **Release:** `tools/build-release.sh <tag>` and `tools/publish-release.sh <tag> [--prerelease]`. The tag must match `WORKSHOP_VERSION`.
+- **Company GitHub:** `tools/publish-to-github.sh --owner <org> [--host <host>] --dry-run` first. It creates the repositories, pushes the history, switches the URLs and publishes the app and then the kit, asking for confirmation at each step.
+- **Confirmations:** any push, release or write to Jira or GitHub only with the organizer's "yes" in the conversation.

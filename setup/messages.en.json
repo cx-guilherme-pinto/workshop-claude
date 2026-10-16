@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "nota": "Single message catalog for the setup (Mac and Windows). docs/en/TROUBLESHOOTING.md is generated from this file by tools/render.mjs. Markers like {NOME} are replaced at run time.",
+  "nota": "Single message catalog for the setup (Mac and Windows). docs/TROUBLESHOOTING.md is generated from this file by tools/render.mjs. Markers like {NOME} are replaced at run time.",
   "ui": {
     "titulo": "Setup for the workshop \"Agent Orchestration with Claude\" · kit {WORKSHOP_VERSION}",
     "instala": "I will install and configure, for your user only (no admin needed):",
@@ -30,7 +30,7 @@
     "estado_falta_check": "Missing",
     "porque": "Why",
     "fazer": "What to do",
-    "codigo": "Code {CODIGO} (see docs/en/TROUBLESHOOTING.md)",
+    "codigo": "Code {CODIGO} (see docs/TROUBLESHOOTING.md)",
     "dep_falhou": "Not run because step {N} failed.",
     "a_instalar": "Installing. This can take a few minutes…",
     "a_descarregar": "Downloading {O_QUE}…",
@@ -160,7 +160,7 @@
       "so": "todos",
       "causa": "The network does not let you reach one or more domains that the workshop needs. This is usually a company firewall or filter.",
       "fazer": [
-        "Ask your IT team to allow the domains listed in docs/en/TROUBLESHOOTING.md (section \"Required domains\").",
+        "Ask your IT team to allow the domains listed in docs/TROUBLESHOOTING.md (section \"Required domains\").",
         "Or use another network (for example, your phone's hotspot) and run the setup again."
       ],
       "mac": [

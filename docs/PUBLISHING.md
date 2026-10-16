@@ -2,7 +2,7 @@
 
 # Publishing to the public repositories
 
-[Português](../PUBLICAR.md) · **English**
+**English** · [Português](pt/PUBLISHING.md)
 
 Today the kit points to **https://gitea.guilhermepinto.pt/guilherme/workshop-claude** (memory app: **https://gitea.guilhermepinto.pt/guilherme/claude-memory-app**). You switch in one file, `repos.conf`, and the rest is generated.
 
@@ -19,7 +19,7 @@ Today the kit points to **https://gitea.guilhermepinto.pt/guilherme/workshop-cla
 
    On Windows: `tools/switch-repos.ps1 -WorkshopUrl … -MemoryUrl …`. To create the releases on GitHub, also set `RELEASE_PROVIDER=github`.
 
-2. **Generate the slides and the documentation again.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, `docs/PUBLICAR.md` and the English versions: `README.en.md`, `docs/en/`, this file) and the slides build, which reads `repos.conf` directly.
+2. **Generate the slides and the documentation again.** `node tools/render.mjs` (the READMEs in every language, `docs/INSTALL.md`, `docs/TROUBLESHOOTING.md`, this file and their versions in `docs/pt/`, `docs/hi/` and `docs/he/`) and the slides build, which reads `repos.conf` directly.
 
 3. **Create the public releases with the same versions.** Kit `v1.0.0-dev.3` and app `v0.4.0`:
 

@@ -1,8 +1,8 @@
-<!-- GERADO por tools/render.mjs a partir de tools/templates/PUBLICAR.md.tmpl e do repos.conf. Não editar à mão: edita o template. -->
+<!-- GERADO por tools/render.mjs a partir de tools/templates/pt/PUBLISHING.md.tmpl e do repos.conf. Não editar à mão: edita o template. -->
 
 # Publicar nos repositórios públicos
 
-**Português** · [English](en/PUBLISHING.md)
+[English](../PUBLISHING.md) · **Português**
 
 Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-claude** (app de memória: **https://gitea.guilhermepinto.pt/guilherme/claude-memory-app**). A troca faz-se num só ficheiro, `repos.conf`, e o resto é gerado.
 
@@ -19,7 +19,7 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 
    No Windows: `tools/switch-repos.ps1 -WorkshopUrl … -MemoryUrl …`. Para criar as releases no GitHub, muda também `RELEASE_PROVIDER=github`.
 
-2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, este ficheiro e as versões inglesas: `README.en.md` e `docs/en/`) e o build dos slides, que leem o `repos.conf` diretamente.
+2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (os READMEs de todas as línguas, `docs/pt/INSTALL.md`, `docs/pt/TROUBLESHOOTING.md`, este ficheiro e as versões em `docs/`, `docs/hi/` e `docs/he/`) e o build dos slides, que leem o `repos.conf` diretamente.
 
 3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.3` e app `v0.4.0`:
 

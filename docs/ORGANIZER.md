@@ -1,10 +1,10 @@
 # Organizer guide
 
-[Português](../ORGANIZADOR.md) · **English**
+**English** · [Português](pt/ORGANIZER.md)
 
 ## Before the day (at least 3 days before)
 
-1. **Send the install command** (the one in `README.en.md`, generated from `repos.conf`), with a deadline: "run it by <date>; on the day we will only check".
+1. **Send the install command** (the one in `README.md`, generated from `repos.conf`), with a deadline: "run it by <date>; on the day we will only check".
 2. **Ask each person** to:
    - have their own **Console account**, with credits;
    - set a **monthly spend limit well above US$ 10** (for example, US$ 25), only as protection against abuse. Never below, because a limit that is hit cuts the session halfway;
@@ -22,7 +22,7 @@
    - `mcp.atlassian.com`, `*.atlassian.net`, `acli.atlassian.com` (Atlassian CLI download);
    - `github.com`, `api.github.com`;
    - for those who have not installed yet: `nodejs.org`, `astral.sh`, `releases.astral.sh`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`.
-6. **Language.** The setup speaks English only. The skills are in English and answer in each person's language (the setup writes Claude Code's `language` setting, if it does not exist yet). The Arena, the orchestrator and the statusline are in Portuguese on Portuguese machines and in English on all others; `WORKSHOP_LANG=pt` or `WORKSHOP_LANG=en` forces one of them. The documentation exists in Portuguese and English (`README.en.md`, `docs/en/`): send the right version to each group.
+6. **Language.** The setup speaks English only. The skills are in English and answer in each person's language (the setup writes Claude Code's `language` setting, if it does not exist yet). The Arena, the orchestrator and the statusline are in Portuguese on Portuguese machines and in English on all others; `WORKSHOP_LANG=pt` or `WORKSHOP_LANG=en` forces one of them. The documentation is in English first (`README.md`, `docs/`), with Portuguese versions (`README.pt.md`, `docs/pt/`) and the README and install guide also in Hindi and Hebrew (`README.hi.md`, `README.he.md`, `docs/hi/`, `docs/he/`): send the right version to each group.
 
 ## Tracking participants' spend
 

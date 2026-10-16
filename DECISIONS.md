@@ -264,6 +264,22 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - as capturas de ecrã dos slides continuam em pt.
 - **Testes:** `tools/test/linguas.test.mjs`, `catalogos.test.mjs`, `settings.test.mjs` (`language`), `install-user.test.mjs` (`lingua.json` e `language`), `assemble-sandbox.test.mjs`, os testes do orquestrador e dos hooks em pt e en, `setup/test/test-mac.sh` (etiquetas, AppleLanguages, LANG e a nota do passo 8) e o Pester (etiquetas, Get-UICulture e Get-Culture, a nota do passo 8 e os argumentos do `install-user`).
 
+## D-21 · Inglês como versão principal do repositório
+
+- **Pedido do organizador (16 out. 2026):** em tudo o que se vê no repositório (README, guias, detalhes e descrição dos repositórios), a versão principal é em inglês e a secundária em português, "porque todo mundo vai entender". Hindi e hebraico também, se possível, tudo organizado, separado e fácil de usar.
+- **Como ficou:**
+  - **READMEs:** o `README.md` é em inglês e ao lado ficam `README.pt.md`, `README.hi.md` e `README.he.md`. Todos têm no topo a mesma linha de troca de língua: English · Português · हिन्दी · עברית.
+  - **Docs:** `docs/` em inglês e `docs/pt/` em português, com os mesmos nomes de ficheiro (INSTALL, TROUBLESHOOTING, FAQ, ORGANIZER, PUBLISHING, REPORT, MANUAL-TESTS, HANDOVER e TEST-MACHINE). O guia de instalação existe também em `docs/hi/INSTALL.md` e `docs/he/INSTALL.md`. Deixam de existir `docs/en/` e os nomes antigos em português (INSTALAR, PUBLICAR, ORGANIZADOR, RELATORIO, TESTES-MANUAIS e TESTAR-MAQUINA). A D-20 descreve o arranjo anterior, que este substitui.
+  - **Geração:** os templates estão em `tools/templates/<língua>/` (en, pt, hi, he). O `tools/render.mjs` gera 12 ficheiros e regista-os em `tools/generated-files.json`. O `docs/TROUBLESHOOTING.md` vem do `setup/messages.en.json` e o `docs/pt/TROUBLESHOOTING.md` do `messages.pt.json`; cada catálogo aponta para o seu.
+  - **Ficheiros da raiz:** o `CLAUDE.md` passa a estar só em inglês. O `THIRD_PARTY.md` fica em inglês, com o `THIRD_PARTY.pt.md` ao lado. Este `DECISIONS.md` continua em português, por ser um registo.
+  - **Hindi e hebraico:** só no README e no guia de instalação, o que o participante lê antes do workshop. Os links para as outras docs vão para as versões inglesas. Foram escritos pelo Claude no registo de um programador, com os termos técnicos em inglês, por isso convém pedir revisão a um falante nativo.
+  - **Descrição dos repositórios** (Gitea e GitHub corporativo): é uma definição do servidor, que fica com a sessão do organizador (`tools/publicar-github-corporativo.sh`). Texto sugerido: "Workshop kit for "Agent Orchestration with Claude": one-command setup (macOS and Windows), skills, agents, cost hooks, statusline, orchestrator and hands-on projects."
+- **Fica de fora:**
+  - FAQ, TROUBLESHOOTING e as restantes docs em hindi e hebraico;
+  - a Arena e o projeto de treino continuam com a fonte em português (`demo-project/README.md`), e a versão inglesa vem da sobreposição `i18n/en/` na montagem;
+  - `presenter-replay/` e `benchmark/REPORT.md` continuam em português, porque são ferramentas e registos do organizador.
+- **Testes:** `tools/test/tools.test.mjs` verifica os 12 ficheiros gerados, as linhas de troca de língua e os links entre línguas. O `check-repo` aceita URLs só no `repos.conf` e nos ficheiros gerados.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.

@@ -11,7 +11,7 @@
   The setup speaks English (D-20). The machine language (WORKSHOP_LANG, Get-UICulture, Get-Culture) only
   configures Claude's answers (Claude Code "language" setting) and the language of the workshop texts (pt or en).
   This file is ASCII only (PowerShell 5.1 reads UTF-8 without BOM as ANSI). All texts come from
-  setup/messages.en.json (the same catalog as docs/en/TROUBLESHOOTING.md), read as UTF-8.
+  setup/messages.en.json (the same catalog as docs/TROUBLESHOOTING.md), read as UTF-8.
 
 .PARAMETER Check
   Check only and show the state (2 to 3 minutes). Installs nothing.
