@@ -15,7 +15,7 @@ allowed-tools:
 
 Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
 
-1. Corre `node tools/workshop/orquestrador/gate.mjs --teste "node tools/check-integracao.mjs" --base arena-inicial`. O script não faz perguntas e verifica:
+1. Corre `node tools/workshop/orquestrador/gate.mjs --teste "node tools/check-integracao.mjs" --base arena-inicial --ignorar cards/`. A pasta `cards/` fica fora da procura genérica de segredos e de código perigoso: os desafios mostram código inseguro de propósito, como texto. Cada `card.js` já tem a sua verificação estática própria, que ignora as strings e corre nos testes. O script não faz perguntas e verifica:
    - os testes de todos os cartões e da própria app (CSP, cabeçalhos, sem caminhos fora do projeto);
    - segredos nos ficheiros alterados;
    - padrões perigosos (`eval`, `innerHTML`…);

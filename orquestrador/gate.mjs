@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Gate final: so passa codigo pronto para producao.
-//   node gate.mjs [--projeto <dir>] [--base <ref git>] [--teste "<comando>"] [--json]
+//   node gate.mjs [--projeto <dir>] [--base <ref git>] [--teste "<comando>"] [--ignorar <prefixo>]... [--json]
+// --ignorar (ou o ficheiro .workshop/gate-ignorar, um prefixo por linha) tira caminhos da procura
+// de segredos e de codigo perigoso: por exemplo, conteudo didatico com codigo inseguro de proposito.
 // Verificacoes: testes, segredos nos ficheiros alterados, padroes de codigo perigoso,
 // dependencias alteradas (para rever) e veredito do revisor (.workshop/veredito.json).
 // Sai com 0 se nada bloqueia; 1 se ha falhas bloqueantes.
@@ -25,7 +27,13 @@ export function ficheirosAlterados(dir, base) {
   return [...new Set((mudados + '\n' + novos).split('\n').map((s) => s.trim()).filter(Boolean))].filter((f) => existsSync(join(dir, f)) && statSync(join(dir, f)).isFile());
 }
 
-export function gate(dir, { base = null, teste = null } = {}) {
+function ignorados(dir, extra = []) {
+  const f = join(dir, '.workshop', 'gate-ignorar');
+  const doFicheiro = existsSync(f) ? readFileSync(f, 'utf8').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')) : [];
+  return [...extra, ...doFicheiro].map((p) => p.replace(/\\/g, '/'));
+}
+
+export function gate(dir, { base = null, teste = null, ignorar = [] } = {}) {
   const checks = [];
   // 1. Testes.
   if (teste) {
@@ -37,10 +45,12 @@ export function gate(dir, { base = null, teste = null } = {}) {
     checks.push({ nome: 'Testes', ok: false, bloqueia: false, detalhe: 'sem comando de teste definido: indica-o com --teste' });
   }
   // 2. Segredos e 3. codigo perigoso nos ficheiros alterados.
+  const fora = ignorados(dir, ignorar);
   const alterados = ficheirosAlterados(dir, base).filter((f) => !f.startsWith('.workshop/'));
+  const analisados = alterados.filter((f) => !fora.some((p) => f === p || f.startsWith(p.endsWith('/') ? p : p + '/')));
   const segredos = [];
   const perigos = [];
-  for (const f of alterados) {
+  for (const f of analisados) {
     let txt;
     try {
       txt = readFileSync(join(dir, f), 'utf8');
@@ -51,7 +61,7 @@ export function gate(dir, { base = null, teste = null } = {}) {
     for (const h of procurar(txt, SEGREDOS)) segredos.push(`${f}:${h.linha} (${h.tipo})`);
     if (CODIGO.has(extname(f)) && !/\.test\.|\/test\/|\/tests\//.test(f)) for (const h of procurar(txt, CODIGO_PERIGOSO)) perigos.push(`${f}:${h.linha} (${h.tipo})`);
   }
-  checks.push({ nome: 'Segredos', ok: segredos.length === 0, bloqueia: true, detalhe: segredos.length ? segredos.slice(0, 10).join(', ') : `nenhum em ${alterados.length} ficheiros alterados` });
+  checks.push({ nome: 'Segredos', ok: segredos.length === 0, bloqueia: true, detalhe: (segredos.length ? segredos.slice(0, 10).join(', ') : `nenhum em ${analisados.length} ficheiros alterados`) + (fora.length ? ` (fora da procura: ${fora.join(', ')})` : '') });
   checks.push({ nome: 'Código perigoso', ok: perigos.length === 0, bloqueia: false, detalhe: perigos.length ? perigos.slice(0, 10).join(', ') + ' — confirma que é intencional' : 'nenhum padrão encontrado' });
   const deps = alterados.filter((f) => MANIFESTOS.test(f));
   checks.push({ nome: 'Dependências', ok: deps.length === 0, bloqueia: false, detalhe: deps.length ? `alteradas: ${deps.join(', ')} — revê versões e licenças (ex.: npm audit)` : 'sem alterações' });
@@ -87,7 +97,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const a = process.argv.slice(2);
   const opt = (k) => (a.includes(k) ? a[a.indexOf(k) + 1] : null);
   const dir = opt('--projeto') || process.cwd();
-  const r = gate(dir, { base: opt('--base'), teste: opt('--teste') });
+  const ign = a.flatMap((x, i) => (x === '--ignorar' ? [a[i + 1]] : []));
+  const r = gate(dir, { base: opt('--base'), teste: opt('--teste'), ignorar: ign });
   if (existsSync(join(dir, '.workshop'))) writeFileSync(join(dir, '.workshop', 'gate.json'), JSON.stringify(r, null, 2));
   console.log(a.includes('--json') ? JSON.stringify(r, null, 2) : gateMd(r));
   process.exit(r.bloqueado ? 1 : 0);
