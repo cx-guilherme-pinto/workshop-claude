@@ -1,0 +1,12 @@
+{
+  "nota": "Tokens tipicos por execucao de cada tipo de agente. Valores iniciais; calibrados pelo benchmark (benchmark/REPORT.md). 'orquestrador' e por lote da sessao principal.",
+  "calibrado_em": null,
+  "perfis": {
+    "worker": { "pedidos": 8, "input": 2500, "cache_write_5m": 22000, "cache_write_1h": 0, "cache_read": 140000, "output": 2500 },
+    "implementer": { "pedidos": 14, "input": 4000, "cache_write_5m": 40000, "cache_write_1h": 0, "cache_read": 380000, "output": 8000 },
+    "integrator": { "pedidos": 18, "input": 4000, "cache_write_5m": 45000, "cache_write_1h": 0, "cache_read": 520000, "output": 6000 },
+    "reviewer": { "pedidos": 8, "input": 3000, "cache_write_5m": 35000, "cache_write_1h": 0, "cache_read": 200000, "output": 4000 },
+    "planner": { "pedidos": 3, "input": 2000, "cache_write_5m": 18000, "cache_write_1h": 0, "cache_read": 30000, "output": 3000 },
+    "orquestrador": { "pedidos": 2, "input": 1500, "cache_write_5m": 9000, "cache_write_1h": 0, "cache_read": 70000, "output": 2500 }
+  }
+}

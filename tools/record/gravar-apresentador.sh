@@ -51,7 +51,7 @@ main() {
   # Dados para o modo replay e a Arena final.
   mkdir -p "$KIT/presenter-replay"
   rm -rf "$KIT/presenter-replay/arena" && cp -R "$ARENA" "$KIT/presenter-replay/arena"
-  rm -rf "$KIT/presenter-replay/arena/.git"
+  rm -rf "$KIT/presenter-replay/arena/.git" "$KIT/presenter-replay/arena/.claude"  # sem caminhos locais no repo
   mkdir -p "$KIT/presenter-replay/arena/replays/gravacao"
   cp "$ARENA/.workshop/events.jsonl" "$KIT/presenter-replay/arena/replays/gravacao/events.jsonl"
   ( cd "$ARENA" && "$NODE" -e '

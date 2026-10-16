@@ -9,3 +9,5 @@ id,modo,isolado,duracao_s,custo_total,custo_haiku,custo_sonnet,custo_opus,agente
 20261016-150803-participante-8,participante,0,256,0.9037,0.0287,0.5479,0.3271,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.2371,0,0
 20261016-151220-participante-9,participante,0,209,1.0748,0.0267,0.7120,0.3361,22,20,0,155,0,sim,aprovado,aprovado,2.3946,0,0
 20261016-151550-participante-10,participante,0,213,1.0323,0.0295,0.6817,0.3211,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.4526,1,0
+20261016-152044-apresentador-gravado,apresentador,0,396,2.5253,0.1649,1.9857,0.3746,107,105,0,665,0,sim,aprovado_com_reservas,aprovado,9.9966,0,0
+20261016-153209-apresentador-gravado,apresentador,0,414,2.5506,0.1695,1.9939,0.3872,107,105,0,665,0,sim,aprovado_com_reservas,aprovado,10.2777,0,0

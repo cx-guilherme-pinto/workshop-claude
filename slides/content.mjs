@@ -175,7 +175,7 @@ allowed-tools:
   },
 
   // ---------------- Projeto 1 (30–55)
-  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. O enxame corre cerca de 15 minutos; usamos esse tempo para ver funcionalidades.' },
+  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o enxame de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
   {
     seccao: 'Projeto 1', tipo: 'colunas', min: 1,
     titulo: 'O que já está pronto e o que falta',
@@ -208,7 +208,7 @@ allowed-tools:
       { rotulo: 'Terminal 2', cmd: 'cd ~/workshop-claude/demo-project\nnode server.js' },
     ],
     esperado: 'http://localhost:3000/estado: os quadrados ficam amarelos e depois verdes',
-    notas: 'A partir daqui o enxame trabalha cerca de 15 minutos. Os próximos slides usam esse tempo.',
+    notas: 'A partir daqui o enxame trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.',
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,

@@ -166,7 +166,7 @@ Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem ris
 
 [30:00 → 30:30] 0.5 min · deves estar aqui aos 30 min
 
-25 minutos de hands-on. O enxame corre cerca de 15 minutos; usamos esse tempo para ver funcionalidades.
+25 minutos de hands-on. No benchmark, o enxame de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
 
 ### 20. O que já está pronto e o que falta
 
@@ -190,7 +190,7 @@ Mostrar o plano de alguém no projetor. Na onda 1, o lib/hash e os cartões arra
 
 [36:00 → 38:00] 2 min · deves estar aqui aos 36 min
 
-A partir daqui o enxame trabalha cerca de 15 minutos. Os próximos slides usam esse tempo.
+A partir daqui o enxame trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
 
 ### 24. Pergunta sem interromper
 

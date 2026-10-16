@@ -1,0 +1,59 @@
+{
+  "fonte": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "consultado_em": "2026-10-16",
+  "moeda": "USD",
+  "unidade": "por milhao de tokens",
+  "nota": "Precos de lista. O Claude Code calcula o custo localmente com estes precos; a fatura real esta na pagina Usage/Cost da Console.",
+  "modelos": {
+    "claude-opus-5-5": {
+      "nome": "Opus 5.5",
+      "input": 4,
+      "output": 20,
+      "cache_write_5m": 5,
+      "cache_write_1h": 8,
+      "cache_read": 0.2
+    },
+    "claude-sonnet-5-5": {
+      "nome": "Sonnet 5.5",
+      "input": 2,
+      "output": 10,
+      "cache_write_5m": 2.5,
+      "cache_write_1h": 4,
+      "cache_read": 0.1
+    },
+    "claude-haiku-5-5": {
+      "nome": "Haiku 5.5",
+      "input": 0.1,
+      "output": 0.5,
+      "cache_write_5m": 0.125,
+      "cache_write_1h": 0.2,
+      "cache_read": 0.01,
+      "prompt_longo": {
+        "acima_de_tokens": 100000,
+        "input": 0.5,
+        "output": 2.5,
+        "cache_write_5m": 0.625,
+        "cache_write_1h": 1,
+        "cache_read": 0.05
+      }
+    },
+    "claude-fable-5-1": {
+      "nome": "Fable 5.1",
+      "input": 10,
+      "output": 50,
+      "cache_write_5m": 12.5,
+      "cache_write_1h": 20,
+      "cache_read": 0.25
+    }
+  },
+  "aliases": {
+    "opus": "claude-opus-5-5",
+    "sonnet": "claude-sonnet-5-5",
+    "haiku": "claude-haiku-5-5",
+    "fable": "claude-fable-5-1"
+  },
+  "orcamento": {
+    "alvo_usd": 5,
+    "teto_usd": 10
+  }
+}
