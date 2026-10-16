@@ -1,6 +1,7 @@
 // Merge seguro do ~/.claude/settings.json do utilizador.
 // Regras: nunca apaga chaves alheias; acrescenta os hooks SubagentStop/Stop do workshop;
 // so define a statusLine se nao existir nenhuma (ou com --substituir-statusline);
+// so define a "language" (lingua das respostas do Claude, D-20) se a pessoa nao tiver uma;
 // regista em "record" o que mudou, para o --desinstalar repor exatamente o anterior.
 import { join } from 'node:path';
 
@@ -50,11 +51,11 @@ export function expectedEntries({ node, kitDir }) {
   };
 }
 
-// current: objeto atual. opts: { node, kitDir, env: {K: V}, substituirStatusline }
+// current: objeto atual. opts: { node, kitDir, env: {K: V}, substituirStatusline, language }
 // prevRecord: registo de uma instalacao anterior (para manter os valores "anteriores" originais).
 // Devolve { settings, record, changed, warnings }.
 export function mergeSettings(current, opts, prevRecord = null) {
-  const { node, kitDir, env = {}, substituirStatusline = false } = opts;
+  const { node, kitDir, env = {}, substituirStatusline = false, language = null } = opts;
   if (!node || !kitDir) throw new Error('mergeSettings: faltam node e kitDir');
   const s = clone(current) || {};
   const before = JSON.stringify(s);
@@ -68,6 +69,8 @@ export function mergeSettings(current, opts, prevRecord = null) {
     statusline_nossa: false,
     statusline_anterior: prev.statusline_anterior,
     statusline_mantida: false,
+    language_criado: prev.language_criado ?? false,
+    language_valor: prev.language_valor ?? null,
   };
   const exp = expectedEntries({ node, kitDir });
 
@@ -134,6 +137,16 @@ export function mergeSettings(current, opts, prevRecord = null) {
   }
   if (Object.keys(s.env).length === 0 && record.env_criado) delete s.env;
 
+  // "language": so se nao houver nenhuma, ou se a que la esta foi posta pelo workshop e ninguem lhe mexeu.
+  if (language) {
+    const nossa = record.language_criado && s.language === record.language_valor;
+    if (!('language' in s) || nossa) {
+      s.language = language;
+      record.language_criado = true;
+      record.language_valor = language;
+    }
+  }
+
   return { settings: s, record, changed: JSON.stringify(s) !== before, warnings };
 }
 
@@ -170,6 +183,7 @@ export function unmergeSettings(current, record = {}) {
     }
     if (Object.keys(s.env).length === 0 && record.env_criado !== false) delete s.env;
   }
+  if (record.language_criado && s.language === record.language_valor) delete s.language;
   return s;
 }
 

@@ -5,25 +5,25 @@
       "nome": "haiku simples com cache",
       "resultado": { "modelUsage": { "claude-haiku-5-5": { "inputTokens": 10, "outputTokens": 5, "cacheReadInputTokens": 1000, "cacheCreationInputTokens": 2000, "costUSD": 0.9 } } },
       "usd": 0.0002635,
-      "texto": "US$ 0,0003"
+      "texto": "US$ 0.0003"
     },
     {
       "nome": "id com data resolve por prefixo",
       "resultado": { "modelUsage": { "claude-haiku-5-5-20261001": { "inputTokens": 50000, "outputTokens": 0 } } },
       "usd": 0.005,
-      "texto": "US$ 0,0050"
+      "texto": "US$ 0.0050"
     },
     {
       "nome": "haiku prompt longo",
       "resultado": { "modelUsage": { "claude-haiku-5-5": { "inputTokens": 150000, "outputTokens": 100 } } },
       "usd": 0.07525,
-      "texto": "US$ 0,08"
+      "texto": "US$ 0.08"
     },
     {
       "nome": "sonnet e haiku juntos",
       "resultado": { "modelUsage": { "claude-sonnet-5-5": { "inputTokens": 1000, "outputTokens": 1000 }, "claude-haiku-5-5": { "inputTokens": 1000, "outputTokens": 1000 } } },
       "usd": 0.0126,
-      "texto": "US$ 0,01"
+      "texto": "US$ 0.01"
     },
     {
       "nome": "modelo desconhecido",
@@ -35,7 +35,7 @@
       "nome": "sem modelUsage",
       "resultado": { "result": "OK" },
       "usd": 0,
-      "texto": "US$ 0,0000"
+      "texto": "US$ 0.0000"
     }
   ]
 }

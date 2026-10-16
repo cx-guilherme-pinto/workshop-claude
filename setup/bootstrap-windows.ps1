@@ -23,7 +23,7 @@ $WsSetupSha256 = ''
 function Invoke-WsBootstrap {
   param([string[]]$PassArgs)
   if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
-    Write-Host 'ERRO: o PowerShell esta em modo restrito (ConstrainedLanguage). Ver E-SO-05 em docs/TROUBLESHOOTING.md.'
+    Write-Host 'ERROR: PowerShell is in restricted mode (ConstrainedLanguage). See E-SO-05 in docs/en/TROUBLESHOOTING.md.'
     return
   }
   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -36,7 +36,7 @@ function Invoke-WsBootstrap {
   if ($env:WORKSHOP_VERSION) { $ver = $env:WORKSHOP_VERSION }
   if ($env:RELEASE_DOWNLOAD_URL) { $pattern = $env:RELEASE_DOWNLOAD_URL }
   if (-not $repo -or -not $ver -or -not $pattern) {
-    Write-Host 'ERRO: este bootstrap nao tem os valores da release. Usa o ficheiro publicado na release.'
+    Write-Host 'ERROR: this bootstrap does not have the release values. Use the file published in the release.'
     return
   }
   $r = $repo.Trim().TrimEnd('/')
@@ -46,23 +46,23 @@ function Invoke-WsBootstrap {
   if ($m.Success) { $url = $url.Replace('{host}', $m.Groups[2].Value).Replace('{owner}', $m.Groups[3].Value).Replace('{name}', $m.Groups[4].Value) }
 
   $dest = Join-Path ([IO.Path]::GetTempPath()) ('workshop-setup-windows-' + $ver + '.ps1')
-  Write-Host ('A descarregar o setup do workshop (' + $ver + ')...')
+  Write-Host ('Downloading the workshop setup (' + $ver + ')...')
   $headers = @{}
   # REPO_TOKEN (so em desenvolvimento): vai so para o servidor do repositorio, nunca para o ecra.
   if ($env:REPO_TOKEN -and $m.Success -and ([Uri]$url).Authority -eq $m.Groups[2].Value) { $headers['Authorization'] = 'token ' + $env:REPO_TOKEN }
   try {
     Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $dest -Headers $headers -UserAgent 'workshop-claude-bootstrap' -ErrorAction Stop
   } catch {
-    Write-Host ('ERRO: nao consegui descarregar ' + $url)
+    Write-Host ('ERROR: could not download ' + $url)
     Write-Host ('  ' + $_.Exception.Message)
-    Write-Host 'Verifica a rede ou o proxy (ver E-NET-01 e E-NET-03 em docs/TROUBLESHOOTING.md).'
+    Write-Host 'Check the network or the proxy (see E-NET-01 and E-NET-03 in docs/en/TROUBLESHOOTING.md).'
     return
   }
   if ($WsSetupSha256) {
     $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
     if ($got -ne $WsSetupSha256.ToLowerInvariant()) {
       Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
-      Write-Host 'ERRO: o setup descarregado nao confere com o SHA-256 da release. Nao o executei.'
+      Write-Host 'ERROR: the downloaded setup does not match the release SHA-256. I did not run it.'
       return
     }
   }
@@ -72,7 +72,7 @@ function Invoke-WsBootstrap {
   $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
   if (-not (Test-Path -LiteralPath $ps)) { $ps = 'powershell.exe' }
   & $ps -NoProfile -ExecutionPolicy Bypass -File $dest @all
-  Write-Host ('(setup terminado com o codigo ' + $LASTEXITCODE + ')')
+  Write-Host ('(setup finished with exit code ' + $LASTEXITCODE + ')')
 }
 
 Invoke-WsBootstrap -PassArgs $args

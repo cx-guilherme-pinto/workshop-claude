@@ -1,0 +1,984 @@
+{
+  "versao": 1,
+  "nota": "Single message catalog for the setup (Mac and Windows). docs/en/TROUBLESHOOTING.md is generated from this file by tools/render.mjs. Markers like {NOME} are replaced at run time.",
+  "ui": {
+    "titulo": "Setup for the workshop \"Agent Orchestration with Claude\" · kit {WORKSHOP_VERSION}",
+    "instala": "I will install and configure, for your user only (no admin needed):",
+    "instala_lista": [
+      "git and Claude Code {CLAUDE_CODE_VERSION}, logged in to the Anthropic Console",
+      "Node.js {NODE_MIN_MAJOR} or newer, uv (Python) and GitHub CLI",
+      "Jira MCP (Atlassian)",
+      "the workshop skills, agents, hooks and statusline",
+      "the workshop projects in {PROJETOS}",
+      "the Memória app",
+      "Claude Desktop (optional; skip it with {FLAG_SEM_DESKTOP})"
+    ],
+    "tempo": "Estimated time: 10 to 20 minutes. If it stops halfway, run the same command again: steps already done are skipped.",
+    "tempo_check": "Check mode: I don't install anything, I only check. It takes 2 to 3 minutes.",
+    "modo_doctor": "Diagnostic mode: I check everything and, if something fails, I ask Claude for an explanation.",
+    "modo_desinstalar": "Uninstall mode: I undo what this setup installed, based on {MANIFEST}.",
+    "modo_sim": "--yes mode: I answer \"yes\" to simple questions. Logins and suggested commands don't run on their own.",
+    "log_em": "Full log (no secrets): {LOG}",
+    "passo": "Step {N}/12 · {TITULO}",
+    "estado_feito": "Done",
+    "estado_ja": "Already done",
+    "estado_aviso": "Done with warning",
+    "estado_falhou": "Failed",
+    "estado_naoexec": "Not run",
+    "estado_saltado": "Skipped",
+    "estado_ok_check": "Checked",
+    "estado_falta_check": "Missing",
+    "porque": "Why",
+    "fazer": "What to do",
+    "codigo": "Code {CODIGO} (see docs/en/TROUBLESHOOTING.md)",
+    "dep_falhou": "Not run because step {N} failed.",
+    "a_instalar": "Installing. This can take a few minutes…",
+    "a_descarregar": "Downloading {O_QUE}…",
+    "a_verificar_rede": "Testing the connection to {N} domains…",
+    "sn": "[Y/n]",
+    "ns": "[y/N]",
+    "sem_tty": "No interactive terminal: I assume \"no\".",
+    "resumo": "Summary",
+    "resumo_cab_passo": "Step",
+    "resumo_cab_estado": "Status",
+    "resumo_cab_detalhe": "Detail",
+    "final_pronto": "Everything is ready for the workshop.",
+    "final_faltam": "{N} steps still to do: {LISTA}.",
+    "final_falta1": "1 step still to do: {LISTA}.",
+    "final_avisos": "There are {N} warnings above. They don't block the workshop, but read them.",
+    "final_voltar": "After you fix it, run the same command again. Steps already done are skipped.",
+    "final_reiniciar": "Close and reopen the terminal (and VS Code) so the new commands are available.",
+    "final_ficheiros": "Summary saved to {RESUMO}. Log at {LOG}.",
+    "final_check_ok": "Check complete: everything is ready for the workshop.",
+    "helper_pergunta": "Do you want Claude to analyze this error? (estimated cost: less than US$ 0.01)",
+    "helper_a_pedir": "Asking Claude for an analysis. I only send the log excerpt for this step (no secrets), the system and the versions.",
+    "helper_causa": "Likely cause:",
+    "helper_comandos": "Suggested commands. I run each one only if you say yes:",
+    "helper_correr": "Run this command?",
+    "helper_sim": "--yes mode: I don't run suggested commands without your confirmation.",
+    "helper_sem_comandos": "Claude did not suggest any commands.",
+    "helper_custo": "Measured cost of this analysis: {USD}.",
+    "helper_falhou": "I couldn't get Claude's analysis. Showing the pre-written help.",
+    "helper_repetir": "I will retry step {N} once.",
+    "helper_ajuda_escrita": "Pre-written help:",
+    "doctor_titulo": "Claude's diagnosis",
+    "doctor_sem_falhas": "Nothing failed. No diagnosis needed.",
+    "doctor_sem_claude": "Claude is not available (it is not installed or not logged in). Follow the pre-written help for each step.",
+    "doctor_custo": "Measured cost of the diagnosis: {USD}.",
+    "desinst_settings_reposto": "settings.json restored from the backup.",
+    "desinst_settings_limpo": "settings.json changed after the install: I removed only the workshop keys.",
+    "desinst_mcp": "MCP removed: {NOME}.",
+    "desinst_app": "Memória app removed.",
+    "desinst_memorias": "Your memories in ~/.memoria were left untouched. Delete the folder by hand only if you no longer need them.",
+    "desinst_atalho": "Shortcut removed: {CAMINHO}.",
+    "desinst_perfil": "PATH lines removed from {FICHEIRO}.",
+    "desinst_projeto_removido": "Project removed (it was unchanged): {CAMINHO}.",
+    "desinst_projeto_mantido": "Project kept because it has your changes: {CAMINHO}. Delete it by hand if you want.",
+    "desinst_fim": "Uninstall complete. Still installed: git, Claude Code, Node, uv, gh and the backups in {BACKUP}.",
+    "desinst_sem_manifest": "I couldn't find {MANIFEST}. There is nothing from the workshop to undo.",
+    "s0_so": "System: {SO}",
+    "s0_lingua": "Machine language: {LINGUA}",
+    "s0_proxy_sistema": "System proxy: {PROXY}",
+    "s0_proxy_pac": "Automatic proxy (PAC): {PAC}",
+    "s0_sem_proxy": "No proxy.",
+    "s0_tls_ok": "API certificate issued by: {EMISSOR}",
+    "s0_tls_corp": "TLS interception detected (issuer: {EMISSOR}). I exported the company certificates to {CA}.",
+    "s0_rede_ok": "Network: {OK} of {TOTAL} domains reachable.",
+    "s0_rede_falha": "No access to: {LISTA}",
+    "s0_disco": "Free space: {GB} GB",
+    "s1_ja": "git {VERSAO}",
+    "s2_ja": "Claude Code {VERSAO}",
+    "s3_console": "Console ({EMAIL})",
+    "s3_outro": "Method: {METODO}",
+    "s3_pergunta_login": "Log in to the Console now? This opens the browser.",
+    "s3_pergunta_trocar": "You are logged in with a claude.ai subscription. The workshop uses the Console (pay per use). Switch to the Console?",
+    "s3_manter": "Kept the current login (claude.ai subscription).",
+    "s3_login_sim": "--yes mode: I don't do interactive logins.",
+    "s4_ja": "Node {VERSAO} at {CAMINHO}",
+    "s5_ja": "uv {VERSAO}",
+    "s6_ja": "gh {VERSAO}",
+    "s6_pergunta_login": "Log in to GitHub now? (opens the browser)",
+    "s6_sem_login": "gh installed, not logged in to GitHub.",
+    "s7_ja": "atlassian (user scope)",
+    "s7_oauth": "To finish: open Claude Code, type /mcp, choose atlassian and log in in the browser.",
+    "s7_ja_acli": "atlassian (user scope) · Atlassian CLI {VERSAO} (backup)",
+    "s7_pergunta_acli": "Log in to the Atlassian CLI now? It is the Jira backup for when the MCP fails. (opens the browser; answer n if you don't use Jira)",
+    "s7_acli_login": "Jira backup: if the MCP fails, run acli auth login in a terminal (opens the browser).",
+    "s8_ja": "{SKILLS} skills, {AGENTES} agents, hooks and statusline",
+    "s8_statusline_mantida": "You already had a statusline. I kept yours. To use the workshop one, run the setup with {FLAG_STATUSLINE}.",
+    "s8_lingua_nossa": "Claude answers in {NOME} (Claude Code \"language\" setting). Workshop texts: {KIT}.",
+    "s8_lingua_tua": "You already had a \"language\" setting ({NOME}): I kept it. Workshop texts: {KIT}.",
+    "s8_lingua_nenhuma": "No \"language\" setting for {LINGUA}: Claude answers in the language you write in. Workshop texts: {KIT}.",
+    "s9_ja": "{PROJETOS}",
+    "s9_testes_ok": "App tests: {OK} passed.",
+    "s9_sem_testes": "The project doesn't have test/app.test.js yet. I skipped the tests.",
+    "s10_ja": "memoria {VERSAO}",
+    "s10_ok": "Memória app {VERSAO} (Python {PY} managed by uv, FTS5 ok)",
+    "s10_update": "To update the app later: memoria update. On Windows, close Claude Code first; the update finishes in a new PowerShell window.",
+    "s11_ja": "Claude Desktop at {CAMINHO}",
+    "s11_aviso": "Claude Desktop only signs in with a claude.ai account, and the Code tab needs a subscription. All the workshop hands-on work runs in Claude Code (terminal).",
+    "s12_prompt": "Reply in English with only the word OK",
+    "s12_ok": "Reply \"{RESPOSTA}\" in {SEG} s · cost {USD}",
+    "s12_custo_desconhecido": "model has no price in pricing.json",
+    "interrompido": "Interrupted. Run the same command again: steps already done are skipped.",
+    "s1_portatil": "git {VERSAO} (the workshop's portable git, without the Apple tools)",
+    "lingua_pt": "Portuguese",
+    "lingua_en": "English"
+  },
+  "passos": {
+    "0": "Environment detection",
+    "1": "Git",
+    "2": "Claude Code",
+    "3": "Claude Code login",
+    "4": "Node.js",
+    "5": "uv (Python)",
+    "6": "GitHub CLI (gh)",
+    "7": "Jira (Atlassian MCP and CLI)",
+    "8": "Skills, agents, hooks and statusline",
+    "9": "Workshop projects",
+    "10": "Memória app",
+    "11": "Claude Desktop (optional)",
+    "12": "Final test"
+  },
+  "erros": {
+    "E-SETUP-01": {
+      "titulo": "This step is not done yet",
+      "so": "todos",
+      "causa": "The setup has not installed this on this computer yet, or the install stopped halfway.",
+      "fazer": [
+        "Run the full setup, without --check. Steps already done are skipped."
+      ],
+      "mac": [
+        "{ONE_LINER_MAC}"
+      ],
+      "windows": [
+        "{ONE_LINER_WINDOWS}"
+      ]
+    },
+    "E-NET-01": {
+      "titulo": "A required domain is blocked",
+      "so": "todos",
+      "causa": "The network does not let you reach one or more domains that the workshop needs. This is usually a company firewall or filter.",
+      "fazer": [
+        "Ask your IT team to allow the domains listed in docs/en/TROUBLESHOOTING.md (section \"Required domains\").",
+        "Or use another network (for example, your phone's hotspot) and run the setup again."
+      ],
+      "mac": [
+        "curl -sS -o /dev/null -w '%{http_code}\\n' https://api.anthropic.com"
+      ],
+      "windows": [
+        "Invoke-WebRequest -UseBasicParsing -Method Head https://api.anthropic.com"
+      ]
+    },
+    "E-NET-02": {
+      "titulo": "The server name does not resolve (DNS)",
+      "so": "todos",
+      "causa": "The computer can't translate the domain name into an address. The network may require a VPN, or DNS is failing.",
+      "fazer": [
+        "Connect to the company VPN if you use one, or disconnect it if it is blocking.",
+        "Try another network and run the setup again."
+      ],
+      "mac": [
+        "dscacheutil -q host -a name api.anthropic.com"
+      ],
+      "windows": [
+        "Resolve-DnsName api.anthropic.com"
+      ]
+    },
+    "E-NET-03": {
+      "titulo": "The proxy asks for authentication or is misconfigured",
+      "so": "todos",
+      "causa": "The network only goes out through a proxy, and the request was refused (for example, error 407).",
+      "fazer": [
+        "Set the proxy for this session and run the setup again.",
+        "If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains."
+      ],
+      "mac": [
+        "export HTTPS_PROXY=http://proxy.company:8080",
+        "export NO_PROXY=localhost,127.0.0.1"
+      ],
+      "windows": [
+        "$env:HTTPS_PROXY = 'http://proxy.company:8080'",
+        "$env:NO_PROXY = 'localhost,127.0.0.1'"
+      ]
+    },
+    "E-NET-04": {
+      "titulo": "Your company intercepts HTTPS traffic (its own certificate)",
+      "so": "todos",
+      "causa": "The certificate for api.anthropic.com does not come from a public authority. The company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code to use them.",
+      "fazer": [
+        "Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.",
+        "If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again."
+      ],
+      "mac": [
+        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem"
+      ],
+      "windows": [
+        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer"
+      ]
+    },
+    "E-NET-05": {
+      "titulo": "No connection to the Anthropic API",
+      "so": "todos",
+      "causa": "Claude Code can't talk to api.anthropic.com. Without this there is no workshop, and Claude can't help you diagnose the problem either.",
+      "fazer": [
+        "Check that you can open https://api.anthropic.com in the browser (a JSON error page means you can reach it).",
+        "If you use a proxy, set HTTPS_PROXY before you run the setup.",
+        "Ask IT to allow api.anthropic.com, claude.ai and platform.claude.com."
+      ],
+      "mac": [
+        "curl -sv https://api.anthropic.com -o /dev/null"
+      ],
+      "windows": [
+        "Test-NetConnection api.anthropic.com -Port 443"
+      ]
+    },
+    "E-NET-06": {
+      "titulo": "Proxy with NTLM or Kerberos authentication only",
+      "so": "todos",
+      "causa": "Claude Code and Node can't authenticate to NTLM or Kerberos proxies. This type of proxy is not supported.",
+      "fazer": [
+        "Ask IT for a proxy exception for the workshop domains.",
+        "Or use another network (your phone's hotspot) during the workshop."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-NET-07": {
+      "titulo": "The download failed",
+      "so": "todos",
+      "causa": "A file was not downloaded, or it arrived incomplete. This is usually a short network failure.",
+      "fazer": [
+        "Run the setup again. Steps already done are skipped.",
+        "If it always fails on the same file, check the network and the proxy (codes E-NET-01 and E-NET-03)."
+      ],
+      "mac": [
+        "{ONE_LINER_MAC}"
+      ],
+      "windows": [
+        "{ONE_LINER_WINDOWS}"
+      ]
+    },
+    "E-SO-01": {
+      "titulo": "Windows older than 10.0.18362 (version 1903)",
+      "so": "windows",
+      "causa": "This Windows version is old. winget and Claude Desktop don't work on it, and other things may fail.",
+      "fazer": [
+        "Update Windows with Windows Update, or ask IT.",
+        "The setup continues, but uses direct installers instead of winget."
+      ],
+      "mac": [],
+      "windows": [
+        "winver"
+      ]
+    },
+    "E-SO-02": {
+      "titulo": "Windows on ARM64",
+      "so": "windows",
+      "causa": "The computer has an ARM processor. The setup picks the ARM64 versions of Node, gh and Git when they exist.",
+      "fazer": [
+        "You don't need to do anything. If a step fails, tell the organizer and give them the code of this warning."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-SO-03": {
+      "titulo": "Your home folder is in OneDrive",
+      "so": "todos",
+      "causa": "Your home folder (or Documents) is synced by OneDrive. Syncing can lock files while the agents are working.",
+      "fazer": [
+        "During the workshop, pause OneDrive syncing (OneDrive icon > Pause syncing).",
+        "The projects are in {PROJETOS}. If that folder is inside OneDrive, move it out."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-SO-04": {
+      "titulo": "Old macOS",
+      "so": "mac",
+      "causa": "Claude Code needs macOS 13 or newer.",
+      "fazer": [
+        "Update macOS in System Settings > General > Software Update."
+      ],
+      "mac": [
+        "sw_vers"
+      ],
+      "windows": []
+    },
+    "E-SO-05": {
+      "titulo": "PowerShell in restricted mode",
+      "so": "windows",
+      "causa": "PowerShell is in ConstrainedLanguage mode, because of a company policy (AppLocker or WDAC). In this mode the setup can't run.",
+      "fazer": [
+        "Ask IT for an exception for the workshop setup, or do the setup on another computer.",
+        "Check the mode with the command below: it must say FullLanguage."
+      ],
+      "mac": [],
+      "windows": [
+        "$ExecutionContext.SessionState.LanguageMode"
+      ]
+    },
+    "E-SO-06": {
+      "titulo": "Low disk space",
+      "so": "todos",
+      "causa": "There are less than 3 GB free in your home folder. The tools and the projects need about 2 GB.",
+      "fazer": [
+        "Free up space (for example, empty the Downloads folder) and run the setup again."
+      ],
+      "mac": [
+        "df -h ~"
+      ],
+      "windows": [
+        "Get-PSDrive C"
+      ]
+    },
+    "E-CFG-01": {
+      "titulo": "There are company-managed settings (managed-settings)",
+      "so": "todos",
+      "causa": "Your company installed rules for Claude Code that override yours. They can block workshop models, tools, MCP or hooks.",
+      "fazer": [
+        "If a workshop step is blocked, show this warning to IT.",
+        "The file is at the path shown above. Don't change it without talking to IT."
+      ],
+      "mac": [
+        "cat '/Library/Application Support/ClaudeCode/managed-settings.json'"
+      ],
+      "windows": [
+        "Get-Content \"$env:ProgramFiles\\ClaudeCode\\managed-settings.json\""
+      ]
+    },
+    "E-CFG-02": {
+      "titulo": "The ANTHROPIC_API_KEY variable is set",
+      "so": "todos",
+      "causa": "With this variable, Claude Code uses that key instead of your login. The cost goes to the account that owns the key.",
+      "fazer": [
+        "If the key is yours and from the Console, you can continue.",
+        "If not, remove the variable from your terminal profile and open a new terminal."
+      ],
+      "mac": [
+        "grep -n ANTHROPIC_API_KEY ~/.zshrc ~/.zprofile ~/.bash_profile 2>/dev/null"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')"
+      ]
+    },
+    "E-CFG-03": {
+      "titulo": "The ANTHROPIC_BASE_URL variable is set",
+      "so": "todos",
+      "causa": "With this variable, Claude Code talks to another server instead of the Anthropic API (for example, a company gateway). Prices and models may be different.",
+      "fazer": [
+        "If IT asked you to use that gateway, you can continue.",
+        "If not, remove the variable and open a new terminal."
+      ],
+      "mac": [
+        "unset ANTHROPIC_BASE_URL"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_BASE_URL', $null, 'User')"
+      ]
+    },
+    "E-CFG-04": {
+      "titulo": "Claude Code is set up for Bedrock or Vertex",
+      "so": "todos",
+      "causa": "CLAUDE_CODE_USE_BEDROCK or CLAUDE_CODE_USE_VERTEX is set. Claude Code uses the company cloud, and the Console login is ignored.",
+      "fazer": [
+        "For the workshop, remove the variable and open a new terminal.",
+        "If your company requires Bedrock or Vertex, check with the organizer that the workshop models are available."
+      ],
+      "mac": [
+        "unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')"
+      ]
+    },
+    "E-CFG-05": {
+      "titulo": "The Claude Code settings.json file has an error",
+      "so": "todos",
+      "causa": "~/.claude/settings.json is not valid JSON. The setup does not touch it, so you don't lose your settings.",
+      "fazer": [
+        "Open the file and fix the error (for example, a missing comma or brace).",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8'))\""
+      ],
+      "windows": [
+        "Get-Content \"$env:USERPROFILE\\.claude\\settings.json\" -Raw | ConvertFrom-Json"
+      ]
+    },
+    "E-CFG-06": {
+      "titulo": "You already had a statusline",
+      "so": "todos",
+      "causa": "Your Claude Code already shows a statusline of your own. The setup kept it and did not install the workshop one, which shows the cost.",
+      "fazer": [
+        "You can continue: the cost also shows in /demo-cost.",
+        "To use the workshop statusline, run the setup again with the option below. Yours stays in the backup and comes back with --uninstall."
+      ],
+      "mac": [
+        "bash ~/.workshop-claude/setup-mac.sh --replace-statusline"
+      ],
+      "windows": [
+        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
+      ]
+    },
+    "E-CFG-07": {
+      "titulo": "uv is not allowed to use managed Python",
+      "so": "todos",
+      "causa": "An environment variable (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON or UV_PYTHON_PREFERENCE) stops uv from downloading its own Python. The Memória app needs that Python. The setup ignores the variable only in its own command, but other uv commands are still affected.",
+      "fazer": [
+        "If your company set the variable, talk to IT before you change it.",
+        "You don't need Python installed: uv brings its own."
+      ],
+      "mac": [
+        "env | grep -E \"^UV_(PYTHON_DOWNLOADS|NO_MANAGED_PYTHON|PYTHON_PREFERENCE)\""
+      ],
+      "windows": [
+        "Get-ChildItem Env:UV_*"
+      ]
+    },
+    "E-PERM-01": {
+      "titulo": "No permission to write to your home folder",
+      "so": "todos",
+      "causa": "The setup installs everything in your home folder, and a folder is protected or belongs to another user (for example, it was created with sudo or by an administrator).",
+      "fazer": [
+        "Find the folder in the log and fix its owner.",
+        "Don't run the setup with sudo or as administrator."
+      ],
+      "mac": [
+        "ls -ld ~/.local ~/.local/bin ~/.claude ~/.workshop-claude",
+        "sudo chown -R \"$USER\" ~/.local ~/.claude ~/.workshop-claude"
+      ],
+      "windows": [
+        "icacls \"$env:USERPROFILE\\.workshop-claude\""
+      ]
+    },
+    "E-PERM-02": {
+      "titulo": "A program was blocked by the computer's security",
+      "so": "todos",
+      "causa": "An antivirus, EDR, AppLocker or Gatekeeper stopped a program installed in your home folder from running.",
+      "fazer": [
+        "Show IT the program name from the log and ask for an exception.",
+        "On a Mac, if you see \"cannot be opened\", open System Settings > Privacy & Security and choose \"Open Anyway\"."
+      ],
+      "mac": [
+        "xattr -l ~/.local/bin/claude"
+      ],
+      "windows": [
+        "Get-MpThreatDetection | Select-Object -First 5"
+      ]
+    },
+    "E-PERM-03": {
+      "titulo": "The installer asked for administrator permissions",
+      "so": "todos",
+      "causa": "An installer tried to write outside your home folder. The setup is built to work without admin.",
+      "fazer": [
+        "Decline the elevation request and run the setup again: it uses the no-admin alternative.",
+        "If the problem continues, send the log to the organizer."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-GIT-01": {
+      "titulo": "Could not install git",
+      "so": "mac",
+      "causa": "The Mac does not have Apple's Command Line Tools, and the workshop's portable git is not working.",
+      "fazer": [
+        "Run the setup again: the portable git is downloaded again.",
+        "If it still fails, install the Apple tools with the command below (it may ask for the administrator password) and run the setup again."
+      ],
+      "mac": [
+        "xcode-select --install"
+      ],
+      "windows": []
+    },
+    "E-GIT-02": {
+      "titulo": "I couldn't install Git for Windows",
+      "so": "windows",
+      "causa": "winget is not available or failed, and the direct Git installer also failed.",
+      "fazer": [
+        "Install Git for Windows by hand, choosing \"Only for me\" (no admin), and run the setup again.",
+        "If your company has a software portal (Company Portal, Software Center), install Git from there."
+      ],
+      "mac": [],
+      "windows": [
+        "winget install --id Git.Git -e --scope user --source winget"
+      ]
+    },
+    "E-GIT-03": {
+      "titulo": "I couldn't find Git Bash (bash.exe)",
+      "so": "windows",
+      "causa": "On Windows, Claude Code uses Git Bash to run commands and hooks. git is there, but bash.exe is not next to it.",
+      "fazer": [
+        "Reinstall Git for Windows (it includes Git Bash) and run the setup again.",
+        "If bash.exe is in another folder, set the variable below to the right path."
+      ],
+      "mac": [],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_GIT_BASH_PATH', 'C:\\path\\to\\Git\\bin\\bash.exe', 'User')"
+      ]
+    },
+    "E-CC-01": {
+      "titulo": "The Claude Code installer failed",
+      "so": "todos",
+      "causa": "The official installer did not finish. This is usually the network (downloads.claude.ai blocked) or an antivirus blocking the file.",
+      "fazer": [
+        "Check that you can reach claude.ai and downloads.claude.ai (code E-NET-01).",
+        "Run the official installer by hand and run the setup again."
+      ],
+      "mac": [
+        "curl -fsSL {CLAUDE_INSTALL_SH_URL} | bash -s {CLAUDE_CODE_VERSION}"
+      ],
+      "windows": [
+        "& ([scriptblock]::Create((irm {CLAUDE_INSTALL_PS1_URL}))) {CLAUDE_CODE_VERSION}"
+      ]
+    },
+    "E-CC-02": {
+      "titulo": "The claude command is not in the PATH",
+      "so": "todos",
+      "causa": "Claude Code was installed in ~/.local/bin, but the terminal does not look in that folder yet.",
+      "fazer": [
+        "Close and reopen the terminal. If it still fails, add the folder to the PATH with the command below."
+      ],
+      "mac": [
+        "echo 'export PATH=\"$HOME/.local/bin:$PATH\"' >> ~/.zshrc"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('Path', \"$env:USERPROFILE\\.local\\bin;\" + [Environment]::GetEnvironmentVariable('Path','User'), 'User')"
+      ]
+    },
+    "E-CC-03": {
+      "titulo": "The Claude Code version is old",
+      "so": "todos",
+      "causa": "The workshop needs Claude Code {CLAUDE_CODE_MIN_VERSION} or newer. There may be an old install (for example, from npm) earlier in the PATH.",
+      "fazer": [
+        "Check which claude the terminal uses. If it is an old npm install, remove it.",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "which -a claude",
+        "npm uninstall -g @anthropic-ai/claude-code"
+      ],
+      "windows": [
+        "Get-Command claude -All",
+        "npm uninstall -g @anthropic-ai/claude-code"
+      ]
+    },
+    "E-AUTH-01": {
+      "titulo": "Claude Code is not logged in",
+      "so": "todos",
+      "causa": "You have not logged in yet. The workshop uses your Anthropic Console account (pay per use).",
+      "fazer": [
+        "Run the command below. It opens the browser: sign in to the Console and authorize.",
+        "If you don't have an account, create one at {CONSOLE_URL} and add credits (Billing).",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "claude auth login --console"
+      ],
+      "windows": [
+        "claude auth login --console"
+      ]
+    },
+    "E-AUTH-02": {
+      "titulo": "The login is a claude.ai subscription, not the Console",
+      "so": "todos",
+      "causa": "You are logged in with a claude.ai subscription (Pro or Max). It works, but the workshop was prepared for the Console and measures cost at API prices.",
+      "fazer": [
+        "You can continue with the subscription: the limits are the ones of your plan.",
+        "To use the Console, run the command below."
+      ],
+      "mac": [
+        "claude auth login --console"
+      ],
+      "windows": [
+        "claude auth login --console"
+      ]
+    },
+    "E-AUTH-03": {
+      "titulo": "Claude Code uses another authentication method",
+      "so": "todos",
+      "causa": "The login comes from an environment variable, a token or a cloud (Bedrock or Vertex), not from the Console.",
+      "fazer": [
+        "If this is intentional, you can continue.",
+        "To use the Console, remove that variable, open a new terminal and run the command below."
+      ],
+      "mac": [
+        "claude auth status --text",
+        "claude auth login --console"
+      ],
+      "windows": [
+        "claude auth status --text",
+        "claude auth login --console"
+      ]
+    },
+    "E-NODE-01": {
+      "titulo": "I couldn't install Node.js",
+      "so": "todos",
+      "causa": "The download from nodejs.org failed, or the file does not match the published SHA256SUMS.",
+      "fazer": [
+        "Check that you can reach nodejs.org (code E-NET-01) and run the setup again.",
+        "Or install Node {NODE_VERSION} (LTS) from the official site and run the setup again."
+      ],
+      "mac": [
+        "curl -sS -o /dev/null -w '%{http_code}\\n' https://nodejs.org/dist/"
+      ],
+      "windows": [
+        "winget install --id OpenJS.NodeJS.LTS -e --scope user --source winget"
+      ]
+    },
+    "E-NODE-02": {
+      "titulo": "An old Node comes first in the PATH",
+      "so": "todos",
+      "causa": "The terminal finds a Node older than {NODE_MIN_MAJOR} first. The hooks use the new Node, but the project tests may use the old one.",
+      "fazer": [
+        "Close and reopen the terminal. If you use nvm, select the new Node with the command below.",
+        "Check with node -v."
+      ],
+      "mac": [
+        "nvm install {NODE_MIN_MAJOR} && nvm alias default {NODE_MIN_MAJOR}",
+        "node -v"
+      ],
+      "windows": [
+        "Get-Command node -All",
+        "node -v"
+      ]
+    },
+    "E-UV-01": {
+      "titulo": "I couldn't install uv",
+      "so": "todos",
+      "causa": "The official uv installer failed. This is usually the network (astral.sh or github.com blocked).",
+      "fazer": [
+        "Check that you can reach astral.sh, releases.astral.sh and github.com.",
+        "Run the installer by hand and run the setup again."
+      ],
+      "mac": [
+        "curl -LsSf {UV_INSTALL_SH_URL_V} | sh"
+      ],
+      "windows": [
+        "powershell -ExecutionPolicy Bypass -c \"irm {UV_INSTALL_PS1_URL_V} | iex\""
+      ]
+    },
+    "E-GH-01": {
+      "titulo": "I couldn't install GitHub CLI (gh)",
+      "so": "todos",
+      "causa": "The gh download failed or does not match the checksums file of the release.",
+      "fazer": [
+        "Check that you can reach github.com and release-assets.githubusercontent.com.",
+        "Run the setup again. gh is only needed in Project 2 (real task)."
+      ],
+      "mac": [
+        "brew install gh"
+      ],
+      "windows": [
+        "winget install --id GitHub.cli -e --scope user --source winget"
+      ]
+    },
+    "E-GH-02": {
+      "titulo": "GitHub login missing (required)",
+      "so": "todos",
+      "causa": "gh is installed but has no account. The workshop needs the GitHub login for Project 2: read issues, create branches and open PRs.",
+      "fazer": [
+        "Run the command below: it opens the browser with a code so you can confirm the login.",
+        "If your company uses GitHub Enterprise, replace github.com with the company server.",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "gh auth login --hostname github.com --git-protocol https --web"
+      ],
+      "windows": [
+        "gh auth login --hostname github.com --git-protocol https --web"
+      ]
+    },
+    "E-MCP-01": {
+      "titulo": "I couldn't add the Atlassian MCP",
+      "so": "todos",
+      "causa": "The claude mcp add command failed. Claude Code may be missing, or your company blocks MCP servers.",
+      "fazer": [
+        "Run the command below by hand and read the error message.",
+        "If your company blocks MCP (managed-settings), use the training project with local issues."
+      ],
+      "mac": [
+        "claude mcp add --transport http --scope user atlassian {ATLASSIAN_MCP_URL}"
+      ],
+      "windows": [
+        "claude mcp add --transport http --scope user atlassian {ATLASSIAN_MCP_URL}"
+      ]
+    },
+    "E-MCP-02": {
+      "titulo": "Atlassian login missing (OAuth)",
+      "so": "todos",
+      "causa": "The Jira MCP is registered, but you must log in yourself, in the browser, from inside Claude Code.",
+      "fazer": [
+        "Open Claude Code, type /mcp, choose atlassian and follow the login.",
+        "If the Jira admin restricts domains, ask them to authorize Claude."
+      ],
+      "mac": [
+        "claude"
+      ],
+      "windows": [
+        "claude"
+      ]
+    },
+    "E-ACLI-01": {
+      "titulo": "I couldn't install the Atlassian CLI (Jira backup)",
+      "so": "todos",
+      "causa": "The download from acli.atlassian.com failed, or the file does not match the expected SHA-256. acli is only used when the Jira MCP fails, so the setup continues.",
+      "fazer": [
+        "Check that you can reach acli.atlassian.com (the company network may block it).",
+        "Run the setup again. Without acli, Jira still works through the MCP (/mcp)."
+      ],
+      "mac": [
+        "curl -fsSI https://acli.atlassian.com/darwin/{ACLI_VERSION}/acli_{ACLI_VERSION}_darwin_arm64.tar.gz"
+      ],
+      "windows": [
+        "Invoke-WebRequest -UseBasicParsing -Method Head https://acli.atlassian.com/windows/{ACLI_VERSION}/acli_{ACLI_VERSION}_windows_amd64.zip"
+      ]
+    },
+    "E-ACLI-02": {
+      "titulo": "The Atlassian CLI is not logged in, or the site refused access",
+      "so": "todos",
+      "causa": "acli needs your login. Since version 1.3.15, an Atlassian site administrator must authorize the ACLI app once (\"Your site admin must authorize this app…\").",
+      "fazer": [
+        "Run acli auth login and, in the terminal, choose the same site you chose in the browser.",
+        "If you see \"site admin must authorize\", ask the Jira administrator to run acli jira auth login, choose \"Web\" and approve the site.",
+        "Alternative without OAuth: create an API token at id.atlassian.com (Security > API tokens), copy it and run the command on the second line. The token goes from the clipboard to acli, without being saved in your history or in files."
+      ],
+      "mac": [
+        "acli auth login",
+        "pbpaste | acli jira auth login --site <company>.atlassian.net --email <your email> --token"
+      ],
+      "windows": [
+        "acli auth login",
+        "Get-Clipboard | acli jira auth login --site <company>.atlassian.net --email <your email> --token"
+      ]
+    },
+    "E-KIT-01": {
+      "titulo": "I couldn't get the workshop kit",
+      "so": "todos",
+      "causa": "The download of the kit archive failed, and the fallback git clone failed too.",
+      "fazer": [
+        "Check that you can reach the repository server ({REPO_HOST}).",
+        "Run the setup again. If it still fails, send the log to the organizer."
+      ],
+      "mac": [
+        "curl -sSI {KIT_URL_MAC}"
+      ],
+      "windows": [
+        "Invoke-WebRequest -UseBasicParsing -Method Head {KIT_URL_WINDOWS}"
+      ]
+    },
+    "E-KIT-02": {
+      "titulo": "The kit archive does not match (SHA-256)",
+      "so": "todos",
+      "causa": "The downloaded file is different from the published one. It may be incomplete, or a proxy changed it.",
+      "fazer": [
+        "Run the setup again to download it again.",
+        "If it happens again, stop and tell the organizer."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-KIT-03": {
+      "titulo": "Installing the skills and hooks failed",
+      "so": "todos",
+      "causa": "The Node installer couldn't copy the files or update settings.json. Your settings.json has a backup in ~/.workshop-claude/backup.",
+      "fazer": [
+        "Read the message in the log (search for \"install-user\").",
+        "Fix the cause (permissions or an invalid settings.json) and run the setup again."
+      ],
+      "mac": [
+        "ls -la ~/.claude ~/.workshop-claude/backup"
+      ],
+      "windows": [
+        "Get-ChildItem \"$env:USERPROFILE\\.claude\", \"$env:USERPROFILE\\.workshop-claude\\backup\""
+      ]
+    },
+    "E-DEMO-01": {
+      "titulo": "I couldn't set up the workshop projects",
+      "so": "todos",
+      "causa": "Copying the projects or running git init on them failed.",
+      "fazer": [
+        "Read the message in the log (search for \"assemble\").",
+        "If the folder already exists with other content, rename it and run the setup again."
+      ],
+      "mac": [
+        "ls -la {PROJETOS}"
+      ],
+      "windows": [
+        "Get-ChildItem {PROJETOS}"
+      ]
+    },
+    "E-DEMO-02": {
+      "titulo": "The Arena app tests failed",
+      "so": "todos",
+      "causa": "The app's own tests (test/app.test.js) should pass from the start. The card tests are red on purpose.",
+      "fazer": [
+        "Run the tests by hand and send the result to the organizer.",
+        "Check that node -v shows version {NODE_MIN_MAJOR} or higher."
+      ],
+      "mac": [
+        "cd {PROJETOS}/demo-project && node --test test/app.test.js"
+      ],
+      "windows": [
+        "cd {PROJETOS}\\demo-project; node --test test/app.test.js"
+      ]
+    },
+    "E-DEMO-03": {
+      "titulo": "The project folder already exists and is not from the kit",
+      "so": "todos",
+      "causa": "There is already a folder with that name and with other files. The setup does not delete it.",
+      "fazer": [
+        "Rename the folder (or delete it, if you don't need it) and run the setup again."
+      ],
+      "mac": [
+        "mv {PROJETOS} {PROJETOS}-old"
+      ],
+      "windows": [
+        "Rename-Item {PROJETOS} workshop-claude-old"
+      ]
+    },
+    "E-MEM-01": {
+      "titulo": "The Memória app release is not published yet",
+      "so": "todos",
+      "causa": "I couldn't find the files for the Memória app {MEMORY_APP_VERSION} on the server. The app is optional: the skills work without it.",
+      "fazer": [
+        "You can continue. Closer to the workshop, run the setup again to install it."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-MEM-02": {
+      "titulo": "The Memória app file does not match (SHA-256)",
+      "so": "todos",
+      "causa": "The downloaded wheel is different from the one published in SHA256SUMS. I did not install it.",
+      "fazer": [
+        "Run the setup again. If it happens again, tell the organizer."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-MEM-03": {
+      "titulo": "Installing the Memória app failed",
+      "so": "todos",
+      "causa": "uv couldn't install the app (Python {PYTHON_VERSION} or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).",
+      "fazer": [
+        "Check that you can reach pypi.org and files.pythonhosted.org.",
+        "Run the setup again. The app is optional: the skills work without it."
+      ],
+      "mac": [
+        "uv python install {PYTHON_VERSION}"
+      ],
+      "windows": [
+        "uv python install {PYTHON_VERSION}"
+      ]
+    },
+    "E-MEM-04": {
+      "titulo": "WebView2 is missing (Windows)",
+      "so": "windows",
+      "causa": "The Memória app window uses Microsoft Edge WebView2, and I couldn't find it or install it. Without it, the app opens in the browser.",
+      "fazer": [
+        "You can continue: the app opens in the browser.",
+        "To get the app's own window, install the WebView2 Runtime from your company's software portal, or ask IT."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-MEM-05": {
+      "titulo": "The Memória app test failed",
+      "so": "todos",
+      "causa": "The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.",
+      "fazer": [
+        "Run the command below and send the result to the organizer.",
+        "Run the setup again: uv reinstalls the app and its Python."
+      ],
+      "mac": [
+        "memoria selftest"
+      ],
+      "windows": [
+        "memoria selftest"
+      ]
+    },
+    "E-DESK-01": {
+      "titulo": "Claude Desktop has limits with the Console",
+      "so": "todos",
+      "causa": "Claude Desktop only signs in with a claude.ai account, and the Code tab needs a subscription. All the workshop hands-on work runs in Claude Code (terminal).",
+      "fazer": [
+        "You don't need to do anything. Desktop is optional."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-DESK-02": {
+      "titulo": "I couldn't install Claude Desktop",
+      "so": "todos",
+      "causa": "The Claude Desktop download or install failed. It is optional.",
+      "fazer": [
+        "If you want it, download it by hand from {DESKTOP_DOWNLOAD_PAGE_URL}."
+      ],
+      "mac": [],
+      "windows": [
+        "winget install --id Anthropic.Claude -e --scope user --source winget"
+      ]
+    },
+    "E-SMOKE-01": {
+      "titulo": "The final Claude test failed",
+      "so": "todos",
+      "causa": "Claude Code couldn't answer a simple request. It may be the login, the network or credits.",
+      "fazer": [
+        "Run the command below and read the error message.",
+        "Check the login (code E-AUTH-01) and the credits (code E-SMOKE-02)."
+      ],
+      "mac": [
+        "claude -p \"Reply in English with only the word OK\" --model claude-haiku-5-5"
+      ],
+      "windows": [
+        "claude -p \"Reply in English with only the word OK\" --model claude-haiku-5-5"
+      ]
+    },
+    "E-SMOKE-02": {
+      "titulo": "The Console account has no credits",
+      "so": "todos",
+      "causa": "The API refused the request because the balance is too low (credit balance too low).",
+      "fazer": [
+        "Open {CONSOLE_URL}, go to Billing and add credits (recommended: a limit well above US$ 10).",
+        "Then run the setup again."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-SMOKE-03": {
+      "titulo": "Request limit reached (error 429)",
+      "so": "todos",
+      "causa": "The API is limiting the requests from your organization. New accounts have lower limits.",
+      "fazer": [
+        "Wait a minute and run the setup again."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-SMOKE-04": {
+      "titulo": "The test model is not available in your account",
+      "so": "todos",
+      "causa": "Your organization has no access to the claude-haiku-5-5 model, or a company gateway blocks it.",
+      "fazer": [
+        "Check the available models in the Console and talk to the organizer."
+      ],
+      "mac": [],
+      "windows": []
+    },
+    "E-GIT-04": {
+      "titulo": "The portable git download is corrupted",
+      "so": "mac",
+      "causa": "The downloaded file does not have the expected SHA-256. A proxy may be changing the download.",
+      "fazer": [
+        "Run the setup again.",
+        "If it still fails, try another network and show setup.log to whoever is helping you."
+      ],
+      "mac": [
+        "xcode-select --install"
+      ],
+      "windows": []
+    }
+  }
+}

@@ -167,3 +167,44 @@ test('o kit real instala as skills e os agentes de producao com {{KIT_DIR}} troc
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('--lingua-maquina grava lingua.json do kit e a language do Claude Code (so se nao houver) e o desinstalar tira-a', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-lingua-'));
+  const home = join(base, 'Dana Levi');
+  const kit = fakeKit(base);
+  const claude = join(home, '.claude');
+  const node = process.execPath;
+  mkdirSync(claude, { recursive: true });
+  writeFileSync(join(claude, 'settings.json'), '{"model":"claude-sonnet-5-5"}\n');
+  const lingua = () => JSON.parse(readFileSync(join(home, '.workshop-claude', 'kit', 'lingua.json'), 'utf8'));
+  const settings = () => JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8'));
+  try {
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'he-IL']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(lingua(), { lingua: 'en', maquina: 'he-IL' });
+    assert.equal(settings().language, 'Hebrew');
+    assert.deepEqual([r.get('lingua'), r.get('lingua_kit'), r.get('language'), r.get('language_nossa')], [['he-IL'], ['en'], ['Hebrew'], ['1']]);
+
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'he-IL']);
+    assert.equal(r.status, 0, r.stdout);
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt-PT']);
+    assert.equal(r.status, 1, 'a maquina passou a portugues: o kit tem de ser reinstalado');
+    assert.ok(r.get('falta').some((f) => f.startsWith('lingua do kit')), r.stdout);
+
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt_PT.UTF-8']);
+    assert.deepEqual(lingua(), { lingua: 'pt', maquina: 'pt-PT' });
+    assert.equal(settings().language, 'European Portuguese', 'a nossa acompanha a maquina');
+
+    writeFileSync(join(claude, 'settings.json'), JSON.stringify({ ...settings(), language: 'japanese' }));
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'en-US']);
+    assert.equal(settings().language, 'japanese', 'a da pessoa nao se toca');
+    assert.deepEqual(r.get('language_nossa'), ['0']);
+
+    writeFileSync(join(claude, 'settings.json'), JSON.stringify({ ...settings(), language: 'English' }));
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(settings().language, 'English', 'mudada pela pessoa depois da instalacao: o desinstalar nao lhe toca');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

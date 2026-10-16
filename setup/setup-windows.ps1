@@ -1,41 +1,45 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Setup do workshop "Orquestracao de Agentes com Claude" para Windows 10/11 (x64 e ARM64). Sem admin.
+  Setup for the workshop "Agent Orchestration with Claude" on Windows 10/11 (x64 and ARM64). No admin needed.
 
 .DESCRIPTION
-  Normalmente corre-se pelo bootstrap:   irm <url>/bootstrap-windows.ps1 | iex
-  Ou diretamente:                        powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
-  Depois da primeira vez:                powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check
+  Usually run through the bootstrap:   irm <url>/bootstrap-windows.ps1 | iex
+  Or directly:                         powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
+  After the first time:                powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check
 
-  Este ficheiro e so ASCII (o PowerShell 5.1 le UTF-8 sem BOM como ANSI). Todos os textos em pt-PT
-  vem de setup/messages.pt.json (o mesmo catalogo de docs/TROUBLESHOOTING.md), lido como UTF-8.
+  The setup speaks English (D-20). The machine language (WORKSHOP_LANG, Get-UICulture, Get-Culture) only
+  configures Claude's answers (Claude Code "language" setting) and the language of the workshop texts (pt or en).
+  This file is ASCII only (PowerShell 5.1 reads UTF-8 without BOM as ANSI). All texts come from
+  setup/messages.en.json (the same catalog as docs/en/TROUBLESHOOTING.md), read as UTF-8.
 
 .PARAMETER Check
-  So verifica e mostra o estado (2 a 3 minutos). Nao instala nada.
+  Check only and show the state (2 to 3 minutes). Installs nothing.
 .PARAMETER Doctor
-  Verifica tudo e, se algo falhar, pede ao Claude um diagnostico completo.
-.PARAMETER Desinstalar
-  Desfaz o que o setup instalou (manifest.json): settings, MCP, agentes, skills, kit, app e atalho.
-.PARAMETER SemDesktop
-  Nao instala o Claude Desktop (opcional).
-.PARAMETER Sim
-  Responde "sim" as perguntas simples (para testes). Logins e comandos sugeridos nunca correm sozinhos.
-.PARAMETER SubstituirStatusline
-  Substitui uma statusline existente pela do workshop (a tua fica no backup).
+  Check everything and, if something fails, ask Claude for a full diagnosis.
+.PARAMETER Uninstall
+  Undo what the setup installed (manifest.json): settings, MCP, agents, skills, kit, app and shortcut. Alias: -Desinstalar.
+.PARAMETER NoDesktop
+  Do not install Claude Desktop (optional). Alias: -SemDesktop.
+.PARAMETER Yes
+  Answer "yes" to simple questions (for tests). Logins and suggested commands never run on their own. Alias: -Sim.
+.PARAMETER ReplaceStatusline
+  Replace an existing statusline with the workshop one (yours stays in the backup). Alias: -SubstituirStatusline.
+.PARAMETER Help
+  Show this help. Alias: -Ajuda.
 #>
 [CmdletBinding()]
 param(
   [switch]$Check,
   [switch]$Doctor,
-  [switch]$Desinstalar,
-  [switch]$SemDesktop,
-  [switch]$Sim,
-  [switch]$SubstituirStatusline,
-  [switch]$Ajuda
+  [Alias('Desinstalar')][switch]$Uninstall,
+  [Alias('SemDesktop')][switch]$NoDesktop,
+  [Alias('Sim')][switch]$Yes,
+  [Alias('SubstituirStatusline')][switch]$ReplaceStatusline,
+  [Alias('Ajuda')][switch]$Help
 )
 
-$script:Params = @{ Check = [bool]$Check; Doctor = [bool]$Doctor; Desinstalar = [bool]$Desinstalar; SemDesktop = [bool]$SemDesktop; Sim = [bool]$Sim; SubstituirStatusline = [bool]$SubstituirStatusline; Ajuda = [bool]$Ajuda }
+$script:Params = @{ Check = [bool]$Check; Doctor = [bool]$Doctor; Desinstalar = [bool]$Uninstall; SemDesktop = [bool]$NoDesktop; Sim = [bool]$Yes; SubstituirStatusline = [bool]$ReplaceStatusline; Ajuda = [bool]$Help }
 
 # >>> WS-INJETADO >>>
 # Na fonte este bloco esta vazio. tools/build-release.sh injeta aqui (em base64) o repos.conf,
@@ -159,7 +163,7 @@ function Format-WsUsd {
   $v = [double]$Value
   $casas = 2
   if ($v -lt 0.01) { $casas = 4 }
-  return 'US$ ' + $v.ToString('F' + $casas, [Globalization.CultureInfo]::InvariantCulture).Replace('.', ',')
+  return 'US$ ' + $v.ToString('F' + $casas, [Globalization.CultureInfo]::InvariantCulture)
 }
 
 function Get-WsCusto {
@@ -260,10 +264,47 @@ function Remove-WsPathEntry {
   return ((@($PathValue.Split(';') | Where-Object { $_ -ne '' -and $_.TrimEnd('\') -ine $norm })) -join ';')
 }
 
+function ConvertTo-WsLangTag {
+  # Lingua da maquina (D-20): texto -> etiqueta como "pt-PT", "he" ou "en". Mesmas regras que
+  # installer/lib/linguas.mjs (casos partilhados em tools/test/lingua-cases.json). Vazio sem informacao.
+  param([string]$Text)
+  $t = (([string]$Text).Trim() -split '[.@]')[0].Replace('_', '-')
+  if ($t -eq '' -or $t -match '^(?i:c|posix)$') { return '' }
+  $parts = @($t.Split('-') | Where-Object { $_ -ne '' })
+  $base = $parts[0].ToLowerInvariant()
+  if ($base -eq 'iw') { $base = 'he' }
+  $out = @($base)
+  for ($i = 1; $i -lt $parts.Count; $i++) {
+    $p = $parts[$i]
+    if ($p.Length -eq 2) { $p = $p.ToUpperInvariant() }
+    elseif ($p.Length -eq 4) { $p = $p.Substring(0, 1).ToUpperInvariant() + $p.Substring(1).ToLowerInvariant() }
+    $out += $p
+  }
+  return ($out -join '-')
+}
+
+function Select-WsLang {
+  # WORKSHOP_LANG, lingua de apresentacao (Get-UICulture) e formato regional (Get-Culture) -> etiqueta; 'en' se nada servir.
+  param([string]$Override, [string]$UiCulture, [string]$Culture)
+  foreach ($c in @($Override, $UiCulture, $Culture)) {
+    $t = ConvertTo-WsLangTag $c
+    if ($t) { return $t }
+  }
+  return 'en'
+}
+
+function Get-WsLangKit {
+  # O kit so tem textos em portugues e em ingles.
+  param([string]$Tag)
+  if ($Tag -match '^pt(-|$)') { return 'pt' }
+  return 'en'
+}
+
 function Get-WsInstallUserArgs {
   # Argumentos para "node install-user.mjs <sub>": caminhos completos, um argumento cada (espacos e acentos).
-  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline)
+  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang)
   $a = @([IO.Path]::Combine($KitSrc, 'installer', 'install-user.mjs'), $Sub, '--node', $NodePath, '--kit-src', $KitSrc)
+  if ($Lang) { $a += @('--lingua-maquina', $Lang) }
   if ($CaPem) { $a += @('--ca-pem', $CaPem) }
   if ($Proxy) { $a += @('--https-proxy', $Proxy) }
   if ($SubstituirStatusline) { $a += '--substituir-statusline' }
@@ -310,9 +351,9 @@ function Get-WsSymbol {
     'feito' { return '[OK]' }
     'ok' { return '[OK]' }
     'ja' { return '[SKIP]' }
-    'aviso' { return '[AVISO]' }
-    'falhou' { return '[FALHA]' }
-    'falta' { return '[FALHA]' }
+    'aviso' { return '[WARN]' }
+    'falhou' { return '[FAIL]' }
+    'falta' { return '[FAIL]' }
     'naoexec' { return '[--]' }
     'saltado' { return '[--]' }
   }
@@ -422,11 +463,11 @@ function Read-WsYesNo {
   param([string]$Question, [bool]$DefaultYes, [switch]$NeverSim)
   $hint = (M 'ns')
   if ($DefaultYes) { $hint = (M 'sn') }
-  if ($script:Sim -and -not $NeverSim) { Write-WsSay ('  ? {0} {1} s (-Sim)' -f $Question, $hint); return $true }
-  if ($script:Sim) { Write-WsSay ('  ? {0} {1} n (-Sim)' -f $Question, $hint); return $false }
+  if ($script:Sim -and -not $NeverSim) { Write-WsSay ('  ? {0} {1} y (-Yes)' -f $Question, $hint); return $true }
+  if ($script:Sim) { Write-WsSay ('  ? {0} {1} n (-Yes)' -f $Question, $hint); return $false }
   if (-not (Test-WsInteractive)) { Write-WsSay ('  ? {0} {1} n - {2}' -f $Question, $hint, (M 'sem_tty')); return $false }
   $ans = Read-Host ('  ? {0} {1}' -f $Question, $hint)
-  Write-WsLog ('pergunta: {0} -> {1}' -f $Question, $ans)
+  Write-WsLog ('question: {0} -> {1}' -f $Question, $ans)
   if ($ans -match '^[SsYy]') { return $true }
   if ($ans -match '^[Nn]') { return $false }
   if ($ans -eq '') { return $DefaultYes }
@@ -455,7 +496,7 @@ function Invoke-WsProcess {
   $p = New-Object System.Diagnostics.Process
   $p.StartInfo = $psi
   try { [void]$p.Start() } catch {
-    Write-WsLog ('  -> nao arrancou: {0}' -f $_.Exception.Message)
+    Write-WsLog ('  -> did not start: {0}' -f $_.Exception.Message)
     return @{ ExitCode = -1; StdOut = ''; StdErr = $_.Exception.Message }
   }
   $outTask = $p.StandardOutput.ReadToEndAsync()
@@ -467,13 +508,13 @@ function Invoke-WsProcess {
   $p.StandardInput.Close()
   if (-not $p.WaitForExit($TimeoutSec * 1000)) {
     try { $p.Kill() } catch { }
-    Write-WsLog '  -> excedeu o tempo'
+    Write-WsLog '  -> timed out'
     return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' }
   }
   $p.WaitForExit()
   $r = @{ ExitCode = $p.ExitCode; StdOut = $outTask.Result; StdErr = $errTask.Result }
   Add-WsStepLog ($r.StdOut + "`n" + $r.StdErr)
-  Write-WsLog ('  -> codigo {0}' -f $r.ExitCode)
+  Write-WsLog ('  -> exit {0}' -f $r.ExitCode)
   return $r
 }
 
@@ -521,7 +562,7 @@ function Invoke-WsDownload {
       $script:DlStatus = [string]$ex.Status
       if ($ex.Response) { try { $script:DlHttp = [int]$ex.Response.StatusCode } catch { } }
     }
-    Write-WsLog ('  -> falhou: {0} (HTTP {1}, {2})' -f $ex.Message, $script:DlHttp, $script:DlStatus)
+    Write-WsLog ('  -> failed: {0} (HTTP {1}, {2})' -f $ex.Message, $script:DlHttp, $script:DlStatus)
     Add-WsStepLog ('download falhou: ' + $Url + ' ' + $ex.Message)
     Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
     return $false
@@ -535,7 +576,7 @@ function Test-WsSignature {
   param([string]$Path, [string]$Publisher)
   try {
     $s = Get-AuthenticodeSignature -LiteralPath $Path
-    Write-WsLog ('assinatura de {0}: {1} {2}' -f $Path, $s.Status, $s.SignerCertificate.Subject)
+    Write-WsLog ('signature of {0}: {1} {2}' -f $Path, $s.Status, $s.SignerCertificate.Subject)
     return ($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject -match $Publisher)
   } catch { return $false }
 }
@@ -589,8 +630,8 @@ function Set-WsUserEnv {
 
 # =============================================================== estado dos passos
 
-function Set-WsWarn { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Avisos += , @($Code, $Detail); Write-WsLog ('aviso {0} {1}' -f $Code, $Detail) }
-function Set-WsFail { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Falha = @($Code, $Detail); Write-WsLog ('falha {0} {1}' -f $Code, $Detail) }
+function Set-WsWarn { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Avisos += , @($Code, $Detail); Write-WsLog ('warning {0} {1}' -f $Code, $Detail) }
+function Set-WsFail { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Falha = @($Code, $Detail); Write-WsLog ('failure {0} {1}' -f $Code, $Detail) }
 function Set-WsDetail { param([string]$Text) $script:T[$script:Cur].Detalhe = $Text }
 function Add-WsNote { param([string]$Text) $script:T[$script:Cur].Notas += $Text }
 
@@ -655,15 +696,15 @@ function Invoke-WsStep {
   $title = $script:Titles[$key]
   Write-WsSay ''
   Write-WsSay (M 'passo' @{ N = $key; TITULO = $title }) 'White'
-  Write-WsLog ('=== passo {0}: {1} (modo {2})' -f $key, $title, $script:Mode)
+  Write-WsLog ('=== step {0}: {1} (mode {2})' -f $key, $title, $script:Mode)
   $dep = Test-WsDependencies $script:T $Deps
   if ($null -ne $dep) {
     $script:T[$key].Estado = 'naoexec'; Set-WsDetail (M 'dep_falhou' @{ N = $dep }); Write-WsResult $key; return
   }
-  if ($N -eq 11 -and $script:SemDesktop) { $script:T[$key].Estado = 'saltado'; Set-WsDetail '-SemDesktop'; Write-WsResult $key; return }
+  if ($N -eq 11 -and $script:SemDesktop) { $script:T[$key].Estado = 'saltado'; Set-WsDetail '-NoDesktop'; Write-WsResult $key; return }
   $nonBlocking = ($N -eq 10 -or $N -eq 11)
   $detected = $false
-  try { $detected = [bool](& ('Test-WsStep' + $N)) } catch { Write-WsLog ('erro na detecao: ' + $_.Exception.Message); $detected = $false }
+  try { $detected = [bool](& ('Test-WsStep' + $N)) } catch { Write-WsLog ('detection error: ' + $_.Exception.Message); $detected = $false }
   $s = $script:T[$key]
   if ($detected) {
     if ($s.Avisos.Count -gt 0) { $s.Estado = 'aviso' }
@@ -678,7 +719,7 @@ function Invoke-WsStep {
   } else {
     $s.Avisos = @(); $s.Falha = $null
     $ok = $false
-    try { $ok = [bool](& ('Install-WsStep' + $N)) } catch { Write-WsLog ('erro: ' + $_.Exception.Message); Add-WsStepLog $_.Exception.ToString(); $ok = $false }
+    try { $ok = [bool](& ('Install-WsStep' + $N)) } catch { Write-WsLog ('error: ' + $_.Exception.Message); Add-WsStepLog $_.Exception.ToString(); $ok = $false }
     $s = $script:T[$key]
     if ($ok) { if ($s.Avisos.Count -gt 0) { $s.Estado = 'aviso' } else { $s.Estado = 'feito' } }
     else {
@@ -686,7 +727,7 @@ function Invoke-WsStep {
       if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falhou' }
     }
   }
-  if ($script:StepLog.Length -gt 0) { Write-WsLog ("--- saida dos comandos (passo $key) ---`r`n" + $script:StepLog.ToString() + "`r`n--- fim ---") }
+  if ($script:StepLog.Length -gt 0) { Write-WsLog ("--- command output (step $key) ---`r`n" + $script:StepLog.ToString() + "`r`n--- end ---") }
   Write-WsResult $key
   if ($script:T[$key].Estado -eq 'falhou' -and $script:Mode -eq 'install' -and -not $Retry) {
     if (Invoke-WsHelper $key) {
@@ -823,6 +864,7 @@ function Test-WsStep0 {
   $script:Arch = $arch
   $script:OsText = ('Windows {0}.{1}.{2} {3} - PowerShell {4}' -f $v.Major, $v.Minor, $v.Build, $arch, $PSVersionTable.PSVersion)
   Add-WsNote (M 's0_so' @{ SO = $script:OsText })
+  Add-WsNote (M 's0_lingua' @{ LINGUA = $script:Lang })
   if ($v.Major -lt 10 -or $v.Build -lt 18362) { Set-WsWarn 'E-SO-01' ('{0}.{1}.{2}' -f $v.Major, $v.Minor, $v.Build) }
   if ($arch -eq 'arm64') { Set-WsWarn 'E-SO-02' 'ARM64' }
 
@@ -857,7 +899,7 @@ function Test-WsStep0 {
   Test-WsProxy
   Test-WsTls
   Test-WsNetwork
-  Set-WsDetail ($script:OsText + ' - ' + (M 's0_rede_ok' @{ OK = $script:NetOk; TOTAL = $script:NetTotal }))
+  Set-WsDetail ($script:OsText + ' - ' + $script:Lang + ' - ' + (M 's0_rede_ok' @{ OK = $script:NetOk; TOTAL = $script:NetTotal }))
   return $true
 }
 function Install-WsStep0 { return (Test-WsStep0) }
@@ -934,7 +976,7 @@ function Test-WsNetwork {
         if ($_.Exception.Response) { try { $http = [int]$_.Exception.Response.StatusCode } catch { }; $_.Exception.Response.Close(); if ($http -ne 407) { $okH = $true } }
       } catch { $st = 'Unknown' }
     } else { try { $req.Abort() } catch { }; $st = 'Timeout' }
-    Write-WsLog ('rede: {0} -> {1} HTTP {2}' -f $h, $st, $http)
+    Write-WsLog ('network: {0} -> {1} HTTP {2}' -f $h, $st, $http)
     if ($okH) { $script:NetOk++; continue }
     $fails += $h.Replace('https://', '').TrimEnd('/')
     if ($h -match 'api\.anthropic\.com') { $script:NetApiOk = $false }
@@ -1080,7 +1122,7 @@ function Install-WsStep3 {
     Set-WsFail 'E-AUTH-01' ''; return $false
   }
   if (-not (Test-WsInteractive)) { Set-WsFail 'E-AUTH-01' ''; return $false }
-  Write-WsLog '$ claude auth login --console (interativo)'
+  Write-WsLog '$ claude auth login --console (interactive)'
   & $script:ClaudeExe auth login --console
   return (Test-WsStep3)
 }
@@ -1124,7 +1166,7 @@ function Test-WsStep4 {
   Set-WsDetail (M 's4_ja' @{ VERSAO = $v; CAMINHO = $found })
   Sync-WsExtras
   $fresh = Get-WsFreshNodeMajor
-  Write-WsLog ('node num terminal novo: {0}' -f $fresh)
+  Write-WsLog ('node in a new terminal: {0}' -f $fresh)
   if ($fresh -lt [int]$script:C.NODE_MIN_MAJOR -and $script:Mode -eq 'install') {
     Add-WsUserPath (Split-Path $found)
     $fresh = Get-WsFreshNodeMajor
@@ -1204,7 +1246,7 @@ function Test-WsStep6 {
     if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhAsked -and (Test-WsInteractive)) {
       $script:GhAsked = $true
       if (Read-WsYesNo (M 's6_pergunta_login') $true) {
-        Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interativo)'
+        Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
         & $exe auth login --hostname github.com --git-protocol https --web
       }
     }
@@ -1282,7 +1324,7 @@ function Test-WsAcli {
   if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:AcliAsked -and (Test-WsInteractive)) {
     $script:AcliAsked = $true
     if (Read-WsYesNo (M 's7_pergunta_acli') $true) {
-      Write-WsLog '$ acli auth login (interativo)'
+      Write-WsLog '$ acli auth login (interactive)'
       & $exe auth login
     }
   }
@@ -1345,23 +1387,33 @@ function Install-WsStep7 {
 
 function Invoke-WsInstallUser {
   param([string]$Sub)
-  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl)
+  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl) -Lang $script:Lang
   return (Invoke-WsProcess $script:NodeExe $a -TimeoutSec 600)
 }
 
 function Read-WsInstallUserOutput {
   param([string]$Text)
-  $skills = 0; $agentes = 0
+  $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false
   foreach ($kv in (ConvertFrom-WsTsv $Text)) {
     switch ($kv[0]) {
       'skills' { $skills = $kv[1] }
       'agentes' { $agentes = $kv[1] }
+      'lingua' { $temLingua = $true }
+      'language' { $lang = $kv[1] }
+      'language_nossa' { $nossa = $kv[1] }
+      'lingua_kit' { $kit = $kv[1] }
       'aviso' { if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }; Set-WsWarn $kv[1] 'statusLine' }
       'erro' { Set-WsFail $kv[1] '' }
-      'falta' { Write-WsLog ('em falta: ' + $kv[1]) }
+      'falta' { Write-WsLog ('missing: ' + $kv[1]) }
     }
   }
   Set-WsDetail (M 's8_ja' @{ SKILLS = $skills; AGENTES = $agentes })
+  if (-not $temLingua) { return }
+  if (-not $kit) { $kit = $script:LangKit }
+  $kitName = M ('lingua_' + $kit)
+  if (-not $lang) { Add-WsNote (M 's8_lingua_nenhuma' @{ LINGUA = $script:Lang; KIT = $kitName }) }
+  elseif ($nossa -eq '1') { Add-WsNote (M 's8_lingua_nossa' @{ NOME = $lang; KIT = $kitName }) }
+  else { Add-WsNote (M 's8_lingua_tua' @{ NOME = $lang; KIT = $kitName }) }
 }
 
 function Test-WsStep8 {
@@ -1436,9 +1488,9 @@ function Invoke-WsAssemble {
 function Install-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   New-Item -ItemType Directory -Path $script:Proj -Force | Out-Null
-  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' @('--node', $script:NodeExe))) { return $false }
+  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' @('--node', $script:NodeExe, '--lingua', $script:LangKit))) { return $false }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
-    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj 'exemplo-projeto-real') '.sandbox-kit.json' @())) { return $false }
+    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj 'exemplo-projeto-real') '.sandbox-kit.json' @('--lingua', $script:LangKit))) { return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   return (Test-WsAppTests)
@@ -1514,7 +1566,7 @@ function Install-WsWebView2 {
   if (Get-WsWebView2Version) { return $true }
   $f = Join-Path $script:Tmp 'MicrosoftEdgeWebview2Setup.exe'
   if (-not (Invoke-WsDownload $script:C.WEBVIEW2_URL $f)) { return $false }
-  if (-not (Test-WsSignature $f 'Microsoft')) { Write-WsLog 'WebView2: assinatura invalida'; return $false }
+  if (-not (Test-WsSignature $f 'Microsoft')) { Write-WsLog 'WebView2: invalid signature'; return $false }
   [void](Invoke-WsProcess $f @('/silent', '/install') -TimeoutSec 900)
   return [bool](Get-WsWebView2Version)
 }
@@ -1645,7 +1697,7 @@ function Install-WsStep12 {
   $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '') -WorkingDirectory $script:Tmp -TimeoutSec 300
   $secs = [int]((Get-Date) - $t0).TotalSeconds
   $o = Read-WsResult $r.StdOut
-  Write-WsLog ('teste final: codigo {0} erro {1} custo {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
+  Write-WsLog ('final test: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
   if ($r.ExitCode -eq 0 -and $o.Json -and -not $o.Erro) {
     Set-WsDetail (M 's12_ok' @{ RESPOSTA = $o.Resposta.Trim(); SEG = $secs; USD = $o.Custo.Texto })
     if ($null -eq $o.Custo.Usd) { Add-WsNote (M 's12_custo_desconhecido') }
@@ -1658,7 +1710,7 @@ function Install-WsStep12 {
   elseif ($all -match 'certificate|CERT_|SELF_SIGNED') { Set-WsFail 'E-NET-04' '' }
   elseif ($all -match 'ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|fetch failed|[Uu]nable to connect') { Set-WsFail 'E-NET-05' '' }
   elseif ($all -match '[Nn]ot logged in|/login|authentication_error|[Ii]nvalid API key') { Set-WsFail 'E-AUTH-01' '' }
-  else { Set-WsFail 'E-SMOKE-01' ('codigo ' + $r.ExitCode) }
+  else { Set-WsFail 'E-SMOKE-01' ('exit ' + $r.ExitCode) }
   return $false
 }
 
@@ -1689,14 +1741,14 @@ function Invoke-WsHelper {
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
   $excerpt = Protect-WsText (($script:StepLog.ToString() -split "`n" | Select-Object -Last 80) -join "`n") $script:Literals
-  $prompt = "Es um assistente de suporte tecnico do setup de um workshop de Claude Code.`n" +
-    "Responde em portugues de Portugal, com frases curtas, para alguem sem experiencia.`n" +
-    "Diz a causa provavel em 1 a 3 frases e ate 4 comandos de PowerShell (Windows) que a pessoa pode correr para corrigir.`n" +
-    "Nunca sugiras comandos como administrador, comandos destrutivos, nem pedir ou mostrar chaves de API. Se nao tiveres a certeza, nao sugiras comandos.`n`n" +
-    ('Passo que falhou: {0} ({1})' -f $N, $script:Titles[$N]) + "`nCodigo: $code`n" + (Get-WsVersionsLine) + "`n`nExcerto do log (sem segredos):`n" + $excerpt
+  $prompt = "You are a technical support assistant for the setup of a Claude Code workshop.`n" +
+    "Answer in plain English, with short sentences, for someone with no experience.`n" +
+    "Give the likely cause in 1 to 3 sentences and up to 4 PowerShell commands (Windows) the person can run to fix it.`n" +
+    "Never suggest commands as administrator or destructive commands, and never ask for or show API keys. If you are not sure, do not suggest commands.`n`n" +
+    ('Failed step: {0} ({1})' -f $N, $script:Titles[$N]) + "`nCode: $code`n" + (Get-WsVersionsLine) + "`n`nLog excerpt (no secrets):`n" + $excerpt
   $o = Invoke-WsClaudeHelper $prompt $script:HelperSchema
   if (-not $o -or -not $o.Causa) { Write-WsSay ('  ' + (M 'helper_falhou')); return $false }
-  Write-WsLog ('ajudante: custo ' + $o.Custo.Texto)
+  Write-WsLog ('helper: cost ' + $o.Custo.Texto)
   Write-WsSay ('  ' + (M 'helper_causa') + ' ' + $o.Causa) 'White'
   Write-WsSay ('  ' + (M 'helper_custo' @{ USD = $o.Custo.Texto })) 'DarkGray'
   if ($o.Comandos.Count -eq 0) { Write-WsSay ('  ' + (M 'helper_sem_comandos')); return $false }
@@ -1707,7 +1759,7 @@ function Invoke-WsHelper {
     if (-not $cmd) { continue }
     Write-WsSay ('    PS> ' + $cmd) 'Cyan'
     if (Read-WsYesNo (M 'helper_correr') $false -NeverSim) {
-      Write-WsLog ('ajudante: corre ' + $cmd)
+      Write-WsLog ('helper: runs ' + $cmd)
       try { $out = Invoke-Expression $cmd 2>&1 | Out-String; Write-Host $out; Add-WsStepLog $out } catch { Write-WsSay $_.Exception.Message 'Red' }
       $ran = $true
     }
@@ -1727,15 +1779,15 @@ function Invoke-WsDoctor {
     $s = $script:T[$n]
     $f = ''; if ($s.Falha) { $f = $s.Falha -join ' ' }
     $w = ($s.Avisos | ForEach-Object { $_ -join ' ' }) -join '; '
-    $lines += ('Passo {0} ({1}): {2} {3} {4}' -f $n, $script:Titles[$n], $s.Estado, $f, $w)
+    $lines += ('Step {0} ({1}): {2} {3} {4}' -f $n, $script:Titles[$n], $s.Estado, $f, $w)
   }
   $tail = ''
   try { $tail = Protect-WsText ((Get-Content -LiteralPath $script:LogFile -Tail 120 -Encoding UTF8) -join "`n") $script:Literals } catch { }
-  $prompt = "Es um assistente de suporte do setup de um workshop de Claude Code (Windows). Responde em portugues de Portugal, frases curtas, para alguem sem experiencia.`n" +
-    "Faz um diagnostico completo: o que esta mal, porque, e os passos exatos (com comandos de PowerShell) por ordem. Nunca sugiras comandos como administrador nem mostrar chaves de API.`n`n" +
-    (Get-WsVersionsLine) + "`n`n" + ($lines -join "`n") + "`n`nExcerto do log:`n" + $tail
+  $prompt = "You are a support assistant for the setup of a Claude Code workshop (Windows). Answer in plain English, short sentences, for someone with no experience.`n" +
+    "Make a full diagnosis: what is wrong, why, and the exact steps (with PowerShell commands) in order. Never suggest commands as administrator or showing API keys.`n`n" +
+    (Get-WsVersionsLine) + "`n`n" + ($lines -join "`n") + "`n`nLog excerpt:`n" + $tail
   $o = Invoke-WsClaudeHelper $prompt ''
-  if ($o -and $o.Resposta) { Write-WsSay $o.Resposta; Write-WsSay ('  ' + (M 'doctor_custo' @{ USD = $o.Custo.Texto })) 'DarkGray'; Write-WsLog ('doctor: custo ' + $o.Custo.Texto) }
+  if ($o -and $o.Resposta) { Write-WsSay $o.Resposta; Write-WsSay ('  ' + (M 'doctor_custo' @{ USD = $o.Custo.Texto })) 'DarkGray'; Write-WsLog ('doctor: cost ' + $o.Custo.Texto) }
   else { Write-WsSay ('  ' + (M 'helper_falhou')) }
 }
 
@@ -1851,7 +1903,7 @@ function Initialize-WsConfig {
     $script:KitSrc = $root
     $script:C = ConvertFrom-WsConf ([IO.File]::ReadAllText((Join-Path $root 'repos.conf'), [Text.Encoding]::UTF8)) $envMap
     $script:Pricing = [IO.File]::ReadAllText((Join-Path $root 'pricing.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
-    $script:Msgs = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $script:Msgs = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'messages.en.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
     $script:InjKitSha = ''
     return $true
   }
@@ -1877,9 +1929,19 @@ function Initialize-WsFill {
   $f['LOG'] = $script:LogFile
   $f['RESUMO'] = $script:Resumo
   $f['BACKUP'] = Join-Path $script:WsHome 'backup'
-  $f['FLAG_SEM_DESKTOP'] = '-SemDesktop'
-  $f['FLAG_STATUSLINE'] = '-SubstituirStatusline'
+  $f['FLAG_SEM_DESKTOP'] = '-NoDesktop'
+  $f['FLAG_STATUSLINE'] = '-ReplaceStatusline'
   $script:Fill = $f
+}
+
+function Initialize-WsLang {
+  # Lingua da maquina: so configura a "language" do Claude Code e a lingua do kit; o setup fala sempre ingles.
+  $ui = ''; $cu = ''
+  try { $ui = [string](Get-UICulture).Name } catch { $ui = '' }
+  try { $cu = [string](Get-Culture).Name } catch { $cu = '' }
+  $script:Lang = Select-WsLang $env:WORKSHOP_LANG $ui $cu
+  $script:LangKit = Get-WsLangKit $script:Lang
+  Write-WsLog ('language: WORKSHOP_LANG={0} UICulture={1} Culture={2} -> {3} (kit {4})' -f $env:WORKSHOP_LANG, $ui, $cu, $script:Lang, $script:LangKit)
 }
 
 function Save-WsSelf {
@@ -1887,7 +1949,7 @@ function Save-WsSelf {
   $dst = Join-Path $script:WsHome 'setup-windows.ps1'
   if ($script:Dev) {
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Join-Path $PSScriptRoot 'setup-windows.ps1')))
-    $w = "# Copia de desenvolvimento: chama o script do repositorio.`r`n" +
+    $w = "# Development copy: runs the script in the repository.`r`n" +
       "`$p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$b64'))`r`n" +
       "& powershell -NoProfile -ExecutionPolicy Bypass -File `$p @args`r`n"
     [IO.File]::WriteAllText($dst, $w, [Text.Encoding]::ASCII)
@@ -1908,7 +1970,7 @@ function Invoke-WsMain {
   $script:SemDesktop = $o.SemDesktop
   $script:SubstSl = $o.SubstituirStatusline
   if ($o.Ajuda) { Get-Help $PSCommandPath -Detailed; return 0 }
-  if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') { Write-Host 'PowerShell em ConstrainedLanguage: o setup nao pode correr (E-SO-05).'; return 2 }
+  if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') { Write-Host 'PowerShell is in ConstrainedLanguage mode: the setup cannot run (E-SO-05).'; return 2 }
   try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
   try { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials } catch { }
@@ -1929,8 +1991,9 @@ function Invoke-WsMain {
   $script:StepLog = New-Object System.Text.StringBuilder
   $script:AuthOk = $false; $script:NetApiOk = $true; $script:CaPem = ''; $script:Proxy = ''; $script:OsBuild = 99999; $script:Arch = 'x64'
 
-  if (-not (Initialize-WsConfig)) { Write-Host 'Este script tem de vir da release (com os valores injetados) ou correr dentro do repositorio.'; return 2 }
+  if (-not (Initialize-WsConfig)) { Write-Host 'This script must come from the release (with the injected values) or run inside the repository.'; return 2 }
   Initialize-WsFill
+  Initialize-WsLang
   $script:Titles = @{}
   foreach ($p in $script:Msgs.passos.PSObject.Properties) { $script:Titles[$p.Name] = $p.Value }
   $script:T = New-WsStateTable
@@ -1939,11 +2002,11 @@ function Invoke-WsMain {
   $lock = Join-Path $script:WsHome '.lock'
   if (Test-Path -LiteralPath $lock) {
     $old = (Get-Content -LiteralPath $lock -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($old -and (Get-Process -Id ([int]$old) -ErrorAction SilentlyContinue)) { Write-Host ('O setup ja esta a correr (PID {0}).' -f $old); return 1 }
+    if ($old -and (Get-Process -Id ([int]$old) -ErrorAction SilentlyContinue)) { Write-Host ('The setup is already running (PID {0}).' -f $old); return 1 }
   }
   [IO.File]::WriteAllText($lock, [string]$PID)
   try {
-    [IO.File]::AppendAllText($script:LogFile, ("`r`n==================== {0} - modo {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
+    [IO.File]::AppendAllText($script:LogFile, ("`r`n==================== {0} - mode {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
     Write-WsSay (M 'titulo') 'White'
     switch ($script:Mode) {
       'uninstall' { Write-WsSay (M 'modo_desinstalar' @{ MANIFEST = (Join-Path $script:WsHome 'manifest.json') }); return (Invoke-WsUninstall) }

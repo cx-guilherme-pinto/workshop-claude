@@ -3,7 +3,9 @@
 //
 //   node installer/install-user.mjs instalar   --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
 //                                              [--no-proxy <lista>] [--substituir-statusline] [--versao <v>]
+//                                              [--lingua-maquina <etiqueta, ex.: pt-PT>]
 //   node installer/install-user.mjs verificar  --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
+//                                              [--lingua-maquina <etiqueta>]
 //   node installer/install-user.mjs desinstalar
 //   node installer/install-user.mjs registar   --tipo <t> --nome <n> [--caminho <p>] [--valor <v>]
 //   node installer/install-user.mjs extras
@@ -12,7 +14,9 @@
 //   - copia hooks/ orquestrador/ statusline/ pricing.json para ~/.workshop-claude/kit/
 //   - copia skills-prod/* e skills-shared/* para ~/.claude/skills/ e agents/prod/*.md para ~/.claude/agents/,
 //     trocando {{KIT_DIR}} pelo caminho absoluto do kit (barras "/" tambem no Windows)
-//   - faz backup e merge seguro do ~/.claude/settings.json (hooks, statusLine so se nao houver, env)
+//   - faz backup e merge seguro do ~/.claude/settings.json (hooks, statusLine so se nao houver, env e, com
+//     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma)
+//   - com --lingua-maquina, escreve ~/.workshop-claude/kit/lingua.json (pt ou en: a lingua dos textos do kit)
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
@@ -22,6 +26,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseConf } from './lib/conf.mjs';
+import { linguaMaquina } from './lib/linguas.mjs';
 import { ehPrincipal } from './lib/principal.mjs';
 import {
   checkSettings,
@@ -105,6 +110,15 @@ export function envFor(flags) {
   return env;
 }
 
+// Etiqueta da lingua da maquina (--lingua-maquina) -> { tag, kit, claude } ou null.
+export function linguaDe(flags) {
+  return typeof flags['lingua-maquina'] === 'string' ? linguaMaquina(flags['lingua-maquina']) : null;
+}
+
+function linguaKitInstalada(P) {
+  return readJson(join(P.kitDir, 'lingua.json'), null)?.lingua ?? null;
+}
+
 function loadManifest(P) {
   return readJson(P.manifest, null);
 }
@@ -155,9 +169,10 @@ export function instalar(flags, env = process.env) {
   // 1. settings.json primeiro: se for invalido, nao se toca em nada.
   const cur = readSettingsFile(P);
   const envVars = envFor(flags);
+  const lm = linguaDe(flags);
   const merged = mergeSettings(
     cur.obj,
-    { node, kitDir: P.kitDir, env: envVars, substituirStatusline: Boolean(flags['substituir-statusline']) },
+    { node, kitDir: P.kitDir, env: envVars, substituirStatusline: Boolean(flags['substituir-statusline']), language: lm?.claude },
     manifest.settings?.record || null,
   );
 
@@ -169,6 +184,7 @@ export function instalar(flags, env = process.env) {
     if (statSync(src).isDirectory()) copyTree(src, join(P.kitDir, m));
     else copyFileSync(src, join(P.kitDir, m));
   }
+  if (lm) writeAtomic(join(P.kitDir, 'lingua.json'), JSON.stringify({ lingua: lm.kit, maquina: lm.tag }, null, 2) + '\n');
 
   // 3. Skills e agentes.
   const replacements = { KIT_DIR: fwd(P.kitDir) };
@@ -214,6 +230,7 @@ export function instalar(flags, env = process.env) {
   manifest.kit_dir = fwd(P.kitDir);
   manifest.node = fwd(node);
   manifest.env = envVars;
+  if (lm) manifest.lingua = { maquina: lm.tag, kit: lm.kit };
   saveManifest(P, manifest);
 
   out('estado', 'instalado');
@@ -222,8 +239,17 @@ export function instalar(flags, env = process.env) {
   out('agentes', novosAgentes.length);
   out('kit', fwd(P.kitDir));
   out('settings', fwd(P.settings));
+  if (lm) saidaLingua(lm, linguaKitInstalada(P), merged.settings.language, merged.record);
   for (const w of merged.warnings) out('aviso', w);
   return 0;
+}
+
+// lingua <etiqueta> · lingua_kit pt|en · language <valor no settings.json> · language_nossa 1|0 (1 = posta pelo workshop)
+function saidaLingua(lm, kit, language, record) {
+  out('lingua', lm.tag);
+  out('lingua_kit', kit ?? '');
+  out('language', language ?? '');
+  out('language_nossa', record?.language_criado && language === record.language_valor ? 1 : 0);
 }
 
 function restoreItem(item) {
@@ -261,6 +287,13 @@ export function verificar(flags, env = process.env) {
       statusline = r.statusline;
       faltam.push(...r.faltam.filter((f) => !(f === 'statusLine' && r.statusline === 'alheia')));
       if (r.statusline === 'alheia') avisos.push('E-CFG-06');
+      // Sem instalacao ainda nao ha nada a dizer sobre a lingua (a "language" so se grava ao instalar).
+      const lm = manifest ? linguaDe(flags) : null;
+      if (lm) {
+        const kit = linguaKitInstalada(P);
+        if (kit !== lm.kit) faltam.push(`lingua do kit (${kit ?? '-'} -> ${lm.kit})`);
+        saidaLingua(lm, kit, cur.obj.language, manifest?.settings?.record);
+      }
     }
   } catch (e) {
     if (e instanceof SettingsError) {

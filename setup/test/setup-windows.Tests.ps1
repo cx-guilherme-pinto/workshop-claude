@@ -9,9 +9,9 @@ BeforeAll {
   $script:Root = $root
   $script:LogFile = Join-Path ([IO.Path]::GetTempPath()) ('ws-pester-' + [guid]::NewGuid().ToString('N') + '.log')
   $script:Literals = @()
-  $script:Msgs = [IO.File]::ReadAllText((Join-Path $root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+  $script:Msgs = [IO.File]::ReadAllText((Join-Path $root 'setup/messages.en.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
   $script:Pricing = [IO.File]::ReadAllText((Join-Path $root 'pricing.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
-  $script:Fill = @{ FLAG_STATUSLINE = '-SubstituirStatusline'; CLAUDE_CODE_VERSION = '2.1.292' }
+  $script:Fill = @{ FLAG_STATUSLINE = '-ReplaceStatusline'; CLAUDE_CODE_VERSION = '2.1.292' }
   function Read-Fixture([string]$Name) { return ([IO.File]::ReadAllText((Join-Path $script:Root ('tools/test/' + $Name)), [Text.Encoding]::UTF8) | ConvertFrom-Json) }
   $script:Acento = [string][char]0x00E3   # a com til
 }
@@ -88,9 +88,9 @@ Describe 'argumentos de processos' {
   It 'monta a chamada ao install-user.mjs com caminhos com espaco e acentos, um argumento cada' {
     $kit = 'C:\Users\Jo' + $script:Acento + 'o Silva\.workshop-claude\kit-src\v1'
     $node = 'C:\Program Files\nodejs\node.exe'
-    $a = Get-WsInstallUserArgs -Sub 'instalar' -NodePath $node -KitSrc $kit -CaPem 'C:\ca.pem' -Proxy 'http://p:8080' -SubstituirStatusline
+    $a = Get-WsInstallUserArgs -Sub 'instalar' -NodePath $node -KitSrc $kit -CaPem 'C:\ca.pem' -Proxy 'http://p:8080' -SubstituirStatusline -Lang 'he-IL'
     $a[0] | Should -Match 'install-user\.mjs$'
-    $a[1..($a.Count - 1)] -join '|' | Should -BeExactly ('instalar|--node|' + $node + '|--kit-src|' + $kit + '|--ca-pem|C:\ca.pem|--https-proxy|http://p:8080|--substituir-statusline')
+    $a[1..($a.Count - 1)] -join '|' | Should -BeExactly ('instalar|--node|' + $node + '|--kit-src|' + $kit + '|--lingua-maquina|he-IL|--ca-pem|C:\ca.pem|--https-proxy|http://p:8080|--substituir-statusline')
     (Get-WsInstallUserArgs -Sub 'verificar' -NodePath $node -KitSrc $kit).Count | Should -Be 6
     ConvertTo-WsArgLine @($node) | Should -BeExactly '"C:\Program Files\nodejs\node.exe"'
   }
@@ -98,9 +98,44 @@ Describe 'argumentos de processos' {
     $script:T = New-WsStateTable
     $script:Cur = '8'
     Read-WsInstallUserOutput "estado`tinstalado`nskills`t7`nagentes`t6`naviso`tE-CFG-06`n"
-    $script:T['8'].Detalhe | Should -BeExactly '7 skills, 6 agentes, hooks e statusline'
+    $script:T['8'].Detalhe | Should -BeExactly '7 skills, 6 agents, hooks and statusline'
     $script:T['8'].Avisos[0][0] | Should -Be 'E-CFG-06'
-    $script:T['8'].Notas[0] | Should -Match '-SubstituirStatusline'
+    $script:T['8'].Notas[0] | Should -Match '-ReplaceStatusline'
+  }
+  It 'le a lingua da saida do install-user e escreve a nota da definicao language' {
+    $script:T = New-WsStateTable
+    $script:Cur = '8'; $script:Lang = 'pt-PT'; $script:LangKit = 'pt'
+    Read-WsInstallUserOutput "skills`t7`nagentes`t6`nlingua`tpt-PT`nlingua_kit`tpt`nlanguage`tEuropean Portuguese`nlanguage_nossa`t1`n"
+    ($script:T['8'].Notas -join ' ') | Should -Match 'Claude answers in European Portuguese'
+    ($script:T['8'].Notas -join ' ') | Should -Match 'Workshop texts: Portuguese'
+    $script:T = New-WsStateTable
+    $script:Lang = 'es-ES'; $script:LangKit = 'en'
+    Read-WsInstallUserOutput "lingua`tes-ES`nlingua_kit`ten`nlanguage`t`nlanguage_nossa`t0`n"
+    ($script:T['8'].Notas -join ' ') | Should -Match 'No "language" setting for es-ES'
+    $script:T = New-WsStateTable
+    Read-WsInstallUserOutput "lingua`the-IL`nlingua_kit`ten`nlanguage`tjapanese`nlanguage_nossa`t0`n"
+    ($script:T['8'].Notas -join ' ') | Should -Match 'You already had a "language" setting \(japanese\)'
+  }
+}
+
+Describe 'lingua da maquina (casos partilhados)' {
+  It 'normaliza as etiquetas e escolhe a lingua do kit (tools/test/lingua-cases.json)' {
+    foreach ($c in (Read-Fixture 'lingua-cases.json').etiquetas) {
+      $t = ConvertTo-WsLangTag $c.in
+      if (-not $t) { $t = 'en' }
+      $t | Should -BeExactly $c.tag -Because $c.in
+      Get-WsLangKit $t | Should -BeExactly $c.kit -Because $c.in
+    }
+  }
+  It 'escolhe WORKSHOP_LANG, depois Get-UICulture, depois Get-Culture' {
+    foreach ($c in (Read-Fixture 'lingua-cases.json').windows) {
+      Select-WsLang $c.override $c.ui $c.cultura | Should -BeExactly $c.tag -Because $c.nome
+    }
+  }
+  It 'passa a lingua do kit a montagem dos projetos' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '''assemble-demo\.mjs''.*''--lingua'', \$script:LangKit'
+    $text | Should -Match '''assemble-sandbox\.mjs''.*''--lingua'', \$script:LangKit'
   }
 }
 
@@ -177,8 +212,8 @@ Describe 'tabela de estados' {
   It 'usa simbolos ASCII fora do Windows Terminal' {
     Get-WsSymbol 'feito' $false | Should -Be '[OK]'
     Get-WsSymbol 'ja' $false | Should -Be '[SKIP]'
-    Get-WsSymbol 'aviso' $false | Should -Be '[AVISO]'
-    Get-WsSymbol 'falhou' $false | Should -Be '[FALHA]'
+    Get-WsSymbol 'aviso' $false | Should -Be '[WARN]'
+    Get-WsSymbol 'falhou' $false | Should -Be '[FAIL]'
     (Get-WsSymbol 'feito' $true) | Should -Be ([char]::ConvertFromUtf32(0x2705))
   }
   It 'converte "nao instalado" em E-SETUP-01 no -Check' {
@@ -189,9 +224,9 @@ Describe 'tabela de estados' {
 
 Describe 'mensagens' {
   It 'preenche marcadores e deixa os desconhecidos' {
-    Format-WsMsg 'Passo {N}/12 {X}' @{ N = 3 } | Should -BeExactly 'Passo 3/12 {X}'
-    M 'passo' @{ N = 4; TITULO = 'Node.js' } | Should -BeExactly ('Passo 4/12 ' + [char]0x00B7 + ' Node.js')
-    M 's8_statusline_mantida' | Should -Match '-SubstituirStatusline'
+    Format-WsMsg 'Step {N}/12 {X}' @{ N = 3 } | Should -BeExactly 'Step 3/12 {X}'
+    M 'passo' @{ N = 4; TITULO = 'Node.js' } | Should -BeExactly ('Step 4/12 ' + [char]0x00B7 + ' Node.js')
+    M 's8_statusline_mantida' | Should -Match '-ReplaceStatusline'
   }
   It 'todos os codigos e chaves usados no script existem no catalogo' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
@@ -224,7 +259,7 @@ Describe 'passo 7 (Jira: MCP e Atlassian CLI de reserva)' {
   }
   It 'check: acli sem login = nota, sem aviso' {
     Test-WsStep7 | Should -BeTrue
-    $script:T['7'].Detalhe | Should -Match 'Atlassian CLI 9\.9\.9 \(reserva\)'
+    $script:T['7'].Detalhe | Should -Match 'Atlassian CLI 9\.9\.9 \(backup\)'
     $script:T['7'].Avisos.Count | Should -Be 0
     ($script:T['7'].Notas -join "`n") | Should -Match 'acli auth login'
   }
@@ -285,7 +320,7 @@ Describe 'script da release (injetado)' {
       @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ($script:Pricing.modelos.PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
     }
     $r.V | Should -Match '^v'
-    $r.P | Should -BeExactly ('Est' + [char]0x00E1 + ' tudo pronto para o workshop.')
+    $r.P | Should -BeExactly 'Everything is ready for the workshop.'
     $r.H | Should -BeTrue
     $r.S | Should -Match '^[0-9a-f]{64}$'
   }
