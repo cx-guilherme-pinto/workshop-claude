@@ -25,6 +25,7 @@ const MODELOS = {
   integrator: 'claude-sonnet-5-5',
   reviewer: 'claude-opus-5-5',
   planner: 'claude-opus-5-5',
+  'memoria-extrator': 'claude-haiku-5-5',
 };
 
 const INSTRUCOES = {
@@ -83,6 +84,7 @@ function construir(modo, maxParalelo) {
     config: { max_paralelo: maxParalelo, max_tentativas: 3, escalar_para: 'implementer' },
     agentes: Object.fromEntries(Object.entries(MODELOS).map(([k, v]) => [k, { modelo: v }])),
     ajustes: null,
+    apoio_estimativa: ['planner', 'memoria-extrator'],
     tarefas,
   };
 }

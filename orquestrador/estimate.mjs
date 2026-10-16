@@ -11,7 +11,9 @@ import { ehPrincipal } from './lib/principal.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
-export function estimar(plano, { pricing = loadPricing(), perfis = JSON.parse(readFileSync(join(AQUI, 'perfis.json'), 'utf8')).perfis, modeloPrincipal } = {}) {
+const PERFIS = JSON.parse(readFileSync(join(AQUI, 'perfis.json'), 'utf8'));
+
+export function estimar(plano, { pricing = loadPricing(), perfis = PERFIS.perfis, margem = PERFIS.margem ?? 0, modeloPrincipal } = {}) {
   const porTipo = new Map();
   for (const t of plano.tarefas) porTipo.set(t.agente, (porTipo.get(t.agente) || 0) + 1);
   // Margem para repeticoes: 10% das tarefas de cartao repetem uma vez.
@@ -39,14 +41,27 @@ export function estimar(plano, { pricing = loadPricing(), perfis = JSON.parse(re
     if (sub !== null) total += sub;
     linhas.push({ tipo, modelo, nome: modelName(modelo, pricing), agentes: n, repeticoes: repet, custo_unit: unit, custo: sub });
   }
-  // Sessao principal (orquestrador): um bloco por lote.
+  // Agentes de apoio que correm fora do plano (ex.: planner no /demo-plan, extrator de memoria no /demo-cost).
+  for (const tipo of plano.apoio_estimativa || []) {
+    const modelo = plano.agentes?.[tipo]?.modelo || 'claude-haiku-5-5';
+    const unit = custoPerfil(perfis[tipo] || perfis.worker, modelo);
+    if (unit !== null) total += unit;
+    linhas.push({ tipo, modelo, nome: modelName(modelo, pricing), agentes: 1, repeticoes: 0, custo_unit: unit, custo: unit });
+  }
+  // Sessao principal (orquestrador): um bloco por lote, mais os turnos das outras skills.
+  // Ha um perfil por modo (o contexto cresce com o numero de resultados), calibrado pelo benchmark.
   const maxPar = plano.config?.max_paralelo || 8;
-  const lotes = Math.ceil(plano.tarefas.length / maxPar) + 3;
+  const lotes = Math.ceil(plano.tarefas.length / maxPar) + 5;
   const mp = modeloPrincipal || plano.modelo_principal || 'claude-sonnet-5-5';
-  const unitOrq = custoPerfil(perfis.orquestrador, mp);
+  const unitOrq = custoPerfil(perfis[`orquestrador_${plano.modo}`] || perfis.orquestrador, mp);
   const orq = unitOrq * lotes;
   total += orq;
   linhas.push({ tipo: 'sessão principal', modelo: mp, nome: modelName(mp, pricing), agentes: 1, repeticoes: 0, custo_unit: unitOrq, custo: orq, lotes });
+  if (margem > 0) {
+    const extra = total * margem;
+    linhas.push({ tipo: `margem de segurança (${Math.round(margem * 100)}%)`, modelo: null, nome: '—', agentes: '—', repeticoes: 0, custo_unit: null, custo: extra });
+    total += extra;
+  }
   const alvo = pricing.orcamento?.alvo_usd ?? 5;
   const teto = pricing.orcamento?.teto_usd ?? 10;
   return { linhas, total, alvo, teto, lotes };

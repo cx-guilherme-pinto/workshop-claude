@@ -20,6 +20,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | W12 | `-Desinstalar` | O `settings.json` volta ao que era; os agentes, as skills e o MCP saem |
 | W13 | Utilizador com espaço e acentos no nome (ex.: `C:\Users\João Silva`) | Tudo funciona, incluindo os hooks e a statusline |
 | W14 | Windows on ARM (se houver) | Usa os binários arm64 ou dá uma mensagem clara |
+| W16 | Conta **sem nada** instalado (sem Git, sem Claude Code, sem `gh`) | O setup instala o Git for Windows (por utilizador), o Claude Code e o `gh`; abre o login Claude e o do GitHub no browser; passos 1, 3 e 6 ✅ |
 | W15 | Máquina **sem Python** instalado (confirma que `python`/`py` não existem ou que só abrem a Microsoft Store) | O passo da app de memória instala, o uv descarrega o seu próprio Python 3.12, e o `memoria selftest` mostra "Python 3.12.x" e "FTS5" |
 
 ## macOS (Apple Silicon e Intel)
@@ -31,6 +32,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | M3 | Intel (x64) | Instala o Node x64 e o Claude Code certo |
 | M4 | App Memória pelo `~/Applications/Memória.app` | Abre sem aviso do Gatekeeper |
 | M5 | Login Console real (`claude auth login --console`) numa conta Console nova | `claude auth status` mostra o método Console; o teste de fumo mostra o custo |
+| M6 | Conta **sem nada** instalado (sem Claude Code, sem `gh`, sem Command Line Tools) | O setup instala tudo, abre o login da conta Claude no browser e depois o login do GitHub (código no terminal, confirmação no browser); passos 3 e 6 ✅; "Está tudo pronto para o workshop" |
 
 ## Fluxo Console (não exercitado pelo benchmark)
 

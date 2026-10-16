@@ -146,6 +146,24 @@ O que o spike mostrou:
 - **Validação na máquina do participante:** o passo 10 do setup e o `--check` correm `memoria selftest`, que verifica a versão do Python, o FTS5, o servidor MCP e a interface.
 - Python continua a ser usado **só do lado do organizador** (QA dos slides e scripts de desenvolvimento), nunca na máquina do participante.
 
+## D-15 · O script instala e configura tudo, partindo de uma máquina vazia
+
+Pedido do organizador: não assumir **nada** pré-instalado. O mínimo do mínimo é o Claude Code e o GitHub, e o script tem de os instalar e fazer os logins.
+
+| Peça | Se faltar, o script… | Sem admin |
+|---|---|---|
+| Git | Mac: usa as Command Line Tools se existirem; senão instala o **git portátil** do GitHub Desktop (`dugite-native`, versão e SHA-256 fixados no `repos.conf`) em `~/.workshop-claude/git`, com um wrapper em `~/.workshop-claude/bin/git`. Windows: Git for Windows por utilizador (winget ou instalador oficial `/CURRENTUSER`, SHA-256 fixado), que também dá o Git Bash ao Claude Code | sim |
+| Claude Code | instalador nativo oficial, versão fixada | sim |
+| **Login Claude** | pergunta e abre `claude auth login --console` (browser). Se já houver um login claude.ai, pergunta antes de trocar | — |
+| Node.js | usa o existente se for ≥ 22; senão brew/winget; senão o arquivo oficial (SHA-256 verificado) em `~/.workshop-claude/node` | sim |
+| uv + Python | instalador oficial do uv; o Python 3.12 vem do uv (D-14) | sim |
+| GitHub CLI | brew/winget; senão o zip oficial (SHA-256 verificado) em `~/.workshop-claude/bin` | sim |
+| **Login GitHub** | **obrigatório**: pergunta e abre `gh auth login --hostname github.com --git-protocol https --web` (browser) e depois `gh auth setup-git`. Sem login, o passo fica ❌ e entra na lista "Faltam N passos" | — |
+| MCP Atlassian, skills, agentes, hooks, statusline, projetos, app de memória | tudo pelo script; o OAuth do Jira acaba com `/mcp` na primeira sessão | sim |
+
+- **Testado (Mac arm64, 16 out. 2026):** num HOME vazio com acentos (`Maria João`, debaixo de `/var` → `/private/var`), sem `git`, sem Command Line Tools (`xcode-select` falso a falhar), sem Node, sem Claude Code e sem `gh`. O script instalou tudo: git portátil 2.53.0, Claude Code 2.1.292, Node 24.22.0, uv 0.13.1, gh 2.102.0, 7 skills, 6 agentes e os projetos (com commit inicial feito pelo git portátil), e a app de memória com Python 3.12. Os dois logins são interativos e não correm em `--sim`: estão no checklist manual (M6, W16).
+- **Bug encontrado e corrigido neste teste:** a deteção de "script principal" (`import.meta.url === argv[1]`) falhava em pastas com links simbólicos (`/var`, `/tmp`, iCloud) e os scripts saíam em silêncio. Passou a comparar caminhos reais (`ehPrincipal()`).
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.
