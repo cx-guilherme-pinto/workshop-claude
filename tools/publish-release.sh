@@ -23,7 +23,8 @@
 #           (--verificar-token: GET /user)
 #
 #   github  API em GITHUB_API_URL, uploads em GITHUB_UPLOADS_URL
-#           token: GH_TOKEN ou GITHUB_TOKEN, ou "gh auth token" se o gh tiver login
+#           token: GH_TOKEN ou GITHUB_TOKEN, ou "gh auth token --hostname <servidor do repo>" se o gh tiver login
+#           GitHub Enterprise Server: GITHUB_API_URL=https://<servidor>/api/v3 e GITHUB_UPLOADS_URL=https://<servidor>/api/uploads
 #           GET  /repos/{owner}/{name}/releases/tags/{tag}
 #           POST /repos/{owner}/{name}/releases
 #           DELETE /repos/{owner}/{name}/releases/assets/{aid}
@@ -87,7 +88,7 @@ get_token() { # escreve o token no stdout (so para ser capturado; nunca mostrado
     github)
       if [ -n "${GH_TOKEN:-}" ]; then printf '%s' "$GH_TOKEN"
       elif [ -n "${GITHUB_TOKEN:-}" ]; then printf '%s' "$GITHUB_TOKEN"
-      else gh auth token 2>/dev/null; fi ;;
+      else gh auth token --hostname "$HOST" 2>/dev/null; fi ;;
   esac
 }
 

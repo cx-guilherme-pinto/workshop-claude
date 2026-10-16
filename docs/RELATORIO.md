@@ -4,7 +4,7 @@
 
 Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 - `workshop-claude` **v1.0.0-dev.3** (prerelease): setup-mac.sh, bootstrap-windows.ps1, setup-windows.ps1, o kit em .tar.gz e .zip (0,9 MB) e SHA256SUMS;
-- `claude-memory-app` **v0.2.1**: wheel, constraints.txt, instaladores e SHA256SUMS.
+- `claude-memory-app` **v0.4.0** (línguas pt, en, hi e he; registo das chamadas MCP): wheel, constraints.txt, instaladores, a app portátil (Mac arm64 e x86_64, Windows x64) e SHA256SUMS.
 
 ## O que foi feito
 

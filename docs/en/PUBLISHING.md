@@ -21,7 +21,7 @@ Today the kit points to **https://gitea.guilhermepinto.pt/guilherme/workshop-cla
 
 2. **Generate the slides and the documentation again.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, `docs/PUBLICAR.md` and the English versions: `README.en.md`, `docs/en/`, this file) and the slides build, which reads `repos.conf` directly.
 
-3. **Create the public releases with the same versions.** Kit `v1.0.0-dev.3` and app `v0.2.1`:
+3. **Create the public releases with the same versions.** Kit `v1.0.0-dev.3` and app `v0.4.0`:
 
    ```bash
    tools/build-release.sh v1.0.0-dev.3

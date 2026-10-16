@@ -711,7 +711,7 @@ mv ~/workshop-claude ~/workshop-claude-antigo
 
 ### E-MEM-01 · A release da app Memória ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.2.1 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.0 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 
@@ -1494,7 +1494,7 @@ Rename-Item ~/workshop-claude workshop-claude-antigo
 
 ### E-MEM-01 · A release da app Memória ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.2.1 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.0 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 

@@ -27,7 +27,8 @@ main() {
   [ -z "$MAX" ] && { [ "$MODO" = apresentador ] && MAX=16 || MAX=8; }
   local NODE; NODE="$(command -v node)"
   local RUNS="$KIT/benchmark/runs"; mkdir -p "$RUNS"
-  local CSV="$KIT/benchmark/results.csv"
+  # BENCH_CSV / BENCH_REPORT: escrever noutro sitio (tools/testar-maquina.sh nao mexe nos resultados do repositorio)
+  local CSV="${BENCH_CSV:-$KIT/benchmark/results.csv}" REPORT="${BENCH_REPORT:-$KIT/benchmark/REPORT.md}"
 
   local TOKEN=""
   if command -v security >/dev/null 2>&1; then
@@ -95,8 +96,8 @@ main() {
     "$NODE" "$KIT/benchmark/collect.mjs" --run "$RUN" --id "$ID" --modo "$MODO" --duracao $((T1 - T0)) --csv "$CSV" --isolado "$ISOLADO"
     if [ "$GRAVAR" = 1 ]; then cp -R "$ARENA/.workshop" "$RUN/workshop-final"; fi
   done
-  "$NODE" "$KIT/benchmark/report.mjs" --csv "$CSV" --out "$KIT/benchmark/REPORT.md"
-  echo "Relatorio: $KIT/benchmark/REPORT.md"
+  "$NODE" "$KIT/benchmark/report.mjs" --csv "$CSV" --out "$REPORT"
+  echo "Relatorio: $REPORT"
 }
 
 main "$@"
