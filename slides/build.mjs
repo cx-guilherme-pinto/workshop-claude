@@ -20,18 +20,19 @@ const TEXTOS = {
     conteudo: './content.mjs', pptx: 'workshop.pptx', notas: 'speaker-notes.md',
     titulo: 'Orquestração de agentes com Claude',
     decimal: ',',
-    porMedir: 'a medir', porGravar: 'a gravar', pesoOrq: 'a maior parte',
+    porMedir: 'por medir', porGravar: 'por gravar', pesoOrq: 'a maior parte',
     ondas: [
       ['Onda 1', 'lib-hash e 15 cartões'],
       ['Onda 2', 'categorias e pontuação'],
-      ['Onda 3', 'integração e suite'],
+      ['Onda 3', 'integração e suite de testes'],
       ['Onda 4', 'revisão e veredito'],
     ],
-    cripto: 'criptografia:\nesperam pelo lib-hash',
+    cripto: 'os 3 de criptografia\nesperam pelo lib-hash',
     estadosTitulo: 'Cada quadrado é um cartão:',
-    estados: [['cinza', 'à espera'], ['amarelo', 'um agente a trabalhar'], ['verde', 'teste passou'], ['vermelho', 'teste falhou']],
+    estadosTarefa: 'Cada quadrado é uma tarefa:',
+    estados: [['cinza', 'à espera'], ['amarelo', 'agente a trabalhar'], ['verde', 'teste passou'], ['vermelho', 'teste falhou']],
     agendaFim: '90′ e depois perguntas, sem limite',
-    faca: (min) => `Faça agora · ${min} min`,
+    faca: (min) => `Faz agora · ${min} min`,
     esperado: 'Resultado esperado: ',
     videoFalta: 'Vídeo por gravar: tools/record (modo apresentador)',
     imagemFalta: (m) => `Captura por gerar: ${m}`,
@@ -50,12 +51,13 @@ const TEXTOS = {
     ondas: [
       ['Wave 1', 'lib-hash and 15 cards'],
       ['Wave 2', 'categories and scoring'],
-      ['Wave 3', 'integration and suite'],
+      ['Wave 3', 'integration and test suite'],
       ['Wave 4', 'review and verdict'],
     ],
-    cripto: 'cryptography:\nwaits for lib-hash',
+    cripto: 'the 3 crypto cards\nwait for lib-hash',
     estadosTitulo: 'Each square is a card:',
-    estados: [['cinza', 'waiting'], ['amarelo', 'an agent working'], ['verde', 'test passed'], ['vermelho', 'test failed']],
+    estadosTarefa: 'Each square is a task:',
+    estados: [['cinza', 'waiting'], ['amarelo', 'agent working'], ['verde', 'test passed'], ['vermelho', 'test failed']],
     agendaFim: '90′, then questions, no time limit',
     faca: (min) => `Do it now · ${min} min`,
     esperado: 'Expected result: ',
@@ -239,15 +241,15 @@ function marca(s, item, i, x, y, d, obj) {
   else numero(s, i + 1, x, y, d, COR.accent, obj);
 }
 // Legenda das cores de estado ("Cada quadrado e um cartao: ..."). Devolve a largura usada.
-function legendaEstado(s, x, y, { titulo = true, alinhar = 'esquerda', largura = W - 2 * M, fs = 13, escuro = false } = {}) {
+function legendaEstado(s, x, y, { titulo = true, tituloTexto = T.estadosTitulo, alinhar = 'esquerda', largura = W - 2 * M, fs = 13, escuro = false } = {}) {
   const cores = escuro ? COR_ESCURO : COR;
   const tinta = escuro ? COR.escuroInk : COR.ink;
   const cw = fs * 0.0068; // largura media de um caracter em Arial, em polegadas
   const itens = T.estados.map(([cor, rot]) => ({ cor, rot, w: 0.24 + 0.12 + rot.length * cw + 0.45 }));
-  const wt = titulo ? T.estadosTitulo.length * cw * 1.08 + 0.25 : 0; // o titulo vai a negrito
+  const wt = titulo ? tituloTexto.length * cw * 1.08 + 0.25 : 0; // o titulo vai a negrito
   const total = wt + itens.reduce((a, b) => a + b.w, 0) - 0.45;
   let xx = alinhar === 'direita' ? x + largura - total : x;
-  if (titulo) { texto(s, T.estadosTitulo, { x: xx, y, w: wt, h: 0.3, fontSize: fs, bold: true, color: tinta, valign: 'middle', objectName: 'legenda-estado-titulo' }); xx += wt; }
+  if (titulo) { texto(s, tituloTexto, { x: xx, y, w: wt, h: 0.3, fontSize: fs, bold: true, color: tinta, valign: 'middle', objectName: 'legenda-estado-titulo' }); xx += wt; }
   itens.forEach((it, i) => {
     quadrado(s, xx, y + 0.03, 0.24, cores[it.cor], `legenda-estado-${i}`);
     texto(s, it.rot, { x: xx + 0.36, y, w: it.w - 0.36, h: 0.3, fontSize: fs, color: tinta, valign: 'middle', objectName: `legenda-estado-rotulo-${i}` });
@@ -338,7 +340,6 @@ const R = {
       texto(s, sub(c.titulo), { x: x + 0.35, y: 3.05, w: w - 0.7, h: 0.95, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `coluna-titulo-${i}` });
       texto(s, sub(c.texto), { x: x + 0.35, y: 4.05, w: w - 0.7, h: 1.6, fontSize: 19, color: COR.ink, objectName: `coluna-texto-${i}` });
     });
-    if (d.colunas.some((c) => c.cor)) legendaEstado(s, M, 6.15);
   },
   stats(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -409,7 +410,7 @@ const R = {
       if (i < ondas.length - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.06, y: 3.91, w: gap - 0.12, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `seta-${i}` });
       x += w + gap;
     });
-    legendaEstado(s, M, 6.38);
+    legendaEstado(s, M, 6.38, { tituloTexto: T.estadosTarefa });
   },
   // Passos em sequencia: numero, nome e (opcional) uma frase do que acontece.
   fluxo(s, d) {

@@ -65,7 +65,7 @@ Yes: `/btw <question>`. The answer does not go into the main conversation.
 - In another terminal: `node tools/workshop/orquestrador/painel.mjs`.
 
 **A card turned red. Now what?**
-The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/check-integracao.mjs and fix the first red test with the implementer; stop when everything is green`.
+The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red card with the implementer agent; stop when everything is green`.
 
 **I got "Do you trust the files in this folder?".**
 That is Claude Code asking if you trust the folder. In the Arena, answer yes: without it, the project permissions (`.claude/settings.json`) stay off and the swarm stops to ask for permission.

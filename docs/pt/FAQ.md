@@ -65,7 +65,7 @@ Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
 - Noutro terminal: `node tools/workshop/orquestrador/painel.mjs`.
 
 **Um cartão ficou vermelho. E agora?**
-O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/check-integracao.mjs e corrige o primeiro teste vermelho com o implementer; para quando estiver tudo verde`.
+O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige o primeiro cartão vermelho com o agente implementer; termina quando estiver tudo verde`.
 
 **Apareceu "Do you trust the files in this folder?".**
 É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm pára a pedir autorizações.

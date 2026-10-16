@@ -31,9 +31,9 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 25 | 1,5 | 37:00 | Projeto 1 | O que faz o /demo-swarm |  |
 | 26 | 2 | 38:30 | Projeto 1 | Solta o swarm |  |
 | 27 | 2 | 40:30 | Projeto 1 | Pergunta sem interromper |  |
-| 28 | 1,5 | 42:30 | Projeto 1 | Hooks: o Claude avisa, um script reage |  |
+| 28 | 1,5 | 42:30 | Projeto 1 | Hooks: o Claude Code avisa, um script reage |  |
 | 29 | 1 | 44:00 | Projeto 1 | Statusline: a linha de estado é um script |  |
-| 30 | 3 | 45:00 | Projeto 1 | No Terminal 2: três funcionalidades |  |
+| 30 | 3 | 45:00 | Projeto 1 | Num terceiro terminal: três funcionalidades |  |
 | 31 | 1,5 | 48:00 | Projeto 1 | Worktrees e rotinas | PODE SALTAR |
 | 32 | 2 | 49:30 | Projeto 1 | Até ficar tudo verde |  |
 | 33 | 2 | 51:30 | Projeto 1 | O gate de segurança |  |
@@ -72,13 +72,13 @@ Três resultados concretos. Tudo fica instalado no portátil de cada um e contin
 
 [2:30 → 4:00] 1,5 min · deves estar aqui aos 3 min
 
-O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o alvo, aparece um aviso e continua a trabalhar.
+O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o alvo, aparece um aviso e a pessoa continua a trabalhar.
 
 ### 4. Instala o kit
 
 [4:00 → 5:30] 1,5 min · deves estar aqui aos 4 min
 
-Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 15 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.1). Para atualizar só a app de memória: memoria update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
+Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 20 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.1). Para atualizar só a app de memória: memoria update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
 
 ### 5. Verifica a instalação
 
@@ -90,7 +90,7 @@ Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não 
 
 [8:30 → 10:30] 2 min · deves estar aqui aos 9 min
 
-O Claude lê só o excerto do log daquele passo, sem segredos, e propõe comandos. Nunca executa nada sem confirmação. Se o Claude ainda não estiver instalado, aparece a mensagem pré-escrita do TROUBLESHOOTING. Antes deste slide, enviar os comandos no Teams para todos copiarem.
+O doctor verifica tudo e, se algum passo falhou, pede um diagnóstico ao Claude: envia o estado de cada passo e o fim do log, sem segredos. Não executa nada. Voltar a correr o comando de instalação repete só os passos que faltam; aí, em cada falha, o Claude propõe comandos e só os corre com confirmação, um a um. Se o Claude ainda não estiver instalado, aparece a ajuda pré-escrita do TROUBLESHOOTING. Antes deste slide, enviar os comandos no Teams para todos copiarem.
 
 ### 7. Conceitos
 
@@ -108,7 +108,7 @@ O Claude Code não é um chat: é um agente que age no repositório. Tudo o que 
 
 [12:30 → 14:30] 2 min · deves estar aqui aos 13 min
 
-As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois sets: os /demo-* na Arena e os /task-* no dia a dia. As skills do kit estão em inglês e mandam o Claude responder na língua do participante.
+As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois conjuntos: os /demo-* na Arena e os /task-* no dia a dia. As skills do kit estão em inglês e mandam o Claude responder na língua do participante.
 
 ### 10. Subagentes: contexto e modelo próprios
 
@@ -132,7 +132,7 @@ O plano é um grafo de dependências. Executamos por ondas: tudo o que está pro
 
 [20:30 → 22:00] 1,5 min · deves estar aqui aos 21 min
 
-Com 15 chamadas em paralelo, um modelo esquece dependências ou reescreve prompts. O script é reproduzível: é isso que torna o custo previsível e o benchmark comparável.
+Com 8 chamadas em paralelo, um modelo esquece dependências ou reescreve prompts. O script é reproduzível: é isso que torna o custo previsível e o benchmark comparável.
 
 ### 14. Medir, não adivinhar
 
@@ -174,7 +174,7 @@ Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta 
 
 [29:30 → 30:00] 0,5 min · deves estar aqui aos 30 min
 
-25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
+25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
 
 ### 21. O que já está pronto e o que falta
 
@@ -210,7 +210,7 @@ Explicar antes de correr. O ponto importante: quem escolhe o que corre é um scr
 
 [38:30 → 40:30] 2 min · deves estar aqui aos 39 min
 
-A partir daqui o swarm trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
+A partir daqui o swarm trabalha alguns minutos (2 a 3 no benchmark; mais com contas novas). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
 
 ### 27. Pergunta sem interromper
 
@@ -218,7 +218,7 @@ A partir daqui o swarm trabalha alguns minutos (4 a 6 no benchmark). Os próximo
 
 O /btw responde ao lado. É a forma certa de tirar dúvidas durante uma execução longa.
 
-### 28. Hooks: o Claude avisa, um script reage
+### 28. Hooks: o Claude Code avisa, um script reage
 
 [42:30 → 44:00] 1,5 min · deves estar aqui aos 43 min
 
@@ -230,7 +230,7 @@ Sem entrar no código. A ideia: o hook é um "quando acontecer X, corre Y", conf
 
 Mostrar a statusline a mudar enquanto os agentes terminam. O hook grava, a statusline mostra: as duas peças juntas dão o custo ao vivo. O /usage do Claude Code pode mostrar mais, porque algumas versões ainda não conhecem os preços mais recentes; o /demo-cost usa os preços publicados.
 
-### 30. No Terminal 2: três funcionalidades
+### 30. Num terceiro terminal: três funcionalidades
 
 [45:00 → 48:00] 3 min · deves estar aqui aos 45 min
 
@@ -240,7 +240,7 @@ Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc 
 
 [48:00 → 49:30] 1,5 min · PODE SALTAR · deves estar aqui aos 48 min
 
-Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/rotina.mjs --instalar, que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".
+Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/rotina.mjs --instalar --sim (sem --sim só mostra o que faria), que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".
 
 ### 32. Até ficar tudo verde
 
@@ -270,13 +270,13 @@ Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadr
 
 [57:30 → 59:30] 2 min · deves estar aqui aos 58 min
 
-São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu PC. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
+São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu portátil. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
 
 ### 37. Abre o teu primeiro grafo
 
 [59:30 → 62:30] 3 min · deves estar aqui aos 60 min
 
-A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.
+A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já foram vistos nos momentos de espera.
 
 ### 38. Projeto 2
 
@@ -300,7 +300,7 @@ Para o Jira é preciso ter feito login no /mcp (atlassian). O GitHub usa o gh. O
 
 [68:30 → 73:30] 5 min · deves estar aqui aos 69 min
 
-O planner (Opus) propõe o grafo e um script valida-o: ciclos, ficheiros em comum, agentes conhecidos. A integração e a revisão são acrescentadas sozinhas.
+O planner (Opus) propõe o grafo e um script valida-o: ids, dependências, ciclos e agentes conhecidos. As tarefas que mexem nos mesmos ficheiros ficam em lotes diferentes, na altura do swarm. A integração e a revisão são acrescentadas automaticamente.
 
 ### 42. Põe o swarm a trabalhar
 
