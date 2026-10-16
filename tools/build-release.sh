@@ -8,7 +8,7 @@
 #                Sem esta opcao usa a tag <versao> se existir, senao o HEAD.
 #
 # Produz:
-#   workshop-kit-<versao>.tar.gz / .zip   git archive da arvore, SEM dev/, tools/dev/, benchmark/runs,
+#   workshop-kit-<versao>.tar.gz / .zip   git archive da arvore, SEM dev/, tools/dev/, benchmark/, tools/record/, slides/, presenter-replay/,
 #                                         benchmark/tmp, tools/record/out, dist/
 #   setup-mac.sh, setup-windows.ps1, bootstrap-windows.ps1
 #                                         com o repos.conf, o SHA-256 do kit, o pricing.json e as mensagens
@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-EXCLUIR="dev tools/dev benchmark/runs benchmark/tmp tools/record/out dist"
+EXCLUIR="dev tools/dev benchmark tools/record slides presenter-replay dist"  # so ferramentas e conteudo do organizador; o kit do participante fica pequeno
 CONF_VER=$(sed -n 's/^WORKSHOP_VERSION=//p' "$ROOT/repos.conf" | tr -d '[:space:]')
 [ "${WORKSHOP_VERSION:-$CONF_VER}" = "$VER" ] || { echo "ERRO: WORKSHOP_VERSION=${WORKSHOP_VERSION:-$CONF_VER} no repos.conf, mas pediste $VER" >&2; exit 1; }
 
