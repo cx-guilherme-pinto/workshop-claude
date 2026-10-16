@@ -7,6 +7,37 @@ import { fileURLToPath } from 'node:url';
 import { problemasDeSeguranca, problemasNoCartao } from '../lib/seguranca.js';
 import { caminhos, lerPlano, fotografia } from './workshop/orquestrador/lib/estado.mjs';
 import { tabelaMarkdown } from './workshop/orquestrador/lib/tabela.mjs';
+import { textos } from './workshop/hooks/lib/lingua.mjs';
+
+// Textos na lingua da Arena (tools/workshop/lingua.json). O nome do ficheiro e os caminhos nao mudam.
+const T = textos({
+  pt: {
+    titulo: '# Resumo para a revisão',
+    estado: '## Estado das tarefas',
+    estaticas: '## Verificações estáticas',
+    csp: 'CSP no servidor',
+    definido: 'definido',
+    emFalta: 'EM FALTA',
+    perigosos: 'Padrões perigosos encontrados',
+    nenhum: 'nenhum',
+    rever: '## Ficheiros a rever com atenção (lê só estes)',
+    falharam: '## Tarefas que falharam',
+    escrito: 'resumo escrito em .workshop/revisao-resumo.md',
+  },
+  en: {
+    titulo: '# Summary for the review',
+    estado: '## Task status',
+    estaticas: '## Static checks',
+    csp: 'CSP on the server',
+    definido: 'set',
+    emFalta: 'MISSING',
+    perigosos: 'Dangerous patterns found',
+    nenhum: 'none',
+    rever: '## Files to review closely (read only these)',
+    falharam: '## Tasks that failed',
+    escrito: 'summary written to .workshop/revisao-resumo.md',
+  },
+});
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -33,23 +64,23 @@ for (const d of ['public', 'pages', 'templates', 'lib']) {
   }
 }
 const server = existsSync(join(ROOT, 'server.js')) ? readFileSync(join(ROOT, 'server.js'), 'utf8') : '';
-const csp = /Content-Security-Policy/.test(server) ? 'definido' : 'EM FALTA';
+const csp = /Content-Security-Policy/.test(server) ? T.definido : T.emFalta;
 const arriscados = ['server.js', 'public/app.js', 'public/dom.js', 'public/jogo.js', 'public/estado.js', 'public/progresso.js', 'pages/categoria.js', 'pages/pontuacao.js', 'lib/hash.js'].filter((p) => existsSync(join(ROOT, p)));
-const md = `# Resumo para a revisão
+const md = `${T.titulo}
 
-## Estado das tarefas
+${T.estado}
 
 ${tabelaMarkdown(f)}
 
-## Verificações estáticas
+${T.estaticas}
 
-- CSP no servidor: ${csp}
-- Padrões perigosos encontrados: ${achados.length ? '\n' + achados.map((a) => `  - ${a}`).join('\n') : 'nenhum'}
+- ${T.csp}: ${csp}
+- ${T.perigosos}: ${achados.length ? '\n' + achados.map((a) => `  - ${a}`).join('\n') : T.nenhum}
 
-## Ficheiros a rever com atenção (lê só estes)
+${T.rever}
 
 ${arriscados.map((p) => `- ${p}`).join('\n')}
-${f.tarefas.filter((t) => t.estado === 'falhou').length ? `\n## Tarefas que falharam\n\n${f.tarefas.filter((t) => t.estado === 'falhou').map((t) => `- ${t.id}: ${(t.teste?.excerto || '').split('\n')[0]}`).join('\n')}` : ''}
+${f.tarefas.filter((t) => t.estado === 'falhou').length ? `\n${T.falharam}\n\n${f.tarefas.filter((t) => t.estado === 'falhou').map((t) => `- ${t.id}: ${(t.teste?.excerto || '').split('\n')[0]}`).join('\n')}` : ''}
 `;
 writeFileSync(join(ROOT, '.workshop/revisao-resumo.md'), md);
-console.log('resumo escrito em .workshop/revisao-resumo.md');
+console.log(T.escrito);

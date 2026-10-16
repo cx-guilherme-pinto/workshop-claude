@@ -1,6 +1,6 @@
 # Repetições do `/estado`
 
-Uma repetição reconstrói uma execução do enxame no `/estado` sem chamar a API: útil para ensaiar, para mostrar num projetor sem rede ou para comparar execuções.
+Uma repetição reconstrói uma execução do swarm no `/estado` sem chamar a API: útil para ensaiar, para mostrar num projetor sem rede ou para comparar execuções.
 
 ```
 node server.js

@@ -7,14 +7,14 @@
 //   accept: ['resposta certa', 'variante'],     // comparadas depois de normalizar()
 //   check?: (normalizada, original) => boolean,  // em vez de accept, para logica propria
 // })
-import { h, criarCartao, verificarDefinicao, cabecalho, cenario, botaoConfirmar, bloquear, normalizar } from './common.js';
+import { h, criarCartao, verificarDefinicao, cabecalho, cenario, botaoConfirmar, bloquear, normalizar, TEXTOS } from './common.js';
 
 export { normalizar };
 
 export function resposta(def) {
   verificarDefinicao(def, 'resposta');
   if (!def.check && !(Array.isArray(def.accept) && def.accept.length > 0)) {
-    throw new Error(`${def.id}: resposta precisa de "accept" ou "check"`);
+    throw new Error(TEXTOS.semAcceptNemCheck(def.id));
   }
   const aceites = new Set((def.accept || []).map(normalizar));
 
@@ -29,8 +29,8 @@ export function resposta(def) {
       const campo = h(doc, 'input', {
         class: 'resposta-campo', type: 'text', name: `resposta-${def.id}`,
         autocomplete: 'off', spellcheck: 'false', maxlength: 200,
-        placeholder: def.placeholder || 'Escreve a tua resposta',
-        attrs: { 'aria-label': 'Resposta' },
+        placeholder: def.placeholder || TEXTOS.placeholder,
+        attrs: { 'aria-label': TEXTOS.resposta },
       });
       const confirmar = botaoConfirmar(doc, () => {
         if (!campo.value || !String(campo.value).trim()) return;

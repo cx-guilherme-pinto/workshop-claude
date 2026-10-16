@@ -1,6 +1,6 @@
 # Tarefa `pagina-categoria` — página de uma categoria
 
-Escreve **só** `pages/categoria.js`: um módulo ES que a app (`public/app.js`) importa quando o jogador abre `#/categoria/<id>`. Enquanto o ficheiro não existir, a app mostra "Ainda por construir — onda 2 do enxame".
+Escreve **só** `pages/categoria.js`: um módulo ES que a app (`public/app.js`) importa quando o jogador abre `#/categoria/<id>`. Enquanto o ficheiro não existir, a app mostra "Ainda por construir — onda 2 do swarm".
 
 O aspeto já está feito em `public/styles.css`, que segue `DESIGN.md`. Não escrevas CSS. Usa exatamente as classes e os atributos desta spec, e o CSS desenha o resto.
 

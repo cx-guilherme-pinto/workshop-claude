@@ -1,6 +1,6 @@
 # Tarefa `revisao` — revisão de segurança e qualidade (gate final)
 
-És o último passo do enxame. Um jogo de segurança com falhas de segurança seria o pior exemplo possível. Não corriges código: dás um veredito com problemas concretos.
+És o último passo do swarm. Um jogo de segurança com falhas de segurança seria o pior exemplo possível. Não corriges código: dás um veredito com problemas concretos.
 
 ## O que lês, e só isto
 

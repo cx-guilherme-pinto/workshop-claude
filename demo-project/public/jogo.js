@@ -3,14 +3,17 @@
 // a faixa do resultado com a explicacao. Usado pela galeria e pelo painel do /estado.
 import { el, ID_VALIDO } from './dom.js';
 import { registarResposta, pontosDe } from './progresso.js';
+import { T } from '/lib/textos.js';
+
+const J = T.jogo;
 
 export async function carregarCartao(id, versao) {
-  if (!ID_VALIDO.test(String(id))) throw new Error('id de cartão inválido');
+  if (!ID_VALIDO.test(String(id))) throw new Error(J.idInvalido);
   const sufixo = Number.isFinite(versao) ? `?v=${versao}` : '';
   const m = await import(`/cards/${id}/card.js${sufixo}`);
   const c = m.default;
   if (!c || typeof c.render !== 'function' || typeof c.validate !== 'function') {
-    throw new Error('o card.js não tem um export default com render() e validate()');
+    throw new Error(J.semExport);
   }
   return c;
 }
@@ -25,14 +28,14 @@ function semMovimento() {
 
 function faixaResultado(cartao, certo, acoes) {
   const pts = pontosDe(cartao.difficulty);
-  return el('section', { class: 'resultado', 'data-certo': certo ? 'sim' : 'nao', tabindex: '-1', attrs: { 'aria-label': 'Resultado' } },
+  return el('section', { class: 'resultado', 'data-certo': certo ? 'sim' : 'nao', tabindex: '-1', attrs: { 'aria-label': J.resultado } },
     el('p', { class: 'resultado-veredito' },
-      el('span', { text: certo ? 'Certo.' : 'Ainda não.' }),
-      el('span', { class: 'resultado-pontos', text: certo ? (pts ? `Mais ${pts} pontos` : 'Resolvido') : 'Lê a explicação e tenta outra vez' }),
+      el('span', { text: certo ? J.certo : J.errado }),
+      el('span', { class: 'resultado-pontos', text: certo ? (pts ? J.maisPontos(pts) : J.resolvido) : J.tentaOutraVez }),
     ),
     el('div', { class: 'resultado-corpo' },
       el('p', { class: 'resultado-explicacao', text: String(cartao.explanation ?? '') }),
-      cartao.concept ? el('p', { class: 'resultado-conceito' }, el('strong', { text: 'A ideia: ' }), String(cartao.concept)) : null,
+      cartao.concept ? el('p', { class: 'resultado-conceito' }, el('strong', { text: J.aIdeia }), String(cartao.concept)) : null,
       acoes.length ? el('div', { class: 'resultado-acoes' }, ...acoes) : null,
     ),
   );
@@ -71,7 +74,7 @@ export function montarJogo(destino, cartao, { acoes = () => [], aoResponder = nu
     try {
       cartao.render(palco, api);
     } catch (e) {
-      palco.replaceChildren(el('p', { class: 'aviso-erro', text: `Este cartão não conseguiu desenhar-se: ${e?.message || e}` }));
+      palco.replaceChildren(el('p', { class: 'aviso-erro', text: J.naoDesenhou(e?.message || e) }));
     }
   }
 

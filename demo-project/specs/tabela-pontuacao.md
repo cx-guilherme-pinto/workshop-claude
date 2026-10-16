@@ -1,6 +1,6 @@
 # Tarefa `tabela-pontuacao` — tabela de pontuação
 
-Escreve **só** `pages/pontuacao.js`: um módulo ES que a app (`public/app.js`) importa quando o jogador abre `#/pontuacao`. Enquanto o ficheiro não existir, a app mostra "Ainda por construir — onda 2 do enxame".
+Escreve **só** `pages/pontuacao.js`: um módulo ES que a app (`public/app.js`) importa quando o jogador abre `#/pontuacao`. Enquanto o ficheiro não existir, a app mostra "Ainda por construir — onda 2 do swarm".
 
 O aspeto já está feito em `public/styles.css`, que segue `DESIGN.md`. Não escrevas CSS. Usa exatamente as classes e os atributos desta spec. Os números ficam em `tabular-nums` graças à classe `numero`.
 

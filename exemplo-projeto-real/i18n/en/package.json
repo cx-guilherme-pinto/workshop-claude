@@ -1,0 +1,12 @@
+{
+  "name": "municipal-library",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Small API for a municipal library (workshop training project).",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=22" }
+}

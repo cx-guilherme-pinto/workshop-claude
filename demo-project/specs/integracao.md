@@ -42,7 +42,7 @@ No máximo 25 linhas, em português de Portugal, com este formato:
 - Resultado: verde
 - Comando: node tools/check-integracao.mjs
 - Testes: 96 passam, 0 falham, em 14 ficheiros
-- De fora (falharam de vez no enxame): re-01
+- De fora (falharam de vez no swarm): re-01
 
 ## Correções
 

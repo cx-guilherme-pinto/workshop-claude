@@ -1,14 +1,20 @@
-// Formatos em pt-PT, iguais aos de tools/workshop/orquestrador/lib/tabela.mjs.
+// Formatos na lingua da Arena (lib/textos.js), iguais aos de tools/workshop/orquestrador/lib/tabela.mjs.
+import { T } from '/lib/textos.js';
+
+// Virgula decimal em portugues, ponto em ingles.
+export function decimal(texto) {
+  return String(texto).replace('.', T.decimal);
+}
 
 // "US$ 0,0042" abaixo de 10 centimos, "US$ 1,23" acima.
 export function usd(v) {
   if (v === null || v === undefined || Number.isNaN(v)) return '—';
-  return 'US$ ' + v.toFixed(v < 0.1 ? 4 : 2).replace('.', ',');
+  return 'US$ ' + decimal(v.toFixed(v < 0.1 ? 4 : 2));
 }
 
 // Totais: sempre com 2 casas ("US$ 0,00").
 export function usdTotal(v) {
-  return 'US$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+  return 'US$ ' + decimal((Number(v) || 0).toFixed(2));
 }
 
 // "42 s", "3 min 05 s".
@@ -38,21 +44,6 @@ export function nomeModelo(m) {
   return String(m);
 }
 
-export const NOME_ESTADO = {
-  por_fazer: 'por fazer',
-  em_curso: 'a trabalhar',
-  verde: 'passou',
-  vermelho: 'falhou',
-  falhou: 'falhou de vez',
-};
+export const NOME_ESTADO = T.estados;
 
-export const NOME_MODELO_CARTAO = {
-  escolha: 'Escolha',
-  'clica-erro': 'Encontra o erro',
-  ordenar: 'Ordenar',
-  resposta: 'Resposta',
-};
-
-export function plural(n, um, varios) {
-  return `${n} ${n === 1 ? um : varios}`;
-}
+export const NOME_MODELO_CARTAO = T.modelos;

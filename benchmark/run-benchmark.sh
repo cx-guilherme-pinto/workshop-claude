@@ -8,6 +8,7 @@
 # `claude setup-token`), cada execucao usa um CLAUDE_CONFIG_DIR temporario, como um participante novo.
 # Sem ele, usa a config do utilizador com --setting-sources project,local --strict-mcp-config.
 # O token so e lido em runtime e nunca e escrito em ficheiros nem no log.
+# Lingua da Arena: pt por defeito (a das medicoes da D-16); BENCH_LINGUA=en mede a Arena em ingles (D-20).
 set -euo pipefail
 
 main() {
@@ -40,7 +41,7 @@ main() {
     local ID; ID="$(date +%Y%m%d-%H%M%S)-$MODO-$i"
     local RUN="$RUNS/$ID"; mkdir -p "$RUN"
     local ARENA="$RUN/arena"
-    "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" >/dev/null
+    "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --lingua "${BENCH_LINGUA:-pt}" >/dev/null
     # Plano no modo pedido (o /demo-plan --auto usa o modo participante por defeito).
     local MODO_ARG=""; [ "$MODO" = apresentador ] && MODO_ARG="--modo apresentador"
 

@@ -18,7 +18,7 @@ main() {
   local PORTA="${PORTA:-3555}"
   for c in ffmpeg asciinema agg; do command -v "$c" >/dev/null || { echo "falta $c (brew install $c)"; exit 1; }; done
 
-  "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" >/dev/null
+  "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --lingua "${GRAVAR_LINGUA:-pt}" >/dev/null  # D-20: GRAVAR_LINGUA=en grava a Arena em ingles
   # Servidor da Arena para a pagina /estado.
   ( cd "$ARENA" && "$NODE" server.js --porta "$PORTA" > "$OUT/server.log" 2>&1 ) &
   local SRV=$!

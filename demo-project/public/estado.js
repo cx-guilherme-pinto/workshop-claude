@@ -2,8 +2,11 @@
 // a /api/status quando o SSE falha. Com ?replay=<nome> reconstroi uma execucao gravada em
 // replays/<nome>/ (events.jsonl + snapshot.json), sem chamar a API do Claude.
 import { el, reanimar, ID_VALIDO } from './dom.js';
-import { usd, usdTotal, tempo, relogio, nomeModelo, NOME_ESTADO, plural } from './formatos.js';
+import { usd, usdTotal, tempo, relogio, nomeModelo, NOME_ESTADO } from './formatos.js';
 import { carregarCartao, montarJogo } from './jogo.js';
+import { T } from '/lib/textos.js';
+
+const E = T.estado;
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -29,19 +32,13 @@ const estado = {
   densidade: 'grande',
   quadrados: new Map(),
   agora: () => Date.now(),
-  ligacao: 'a ligar',
+  ligacao: E.aLigar,
   repeticao: null,
   cartoes: new Map(), // id -> { existe, versao } de /api/cards
   painel: null, // { id, info, palco }
 };
 
-const ESTADO_LONGO = {
-  por_fazer: 'Por fazer: à espera das dependências ou de vaga no lote.',
-  em_curso: 'A trabalhar: o agente está a fazer a tarefa.',
-  verde: 'Passou: o teste ficou verde.',
-  vermelho: 'Falhou: o orquestrador volta a tentar.',
-  falhou: 'Falhou de vez: esgotou as tentativas.',
-};
+const ESTADO_LONGO = E.estadoLongo;
 
 // ---------- desenhar uma fotografia ----------
 
@@ -52,11 +49,11 @@ function definir(no, texto) {
 function subtitulo(f) {
   if (estado.repeticao) {
     const r = estado.repeticao;
-    return `Repetição de "${r.nome}" · ${plural(f.total, 'tarefa', 'tarefas')} · ${r.terminou ? 'terminada' : r.aTocar ? `a ${r.velocidade}×` : 'em pausa'}`;
+    return E.repeticao(r.nome, E.nTarefas(f.total), r.terminou ? E.terminada : r.aTocar ? E.aVelocidade(r.velocidade) : E.emPausa);
   }
-  if (f.vazio) return f.motivo === 'sem_motor' ? 'O motor do workshop (tools/workshop/) não está nesta pasta.' : 'Sem plano. Corre /demo-plan e depois /demo-swarm.';
-  const fase = f.fim ? 'terminado' : f.inicio ? 'a correr' : 'à espera do primeiro lote';
-  return `Modo ${f.modo || '—'} · ${plural(f.total, 'tarefa', 'tarefas')} · ${fase} · ${estado.ligacao}`;
+  if (f.vazio) return f.motivo === 'sem_motor' ? E.semMotor : E.semPlano;
+  const fase = f.fim ? E.terminado : f.inicio ? E.aCorrer : E.aEspera;
+  return E.modo(T.modos[f.modo] ?? (f.modo || '—'), E.nTarefas(f.total), fase, estado.ligacao);
 }
 
 function desenhar(f) {
@@ -87,13 +84,13 @@ function medidores() {
   const s = ini ? ((fim ?? agora) - ini) / 1000 : 0;
   definir(ui.tempo, relogio(s));
   const r = estado.repeticao;
-  definir(ui.tempoNota, r ? `de ${relogio(r.dados.duracao)}` : f.fim ? 'terminado' : '');
+  definir(ui.tempoNota, r ? E.deDuracao(relogio(r.dados.duracao)) : f.fim ? E.terminado : '');
 
   const total = f.custo?.total || 0;
   const alvo = f.orcamento?.alvo_usd ?? 5;
   definir(ui.custo, usdTotal(total));
-  definir(ui.custoRotulo, `custo total, alvo ${usdTotal(alvo)}`);
-  definir(ui.custoNota, total > alvo ? 'acima do alvo' : '');
+  definir(ui.custoRotulo, E.custoRotulo(usdTotal(alvo)));
+  definir(ui.custoNota, total > alvo ? E.acimaDoAlvo : '');
   const p = Math.max(0, Math.min(1, total / alvo));
   ui.barraValor.style.transform = `scaleX(${p.toFixed(4)})`;
   ui.barra.dataset.nivel = total > alvo ? 'acima' : total > alvo * 0.8 ? 'perto' : 'dentro';
@@ -146,13 +143,13 @@ function linhasDe(t) {
   const custo = t.custo_usd == null ? null : usd(t.custo_usd);
   if (!t.agente) {
     const nome = NOME_ESTADO[t.estado] || t.estado;
-    return [nome, t.onda ? `onda ${t.onda}` : '', ''];
+    return [nome, t.onda ? E.onda(t.onda) : '', ''];
   }
   const modelo = nomeModelo(t.modelo);
   if (estado.densidade === 'pequena') {
-    return [t.agente, `${modelo} · ${s === null ? 'a começar' : tempoCurto(s)}`, custo ?? ''];
+    return [t.agente, `${modelo} · ${s === null ? E.aComecar : tempoCurto(s)}`, custo ?? ''];
   }
-  const medidas = s === null ? 'a começar' : custo ? `${tempo(s)} · ${custo}` : tempo(s);
+  const medidas = s === null ? E.aComecar : custo ? `${tempo(s)} · ${custo}` : tempo(s);
   return [t.agente, modelo, medidas];
 }
 
@@ -172,10 +169,10 @@ function atualizarQuadrado(t) {
     q.li.dataset.estado = t.estado;
     if (tinha) reanimar(q.botao, 'mudou');
   }
-  definir(q.vez, t.tentativa > 1 ? (estado.densidade === 'pequena' ? `${t.tentativa}.ª` : `${t.tentativa}.ª vez`) : '');
+  definir(q.vez, t.tentativa > 1 ? (estado.densidade === 'pequena' ? E.vezCurta(t.tentativa) : E.vez(t.tentativa)) : '');
   const l = linhasDe(t);
   for (let i = 0; i < 3; i++) definir(q.linhas[i], l[i]);
-  const vez = t.tentativa > 1 ? `, ${t.tentativa}.ª tentativa` : '';
+  const vez = t.tentativa > 1 ? E.tentativaAria(t.tentativa) : '';
   q.botao.setAttribute('aria-label', `${t.id}: ${NOME_ESTADO[t.estado] || t.estado}${vez}. ${l.filter(Boolean).join(', ')}`);
 }
 
@@ -189,20 +186,20 @@ function par(rotulo, valor) {
 
 function seccaoTeste(t) {
   const te = t.teste;
-  const titulo = el('h3', { text: 'Resultado do teste' });
+  const titulo = el('h3', { text: E.resultadoTeste });
   if (!te) {
-    const msg = t.estado === 'em_curso' ? 'O teste corre quando o agente terminar.' : estado.repeticao ? 'Sem resultado gravado para esta tentativa.' : 'Ainda sem resultado.';
+    const msg = t.estado === 'em_curso' ? E.testeQuandoTerminar : estado.repeticao ? E.semResultadoGravado : E.semResultado;
     return el('section', { class: 'painel-seccao' }, titulo, el('p', { class: 'nota', text: msg }));
   }
   const linhas = [];
   if (te.comando) linhas.push(el('p', { class: 'nota', text: te.comando }));
   if (te.ficheiro) linhas.push(el('p', { class: 'nota', text: te.ficheiro }));
   if (Number.isFinite(te.passados) || Number.isFinite(te.falhados)) {
-    linhas.push(el('p', { class: 'numero', text: `${plural(te.passados || 0, 'teste passa', 'testes passam')}, ${plural(te.falhados || 0, 'falha', 'falham')}` }));
+    linhas.push(el('p', { class: 'numero', text: E.passamFalham(te.passados || 0, te.falhados || 0) }));
   }
-  if (te.valor) linhas.push(el('p', { text: `Veredito: ${te.valor}` }));
+  if (te.valor) linhas.push(el('p', { text: E.veredito(te.valor) }));
   const excerto = String(te.excerto || '').trim();
-  linhas.push(excerto ? el('pre', { class: 'painel-excerto', text: excerto }) : el('p', { class: 'nota', text: 'Sem erros no excerto.' }));
+  linhas.push(excerto ? el('pre', { class: 'painel-excerto', text: excerto }) : el('p', { class: 'nota', text: E.semErros }));
   return el('section', { class: 'painel-seccao' }, titulo, ...linhas);
 }
 
@@ -214,15 +211,15 @@ function seccaoAcoes(t) {
   const acoes = [];
   if (t.grupo_tipo === 'cartao') {
     if (cartaoExiste(t)) {
-      acoes.push(el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => jogarNoPainel(t.id) } }, 'Jogar este cartão'));
-      acoes.push(el('a', { class: 'botao', href: `/#/cartao/${t.id}` }, 'Abrir na galeria'));
+      acoes.push(el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => jogarNoPainel(t.id) } }, E.jogar));
+      acoes.push(el('a', { class: 'botao', href: `/#/cartao/${t.id}` }, E.abrirNaGaleria));
     } else {
-      return el('p', { class: 'nota', text: `O ficheiro cards/${t.id}/card.js ainda não existe nesta pasta.` });
+      return el('p', { class: 'nota', text: E.semCardJs(t.id) });
     }
   } else if (t.id === 'tabela-pontuacao') {
-    acoes.push(el('a', { class: 'botao', href: '/#/pontuacao' }, 'Ver a pontuação'));
+    acoes.push(el('a', { class: 'botao', href: '/#/pontuacao' }, E.verPontuacao));
   } else if (t.id === 'pagina-categoria') {
-    acoes.push(el('a', { class: 'botao', href: '/' }, 'Ver as categorias'));
+    acoes.push(el('a', { class: 'botao', href: '/' }, E.verCategorias));
   }
   return acoes.length ? el('div', { class: 'painel-acoes' }, ...acoes) : null;
 }
@@ -233,15 +230,15 @@ function infoPainel(t) {
       el('div', {},
         el('h2', { class: 'titulo-secao', id: 'painel-titulo', tabindex: '-1', text: t.id }),
         t.titulo ? el('p', { text: t.titulo }) : null),
-      el('button', { class: 'botao botao-pequeno', type: 'button', on: { click: fecharPainel } }, 'Fechar')),
+      el('button', { class: 'botao botao-pequeno', type: 'button', on: { click: fecharPainel } }, E.fechar)),
     el('p', { class: 'painel-estado', 'data-estado': t.estado, text: ESTADO_LONGO[t.estado] || t.estado }),
     el('dl', { class: 'painel-dados' },
-      ...par('agente', t.agente || '—'),
-      ...par('modelo', nomeModelo(t.modelo)),
-      ...par('tentativa', t.tentativa || '—'),
-      ...par('tempo', t.estado === 'em_curso' && t.inicio ? tempo((estado.agora() - Date.parse(t.inicio)) / 1000) : tempo(t.tempo_s)),
-      ...par('custo', usd(t.custo_usd)),
-      ...par('onda', t.onda ?? '—')),
+      ...par(E.agente, t.agente || '—'),
+      ...par(E.modelo, nomeModelo(t.modelo)),
+      ...par(E.tentativa, t.tentativa || '—'),
+      ...par(E.tempo, t.estado === 'em_curso' && t.inicio ? tempo((estado.agora() - Date.parse(t.inicio)) / 1000) : tempo(t.tempo_s)),
+      ...par(E.custo, usd(t.custo_usd)),
+      ...par(E.ondaRotulo, t.onda ?? '—')),
     seccaoTeste(t),
     seccaoAcoes(t),
   ];
@@ -277,19 +274,19 @@ function fecharPainel() {
 async function jogarNoPainel(id) {
   const p = estado.painel;
   if (!p) return;
-  p.palco.replaceChildren(el('p', { class: 'nota', text: 'A carregar o cartão…' }));
+  p.palco.replaceChildren(el('p', { class: 'nota', text: E.aCarregarCartao }));
   try {
     const cartao = await carregarCartao(id, estado.cartoes.get(id)?.versao);
     if (estado.painel !== p) return;
     montarJogo(p.palco, cartao, {
       acoes: ({ certo, repetir }) => [
-        certo ? null : el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => repetir() } }, 'Tentar outra vez'),
-        el('a', { class: 'botao', href: `/#/cartao/${id}` }, 'Abrir na galeria'),
+        certo ? null : el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => repetir() } }, E.tentarOutraVez),
+        el('a', { class: 'botao', href: `/#/cartao/${id}` }, E.abrirNaGaleria),
       ].filter(Boolean),
     });
     p.palco.querySelector('.cartao')?.scrollIntoView({ block: 'start' });
   } catch (e) {
-    p.palco.replaceChildren(el('p', { class: 'aviso-erro', text: `Este cartão não carregou: ${e?.message || e}` }));
+    p.palco.replaceChildren(el('p', { class: 'aviso-erro', text: E.naoCarregou(e?.message || e) }));
   }
 }
 
@@ -332,7 +329,7 @@ function iniciarAoVivo() {
     es.addEventListener('estado', (ev) => {
       ultimoSse = Date.now();
       try {
-        aplicar(JSON.parse(ev.data), 'ao vivo');
+        aplicar(JSON.parse(ev.data), E.aoVivo);
         atualizarCartoes();
       } catch {
         /* mensagem invalida: ignorar */
@@ -340,20 +337,20 @@ function iniciarAoVivo() {
     });
     es.addEventListener('ping', () => {
       ultimoSse = Date.now();
-      if (estado.ligacao !== 'ao vivo' && estado.f) aplicar(estado.f, 'ao vivo');
+      if (estado.ligacao !== E.aoVivo && estado.f) aplicar(estado.f, E.aoVivo);
     });
     es.addEventListener('error', () => {
-      if (estado.f) aplicar(estado.f, 'a religar…');
+      if (estado.f) aplicar(estado.f, E.aReligar);
     });
   }
   const consultar = async () => {
     try {
       const r = await fetch('/api/status', { cache: 'no-store' });
-      if (r.ok) aplicar(await r.json(), Date.now() - ultimoSse > 5000 ? 'por consulta a cada 2 s' : 'ao vivo');
+      if (r.ok) aplicar(await r.json(), Date.now() - ultimoSse > 5000 ? E.porConsulta : E.aoVivo);
     } catch {
-      estado.ligacao = 'sem ligação ao servidor';
+      estado.ligacao = E.semLigacao;
       if (estado.f) desenhar(estado.f);
-      else definir(ui.sub, 'Sem ligação ao servidor. Arranca-o com node server.js.');
+      else definir(ui.sub, E.semLigacaoTexto);
     }
   };
   consultar();
@@ -483,14 +480,14 @@ class Reprodutor {
 function controlosRepeticao(r) {
   const velocidades = VELOCIDADES.map((v) =>
     el('button', { class: 'segmento-vista numero', type: 'button', 'data-velocidade': v, attrs: { 'aria-pressed': v === r.velocidade ? 'true' : 'false' }, on: { click: () => mudarVelocidade(v) } }, `${v}×`));
-  const pausa = el('button', { class: 'botao botao-pequeno', type: 'button', id: 'repeticao-pausa', on: { click: alternarPausa } }, 'Pausa');
-  const botaoRecomecar = el('button', { class: 'botao botao-pequeno', type: 'button', on: { click: recomecar } }, 'Recomeçar');
+  const pausa = el('button', { class: 'botao botao-pequeno', type: 'button', id: 'repeticao-pausa', on: { click: alternarPausa } }, E.pausa);
+  const botaoRecomecar = el('button', { class: 'botao botao-pequeno', type: 'button', on: { click: recomecar } }, E.recomecar);
   const real = r.dados.snap.custo?.total;
   ui.repeticao.replaceChildren(
-    el('div', { class: 'segmentos', role: 'group', attrs: { 'aria-label': 'Velocidade da repetição' } }, ...velocidades),
+    el('div', { class: 'segmentos', role: 'group', attrs: { 'aria-label': E.velocidade } }, ...velocidades),
     pausa,
     botaoRecomecar,
-    el('p', { class: 'nota numero repeticao-real', text: `Execução real: ${tempo(r.dados.duracao)} · ${Number.isFinite(real) ? usdTotal(real) : 'custo desconhecido'} · sem chamadas à API` }),
+    el('p', { class: 'nota numero repeticao-real', text: E.execucaoReal(tempo(r.dados.duracao), Number.isFinite(real) ? usdTotal(real) : E.custoDesconhecido) }),
   );
   ui.repeticao.hidden = false;
 }
@@ -499,7 +496,7 @@ function atualizarControlos() {
   const r = estado.repeticao;
   for (const b of ui.repeticao.querySelectorAll('[data-velocidade]')) b.setAttribute('aria-pressed', Number(b.dataset.velocidade) === r.velocidade ? 'true' : 'false');
   const p = $('repeticao-pausa');
-  if (p) p.textContent = r.terminou ? 'Terminada' : r.aTocar ? 'Pausa' : 'Continuar';
+  if (p) p.textContent = r.terminou ? E.terminadaBotao : r.aTocar ? E.pausa : E.continuar;
   if (p) p.disabled = r.terminou;
 }
 
@@ -526,14 +523,14 @@ function recomecar() {
 }
 
 async function iniciarRepeticao(nome) {
-  definir(ui.sub, 'A carregar a repetição…');
+  definir(ui.sub, E.aCarregarRepeticao);
   let dados;
   try {
     const r = await fetch(`/api/replay/${encodeURIComponent(nome)}`, { cache: 'no-store' });
     if (!r.ok) throw new Error(String(r.status));
     dados = prepararRepeticao(nome, await r.json());
   } catch {
-    definir(ui.sub, `Não encontrei a repetição "${nome}" em replays/.`);
+    definir(ui.sub, E.repeticaoNaoEncontrada(nome));
     ui.vazio.hidden = false;
     return;
   }
@@ -573,7 +570,7 @@ async function iniciarRepeticao(nome) {
 const pedido = new URLSearchParams(location.search).get('replay');
 if (pedido !== null) {
   if (ID_VALIDO.test(pedido)) iniciarRepeticao(pedido);
-  else definir(ui.sub, 'Nome de repetição inválido: só letras minúsculas, números e hífens.');
+  else definir(ui.sub, E.repeticaoInvalida);
 } else {
   iniciarAoVivo();
 }
