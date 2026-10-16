@@ -80,27 +80,27 @@ O guia completo está em \`docs/TESTAR-MAQUINA.md\`. O relatório fica em \`~/wo
 
 ## 3. Publicar no GitHub corporativo, com o histórico
 
-Cria os dois repositórios vazios no GitHub da empresa. Depois, para cada um:
+Dentro do clone do kit, com o clone da app ao lado, vê primeiro o plano e depois corre-o. Pede o "sim" antes de cada passo:
 
 \`\`\`bash
-git clone --mirror workshop-claude.bundle workshop-claude.git
-git -C workshop-claude.git push --mirror https://<servidor>/<equipa>/workshop-claude.git
-git clone --mirror claude-memory-app.bundle claude-memory-app.git
-git -C claude-memory-app.git push --mirror https://<servidor>/<equipa>/claude-memory-app.git
+cd workshop-claude
+gh auth login --hostname <servidor> --web
+bash tools/publicar-github-corporativo.sh --dono <org-ou-utilizador> --servidor <servidor> --dry-run
+bash tools/publicar-github-corporativo.sh --dono <org-ou-utilizador> --servidor <servidor>
 \`\`\`
 
-O \`--mirror\` envia todos os branches e todas as tags tal como estão. No clone de trabalho, aponta o \`origin\` para o repositório novo:
+O script:
+- cria os dois repositórios (privados por defeito: \`--visibilidade internal\` para toda a empresa);
+- envia todos os branches e tags;
+- muda os URLs para lá;
+- publica a release da app e depois a do kit;
+- verifica o download com o \`tools/testar-maquina.sh\`.
 
-\`\`\`bash
-git -C workshop-claude remote set-url origin https://<servidor>/<equipa>/workshop-claude.git
-git -C claude-memory-app remote set-url origin https://<servidor>/<equipa>/claude-memory-app.git
-\`\`\`
+No github.com não precisas de \`--servidor\`.
 
-Depois mudam-se os URLs e criam-se as releases lá:
+## 4. Continuar com o Claude
 
-- **App Memória:** no \`release.conf\`, muda \`MEMORY_APP_REPO_URL\` e \`RELEASE_PROVIDER=github\` e sobe a \`MEMORY_APP_VERSION\`. Confirma também o URL por defeito em \`install/install.sh\` e \`install/install.ps1\`. Depois \`scripts/build.sh\` e \`scripts/publish-release.sh\` (usa o \`gh\`; num servidor próprio, com \`GH_HOST=<servidor>\`). Ver o README dela.
-- **Kit:** \`docs/PUBLICAR.md\` e a secção 5 do \`docs/TESTAR-MAQUINA.md\` (\`tools/switch-repos.sh\`, \`RELEASE_PROVIDER=github\`, uma versão nova no \`WORKSHOP_VERSION\`, \`MEMORY_APP_VERSION\` igual à release da app, \`tools/build-release.sh\` e \`tools/publish-release.sh\`).
-- **Confirmar:** volta a correr o teste com \`--github-host\` e \`--github-repo\`.
+Abre o Claude Code dentro de \`workshop-claude\`. O \`CLAUDE.md\` e o \`docs/HANDOVER.md\` (e os da app Memória) dizem-lhe o estado, as regras e o que falta.
 EOF
 }
 

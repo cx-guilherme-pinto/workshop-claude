@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-EXCLUIR="dev tools/dev benchmark tools/record slides presenter-replay dist"  # so ferramentas e conteudo do organizador; o kit do participante fica pequeno
+EXCLUIR="dev tools/dev benchmark tools/record slides presenter-replay dist CLAUDE.md docs/HANDOVER.md docs/TESTAR-MAQUINA.md tools/testar-maquina.sh tools/levar-para-outra-maquina.sh tools/publicar-github-corporativo.sh"  # so ferramentas e conteudo do organizador; o kit do participante fica pequeno
 CONF_VER=$(sed -n 's/^WORKSHOP_VERSION=//p' "$ROOT/repos.conf" | tr -d '[:space:]')
 [ "${WORKSHOP_VERSION:-$CONF_VER}" = "$VER" ] || { echo "ERRO: WORKSHOP_VERSION=${WORKSHOP_VERSION:-$CONF_VER} no repos.conf, mas pediste $VER" >&2; exit 1; }
 
