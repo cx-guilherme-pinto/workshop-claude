@@ -3,6 +3,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lingua } from './lingua.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +18,7 @@ export function loadPricing(explicitPath) {
   for (const p of candidates) {
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
   }
-  throw new Error('pricing.json nao encontrado');
+  throw new Error(lingua() === 'pt' ? 'pricing.json nao encontrado' : 'pricing.json not found');
 }
 
 // Normaliza um ID de modelo ("claude-haiku-5-5-20261001", "haiku", "claude-haiku-5-5[1m]")
@@ -74,11 +75,12 @@ export function requestCost(tokens, model, pricing) {
   return { usd, model: key };
 }
 
-// Formata dolares no estilo portugues: "US$ 0,0123" para valores pequenos, "US$ 1,23" para os outros.
-export function fmtUsd(v) {
+// Formata dolares na lingua do kit: "US$ 0,0123" / "US$ 1,23" em portugues, "US$ 0.0123" / "US$ 1.23" em ingles.
+// 4 casas para valores pequenos, 2 para os outros. `l` ('pt'|'en') e opcional (testes).
+export function fmtUsd(v, l = lingua()) {
   if (v === null || v === undefined || Number.isNaN(v)) return 'US$ ?';
-  const digits = Math.abs(v) < 0.1 ? 4 : 2;
-  return 'US$ ' + v.toFixed(digits).replace('.', ',');
+  const s = v.toFixed(Math.abs(v) < 0.1 ? 4 : 2);
+  return 'US$ ' + (l === 'pt' ? s.replace('.', ',') : s);
 }
 
 export function modelName(model, pricing) {

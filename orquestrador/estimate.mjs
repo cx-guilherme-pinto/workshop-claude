@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Estimativa de custo ANTES de executar: n.o de agentes por tipo x perfil de tokens x preco do modelo.
 //   node estimate.mjs [--plano plan.json]   (imprime tabela; --json para JSON)
+// Os textos (tabela e nomes das linhas extra) saem na lingua do kit; `l` e opcional (testes).
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -8,12 +9,41 @@ import { loadPricing, requestCost, modelName } from '../hooks/lib/cost.mjs';
 import { lerPlano, resolverNoProjeto } from './lib/estado.mjs';
 import { usd } from './lib/tabela.mjs';
 import { ehPrincipal } from './lib/principal.mjs';
+import { lingua, textos } from '../hooks/lib/lingua.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
 const PERFIS = JSON.parse(readFileSync(join(AQUI, 'perfis.json'), 'utf8'));
 
-export function estimar(plano, { pricing = loadPricing(), perfis = PERFIS.perfis, margem = PERFIS.margem ?? 0, modeloPrincipal } = {}) {
+const TEXTOS = {
+  pt: {
+    principal: 'sessão principal',
+    margem: (p) => `margem de segurança (${p}%)`,
+    colunas: ['| tipo | modelo | agentes | custo por agente | subtotal |', '|---|---|---|---|---|'],
+    repeticoes: (n) => ` (+${n} repetições)`,
+    total: (v) => `| **total estimado** | | | | **${v}** |`,
+    alvo: (a, t) => `Alvo: ${a} · teto: ${t}.`,
+    dentro: 'Dentro do alvo.',
+    acimaAlvo: 'Acima do alvo, abaixo do teto.',
+    acimaTeto: 'Acima do teto: rever o plano.',
+    nunca: 'A execução nunca é interrompida por custo.',
+  },
+  en: {
+    principal: 'main session',
+    margem: (p) => `safety margin (${p}%)`,
+    colunas: ['| type | model | agents | cost per agent | subtotal |', '|---|---|---|---|---|'],
+    repeticoes: (n) => ` (+${n} ${n === 1 ? 'retry' : 'retries'})`,
+    total: (v) => `| **estimated total** | | | | **${v}** |`,
+    alvo: (a, t) => `Target: ${a} · cap: ${t}.`,
+    dentro: 'Within the target.',
+    acimaAlvo: 'Above the target, below the cap.',
+    acimaTeto: 'Above the cap: review the plan.',
+    nunca: 'The run is never stopped because of cost.',
+  },
+};
+
+export function estimar(plano, { pricing = loadPricing(), perfis = PERFIS.perfis, margem = PERFIS.margem ?? 0, modeloPrincipal, l = lingua() } = {}) {
+  const T = textos(TEXTOS, l);
   const porTipo = new Map();
   for (const t of plano.tarefas) porTipo.set(t.agente, (porTipo.get(t.agente) || 0) + 1);
   // Margem para repeticoes: 10% das tarefas de cartao repetem uma vez.
@@ -56,10 +86,10 @@ export function estimar(plano, { pricing = loadPricing(), perfis = PERFIS.perfis
   const unitOrq = custoPerfil(perfis[`orquestrador_${plano.modo}`] || perfis.orquestrador, mp);
   const orq = unitOrq * lotes;
   total += orq;
-  linhas.push({ tipo: 'sessão principal', modelo: mp, nome: modelName(mp, pricing), agentes: 1, repeticoes: 0, custo_unit: unitOrq, custo: orq, lotes });
+  linhas.push({ tipo: T.principal, modelo: mp, nome: modelName(mp, pricing), agentes: 1, repeticoes: 0, custo_unit: unitOrq, custo: orq, lotes });
   if (margem > 0) {
     const extra = total * margem;
-    linhas.push({ tipo: `margem de segurança (${Math.round(margem * 100)}%)`, modelo: null, nome: '—', agentes: '—', repeticoes: 0, custo_unit: null, custo: extra });
+    linhas.push({ tipo: T.margem(Math.round(margem * 100)), modelo: null, nome: '—', agentes: '—', repeticoes: 0, custo_unit: null, custo: extra });
     total += extra;
   }
   const alvo = pricing.orcamento?.alvo_usd ?? 5;
@@ -67,11 +97,13 @@ export function estimar(plano, { pricing = loadPricing(), perfis = PERFIS.perfis
   return { linhas, total, alvo, teto, lotes };
 }
 
-export function tabelaEstimativa(e) {
-  const L = ['| tipo | modelo | agentes | custo por agente | subtotal |', '|---|---|---|---|---|'];
-  for (const l of e.linhas) L.push(`| ${l.tipo} | ${l.nome} | ${l.agentes}${l.repeticoes ? ` (+${l.repeticoes} repetições)` : ''} | ${usd(l.custo_unit)} | ${usd(l.custo)} |`);
-  L.push(`| **total estimado** | | | | **${usd(e.total)}** |`);
-  L.push('', `Alvo: ${usd(e.alvo)} · teto: ${usd(e.teto)}. ${e.total <= e.alvo ? 'Dentro do alvo.' : e.total <= e.teto ? 'Acima do alvo, abaixo do teto.' : 'Acima do teto: rever o plano.'} A execução nunca é interrompida por custo.`);
+export function tabelaEstimativa(e, l = lingua()) {
+  const T = textos(TEXTOS, l);
+  const u = (v) => usd(v, l);
+  const L = [...T.colunas];
+  for (const x of e.linhas) L.push(`| ${x.tipo} | ${x.nome} | ${x.agentes}${x.repeticoes ? T.repeticoes(x.repeticoes) : ''} | ${u(x.custo_unit)} | ${u(x.custo)} |`);
+  L.push(T.total(u(e.total)));
+  L.push('', `${T.alvo(u(e.alvo), u(e.teto))} ${e.total <= e.alvo ? T.dentro : e.total <= e.teto ? T.acimaAlvo : T.acimaTeto} ${T.nunca}`);
   return L.join('\n');
 }
 
