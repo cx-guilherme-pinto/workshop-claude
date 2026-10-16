@@ -62,7 +62,7 @@ main() {
     local cur; cur=$(sed -n 's/^MEMORY_APP_VERSION=//p' "$MEM/release.conf" | head -1)
     VM=$(printf '%s' "$cur" | awk -F. '{ $NF = $NF + 1; print }' OFS=.)
   fi
-  [ "$NO_MEM" = 1 ] && VM=$(sed -n 's/^MEMORY_APP_VERSION=//p' "$KIT/repos.conf" | head -1)
+  [ "$NO_MEM" = 1 ] && [ -z "$VM" ] && VM=$(sed -n 's/^MEMORY_APP_VERSION=//p' "$KIT/repos.conf" | head -1)
   LOG="$KIT/dist/publish-$(date +%Y%m%d-%H%M%S).log"; mkdir -p "$KIT/dist"; : > "$LOG"
   if [ -t 1 ]; then C_B=$'\033[1m' C_D=$'\033[2m' C_G=$'\033[32m' C_R=$'\033[31m' C_0=$'\033[0m'; else C_B="" C_D="" C_G="" C_R="" C_0=""; fi
 
