@@ -22,7 +22,14 @@ Corre `gh auth login` num terminal novo, escolhe GitHub.com, HTTPS e "Login with
 **O Jira não aparece no `/mcp`.**
 1. Confirma com `claude mcp list` que existe uma linha `atlassian`. Se não existir, volta a correr o setup.
 2. Dentro do Claude Code, corre `/mcp`, escolhe `atlassian` e faz login no browser.
-3. Se o login recusar o acesso, o administrador do Jira da tua empresa pode ter limitado os domínios ou as apps permitidas no "Atlassian MCP server". Sem isso, usa o projeto de treino `exemplo-projeto-real/`, que tem as issues em ficheiros locais.
+3. Se o login recusar o acesso, o administrador do Jira da tua empresa pode ter limitado os domínios ou as apps permitidas no "Atlassian MCP server". Sem isso, usa a reserva (abaixo) ou o projeto de treino `exemplo-projeto-real/`, que tem as issues em ficheiros locais.
+
+**O MCP do Jira falha. Há alternativa?**
+Sim: o setup instala o **Atlassian CLI** (`acli`, oficial da Atlassian). Quando as ferramentas do MCP faltam ou dão erro, o `/task-intake` lê a issue com o `acli` e o `/task-report` publica os comentários com ele, sempre com o teu "sim" antes de escrever.
+1. Faz o login uma vez num terminal: `acli auth login` (abre o browser; no terminal, escolhe o mesmo site). Confirma com `acli auth status`.
+2. Se aparecer "site admin must authorize this app", o administrador do Jira tem de aprovar a app ACLI no site (ver `E-ACLI-02` no TROUBLESHOOTING). Também lá está o login com API token, para quando não houver OAuth.
+3. O `acli` não regista horas: no fim, o `/task-report` diz-te quanto tempo registar à mão em *Log work*.
+O mesmo login serve para o Confluence: `acli confluence space list` e `acli confluence page view --id <id>`.
 
 **A app Memória não abre no Windows.**
 Ela precisa do WebView2 da Microsoft. O setup instala-o se faltar. Se mesmo assim não abrir, a app abre a mesma interface no teu browser.

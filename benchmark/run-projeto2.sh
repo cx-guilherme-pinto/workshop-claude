@@ -30,6 +30,7 @@ main() {
   local MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
   mkdir -p "$RUN/memoria"
   "$NODE" -e 'const [f,b,h]=process.argv.slice(1);require("fs").writeFileSync(f,JSON.stringify({mcpServers:{memoria:{type:"stdio",command:b,args:["mcp"],env:{MEMORIA_HOME:h}}}}))' "$RUN/mcp.json" "$MEMBIN" "$RUN/memoria"
+  # shellcheck disable=SC2054 # "project,local" e um so argumento
   local -a FLAGS=(--output-format json --permission-mode acceptEdits --setting-sources project,local --strict-mcp-config --mcp-config "$RUN/mcp.json"
     --allowedTools "Bash(node *)" "Bash(npm test*)" "Bash(git status*)" "Bash(git diff*)" "Bash(git log*)" "Bash(git rev-parse *)" Read Edit Write Glob Grep
     "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")

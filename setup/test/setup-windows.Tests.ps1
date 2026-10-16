@@ -200,6 +200,80 @@ Describe 'mensagens' {
   }
 }
 
+Describe 'passo 7 (Jira: MCP e Atlassian CLI de reserva)' {
+  BeforeEach {
+    $script:T = @{ '7' = @{ Estado = ''; Detalhe = ''; Avisos = @(); Falha = $null; Notas = @() } }
+    $script:Cur = '7'; $script:Mode = 'check'; $script:Sim = $true; $script:AcliErr = $null; $script:AcliAsked = $false
+    $script:ClaudeExe = 'claude.exe'; $script:McpOk = $true; $script:AcliExe = 'acli.exe'; $script:AcliLogin = 1
+    $script:WsHome = Join-Path $TestDrive 'ws'; $script:Tmp = Join-Path $TestDrive 'tmp'; $script:Arch = 'x64'
+    $script:C = @{ ACLI_VERSION = '9.9.9-stable'; ACLI_WINDOWS_URL = 'https://acli.exemplo/{version}/{file}'; ATLASSIAN_MCP_URL = 'https://mcp.exemplo'
+      ACLI_WINDOWS_FILE_X64 = 'acli_9.9.9-stable_windows_amd64.zip'; ACLI_WINDOWS_SHA256_X64 = '00'; ACLI_WINDOWS_FILE_ARM64 = 'b.zip'; ACLI_WINDOWS_SHA256_ARM64 = '00' }
+    New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    Mock Register-WsExtra { }
+    Mock Write-WsSay { }
+    Mock Add-WsUserPath { $script:PathAdded = $Dir }
+    Mock Get-WsAcli { if ($script:AcliExe) { return $script:AcliExe }; $p = Join-Path $script:WsHome 'bin/acli.exe'; if (Test-Path -LiteralPath $p) { return $p }; return $null }
+    Mock Invoke-WsProcess {
+      $a = $Arguments -join ' '
+      if ($a -eq 'mcp get atlassian') { if ($script:McpOk) { return @{ ExitCode = 0; StdOut = '' } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp add *') { $script:McpOk = $true; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a -eq 'mcp list') { return @{ ExitCode = 0; StdOut = 'atlassian: https://mcp.exemplo (HTTP)' } }
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'acli version 9.9.9-stable' } }
+      return @{ ExitCode = $script:AcliLogin; StdOut = '' }
+    }
+  }
+  It 'check: acli sem login = nota, sem aviso' {
+    Test-WsStep7 | Should -BeTrue
+    $script:T['7'].Detalhe | Should -Match 'Atlassian CLI 9\.9\.9 \(reserva\)'
+    $script:T['7'].Avisos.Count | Should -Be 0
+    ($script:T['7'].Notas -join "`n") | Should -Match 'acli auth login'
+  }
+  It 'check: acli com login = sem nota do acli' {
+    $script:AcliLogin = 0
+    Test-WsStep7 | Should -BeTrue
+    ($script:T['7'].Notas -join "`n") | Should -Not -Match 'acli auth login'
+  }
+  It 'check: sem acli = aviso E-ACLI-01, o passo nao falha' {
+    $script:AcliExe = $null
+    Test-WsStep7 | Should -BeTrue
+    $script:T['7'].Avisos[0][0] | Should -Be 'E-ACLI-01'
+  }
+  It 'check: sem MCP = E-MCP-01' {
+    $script:McpOk = $false
+    Test-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha[0] | Should -Be 'E-MCP-01'
+  }
+  It 'install: sem acli e sem ter tentado, o Test pede a instalacao' {
+    $script:Mode = 'install'; $script:AcliExe = $null
+    Test-WsStep7 | Should -BeFalse
+  }
+  It 'install: SHA errado = aviso com o motivo e nada copiado' {
+    $script:Mode = 'install'; $script:AcliExe = $null
+    Mock Invoke-WsDownload { Set-Content -LiteralPath $OutFile -Value 'x'; return $true }
+    Install-WsStep7 | Should -BeTrue
+    $script:T['7'].Avisos[0][0] | Should -Be 'E-ACLI-01'
+    $script:T['7'].Avisos[0][1] | Should -Be 'SHA-256 acli_9.9.9-stable_windows_amd64.zip'
+    Test-Path -LiteralPath (Join-Path $script:WsHome 'bin/acli.exe') | Should -BeFalse
+  }
+  It 'install: MCP e acli de raiz, o acli.exe vai para a pasta bin do workshop e para o PATH' {
+    $script:Mode = 'install'; $script:AcliExe = $null; $script:McpOk = $false
+    $src = Join-Path $TestDrive 'zip/acli_9.9.9-stable_windows_amd64'
+    New-Item -ItemType Directory -Path $src -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $src 'acli.exe') -Value 'exe'
+    $script:Zip = Join-Path $TestDrive 'acli.zip'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory((Join-Path $TestDrive 'zip'), $script:Zip)
+    $script:C.ACLI_WINDOWS_SHA256_X64 = Get-WsSha256 $script:Zip
+    Mock Invoke-WsDownload { Copy-Item -LiteralPath $script:Zip -Destination $OutFile; return $true }
+    Install-WsStep7 | Should -BeTrue
+    $script:T['7'].Avisos.Count | Should -Be 0
+    $script:T['7'].Detalhe | Should -Match 'Atlassian CLI 9\.9\.9'
+    Test-Path -LiteralPath (Join-Path $script:WsHome 'bin/acli.exe') | Should -BeTrue
+    $script:PathAdded | Should -Be (Join-Path $script:WsHome 'bin')
+    @($script:T['7'].Notas | Where-Object { $_ -match 'acli auth login' }).Count | Should -Be 1
+  }
+}
+
 Describe 'script da release (injetado)' {
   It 'descodifica o repos.conf, o pricing e as mensagens injetados em base64' {
     $dist = Get-ChildItem -Path (Join-Path $script:Root 'dist') -Filter 'setup-windows.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1

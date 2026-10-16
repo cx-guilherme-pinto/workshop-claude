@@ -213,6 +213,24 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
 - **Memória:** as memórias ficaram com `tarefa: EX-3`, `epico: EX-100` e etiquetas, e `memoria procurar EX-100` encontra-as.
 - **Não testado aqui:** o `/task-report` a publicar no Jira ou no GitHub. Precisa de um Jira e de um repositório reais e pede confirmação a cada escrita. O texto que publicaria é gerado e verificado por `orquestrador/publicar-texto.mjs`.
 
+## D-19 · Atlassian CLI (`acli`) como reserva do MCP do Jira
+
+- **Pedido do organizador:** ter uma alternativa quando o MCP do Jira tiver problemas. Usa-se o **Atlassian CLI oficial** (developer.atlassian.com/cloud/acli), não o "ACLI" da Appfire, que é outro produto.
+- **Verificado (16 out. 2026, acli 1.3.39-stable, a doc ainda descreve a 1.3.15):**
+  - existem URLs com versão fixa, `https://acli.atlassian.com/{darwin|windows}/<versão>/acli_<versão>_<so>_<arq>.{tar.gz|zip}`; a doc só mostra `/latest/`;
+  - não há ficheiro de checksums. Os SHA-256 do Mac são os da fórmula oficial `atlassian/homebrew-acli` (gerada pelo GoReleaser) e coincidem com os do download. Os do Windows foram calculados a partir do download oficial;
+  - Mac: binário assinado com Developer ID da Atlassian (UPXU4CQZ5P), **sem** notarização. Vindo por `curl`, não tem quarentena e corre sem pedidos (como na D-17). Testado em arm64 e em x64 (Rosetta);
+  - comandos: `acli auth login` (OAuth no browser, um login para Jira e Confluence); `acli jira auth login --site … --email … --token` (API token, lido do stdin: tem de vir de um pipe, porque escrito à mão dá erro ao fim de alguns segundos; documentado com `pbpaste |` e `Get-Clipboard |`); `jira workitem view <chave> --fields … --json`, `jira workitem search --jql … --json` e `jira workitem comment create --key … --body-file …`. Confluence: `space list/view`, `page view --id`, `blog`;
+  - **não existe worklog** no `acli`;
+  - desde a 1.3.15, um admin de cada site tem de autorizar a app ACLI uma vez (OAuth). Sem isso: "site admin must authorize this app".
+- **Decisão:**
+  - o passo 7 passa a ser "Jira (MCP Atlassian e Atlassian CLI)". Instala o `acli` em `~/.workshop-claude/bin` sem admin, com versão e SHA-256 no `repos.conf`, e oferece o login (`acli auth login`). Falhar a instalação dá só ⚠️ `E-ACLI-01`; não ter login dá só uma nota. O passo nunca falha por causa do `acli`;
+  - `/task-intake`: o MCP primeiro; se faltar ou falhar, `acli jira workitem view` (só leitura, permitido na skill). Grava `"via":"acli"` no `tarefa.json`;
+  - `/task-report`: com `via: acli` ou o MCP em falha, publica os comentários com `acli jira workitem comment create --body-file`, um comando de cada vez, depois do "sim" e com a aprovação do Claude Code a cada comando (a escrita não está no `allowed-tools`). O registo de horas fica para a pessoa fazer à mão. O `publicar-texto.mjs` escreve os textos em `.workshop/publicar/*.txt`;
+  - o Confluence não é usado pelas skills. O login do `acli` já o cobre, se for preciso mais tarde;
+  - suporte de 6 meses por versão: rever `ACLI_VERSION` se o workshop for depois de mar. 2027.
+- **Testes:** `test-mac.sh` com 8 casos do passo 7 (claude e acli falsos, tarball local) e Pester com 7. Instalação real a partir de acli.atlassian.com num HOME temporário com espaço e acentos, em arm64 e x64. O login OAuth e a publicação num Jira real ficam nos testes manuais M7 e W17.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.

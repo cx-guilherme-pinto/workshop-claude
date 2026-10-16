@@ -56,6 +56,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-GH-02` | Falta o login no GitHub (obrigatório) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
 | `E-MCP-01` | Não consegui adicionar o MCP do Atlassian | [macOS](#mac-e-mcp-01) · [Windows](#windows-e-mcp-01) |
 | `E-MCP-02` | Falta o login no Atlassian (OAuth) | [macOS](#mac-e-mcp-02) · [Windows](#windows-e-mcp-02) |
+| `E-ACLI-01` | Não consegui instalar o Atlassian CLI (reserva do Jira) | [macOS](#mac-e-acli-01) · [Windows](#windows-e-acli-01) |
+| `E-ACLI-02` | O Atlassian CLI não tem login ou o site recusou o acesso | [macOS](#mac-e-acli-02) · [Windows](#windows-e-acli-02) |
 | `E-KIT-01` | Não consegui obter o kit do workshop | [macOS](#mac-e-kit-01) · [Windows](#windows-e-kit-01) |
 | `E-KIT-02` | O arquivo do kit não confere (SHA-256) | [macOS](#mac-e-kit-02) · [Windows](#windows-e-kit-02) |
 | `E-KIT-03` | A instalação das skills e dos hooks falhou | [macOS](#mac-e-kit-03) · [Windows](#windows-e-kit-03) |
@@ -88,7 +90,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-01"></a>
@@ -189,7 +191,7 @@ curl -sv https://api.anthropic.com -o /dev/null
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
 ```
 
 <a id="mac-e-so-03"></a>
@@ -588,6 +590,38 @@ Comando (macOS):
 claude
 ```
 
+<a id="mac-e-acli-01"></a>
+
+### E-ACLI-01 · Não consegui instalar o Atlassian CLI (reserva do Jira)
+
+- **Porquê:** O download de acli.atlassian.com falhou ou o ficheiro não corresponde ao SHA-256 esperado. O acli só é usado quando o MCP do Jira falha, por isso o setup continua.
+- **O que fazer:**
+  - Confirma o acesso a acli.atlassian.com (a rede da empresa pode bloquear).
+  - Volta a correr o setup. Sem o acli, o Jira continua a funcionar pelo MCP (/mcp).
+
+Comando (macOS):
+
+```
+curl -fsSI https://acli.atlassian.com/darwin/1.3.39-stable/acli_1.3.39-stable_darwin_arm64.tar.gz
+```
+
+<a id="mac-e-acli-02"></a>
+
+### E-ACLI-02 · O Atlassian CLI não tem login ou o site recusou o acesso
+
+- **Porquê:** O acli precisa do teu login. Desde a versão 1.3.15, um administrador do site Atlassian tem de autorizar a app ACLI uma vez ("Your site admin must authorize this app…").
+- **O que fazer:**
+  - Corre acli auth login e escolhe no terminal o mesmo site que escolheste no browser.
+  - Se aparecer "site admin must authorize", pede ao administrador do Jira para correr acli jira auth login, escolher "Web" e aprovar o site.
+  - Alternativa sem OAuth: cria um API token em id.atlassian.com (Security > API tokens), copia-o e corre o comando da segunda linha. O token vai da área de transferência para o acli, sem ficar no histórico nem em ficheiros.
+
+Comandos (macOS):
+
+```
+acli auth login
+pbpaste | acli jira auth login --site <empresa>.atlassian.net --email <o teu email> --token
+```
+
 <a id="mac-e-kit-01"></a>
 
 ### E-KIT-01 · Não consegui obter o kit do workshop
@@ -600,7 +634,7 @@ claude
 Comando (macOS):
 
 ```
-curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/workshop-kit-v1.0.0-dev.1.tar.gz
+curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/workshop-kit-v1.0.0-dev.2.tar.gz
 ```
 
 <a id="mac-e-kit-02"></a>
@@ -801,7 +835,7 @@ xcode-select --install
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-01"></a>
@@ -902,7 +936,7 @@ Test-NetConnection api.anthropic.com -Port 443
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1339,6 +1373,38 @@ Comando (Windows):
 claude
 ```
 
+<a id="windows-e-acli-01"></a>
+
+### E-ACLI-01 · Não consegui instalar o Atlassian CLI (reserva do Jira)
+
+- **Porquê:** O download de acli.atlassian.com falhou ou o ficheiro não corresponde ao SHA-256 esperado. O acli só é usado quando o MCP do Jira falha, por isso o setup continua.
+- **O que fazer:**
+  - Confirma o acesso a acli.atlassian.com (a rede da empresa pode bloquear).
+  - Volta a correr o setup. Sem o acli, o Jira continua a funcionar pelo MCP (/mcp).
+
+Comando (Windows):
+
+```
+Invoke-WebRequest -UseBasicParsing -Method Head https://acli.atlassian.com/windows/1.3.39-stable/acli_1.3.39-stable_windows_amd64.zip
+```
+
+<a id="windows-e-acli-02"></a>
+
+### E-ACLI-02 · O Atlassian CLI não tem login ou o site recusou o acesso
+
+- **Porquê:** O acli precisa do teu login. Desde a versão 1.3.15, um administrador do site Atlassian tem de autorizar a app ACLI uma vez ("Your site admin must authorize this app…").
+- **O que fazer:**
+  - Corre acli auth login e escolhe no terminal o mesmo site que escolheste no browser.
+  - Se aparecer "site admin must authorize", pede ao administrador do Jira para correr acli jira auth login, escolher "Web" e aprovar o site.
+  - Alternativa sem OAuth: cria um API token em id.atlassian.com (Security > API tokens), copia-o e corre o comando da segunda linha. O token vai da área de transferência para o acli, sem ficar no histórico nem em ficheiros.
+
+Comandos (Windows):
+
+```
+acli auth login
+Get-Clipboard | acli jira auth login --site <empresa>.atlassian.net --email <o teu email> --token
+```
+
 <a id="windows-e-kit-01"></a>
 
 ### E-KIT-01 · Não consegui obter o kit do workshop
@@ -1351,7 +1417,7 @@ claude
 Comando (Windows):
 
 ```
-Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/workshop-kit-v1.0.0-dev.1.zip
+Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/workshop-kit-v1.0.0-dev.2.zip
 ```
 
 <a id="windows-e-kit-02"></a>

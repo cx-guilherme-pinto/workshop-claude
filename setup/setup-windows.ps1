@@ -1249,25 +1249,96 @@ function Install-WsStep6 {
   Set-WsFail 'E-GH-01' 'gh --version'; return $false
 }
 
-# =============================================================== PASSO 7 - MCP Atlassian
+# =============================================================== PASSO 7 - Jira: MCP Atlassian + Atlassian CLI (reserva)
+
+function Get-WsAcli {
+  $c = Get-Command acli -ErrorAction SilentlyContinue
+  if ($c -and $c.CommandType -eq 'Application') { return $c.Source }
+  $p = Join-Path $script:WsHome 'bin\acli.exe'
+  if (Test-Path -LiteralPath $p) { return $p }
+  return $null
+}
+
+function Test-WsAcliLogin {
+  # Ha dois logins no acli: o global (acli auth login, Jira + Confluence) e o so do Jira (acli jira auth login).
+  param([string]$Exe)
+  if ((Invoke-WsProcess $Exe @('auth', 'status') -TimeoutSec 60).ExitCode -eq 0) { return $true }
+  return ((Invoke-WsProcess $Exe @('jira', 'auth', 'status') -TimeoutSec 60).ExitCode -eq 0)
+}
+
+function Test-WsAcli {
+  # O acli e a reserva do MCP: faltar ou nao ter login nunca bloqueia o passo (aviso ou nota).
+  param([bool]$Tried)
+  $exe = Get-WsAcli
+  $r = $null
+  if ($exe) { $r = Invoke-WsProcess $exe @('--version') -TimeoutSec 60 }
+  if (-not $exe -or $r.ExitCode -ne 0) {
+    if ($script:Mode -eq 'install' -and -not $Tried) { return $false }
+    Set-WsWarn 'E-ACLI-01' $script:AcliErr
+    return $true
+  }
+  Set-WsDetail (M 's7_ja_acli' @{ VERSAO = (Get-WsVersionOf $r.StdOut) })
+  if (Test-WsAcliLogin $exe) { return $true }
+  if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:AcliAsked -and (Test-WsInteractive)) {
+    $script:AcliAsked = $true
+    if (Read-WsYesNo (M 's7_pergunta_acli') $true) {
+      Write-WsLog '$ acli auth login (interativo)'
+      & $exe auth login
+    }
+  }
+  if (-not (Test-WsAcliLogin $exe)) { Add-WsNote (M 's7_acli_login') }
+  return $true
+}
 
 function Test-WsStep7 {
+  param([switch]$AcliTried)
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
   $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
   Set-WsDetail (M 's7_ja')
   Add-WsNote (M 's7_oauth')
   $script:TodoMcp = $true
+  return (Test-WsAcli $AcliTried.IsPresent)
+}
+
+function Install-WsAcli {
+  # Falhar aqui so deixa um aviso ($script:AcliErr).
+  $file = $script:C.ACLI_WINDOWS_FILE_X64; $want = $script:C.ACLI_WINDOWS_SHA256_X64
+  if ($script:Arch -eq 'arm64') { $file = $script:C.ACLI_WINDOWS_FILE_ARM64; $want = $script:C.ACLI_WINDOWS_SHA256_ARM64 }
+  $url = Expand-WsPattern $script:C.ACLI_WINDOWS_URL @{ version = $script:C.ACLI_VERSION; file = $file }
+  $d = Join-Path $script:Tmp 'acli'
+  Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Path (Join-Path $d 'x') -Force | Out-Null
+  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
+  if (-not (Invoke-WsDownload $url (Join-Path $d $file))) { $script:AcliErr = (Get-WsDlCode) + ' ' + $url; return $false }
+  if ((Get-WsSha256 (Join-Path $d $file)) -ne $want) { $script:AcliErr = 'SHA-256 ' + $file; return $false }
+  try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), (Join-Path $d 'x'))
+  } catch { $script:AcliErr = 'unzip ' + $file; return $false }
+  $src = Get-ChildItem -Path (Join-Path $d 'x') -Recurse -Filter 'acli.exe' | Select-Object -First 1
+  if (-not $src) { $script:AcliErr = 'acli.exe'; return $false }
+  $bin = Join-Path $script:WsHome 'bin'
+  try {
+    New-Item -ItemType Directory -Path $bin -Force | Out-Null
+    Copy-Item -LiteralPath $src.FullName -Destination (Join-Path $bin 'acli.exe') -Force -ErrorAction Stop
+  } catch { $script:AcliErr = $bin; return $false }
+  Add-WsUserPath $bin
   return $true
 }
 
 function Install-WsStep7 {
-  $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--transport', 'http', '--scope', 'user', 'atlassian', $script:C.ATLASSIAN_MCP_URL) -TimeoutSec 120
-  if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
-  Register-WsExtra 'mcp' 'atlassian' '' '' ''
-  $l = Invoke-WsProcess $script:ClaudeExe @('mcp', 'list') -TimeoutSec 180
-  if ($l.StdOut -notmatch '(?m)^atlassian') { Set-WsFail 'E-MCP-01' 'claude mcp list'; return $false }
-  return (Test-WsStep7)
+  $script:T['7'].Notas = @()   # o Test volta a escrever as notas
+  $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
+  if ($g.ExitCode -ne 0) {
+    $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--transport', 'http', '--scope', 'user', 'atlassian', $script:C.ATLASSIAN_MCP_URL) -TimeoutSec 120
+    if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
+    Register-WsExtra 'mcp' 'atlassian' '' '' ''
+    $l = Invoke-WsProcess $script:ClaudeExe @('mcp', 'list') -TimeoutSec 180
+    if ($l.StdOut -notmatch '(?m)^atlassian') { Set-WsFail 'E-MCP-01' 'claude mcp list'; return $false }
+  }
+  if (-not (Get-WsAcli)) { $null = Install-WsAcli }
+  return (Test-WsStep7 -AcliTried)
 }
 
 # =============================================================== PASSO 8 - nivel do utilizador

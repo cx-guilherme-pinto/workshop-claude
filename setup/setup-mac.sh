@@ -937,21 +937,63 @@ ws_s6_install() {
   ws_fail E-GH-01 "gh --version"; return 1
 }
 
-# ================================================================= PASSO 7 - MCP Atlassian
+# ================================================================= PASSO 7 - Jira: MCP Atlassian + Atlassian CLI (reserva)
+ws_acli() { command -v acli 2>/dev/null || { [ -x "$WS_HOME/bin/acli" ] && printf '%s' "$WS_HOME/bin/acli"; }; }
+# Ha dois logins no acli: o global (acli auth login, Jira + Confluence) e o so do Jira (acli jira auth login).
+ws_acli_login_ok() { "$1" auth status >/dev/null 2>&1 </dev/null || "$1" jira auth status >/dev/null 2>&1 </dev/null; }
+# O acli e a reserva do MCP: faltar ou nao ter login nunca bloqueia o passo (aviso ou nota).
+ws_s7_acli() { # $1=1 depois de tentar instalar
+  local a v
+  a=$(ws_acli)
+  if [ -z "$a" ] || ! v=$("$a" --version 2>/dev/null </dev/null); then
+    [ "$WS_MODE" = install ] && [ "${1:-}" != 1 ] && return 1
+    ws_warn E-ACLI-01 "${WS_ACLI_ERR:-}"; return 0
+  fi
+  ws_detail "$(ws_msg s7_ja_acli VERSAO="$(ws_ver_of "$v")")"
+  ws_acli_login_ok "$a" && return 0
+  if [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_ACLI_ASKED:-}" ] && ws_has_tty; then
+    WS_ACLI_ASKED=1
+    if ws_ask "$(ws_m s7_pergunta_acli)" s; then
+      ws_log "\$ acli auth login (interativo)"
+      "$a" auth login </dev/tty >/dev/tty 2>&1 || true
+    fi
+  fi
+  ws_acli_login_ok "$a" || ws_note "$(ws_m s7_acli_login)"
+  return 0
+}
 ws_s7_detect() {
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
   "$WS_CLAUDE" mcp get atlassian >>"$WS_STEP_LOG" 2>&1 </dev/null || { ws_fail E-MCP-01 ""; return 1; }
   ws_detail "$(ws_m s7_ja)"
   ws_note "$(ws_m s7_oauth)"
   WS_TODO_MCP=1
+  ws_s7_acli "${1:-}"
+}
+ws_s7_acli_install() { # falhar aqui so deixa um aviso (WS_ACLI_ERR)
+  local file sha url d="$WS_TMP/acli"
+  if [ "$WS_ARCH" = arm64 ]; then file=$C_ACLI_MAC_FILE_ARM64; sha=$C_ACLI_MAC_SHA256_ARM64; else file=$C_ACLI_MAC_FILE_X64; sha=$C_ACLI_MAC_SHA256_X64; fi
+  url=$(ws_expand "$C_ACLI_MAC_URL" "" "" "" "" "$C_ACLI_VERSION" "$file" "")
+  rm -rf "$d"; mkdir -p "$d/x" "$WS_HOME/bin" || { WS_ACLI_ERR="$WS_HOME/bin"; return 1; }
+  ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
+  ws_dl "$url" "$d/$file" || { WS_ACLI_ERR="$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP") $url"; return 1; }
+  [ "$(ws_sha256 "$d/$file")" = "$sha" ] || { WS_ACLI_ERR="SHA-256 $file"; return 1; }
+  ws_run tar -xzf "$d/$file" -C "$d/x" || { WS_ACLI_ERR="tar $file"; return 1; }
+  cp -f "$d/x/${file%.tar.gz}/acli" "$WS_HOME/bin/acli.tmp" && chmod +x "$WS_HOME/bin/acli.tmp" &&
+    mv -f "$WS_HOME/bin/acli.tmp" "$WS_HOME/bin/acli" || { WS_ACLI_ERR="$WS_HOME/bin/acli"; return 1; }
+  ws_path_setup
+  ws_profile_update
 }
 ws_s7_install() {
-  ws_run "$WS_CLAUDE" mcp add --transport http --scope user atlassian "$C_ATLASSIAN_MCP_URL" || { ws_fail E-MCP-01 ""; return 1; }
-  ws_registar mcp atlassian
-  local lst; lst=$("$WS_CLAUDE" mcp list 2>&1 </dev/null)
-  printf '%s\n' "$lst" >> "$WS_STEP_LOG"
-  printf '%s\n' "$lst" | grep -q '^atlassian' || { ws_fail E-MCP-01 "claude mcp list"; return 1; }
-  ws_s7_detect
+  ws_set SN 7 ""   # o detect volta a escrever as notas
+  if ! "$WS_CLAUDE" mcp get atlassian >/dev/null 2>&1 </dev/null; then
+    ws_run "$WS_CLAUDE" mcp add --transport http --scope user atlassian "$C_ATLASSIAN_MCP_URL" || { ws_fail E-MCP-01 ""; return 1; }
+    ws_registar mcp atlassian
+    local lst; lst=$("$WS_CLAUDE" mcp list 2>&1 </dev/null)
+    printf '%s\n' "$lst" >> "$WS_STEP_LOG"
+    printf '%s\n' "$lst" | grep -q '^atlassian' || { ws_fail E-MCP-01 "claude mcp list"; return 1; }
+  fi
+  [ -n "$(ws_acli)" ] || ws_s7_acli_install
+  ws_s7_detect 1
 }
 
 # ================================================================= PASSO 8 - instalacao ao nivel do utilizador

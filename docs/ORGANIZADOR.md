@@ -12,11 +12,12 @@
 4. **Jira.** O servidor MCP da Atlassian usa OAuth e gasta créditos Rovo da organização. Em cada empresa, o administrador pode:
    - limitar os domínios permitidos (Atlassian Administration → Connectors → Atlassian MCP server);
    - desligar ferramentas de escrita.
+   **Reserva:** o setup instala também o Atlassian CLI (`acli`, oficial), que as skills usam quando o MCP falha. Desde a versão 1.3.15, um administrador de cada site tem de autorizar a app ACLI uma vez: corre `acli jira auth login`, escolhe "Web" e aprova o site. Peçam isso ao administrador junto com o pedido do MCP. Sem OAuth, cada pessoa pode entrar com um API token (`E-ACLI-02`). O `acli` não regista horas (worklog): com ele, o `/task-report` só publica comentários.
    Quem não tiver Jira usa o `exemplo-projeto-real/` (issues em JSON).
 5. **Rede da sala.** Centenas de portáteis a descarregar ao mesmo tempo esgotam a rede. Por isso o setup é feito **antes** do dia. No dia só se corre o `--check` e as chamadas à API. Domínios que a rede da sala tem de deixar passar:
    - `api.anthropic.com`, `claude.ai`, `platform.claude.com`, `downloads.claude.ai`;
    - o servidor dos repositórios (do `repos.conf`);
-   - `mcp.atlassian.com`, `*.atlassian.net`;
+   - `mcp.atlassian.com`, `*.atlassian.net`, `acli.atlassian.com` (download do Atlassian CLI);
    - `github.com`, `api.github.com`;
    - para quem ainda não instalou: `nodejs.org`, `astral.sh`, `releases.astral.sh`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`.
 

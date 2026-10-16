@@ -19,12 +19,12 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 
 2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, este ficheiro) e o build dos slides, que leem o `repos.conf` diretamente.
 
-3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.1` e app `v0.2.1`:
+3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.2` e app `v0.2.1`:
 
    ```bash
-   tools/build-release.sh v1.0.0-dev.1
-   tools/publish-release.sh v1.0.0-dev.1 --dry-run   # confirma o que vai ser enviado
-   tools/publish-release.sh v1.0.0-dev.1
+   tools/build-release.sh v1.0.0-dev.2
+   tools/publish-release.sh v1.0.0-dev.2 --dry-run   # confirma o que vai ser enviado
+   tools/publish-release.sh v1.0.0-dev.2
    ```
 
    A app de memória publica-se a partir do repositório dela, com a mesma versão.
@@ -32,11 +32,11 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 4. **Correr o `--check` contra os URLs novos**, numa máquina limpa ou com `HOME` temporário:
 
    ```bash
-   curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/setup-mac.sh | bash -s -- --check
+   curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash -s -- --check
    ```
 
-   No Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/bootstrap-windows.ps1 | iex`.
+   No Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex`.
 
 5. **Procurar restos do servidor de desenvolvimento.** `node tools/check-repo.mjs` falha se `gitea.guilhermepinto.pt` aparecer fora do `repos.conf` e dos ficheiros gerados. Confirma também com `git grep -n gitea.guilhermepinto.pt`.
 
-Valores atuais: release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.1, checksums em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/SHA256SUMS.
+Valores atuais: release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.2, checksums em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/SHA256SUMS.

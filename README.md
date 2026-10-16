@@ -2,7 +2,7 @@
 
 # Workshop «Orquestração de Agentes com Claude»
 
-Kit do workshop: o setup de um só comando, as skills e os agentes, os hooks de custo, a statusline, o orquestrador e os projetos práticos (a Arena de Segurança e o projeto de treino). Versão do kit: **v1.0.0-dev.1**.
+Kit do workshop: o setup de um só comando, as skills e os agentes, os hooks de custo, a statusline, o orquestrador e os projetos práticos (a Arena de Segurança e o projeto de treino). Versão do kit: **v1.0.0-dev.2**.
 
 ## Instalar (participantes)
 
@@ -11,13 +11,13 @@ Precisas de uma conta na [Console da Anthropic](https://platform.claude.com) com
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
 ```
 
 O setup demora 10 a 20 minutos. Se parar a meio, volta a correr o mesmo comando: os passos feitos são saltados. Guia completo, com o pré-trabalho: [docs/INSTALAR.md](docs/INSTALAR.md).
@@ -30,7 +30,7 @@ O setup demora 10 a 20 minutos. Se parar a meio, volta a correr o mesmo comando:
 | Diagnóstico com o Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Desinstalar | `bash ~/.workshop-claude/setup-mac.sh --desinstalar` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Desinstalar` |
 
-Sem instalação anterior, a verificação também corre diretamente: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/setup-mac.sh | bash -s -- --check` (macOS) ou `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/bootstrap-windows.ps1 | iex` (Windows).
+Sem instalação anterior, a verificação também corre diretamente: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash -s -- --check` (macOS) ou `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex` (Windows).
 
 Algo falhou? Cada erro tem um código. Vê [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
@@ -69,9 +69,9 @@ Tudo o que é instalado fica registado em `~/.workshop-claude/manifest.json`. O 
 ## Para o organizador
 
 - Todos os URLs e versões estão em `repos.conf`. Este README é gerado: edita `tools/templates/README.md.tmpl` e corre `node tools/render.mjs`.
-- Release: `tools/build-release.sh v1.0.0-dev.1` (gera `dist/v1.0.0-dev.1/`) e `tools/publish-release.sh v1.0.0-dev.1` (cria a release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.1).
+- Release: `tools/build-release.sh v1.0.0-dev.2` (gera `dist/v1.0.0-dev.2/`) e `tools/publish-release.sh v1.0.0-dev.2` (cria a release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.2).
 - Verificar o repositório: `node tools/check-repo.mjs`. Testes: `node --test tools/test/` e `bash setup/test/test-mac.sh`.
 - Mudar para os repositórios públicos: [docs/PUBLICAR.md](docs/PUBLICAR.md).
 - Decisões e fontes: [DECISIONS.md](DECISIONS.md).
 
-Quem quiser verificar antes de executar encontra os SHA-256 em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.1/SHA256SUMS.
+Quem quiser verificar antes de executar encontra os SHA-256 em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/SHA256SUMS.

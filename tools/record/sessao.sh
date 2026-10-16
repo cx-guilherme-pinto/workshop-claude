@@ -16,6 +16,7 @@ if [ -x "$MEMBIN" ]; then
 else
   echo '{"mcpServers":{}}' > "$OUT/mcp.json"
 fi
+# shellcheck disable=SC2054 # "project,local" e um so argumento
 FLAGS=(--output-format stream-json --verbose --permission-mode acceptEdits --setting-sources project,local --strict-mcp-config --mcp-config "$OUT/mcp.json"
   --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" Read Edit Write Glob Grep
   "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")

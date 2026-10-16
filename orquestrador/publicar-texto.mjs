@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Prepara (SEM publicar) os textos para o Jira/GitHub a partir do relatorio do enxame:
 // um comentario por subtarefa, um resumo, o registo de horas e o corpo do PR.
-// Escreve .workshop/publicar.json e .workshop/pr-body.md. Quem publica e a skill, depois de confirmar.
+// Escreve .workshop/publicar.json, .workshop/pr-body.md e, para o Atlassian CLI (reserva do MCP do Jira),
+// cada comentario em texto simples em .workshop/publicar/ (acli ... --body-file). Quem publica e a skill, depois de confirmar.
 //   node publicar-texto.mjs [--projeto <dir>]
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { relatorio } from './report.mjs';
 import { lerJson } from './lib/estado.mjs';
@@ -53,11 +54,25 @@ ${veredito ? `\n### Revisão de segurança\n\nVeredito: **${veredito.veredito}**
 Gerado com o kit "Orquestração de Agentes com Claude".
 `;
 
+// Texto simples para o acli (o Jira mostra o Markdown tal como esta): uma linha por subtarefa em vez da tabela.
+const pasta = join(ws, 'publicar');
+rmSync(pasta, { recursive: true, force: true });
+mkdirSync(pasta, { recursive: true });
+const nomeFicheiro = (i, a) => `${String(i).padStart(2, '0')}-${String(a || 'tarefa').replace(/[^A-Za-z0-9_-]+/g, '_')}.txt`;
+comentarios.forEach((c, i) => {
+  c.ficheiro = `.workshop/publicar/${nomeFicheiro(i + 1, c.alvo)}`;
+  writeFileSync(join(dir, c.ficheiro), c.texto + '\n');
+});
+const linhasTexto = r.f.tarefas.map((t) => `- ${t.titulo}: ${linha(t)} · ${ESTADO[t.estado] || t.estado}`).join('\n');
+const resumoFicheiro = '.workshop/publicar/resumo.txt';
+writeFileSync(join(dir, resumoFicheiro), `${resumo}\n\n${linhasTexto}\n`);
+
 const out = {
   alvo,
   fonte: tarefa.fonte || null,
   comentarios,
   resumo: `${resumo}\n\n${tabela}`,
+  resumo_ficheiro: resumoFicheiro,
   worklog: alvo ? { alvo, segundos: totalS, tempo_jira: `${Math.ceil(totalS / 60)}m`, comentario: `Orquestração com Claude (${r.f.total} subtarefas, ${usd(r.f.custo.total)}).` } : null,
   pr: { titulo: tarefa.titulo ? `${tarefa.id ? tarefa.id + ': ' : ''}${tarefa.titulo}` : r.plano.projeto, corpo_ficheiro: '.workshop/pr-body.md' },
 };

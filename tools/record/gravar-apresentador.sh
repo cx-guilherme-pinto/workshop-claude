@@ -22,6 +22,7 @@ main() {
   # Servidor da Arena para a pagina /estado.
   ( cd "$ARENA" && "$NODE" server.js --porta "$PORTA" > "$OUT/server.log" 2>&1 ) &
   local SRV=$!
+  # shellcheck disable=SC2064 # o PID e expandido ja, de proposito
   trap "kill $SRV 2>/dev/null || true" EXIT
   sleep 2
 

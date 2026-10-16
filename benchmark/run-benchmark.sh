@@ -71,6 +71,7 @@ main() {
       else
         echo '{"mcpServers":{}}' > "$RUN/mcp.json"
       fi
+      # shellcheck disable=SC2054 # "project,local" e um so argumento
       FLAGS+=(--setting-sources project,local --strict-mcp-config --mcp-config "$RUN/mcp.json"
         --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" "Read" "Edit" "Write" "Glob" "Grep"
         "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")

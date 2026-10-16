@@ -286,7 +286,7 @@ O estado fica em .workshop/. Voltar a correr /task-swarm retoma. Tarefas que mex
 
 [81:00 → 82:00] 1 min · PODE SALTAR · deves estar aqui aos 81 min
 
-Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo.
+Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo. Se o MCP falhar, as skills usam o Atlassian CLI oficial (acli), que o setup já instalou: lê a issue e publica os comentários; as horas registam-se à mão.
 
 ### 40. Depois do workshop
 

@@ -351,11 +351,11 @@ allowed-tools:
     seccao: 'Projeto 2', tipo: 'colunas', min: 1, saltar: true,
     titulo: 'Jira e GitHub',
     colunas: [
-      { titulo: 'Jira (MCP)', texto: 'claude mcp add --transport http atlassian … e login com /mcp' },
+      { titulo: 'Jira (MCP + acli)', texto: 'MCP com login no /mcp; se falhar, o Atlassian CLI (acli auth login)' },
       { titulo: 'GitHub (gh)', texto: 'gh auth login: menos contexto do que um MCP e sem tokens partilhados' },
       { titulo: 'Sempre com confirmação', texto: 'comentários, worklog e PR só depois do teu sim' },
     ],
-    notas: 'Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo.',
+    notas: 'Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo. Se o MCP falhar, as skills usam o Atlassian CLI oficial (acli), que o setup já instalou: lê a issue e publica os comentários; as horas registam-se à mão.',
   },
   {
     seccao: 'Projeto 2', tipo: 'colunas', min: 2,
