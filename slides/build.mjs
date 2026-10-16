@@ -27,7 +27,9 @@ const TEXTOS = {
       ['Onda 3', 'integração e suite'],
       ['Onda 4', 'revisão e veredito'],
     ],
-    legendaDag: 'Cinzento: à espera. Os 3 de criptografia arrancam quando o lib-hash fica verde.',
+    cripto: 'criptografia:\nesperam pelo lib-hash',
+    estadosTitulo: 'Cada quadrado é um cartão:',
+    estados: [['cinza', 'à espera'], ['amarelo', 'um agente a trabalhar'], ['verde', 'teste passou'], ['vermelho', 'teste falhou']],
     agendaFim: '90′ e depois perguntas, sem limite',
     faca: (min) => `Faça agora · ${min} min`,
     esperado: 'Resultado esperado: ',
@@ -51,7 +53,9 @@ const TEXTOS = {
       ['Wave 3', 'integration and suite'],
       ['Wave 4', 'review and verdict'],
     ],
-    legendaDag: 'Grey: waiting. The 3 cryptography cards start when lib-hash turns green.',
+    cripto: 'cryptography:\nwaits for lib-hash',
+    estadosTitulo: 'Each square is a card:',
+    estados: [['cinza', 'waiting'], ['amarelo', 'an agent working'], ['verde', 'test passed'], ['vermelho', 'test failed']],
     agendaFim: '90′, then questions, no time limit',
     faca: (min) => `Do it now · ${min} min`,
     esperado: 'Expected result: ',
@@ -67,13 +71,17 @@ const TEXTOS = {
 };
 
 // ---------- Paleta e letras: o modelo de apresentacao da Checkmarx (slides/modelo/) ----------
-// As cores de estado (cinza, amarelo, verde, vermelho) sao as da grelha da Arena e ficam como estao.
+// Fundo lilas em todos os slides de conteudo; os blocos por cima sao brancos.
+// As cores de estado (cinza, amarelo, verde, vermelho) sao as da grelha da Arena e so aparecem em QUADRADOS,
+// sempre com legenda: um quadrado e um cartao. O que e so decoracao e um icone ou um numero num circulo roxo.
 const COR = {
-  bg: 'FCF9FE', surface: 'F4EFFE', surface2: 'EBDDFA', ink: '140920', muted: '4A405A',
+  bg: 'F4EFFE', surface: 'FFFFFF', surface2: 'EBDDFA', ink: '140920', muted: '4A405A',
   accent: '6B34FD', accentInk: 'FFFFFF', roxo2: '8F23D7', laranja: 'F25928', lilas: '93A7FF',
   escuro: '140920', escuroSurface: '231338', escuroInk: 'FCF9FE', escuroMuted: 'B9AEDB',
   cinza: 'C4C7C1', amarelo: 'F1C232', verde: '1E9E57', vermelho: 'D2463F',
 };
+// As mesmas cores no tema escuro do /estado (o ecra do projetor e do video do swarm).
+const COR_ESCURO = { cinza: '3A423E', amarelo: 'F1C232', verde: '2FBF6C', vermelho: 'EF5B52' };
 const FONTE_TITULO = 'Founders Grotesk Medium';
 const FONTE_TEXTO = 'Arial';
 const FONTE_CODIGO = 'Courier New';
@@ -125,6 +133,7 @@ function valores() {
   return v;
 }
 
+const minutos = (m) => String(m).replace('.', T.decimal); // 1.5 -> "1,5" em pt
 const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? `{{${k}}}`) : s);
 
 // ---------- Apresentacao e layouts ----------
@@ -182,7 +191,7 @@ function novaApresentacao() {
   });
   p.defineSlideMaster({
     title: 'FACA',
-    background: { color: COR.surface },
+    background: { color: COR.bg },
     objects: [
       ...rodape,
       { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.98, w: W - 2 * M, h: 0.95, fontFace: FONTE_TITULO, fontSize: 34, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
@@ -192,10 +201,60 @@ function novaApresentacao() {
   return p;
 }
 
+// ---------- Icones (lucide-static, ISC): SVG -> PNG branco, preparados antes de construir ----------
+const ICONES = new Map();
+async function prepararIcones(slides) {
+  const nomes = new Set(['check', 'brain', 'puzzle', 'feather']);
+  const procurar = (o) => {
+    if (Array.isArray(o)) o.forEach(procurar);
+    else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) (k === 'icone' ? nomes.add(v) : procurar(v));
+  };
+  procurar(slides);
+  const sharp = (await import('sharp')).default;
+  for (const n of nomes) {
+    if (ICONES.has(n)) continue;
+    const f = join(AQUI, 'node_modules', 'lucide-static', 'icons', `${n}.svg`);
+    if (!existsSync(f)) throw new Error(`icone desconhecido: ${n} (ver node_modules/lucide-static/icons)`);
+    const svg = readFileSync(f, 'utf8').replace(/currentColor/g, '#FFFFFF').replace(/width="24"/, 'width="192"').replace(/height="24"/, 'height="192"');
+    ICONES.set(n, 'image/png;base64,' + (await sharp(Buffer.from(svg)).png().toBuffer()).toString('base64'));
+  }
+}
+
 // ---------- Pecas ----------
 const quadrado = (s, x, y, lado, cor, nome) => s.addShape(pres.shapes.RECTANGLE, { x, y, w: lado, h: lado, fill: { color: cor }, line: { color: cor, width: 0 }, objectName: nome || 'quadrado' });
 const texto = (s, t, o) => s.addText(t, { isTextBox: true, margin: 0, fontFace: FONTE_TEXTO, color: COR.ink, valign: 'top', ...o });
 const corDe = (n) => ({ verde: COR.verde, amarelo: COR.amarelo, vermelho: COR.vermelho, cinza: COR.cinza, accent: COR.accent, roxo2: COR.roxo2, laranja: COR.laranja })[n] || COR.ink;
+const cartao = (s, x, y, w, h, nome, cor = COR.surface) => s.addShape(pres.shapes.RECTANGLE, { x, y, w, h, fill: { color: cor }, line: { color: cor, width: 0 }, objectName: nome });
+// Icone branco num circulo roxo (decoracao: nao tem significado de estado).
+function icone(s, nome, x, y, d, cor = COR.accent, obj = 'icone') {
+  s.addShape(pres.shapes.OVAL, { x, y, w: d, h: d, fill: { color: cor }, line: { color: cor, width: 0 }, objectName: `${obj}-circulo` });
+  s.addImage({ data: ICONES.get(nome), x: x + d * 0.22, y: y + d * 0.22, w: d * 0.56, h: d * 0.56, objectName: obj, altText: nome });
+}
+// Numero num circulo roxo: passos de um fluxo, itens de uma lista.
+const numero = (s, n, x, y, d, cor = COR.accent, obj = 'numero') => s.addText(String(n), { shape: pres.shapes.OVAL, x, y, w: d, h: d, fill: { color: cor }, line: { color: cor, width: 0 }, margin: 0, align: 'center', valign: 'middle', fontFace: FONTE_TITULO, fontSize: Math.round(d * 34), bold: true, color: COR.accentInk, objectName: obj });
+// Marca de um bloco: icone se o conteudo o der, quadrado de estado se der uma cor de estado, senao o numero.
+function marca(s, item, i, x, y, d, obj) {
+  if (item.icone) icone(s, item.icone, x, y, d, COR.accent, obj);
+  else if (item.cor) quadrado(s, x, y, d, corDe(item.cor), obj);
+  else numero(s, i + 1, x, y, d, COR.accent, obj);
+}
+// Legenda das cores de estado ("Cada quadrado e um cartao: ..."). Devolve a largura usada.
+function legendaEstado(s, x, y, { titulo = true, alinhar = 'esquerda', largura = W - 2 * M, fs = 13, escuro = false } = {}) {
+  const cores = escuro ? COR_ESCURO : COR;
+  const tinta = escuro ? COR.escuroInk : COR.ink;
+  const cw = fs * 0.0068; // largura media de um caracter em Arial, em polegadas
+  const itens = T.estados.map(([cor, rot]) => ({ cor, rot, w: 0.24 + 0.12 + rot.length * cw + 0.45 }));
+  const wt = titulo ? T.estadosTitulo.length * cw * 1.08 + 0.25 : 0; // o titulo vai a negrito
+  const total = wt + itens.reduce((a, b) => a + b.w, 0) - 0.45;
+  let xx = alinhar === 'direita' ? x + largura - total : x;
+  if (titulo) { texto(s, T.estadosTitulo, { x: xx, y, w: wt, h: 0.3, fontSize: fs, bold: true, color: tinta, valign: 'middle', objectName: 'legenda-estado-titulo' }); xx += wt; }
+  itens.forEach((it, i) => {
+    quadrado(s, xx, y + 0.03, 0.24, cores[it.cor], `legenda-estado-${i}`);
+    texto(s, it.rot, { x: xx + 0.36, y, w: it.w - 0.36, h: 0.3, fontSize: fs, color: tinta, valign: 'middle', objectName: `legenda-estado-rotulo-${i}` });
+    xx += it.w;
+  });
+  return total;
+}
 
 // Motivo: grelha de quadrados de estado, como o /estado.
 function grelhaEstado(s, x, y, cols, rows, lado, gap, padrao) {
@@ -261,10 +320,11 @@ const R = {
   titulo(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     if (d.subtitulo) s.addText(d.subtitulo, { placeholder: 'body' });
+    if (d.rodape) texto(s, sub(d.rodape), { x: 1, y: 4.8, w: W - 2, h: 0.4, fontSize: 16, color: COR.escuroMuted, align: 'center', objectName: 'rodape' });
   },
   seccao(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
-    if (d.subtitulo) s.addText(d.subtitulo, { placeholder: 'body' });
+    if (d.subtitulo) s.addText(sub(d.subtitulo), { placeholder: 'body' });
   },
   colunas(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -273,11 +333,12 @@ const R = {
     const w = (W - 2 * M - gap * (n - 1)) / n;
     d.colunas.forEach((c, i) => {
       const x = M + i * (w + gap);
-      s.addShape(pres.shapes.RECTANGLE, { x, y: 1.85, w, h: 3.9, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: `coluna-${i}` });
-      quadrado(s, x + 0.35, 2.2, 0.42, corDe(c.cor || ['accent', 'roxo2', 'laranja'][i % 3]), `marca-${i}`);
-      texto(s, sub(c.titulo), { x: x + 0.35, y: 2.95, w: w - 0.7, h: 1.0, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `coluna-titulo-${i}` });
-      texto(s, sub(c.texto), { x: x + 0.35, y: 4.0, w: w - 0.7, h: 1.6, fontSize: 20, color: COR.ink, objectName: `coluna-texto-${i}` });
+      cartao(s, x, 1.85, w, 3.9, `coluna-${i}`);
+      marca(s, c, i, x + 0.35, 2.2, 0.6, `marca-${i}`);
+      texto(s, sub(c.titulo), { x: x + 0.35, y: 3.05, w: w - 0.7, h: 0.95, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `coluna-titulo-${i}` });
+      texto(s, sub(c.texto), { x: x + 0.35, y: 4.05, w: w - 0.7, h: 1.6, fontSize: 19, color: COR.ink, objectName: `coluna-texto-${i}` });
     });
+    if (d.colunas.some((c) => c.cor)) legendaEstado(s, M, 6.15);
   },
   stats(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -286,7 +347,7 @@ const R = {
     const w = (W - 2 * M - gap * (n - 1)) / n;
     d.stats.forEach((st, i) => {
       const x = M + i * (w + gap);
-      s.addShape(pres.shapes.RECTANGLE, { x, y: 1.9, w, h: 3.6, fill: { color: i === 0 ? COR.ink : COR.surface }, line: { color: i === 0 ? COR.ink : COR.surface, width: 0 }, objectName: `stat-${i}` });
+      cartao(s, x, 1.9, w, 3.6, `stat-${i}`, i === 0 ? COR.ink : COR.surface);
       const val = sub(st.valor);
       texto(s, val, { x: x + 0.35, y: 2.25, w: w - 0.7, h: 1.4, fontFace: FONTE_TITULO, fontSize: val.length > 10 ? 34 : val.length > 6 ? 44 : 60, bold: true, color: i === 0 ? COR.escuroInk : COR.ink, objectName: `stat-valor-${i}`, fit: 'shrink' });
       texto(s, sub(st.rotulo), { x: x + 0.35, y: 3.8, w: w - 0.7, h: 1.5, fontSize: 18, color: i === 0 ? COR.escuroMuted : COR.muted, objectName: `stat-rotulo-${i}` });
@@ -307,61 +368,70 @@ const R = {
     const w = (W - 2 * M - gap * (n - 1)) / n;
     d.modelos.forEach((m, i) => {
       const x = M + i * (w + gap);
-      s.addShape(pres.shapes.RECTANGLE, { x, y: 1.85, w, h: 4.1, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: `modelo-${i}` });
-      quadrado(s, x + 0.35, 2.2, 0.42, corDe(m.cor), `modelo-marca-${i}`);
-      texto(s, m.nome, { x: x + 0.35, y: 2.85, w: w - 0.7, h: 1.1, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: `modelo-nome-${i}` });
+      cartao(s, x, 1.85, w, 4.1, `modelo-${i}`);
+      icone(s, m.icone, x + 0.35, 2.2, 0.6, COR.accent, `modelo-icone-${i}`);
+      texto(s, m.nome, { x: x + 0.35, y: 2.95, w: w - 0.7, h: 1.0, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: `modelo-nome-${i}` });
       texto(s, m.papel, { x: x + 0.35, y: 4.05, w: w - 0.7, h: 0.9, fontSize: 20, objectName: `modelo-papel-${i}` });
       texto(s, m.preco, { x: x + 0.35, y: 5.1, w: w - 0.7, h: 0.5, fontSize: 18, bold: true, color: COR.muted, objectName: `modelo-preco-${i}` });
     });
     if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.2, w: W - 2 * M, h: 0.5, fontSize: 14, color: COR.muted, objectName: 'rodape' });
   },
+  // As 4 ondas do plano. Os quadrados sao cartoes (cor = estado, com legenda); o icone ao lado do nome e o modelo.
   dag(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     const ondas = [
-      { modelo: 'Haiku', n: 16, cor: COR.amarelo },
-      { modelo: 'Sonnet', n: 2, cor: COR.verde },
-      { modelo: 'Sonnet', n: 1, cor: COR.verde },
-      { modelo: 'Opus', n: 1, cor: COR.accent },
+      { modelo: 'Haiku', icone: 'feather', n: 16 },
+      { modelo: 'Sonnet', icone: 'puzzle', n: 2 },
+      { modelo: 'Sonnet', icone: 'puzzle', n: 1 },
+      { modelo: 'Opus', icone: 'brain', n: 1 },
     ].map((o, i) => ({ ...o, nome: T.ondas[i][0], sub: T.ondas[i][1] }));
-    const ws = [4.5, 2.4, 2.4, 2.4];
+    const ws = [4.4, 2.3, 2.3, 2.3];
     const gap = (W - 2 * M - ws.reduce((x, y) => x + y, 0)) / 3;
     let x = M;
     ondas.forEach((o, i) => {
       const w = ws[i];
-      s.addShape(pres.shapes.RECTANGLE, { x, y: 1.85, w, h: 4.4, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: `onda-${i}` });
-      texto(s, o.nome, { x: x + 0.3, y: 2.1, w: w - 0.6, h: 0.5, fontFace: FONTE_TITULO, fontSize: 24, bold: true, objectName: `onda-nome-${i}` });
-      quadrado(s, x + 0.3, 2.72, 0.22, o.cor, `onda-cor-${i}`);
-      texto(s, o.modelo, { x: x + 0.62, y: 2.66, w: w - 0.9, h: 0.35, fontSize: 16, bold: true, objectName: `onda-modelo-${i}` });
-      texto(s, o.sub, { x: x + 0.3, y: 3.1, w: w - 0.6, h: 0.6, fontSize: 15, color: COR.muted, objectName: `onda-sub-${i}` });
+      cartao(s, x, 1.75, w, 4.45, `onda-${i}`);
+      texto(s, o.nome, { x: x + 0.3, y: 1.95, w: w - 0.6, h: 0.5, fontFace: FONTE_TITULO, fontSize: 24, bold: true, objectName: `onda-nome-${i}` });
+      icone(s, o.icone, x + 0.3, 2.52, 0.34, COR.accent, `onda-modelo-icone-${i}`);
+      texto(s, o.modelo, { x: x + 0.74, y: 2.52, w: w - 1.0, h: 0.34, fontSize: 16, bold: true, valign: 'middle', objectName: `onda-modelo-${i}` });
+      texto(s, o.sub, { x: x + 0.3, y: 2.98, w: w - 0.6, h: 0.6, fontSize: 15, color: COR.muted, objectName: `onda-sub-${i}` });
       if (i === 0) {
-        quadrado(s, x + 0.3, 3.8, 0.45, COR.accent, 'hash');
-        texto(s, 'lib-hash', { x: x + 0.85, y: 3.88, w: 1.6, h: 0.35, fontSize: 14, bold: true, objectName: 'hash-rotulo' });
-        const cores = [COR.verde, COR.verde, COR.verde, COR.amarelo, COR.verde];
-        for (let k = 0; k < 15; k++) {
-          const c = k % 5;
-          const r = Math.floor(k / 5);
-          quadrado(s, x + 0.3 + c * 0.66, 4.45 + r * 0.5, 0.42, k >= 12 ? COR.cinza : cores[(k * 3) % 5], `cartao-${k}`);
-        }
+        // lib-hash a trabalhar; 12 cartoes a meio; os 3 de criptografia a espera do lib-hash.
+        quadrado(s, x + 0.3, 3.7, 0.42, COR.amarelo, 'hash');
+        texto(s, 'lib-hash', { x: x + 0.85, y: 3.7, w: 1.6, h: 0.42, fontSize: 14, bold: true, valign: 'middle', objectName: 'hash-rotulo' });
+        const cores = [COR.verde, COR.amarelo, COR.verde, COR.verde, COR.amarelo, COR.verde];
+        for (let k = 0; k < 12; k++) quadrado(s, x + 0.3 + (k % 6) * 0.62, 4.3 + Math.floor(k / 6) * 0.55, 0.42, cores[(k * 5) % 6], `cartao-${k}`);
+        for (let k = 0; k < 3; k++) quadrado(s, x + 0.3 + k * 0.62, 5.5, 0.42, COR.cinza, `cripto-${k}`);
+        texto(s, T.cripto, { x: x + 0.3 + 3 * 0.62, y: 5.42, w: w - 0.3 - 3 * 0.62 - 0.15, h: 0.6, fontSize: 12, color: COR.muted, valign: 'middle', objectName: 'cripto-rotulo' });
       } else {
-        for (let k = 0; k < o.n; k++) quadrado(s, x + 0.3 + k * 0.7, 3.8, 0.55, COR.cinza, `onda${i}-${k}`);
+        for (let k = 0; k < o.n; k++) quadrado(s, x + 0.3 + k * 0.62, 3.7, 0.42, COR.cinza, `onda${i}-${k}`);
       }
-      if (i < ondas.length - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.06, y: 4.05, w: gap - 0.12, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `seta-${i}` });
+      if (i < ondas.length - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.06, y: 3.91, w: gap - 0.12, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `seta-${i}` });
       x += w + gap;
     });
-    texto(s, T.legendaDag, { x: M, y: 6.4, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda-dag' });
+    legendaEstado(s, M, 6.38);
   },
+  // Passos em sequencia: numero, nome e (opcional) uma frase do que acontece.
   fluxo(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
-    const n = d.passos.length;
-    const gap = 0.45;
+    const passos = d.passos.map((p) => (typeof p === 'string' ? { titulo: p } : p));
+    const n = passos.length;
+    const gap = 0.32;
     const w = (W - 2 * M - gap * (n - 1)) / n;
-    d.passos.forEach((p, i) => {
+    const comTexto = passos.some((p) => p.texto);
+    const y0 = comTexto ? 2.0 : 2.6;
+    const h = comTexto ? 3.5 : 2.0;
+    // A palavra mais comprida de um titulo tem de caber numa linha (sem partir "SubagentStop" a meio).
+    const maior = Math.max(...passos.flatMap((p) => sub(p.titulo).split(/\s+/)).map((x) => x.length));
+    const fsTitulo = Math.min(n > 4 ? 17 : 20, Math.floor((w - 0.4) / (maior * 0.0098)));
+    passos.forEach((p, i) => {
       const x = M + i * (w + gap);
       const escuro = i === n - 1;
-      s.addShape(pres.shapes.RECTANGLE, { x, y: 2.6, w, h: 2.0, fill: { color: escuro ? COR.ink : COR.surface }, line: { color: escuro ? COR.ink : COR.surface, width: 0 }, objectName: `passo-${i}` });
-      quadrado(s, x + 0.25, 2.85, 0.3, [COR.accent, COR.roxo2, COR.laranja, COR.accent, COR.roxo2][i % 5], `passo-marca-${i}`);
-      texto(s, p, { x: x + 0.25, y: 3.35, w: w - 0.5, h: 1.1, fontFace: FONTE_TITULO, fontSize: n > 4 ? 16 : 20, bold: true, color: escuro ? COR.escuroInk : COR.ink, objectName: `passo-texto-${i}` });
-      if (i < n - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.05, y: 3.6, w: gap - 0.1, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `fluxo-seta-${i}` });
+      cartao(s, x, y0, w, h, `passo-${i}`, escuro ? COR.ink : COR.surface);
+      numero(s, i + 1, x + 0.25, y0 + 0.25, 0.48, COR.accent, `passo-numero-${i}`);
+      texto(s, sub(p.titulo), { x: x + 0.22, y: y0 + 0.95, w: w - 0.4, h: 1.0, fontFace: FONTE_TITULO, fontSize: fsTitulo, bold: true, color: escuro ? COR.escuroInk : COR.ink, objectName: `passo-titulo-${i}` });
+      if (p.texto) texto(s, sub(p.texto), { x: x + 0.22, y: y0 + 2.05, w: w - 0.4, h: h - 2.2, fontSize: 16, color: escuro ? COR.escuroMuted : COR.muted, objectName: `passo-texto-${i}` });
+      if (i < n - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.05, y: y0 + 0.49, w: gap - 0.1, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `fluxo-seta-${i}` });
     });
   },
   agenda(s, d) {
@@ -383,45 +453,90 @@ const R = {
   },
   faca(s, d) {
     s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.42, w: 3.1, h: 0.42, fill: { color: COR.accent }, line: { color: COR.accent, width: 0 }, objectName: 'faca-etiqueta' });
-    texto(s, T.faca(d.min), { x: M + 0.15, y: 0.42, w: 2.8, h: 0.42, fontFace: FONTE_TITULO, fontSize: 16, color: COR.accentInk, valign: 'middle', objectName: 'faca-rotulo' });
+    texto(s, T.faca(minutos(d.min)), { x: M + 0.15, y: 0.42, w: 2.8, h: 0.42, fontFace: FONTE_TITULO, fontSize: 16, color: COR.accentInk, valign: 'middle', objectName: 'faca-rotulo' });
     s.addText(d.titulo, { placeholder: 'title' });
-    texto(s, d.passos.map((p, i) => ({ text: p, options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: 2.1, w: 4.4, h: 3.6, fontSize: 20, paraSpaceAfter: 12, objectName: 'faca-passos' });
+    texto(s, d.passos.map((p, i) => ({ text: sub(p), options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: 2.1, w: 4.4, h: 3.6, fontSize: 20, paraSpaceAfter: 12, objectName: 'faca-passos' });
     const xc = M + 4.8;
     const wc = W - M - xc;
+    // Os blocos de comandos cabem entre o titulo e o "Resultado esperado": se forem altos demais, encolhem.
+    const cmds = d.comandos.map((c) => ({ ...c, cmd: sub(c.cmd) }));
+    const altos = cmds.map((c) => Math.min(3.6, alturaCodigo(c.cmd, wc, c.rotulo)));
+    const livre = 5.85 - 2.1 - 0.25 * (cmds.length - 1);
+    const escala = Math.min(1, livre / altos.reduce((a, b) => a + b, 0));
     let yc = 2.1;
-    for (const c of d.comandos) {
-      const cmd = sub(c.cmd);
-      const h = Math.min(3.6, alturaCodigo(cmd, wc, c.rotulo));
-      blocoCodigo(s, xc, yc, wc, h, cmd, c.rotulo);
+    cmds.forEach((c, i) => {
+      const h = altos[i] * escala;
+      blocoCodigo(s, xc, yc, wc, h, c.cmd, c.rotulo);
       yc += h + 0.25;
-    }
-    quadrado(s, M, 6.18, 0.32, COR.accent, 'esperado-marca');
-    texto(s, [{ text: T.esperado, options: { bold: true } }, { text: sub(d.esperado) }], { x: M + 0.5, y: 6.12, w: W - 2 * M - 1.4, h: 0.6, fontSize: 18, objectName: 'faca-esperado' });
+    });
+    icone(s, 'check', M, 6.12, 0.4, COR.accent, 'esperado-marca');
+    texto(s, [{ text: T.esperado, options: { bold: true } }, { text: sub(d.esperado) }], { x: M + 0.55, y: 6.12, w: W - 2 * M - 1.4, h: 0.6, fontSize: 18, objectName: 'faca-esperado' });
   },
   video(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     const p = join(AQUI, d.media);
-    const box = { x: M, y: 1.6, w: W - 2 * M, h: 4.75 };
+    const box = { x: M, y: 1.5, w: W - 2 * M, h: d.estados ? 4.4 : 4.8 };
+    let yl = 6.48;
     if (existsSync(p)) {
       const poster = d.poster && existsSync(join(AQUI, d.poster)) ? 'data:image/png;base64,' + readFileSync(join(AQUI, d.poster)).toString('base64') : undefined;
-      s.addMedia({ type: 'video', path: p, ...encaixar(box, dimensoes(p)), ...(poster ? { cover: poster } : {}), objectName: d.objeto || 'video' });
+      const r = encaixar(box, dimensoes(p));
+      s.addMedia({ type: 'video', path: p, ...r, ...(poster ? { cover: poster } : {}), objectName: d.objeto || 'video' });
+      yl = Math.min(6.48, r.y + r.h + (d.estados ? 0.62 : 0.15));
+      if (d.estados) {
+        // Barra escura colada ao video, com as cores do /estado (tema escuro).
+        cartao(s, r.x, r.y + r.h, r.w, 0.46, 'legenda-estado-fundo', COR.escuro);
+        legendaEstado(s, r.x + 0.25, r.y + r.h + 0.08, { escuro: true, fs: 12 });
+      }
     } else {
       s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.escuro }, line: { color: COR.escuro, width: 0 }, objectName: 'video-falta' });
       grelhaEstado(s, M + 0.5, 2.1, 20, 5, 0.42, 0.12);
       texto(s, T.videoFalta, { x: M + 0.5, y: 5.5, w: 10, h: 0.5, fontSize: 16, color: COR.escuroMuted, objectName: 'video-aviso' });
     }
-    texto(s, sub(d.legenda), { x: M, y: 6.5, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda' });
+    texto(s, sub(d.legenda), { x: M, y: yl, w: W - 2 * M, h: 0.3, fontSize: 14, color: COR.muted, valign: 'middle', objectName: 'legenda' });
   },
   imagem(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     const p = join(AQUI, d.media);
-    const box = { x: M, y: 1.6, w: W - 2 * M, h: 4.75 };
-    if (existsSync(p)) s.addImage({ path: p, ...encaixar(box, dimensoes(p)), objectName: 'imagem', altText: d.legenda });
-    else {
-      s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: 'imagem-falta' });
+    const box = { x: M, y: 1.6, w: W - 2 * M, h: 4.7 };
+    if (existsSync(p)) {
+      const r = encaixar(box, dimensoes(p));
+      cartao(s, r.x - 0.08, r.y - 0.08, r.w + 0.16, r.h + 0.16, 'moldura');
+      s.addImage({ path: p, ...r, objectName: 'imagem', altText: d.legenda });
+    } else {
+      cartao(s, box.x, box.y, box.w, box.h, 'imagem-falta');
       texto(s, T.imagemFalta(d.media), { x: M + 0.4, y: 3.7, w: 10, h: 0.5, fontSize: 16, color: COR.muted, objectName: 'imagem-aviso' });
     }
     texto(s, sub(d.legenda), { x: M, y: 6.5, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda' });
+  },
+  // Apresentar uma coisa nova: uma imagem a esquerda, 3 pontos com icone a direita e, opcional, a legenda das cores.
+  apresenta(s, d) {
+    s.addText(d.titulo, { placeholder: 'title' });
+    const p = join(AQUI, d.media);
+    const box = { x: M + 0.08, y: 1.68, w: 5.9, h: d.estados ? 3.95 : 4.4 };
+    if (existsSync(p)) {
+      const r = { ...encaixar(box, dimensoes(p)), x: box.x };
+      cartao(s, r.x - 0.08, r.y - 0.08, r.w + 0.16, r.h + 0.16, 'moldura');
+      s.addImage({ path: p, ...r, objectName: 'imagem', altText: d.legendaImagem || d.titulo });
+      if (d.legendaImagem) texto(s, sub(d.legendaImagem), { x: M, y: r.y + r.h + 0.18, w: r.w + 0.16, h: 0.35, fontSize: 13, color: COR.muted, objectName: 'imagem-legenda' });
+    } else {
+      cartao(s, box.x, box.y, box.w, box.h, 'imagem-falta');
+      texto(s, T.imagemFalta(d.media), { x: box.x + 0.3, y: box.y + box.h / 2 - 0.25, w: box.w - 0.6, h: 0.5, fontSize: 14, color: COR.muted, objectName: 'imagem-aviso' });
+    }
+    const xp = M + 6.5;
+    const wp = W - M - xp;
+    const alto = (d.estados ? 4.4 : 4.75) / d.pontos.length;
+    d.pontos.forEach((pt, i) => {
+      const y = 1.6 + i * alto;
+      const t = sub(pt.titulo);
+      const ht = t.length * 19 * 0.0085 > wp - 0.8 ? 0.62 : 0.34; // uma ou duas linhas
+      marca(s, pt, i, xp, y, 0.55, `apresenta-marca-${i}`);
+      texto(s, t, { x: xp + 0.8, y: y + 0.04, w: wp - 0.8, h: ht, fontFace: FONTE_TITULO, fontSize: 19, bold: true, objectName: `apresenta-titulo-${i}` });
+      texto(s, sub(pt.texto), { x: xp + 0.8, y: y + ht + 0.12, w: wp - 0.8, h: alto - ht - 0.2, fontSize: 15, color: COR.ink, objectName: `apresenta-texto-${i}`, fit: 'shrink' });
+    });
+    if (d.estados) {
+      cartao(s, M, 6.2, W - 2 * M, 0.55, 'legenda-fundo');
+      legendaEstado(s, M + 0.25, 6.32, { largura: W - 2 * M - 0.5 });
+    }
   },
   // "O que esta la dentro": um resumo do ficheiro a esquerda e 2 ou 3 pontos simples a direita.
   anatomia(s, d) {
@@ -436,18 +551,25 @@ const R = {
     const alto = 4.75 / n;
     d.pontos.forEach((p, i) => {
       const y = 1.65 + i * alto;
-      quadrado(s, xp, y + 0.07, 0.3, corDe(p.cor || ['accent', 'roxo2', 'laranja'][i % 3]), `anatomia-marca-${i}`);
-      texto(s, sub(p.titulo), { x: xp + 0.5, y, w: wp - 0.5, h: 0.45, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: `anatomia-titulo-${i}` });
-      texto(s, sub(p.texto), { x: xp + 0.5, y: y + 0.45, w: wp - 0.5, h: alto - 0.55, fontSize: 15, color: COR.ink, objectName: `anatomia-texto-${i}`, fit: 'shrink' });
+      marca(s, p, i, xp, y, 0.45, `anatomia-marca-${i}`);
+      texto(s, sub(p.titulo), { x: xp + 0.65, y: y + 0.02, w: wp - 0.65, h: 0.42, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: `anatomia-titulo-${i}` });
+      texto(s, sub(p.texto), { x: xp + 0.65, y: y + 0.47, w: wp - 0.65, h: alto - 0.55, fontSize: 15, color: COR.ink, objectName: `anatomia-texto-${i}`, fit: 'shrink' });
     });
     if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.45, w: W - 2 * M, h: 0.4, fontSize: 14, color: COR.muted, objectName: 'rodape' });
   },
+  // Lista numerada; a altura de cada item segue o numero de linhas que o texto ocupa.
   lista(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
+    const wt = W - 2 * M - 0.8;
+    const porLinha = Math.floor(wt / (24 * 0.0078));
+    let y = 1.8;
     d.itens.forEach((it, i) => {
-      const y = 1.85 + i * 0.92;
-      quadrado(s, M, y + 0.1, 0.34, COR.accent, `lista-marca-${i}`);
-      texto(s, sub(it), { x: M + 0.6, y, w: W - 2 * M - 0.6, h: 0.8, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `lista-item-${i}` });
+      const t = sub(it);
+      const linhas = Math.ceil(t.length / porLinha);
+      const h = linhas * 0.42 + 0.08;
+      numero(s, i + 1, M, y + 0.02, 0.48, COR.accent, `lista-numero-${i}`);
+      texto(s, t, { x: M + 0.8, y, w: wt, h: Math.max(0.52, h), fontFace: FONTE_TITULO, fontSize: 24, bold: true, valign: 'middle', objectName: `lista-item-${i}` });
+      y += Math.max(0.52, h) + 0.38;
     });
   },
 };
@@ -461,6 +583,7 @@ async function construir(lingua) {
   V = valores();
   pres = novaApresentacao();
   const { SLIDES } = await import(T.conteudo);
+  await prepararIcones(SLIDES);
 
   let relogio = 0;
   let seccaoAtual = null;
@@ -475,16 +598,16 @@ async function construir(lingua) {
     const s = pres.addSlide({ masterName: d.fecho ? 'FECHO' : LAYOUT[d.tipo] || 'CONTEUDO', sectionTitle: d.seccao });
     (R[d.tipo] || R.lista)(s, d);
     if (d.aviso) {
-      // Etiqueta amarela no canto superior direito (ex.: "os comandos estao no Teams").
+      // Etiqueta laranja no canto superior direito (ex.: "os comandos estao no Teams").
       const wa = Math.min(6.8, 0.45 + sub(d.aviso).length * 0.125); // largura pelo texto (o ingles e mais comprido)
       s.addShape(pres.shapes.RECTANGLE, { x: W - M - wa, y: 0.42, w: wa, h: 0.5, fill: { color: COR.laranja }, line: { color: COR.laranja, width: 0 }, objectName: 'aviso-fundo' });
       texto(s, sub(d.aviso), { x: W - M - wa + 0.18, y: 0.42, w: wa - 0.36, h: 0.5, fontSize: 15, bold: true, color: COR.accentInk, valign: 'middle', objectName: 'aviso' });
     }
     const ini = relogio;
     relogio += d.min;
-    const cab = `[${mmss(ini)} → ${mmss(relogio)}] ${d.min} min${d.saltar ? ` · ${T.saltar}` : ''} · ${T.estarAqui(Math.round(ini))}`;
+    const cab = `[${mmss(ini)} → ${mmss(relogio)}] ${minutos(d.min)} min${d.saltar ? ` · ${T.saltar}` : ''} · ${T.estarAqui(Math.round(ini))}`;
     s.addNotes(`${cab}\n\n${sub(d.notas)}`);
-    notasMd.push(`| ${i + 1} | ${d.min} | ${mmss(ini)} | ${d.seccao} | ${d.titulo} | ${d.saltar ? T.saltar : ''} |`);
+    notasMd.push(`| ${i + 1} | ${minutos(d.min)} | ${mmss(ini)} | ${d.seccao} | ${d.titulo} | ${d.saltar ? T.saltar : ''} |`);
     detalhe.push(`### ${i + 1}. ${d.titulo}`, '', `${cab}`, '', sub(d.notas), '');
   });
   if (Math.abs(relogio - 90) > 0.01) console.warn(T.aviso(relogio));

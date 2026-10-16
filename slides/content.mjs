@@ -3,10 +3,10 @@
 // {{...}} sao substituidos a partir do repos.conf e do benchmark (ver build.mjs).
 // min = minutos do slide; saltar = pode ser saltado se houver atraso.
 
-export const SECCOES = ['Abertura', 'Verificar', 'Conceitos', 'Preview', 'Projeto 1', 'Memória', 'Projeto 2', 'Encerramento'];
+export const SECCOES = ['Abertura', 'Instalar', 'Conceitos', 'Preview', 'Projeto 1', 'Memória', 'Projeto 2', 'Encerramento'];
 
 export const SLIDES = [
-  // ---------------- Abertura (0–5)
+  // ---------------- Abertura (0–4)
   {
     seccao: 'Abertura', tipo: 'titulo', min: 1,
     titulo: 'Orquestração de agentes com Claude',
@@ -15,11 +15,11 @@ export const SLIDES = [
   },
   {
     seccao: 'Abertura', tipo: 'colunas', min: 1.5,
-    titulo: 'O que levas para casa',
+    titulo: 'Vais sair do workshop com isto',
     colunas: [
-      { titulo: 'Um swarm', texto: 'que constrói um jogo de segurança com 15 agentes em paralelo' },
-      { titulo: 'A tua tarefa', texto: 'real, do Jira ou do GitHub, decomposta e a correr' },
-      { titulo: 'Uma memória', texto: 'em grafo do que aprendeste, para usar amanhã' },
+      { icone: 'network', titulo: 'Um swarm', texto: 'que constrói um jogo de segurança com 15 agentes em paralelo' },
+      { icone: 'clipboard-check', titulo: 'A tua tarefa', texto: 'real, do Jira ou do GitHub, decomposta e a correr' },
+      { icone: 'share-2', titulo: 'Uma memória', texto: 'em grafo do que aprendeste, para usar amanhã' },
     ],
     notas: 'Três resultados concretos. Tudo fica instalado no portátil de cada um e continua a funcionar depois de hoje.',
   },
@@ -35,9 +35,21 @@ export const SLIDES = [
     notas: 'O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o alvo, aparece um aviso e continua a trabalhar.',
   },
 
-  // ---------------- Verificar (5–10)
+  // ---------------- Instalar (4–10.5)
   {
-    seccao: 'Verificar', tipo: 'faca', min: 3,
+    seccao: 'Instalar', tipo: 'faca', min: 1.5,
+    titulo: 'Instala o kit',
+    aviso: "Os comandos estão no Teams: copia-os de lá.",
+    passos: ['Já instalaste? Passa ao slide seguinte', 'Copia o comando do teu sistema', 'Cola-o num terminal e responde às perguntas'],
+    comandos: [
+      { rotulo: 'Mac (Terminal)', cmd: '{{ONE_LINER_MAC}}' },
+      { rotulo: 'Windows (PowerShell)', cmd: '{{ONE_LINER_WIN}}' },
+    ],
+    esperado: 'A tabela-resumo do setup, com cada passo feito',
+    notas: 'Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 15 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada ({{WORKSHOP_VERSION}}). Para atualizar só a app de memória: memoria update. Antes deste slide, enviar os comandos no Teams para todos copiarem.',
+  },
+  {
+    seccao: 'Instalar', tipo: 'faca', min: 3,
     titulo: 'Verifica a instalação',
     aviso: "Os comandos estão no Teams: copia-os de lá.",
     passos: ['Abre um terminal', 'Corre o comando do teu sistema', 'Espera pela tabela-resumo'],
@@ -49,7 +61,7 @@ export const SLIDES = [
     notas: 'Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não fez o setup segue com o vizinho e instala no intervalo das perguntas. O setup fala inglês, mas deteta a língua da máquina e grava a definição language do Claude Code (português, inglês, hindi ou hebraico): as skills respondem nessa língua. A Arena, as tabelas do orquestrador e as docs ficam em português ou inglês (as outras línguas ficam em inglês). Antes deste slide, enviar os comandos no Teams para todos copiarem.',
   },
   {
-    seccao: 'Verificar', tipo: 'faca', min: 2,
+    seccao: 'Instalar', tipo: 'faca', min: 2,
     titulo: 'Algum passo falhou?',
     aviso: "Os comandos estão no Teams: copia-os de lá.",
     passos: ['Corre o modo doctor', 'Aceita a análise do Claude (menos de US$ 0,01)', 'Confirma os comandos um a um'],
@@ -61,15 +73,15 @@ export const SLIDES = [
     notas: 'O Claude lê só o excerto do log daquele passo, sem segredos, e propõe comandos. Nunca executa nada sem confirmação. Se o Claude ainda não estiver instalado, aparece a mensagem pré-escrita do TROUBLESHOOTING. Antes deste slide, enviar os comandos no Teams para todos copiarem.',
   },
 
-  // ---------------- Conceitos (10–25)
+  // ---------------- Conceitos (10.5–24.5)
   { seccao: 'Conceitos', tipo: 'seccao', min: 0.5, titulo: 'Conceitos', subtitulo: 'Skills, agentes, grafos e dinheiro', notas: 'Quinze minutos de ideias, um conceito por slide.' },
   {
     seccao: 'Conceitos', tipo: 'colunas', min: 1.5,
     titulo: 'O Claude Code trabalha no teu projeto',
     colunas: [
-      { titulo: 'Lê e escreve', texto: 'ficheiros do projeto, com permissões que tu controlas' },
-      { titulo: 'Corre comandos', texto: 'testes, git, scripts: vê o resultado e corrige' },
-      { titulo: 'Liga-se a ferramentas', texto: 'Jira, GitHub e a tua memória, via MCP' },
+      { icone: 'file-pen-line', titulo: 'Lê e escreve', texto: 'ficheiros do projeto, com permissões que tu controlas' },
+      { icone: 'square-terminal', titulo: 'Corre comandos', texto: 'testes, git, scripts: vê o resultado e corrige' },
+      { icone: 'plug', titulo: 'Liga-se a ferramentas', texto: 'Jira, GitHub e a tua memória, via MCP' },
     ],
     notas: 'O Claude Code não é um chat: é um agente que age no repositório. Tudo o que faz passa por permissões. Plan mode (Shift+Tab) faz com que só planeie, sem tocar em nada.',
   },
@@ -96,9 +108,9 @@ Answer in the participant's language.`,
     seccao: 'Conceitos', tipo: 'modelos', min: 2,
     titulo: 'Subagentes: contexto e modelo próprios',
     modelos: [
-      { nome: 'Opus', papel: 'planear e rever', cor: 'accent', preco: 'US$ 4 / 20' },
-      { nome: 'Sonnet', papel: 'integrar e lógica difícil', cor: 'verde', preco: 'US$ 2 / 10' },
-      { nome: 'Haiku', papel: 'o grosso do swarm', cor: 'amarelo', preco: 'US$ 0,10 / 0,50' },
+      { nome: 'Opus', papel: 'planear e rever', icone: 'brain', preco: 'US$ 4 / 20' },
+      { nome: 'Sonnet', papel: 'integrar e lógica difícil', icone: 'puzzle', preco: 'US$ 2 / 10' },
+      { nome: 'Haiku', papel: 'o grosso do swarm', icone: 'feather', preco: 'US$ 0,10 / 0,50' },
     ],
     rodape: 'Preço por milhão de tokens: entrada / saída. Fonte: {{PRICING_URL}} ({{PRICING_DATA}}).',
     notas: 'Um subagente é uma instância do Claude com contexto limpo, ferramentas próprias e o modelo que quisermos. É definido num ficheiro .claude/agents/<nome>.md. O comando /agents já não abre um assistente: edita-se o ficheiro.',
@@ -123,36 +135,61 @@ Answer in the participant's language.`,
     seccao: 'Conceitos', tipo: 'colunas', min: 1.5,
     titulo: 'Quem decide o grafo é um script',
     colunas: [
-      { titulo: 'next-wave.mjs', texto: 'lê o plano e o estado e devolve o próximo lote de chamadas' },
-      { titulo: 'o modelo', texto: 'lança exatamente essas chamadas, todas na mesma mensagem' },
-      { titulo: 'grade.mjs', texto: 'corre o teste de cada tarefa e decide: verde ou vermelho' },
+      { icone: 'route', titulo: 'next-wave.mjs', texto: 'lê o plano e o estado e devolve o próximo lote de chamadas' },
+      { icone: 'bot', titulo: 'o modelo', texto: 'lança exatamente essas chamadas, todas na mesma mensagem' },
+      { icone: 'list-checks', titulo: 'grade.mjs', texto: 'corre o teste de cada tarefa e decide: verde ou vermelho' },
     ],
     notas: 'Com 15 chamadas em paralelo, um modelo esquece dependências ou reescreve prompts. O script é reproduzível: é isso que torna o custo previsível e o benchmark comparável.',
   },
   {
     seccao: 'Conceitos', tipo: 'fluxo', min: 1.5,
     titulo: 'Medir, não adivinhar',
-    passos: ['O subagente termina', 'O hook SubagentStop corre', 'Tokens do transcript × preço', 'Uma linha em usage.jsonl', 'Statusline e /demo-cost'],
+    passos: [
+      { titulo: 'O subagente termina', texto: 'cada agente do swarm, quando acaba' },
+      { titulo: 'O hook SubagentStop corre', texto: 'um script do kit, chamado pelo Claude Code' },
+      { titulo: 'Tokens × preço', texto: 'os tokens reais do transcript, com os preços publicados' },
+      { titulo: 'Uma linha em usage.jsonl', texto: 'agente, modelo, tempo e custo' },
+      { titulo: 'Statusline e /demo-cost', texto: 'o custo ao vivo e o relatório final' },
+    ],
     notas: 'Os hooks são comandos que o Claude Code corre em eventos. O nosso só mede: lê os tokens reais do transcript, multiplica pelos preços publicados e acrescenta uma linha. Nunca bloqueia nada.',
   },
   {
     seccao: 'Conceitos', tipo: 'fluxo', min: 1,
     titulo: 'O ciclo de cada tarefa',
-    passos: ['plan', 'swarm', 'review', 'cost', 'memória'],
+    passos: [
+      { titulo: 'plan', texto: 'o Opus parte a tarefa num grafo' },
+      { titulo: 'swarm', texto: 'agentes Haiku fazem as peças em paralelo' },
+      { titulo: 'review', texto: 'o Opus verifica os testes e a segurança' },
+      { titulo: 'cost', texto: 'quanto custou, por agente e por modelo' },
+      { titulo: 'memória', texto: 'as lições ficam para a próxima' },
+    ],
     notas: 'É o mesmo ciclo nos dois projetos: planear com Opus, executar em swarm, um gate de segurança, medir e guardar o que se aprendeu.',
   },
 
-  // ---------------- Preview (25–30)
+  // ---------------- Preview (24.5–29.5)
+  {
+    seccao: 'Preview', tipo: 'apresenta', min: 1,
+    titulo: 'O que vamos construir: a Arena de Segurança',
+    media: 'media/arena-cartao.png',
+    legendaImagem: 'Um cartão: clica na linha que expõe o segredo e confirma.',
+    pontos: [
+      { icone: 'gamepad-2', titulo: 'Um mini-jogo, pronto a jogar', texto: 'Desafios curtos de segurança, no browser, em 10 categorias: passwords, phishing, web, redes, criptografia e mais.' },
+      { icone: 'layers', titulo: 'Cada cartão é um desafio', texto: 'Em 4 formatos: apontar a linha insegura, escolher a resposta, ordenar os passos ou escrevê-la.' },
+      { icone: 'bot', titulo: 'Um agente por cartão', texto: 'Cada agente faz um cartão e o teste desse cartão diz se ficou certo. No vídeo: 100 cartões. No teu portátil: 15.' },
+    ],
+    estados: true,
+    notas: 'Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada cartão é um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os cartões. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é um cartão, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.',
+  },
   {
     "seccao": "Preview",
     "tipo": "seccao",
     "min": 0.5,
     "titulo": "O swarm em ação",
-    "subtitulo": "Antes de fazeres o teu: o mesmo ciclo, gravado com 100 cartões",
+    "subtitulo": "A Arena com 100 cartões, feita por agentes em paralelo. Depois fazes a tua, com 15.",
     "notas": "Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 cartões. Logo a seguir cada pessoa faz o mesmo com 15."
   },
   {
-    seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 3,
+    seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 2.5, estados: true,
     titulo: '100 agentes a construir a Arena',
     media: 'media/enxame-acelerado.mp4',
     poster: 'media/estado-final.png',
@@ -171,7 +208,7 @@ Answer in the participant's language.`,
     "notas": "Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada cartão explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua."
   },
 
-  // ---------------- Projeto 1 (30–55)
+  // ---------------- Projeto 1 (29.5–57.5)
   { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
   {
     seccao: 'Projeto 1', tipo: 'colunas', min: 1,
@@ -192,14 +229,17 @@ Answer in the participant's language.`,
     "codigo": "---\nname: demo-plan\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\n1. Procura lições na memória\n2. node tools/plan.mjs  → o grafo\n3. O agente planner (Opus) revê o plano\n4. Mostra as ondas, o diagrama e o custo",
     "pontos": [
       {
+        "icone": "scroll-text",
         "titulo": "É uma skill",
         "texto": "Um ficheiro Markdown com passos. Escreves /demo-plan e o Claude segue a receita, sempre igual."
       },
       {
+        "icone": "workflow",
         "titulo": "O que entra e o que sai",
         "texto": "Entra o TASKS.md, com as tarefas da Arena. Sai o plan.json e o PLANO.md: o grafo com as dependências, as ondas e a estimativa de custo."
       },
       {
+        "icone": "folder-git-2",
         "titulo": "No teu projeto",
         "texto": "O /task-plan faz o mesmo para uma issue tua do Jira ou do GitHub."
       }
@@ -228,14 +268,17 @@ Answer in the participant's language.`,
     "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepete até ESTADO: FIM\n  1. next-wave.mjs → o próximo lote\n  2. Lança os agentes do lote, em paralelo\n  3. Cada agente faz 1 cartão e corre o teste\n  4. Mostra a tabela: agente, modelo, custo",
     "pontos": [
       {
+        "icone": "route",
         "titulo": "O script decide",
         "texto": "O grafo diz o que pode correr agora. O Claude lança só o lote que o script lhe dá: não improvisa."
       },
       {
+        "icone": "bot",
         "titulo": "Um agente, uma tarefa",
         "texto": "Cada agente começa com o contexto limpo, tem um cartão e o teste desse cartão, e usa o modelo certo: Haiku no grosso."
       },
       {
+        "icone": "folder-git-2",
         "titulo": "No teu projeto",
         "texto": "O /task-swarm faz o mesmo com as subtarefas da tua issue."
       }
@@ -270,14 +313,17 @@ Answer in the participant's language.`,
     "codigo": "SubagentStop      ← um agente terminou\n  └─ node hooks/subagent-stop.mjs\n       lê os tokens que esse agente gastou\n       grava o custo em .workshop/usage.jsonl\n\nOutros eventos: PreToolUse, PostToolUse,\nUserPromptSubmit, Stop, SessionStart",
     "pontos": [
       {
+        "icone": "lightbulb",
         "titulo": "O que é",
         "texto": "Um comando que o Claude Code corre sozinho num momento certo: antes ou depois de uma ferramenta, quando um agente acaba, no fim da sessão."
       },
       {
+        "icone": "target",
         "titulo": "Para que serve",
         "texto": "Medir, validar, formatar ou bloquear, sempre, sem depender de o modelo se lembrar. Aqui, mede o custo de cada agente."
       },
       {
+        "icone": "wand-sparkles",
         "titulo": "Faz o teu",
         "texto": "Pede ao Claude: \"Cria um hook PostToolUse que corre o prettier em cada ficheiro que editares.\" Ele escreve-o no settings.json; vês e aprovas no /hooks."
       }
@@ -293,14 +339,17 @@ Answer in the participant's language.`,
     "codigo": "Claude Code ── JSON da sessão ──▶ statusline.mjs\nstatusline.mjs ──── uma linha ────▶ ecrã\n\nSonnet · sessão US$ 0,42 · projeto US$ 1,10 / 5\n· 3 min · swarm 12/15",
     "pontos": [
       {
+        "icone": "lightbulb",
         "titulo": "O que é",
         "texto": "Um script que recebe o estado da sessão (modelo, pasta, custo) e devolve uma linha de texto."
       },
       {
+        "icone": "gauge",
         "titulo": "No kit",
         "texto": "Lê o que o hook gravou e mostra o custo da sessão e do projeto, ao vivo, contra o alvo de US$ 5."
       },
       {
+        "icone": "wand-sparkles",
         "titulo": "Faz a tua",
         "texto": "Escreve /statusline e diz o que queres ver, por exemplo \"o branch do git e o custo da sessão\". O Claude gera o script."
       }
@@ -319,12 +368,12 @@ Answer in the participant's language.`,
     notas: 'Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc abre o rewind: repõe código e conversa até um checkpoint, mas não o que foi feito por Bash nem a maior parte do que os subagentes fizeram.',
   },
   {
-    seccao: 'Projeto 1', tipo: 'colunas', min: 2, saltar: true,
+    seccao: 'Projeto 1', tipo: 'colunas', min: 1.5, saltar: true,
     titulo: 'Worktrees e rotinas',
     colunas: [
-      { titulo: 'claude -w experiencia', texto: 'uma cópia isolada do repositório, num branch próprio, para trabalhar em paralelo' },
-      { titulo: 'isolation: worktree', texto: 'um subagente no seu próprio worktree, quando as tarefas mexem nos mesmos ficheiros' },
-      { titulo: 'Rotina local', texto: 'o agendador do sistema corre claude -p todos os dias. O /schedule na cloud exige assinatura' },
+      { icone: 'git-fork', titulo: 'claude -w experiencia', texto: 'uma cópia isolada do repositório, num branch próprio, para trabalhar em paralelo' },
+      { icone: 'git-branch', titulo: 'isolation: worktree', texto: 'um subagente no seu próprio worktree, quando as tarefas mexem nos mesmos ficheiros' },
+      { icone: 'calendar-clock', titulo: 'Rotina local', texto: 'o agendador do sistema corre claude -p todos os dias. O /schedule na cloud exige assinatura' },
     ],
     notas: 'Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/rotina.mjs --instalar, que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".',
   },
@@ -361,7 +410,7 @@ Answer in the participant's language.`,
     notas: 'Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadrado.',
   },
 
-  // ---------------- Memória (55–60)
+  // ---------------- Memória (57.5–62.5)
   {
     seccao: 'Memória', tipo: 'imagem', min: 2,
     titulo: 'A memória do que fizeste',
@@ -381,12 +430,18 @@ Answer in the participant's language.`,
     notas: 'A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.',
   },
 
-  // ---------------- Projeto 2 (60–85)
+  // ---------------- Projeto 2 (62.5–86.5)
   { seccao: 'Projeto 2', tipo: 'seccao', min: 0.5, titulo: 'Projeto 2', subtitulo: 'A tua tarefa real', notas: '25 minutos. A tarefa pode não terminar aqui: o objetivo é sair com a orquestração a correr e saber continuar.' },
   {
     seccao: 'Projeto 2', tipo: 'fluxo', min: 1.5,
     titulo: 'O mesmo ciclo, no teu repositório',
-    passos: ['/task-intake', '/task-plan', '/task-swarm', '/task-gate', '/task-report'],
+    passos: [
+      { titulo: '/task-intake', texto: 'lê a issue do Jira ou do GitHub' },
+      { titulo: '/task-plan', texto: 'decide quantos agentes e porquê' },
+      { titulo: '/task-swarm', texto: 'os agentes trabalham em lotes' },
+      { titulo: '/task-gate', texto: 'testes, segredos e o veredito do Opus' },
+      { titulo: '/task-report', texto: 'comentários, worklog e PR, depois do teu sim' },
+    ],
     notas: 'Os /task-* estão instalados ao nível do utilizador e funcionam em qualquer repositório. Toda a escrita no Jira ou no GitHub pede confirmação.',
   },
   {
@@ -423,9 +478,9 @@ Answer in the participant's language.`,
     seccao: 'Projeto 2', tipo: 'colunas', min: 1, saltar: true,
     titulo: 'Jira e GitHub',
     colunas: [
-      { titulo: 'Jira (MCP + acli)', texto: 'MCP com login no /mcp; se falhar, o Atlassian CLI (acli auth login)' },
-      { titulo: 'GitHub (gh)', texto: 'gh auth login: menos contexto do que um MCP e sem tokens partilhados' },
-      { titulo: 'Sempre com confirmação', texto: 'comentários, worklog e PR só depois do teu sim' },
+      { icone: 'ticket', titulo: 'Jira (MCP + acli)', texto: 'MCP com login no /mcp; se falhar, o Atlassian CLI (acli auth login)' },
+      { icone: 'git-pull-request', titulo: 'GitHub (gh)', texto: 'gh auth login: menos contexto do que um MCP e sem tokens partilhados' },
+      { icone: 'user-check', titulo: 'Sempre com confirmação', texto: 'comentários, worklog e PR só depois do teu sim' },
     ],
     notas: 'Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo. Se o MCP falhar, as skills usam o Atlassian CLI oficial (acli), que o setup já instalou: lê a issue e publica os comentários; as horas registam-se à mão.',
   },
@@ -433,14 +488,14 @@ Answer in the participant's language.`,
     seccao: 'Projeto 2', tipo: 'colunas', min: 2,
     titulo: 'Depois do workshop',
     colunas: [
-      { titulo: '/task-gate', texto: 'testes, segredos, código perigoso e o veredito do Opus' },
-      { titulo: '/task-report', texto: 'Jira: um comentário por subtarefa, com agente, modelo, tempo e custo, e o worklog. GitHub: o PR' },
-      { titulo: '/memoria', texto: 'as lições desta tarefa ficam para a próxima' },
+      { icone: 'shield-check', titulo: '/task-gate', texto: 'testes, segredos, código perigoso e o veredito do Opus' },
+      { icone: 'message-square-text', titulo: '/task-report', texto: 'Jira: um comentário por subtarefa, com agente, modelo, tempo e custo, e o worklog. GitHub: o PR' },
+      { icone: 'share-2', titulo: '/memoria', texto: 'as lições desta tarefa ficam para a próxima' },
     ],
     notas: 'Exemplo de comentário: agente ws-worker-07 · Haiku · 5 s · US$ 0,004.',
   },
 
-  // ---------------- Encerramento (85–90)
+  // ---------------- Encerramento (86.5–90)
   {
     seccao: 'Encerramento', tipo: 'lista', min: 2,
     titulo: 'Cinco ideias para levar',
@@ -454,15 +509,6 @@ Answer in the participant's language.`,
     notas: 'Resumo em cinco frases.',
   },
   {
-    seccao: 'Encerramento', tipo: 'codigo', min: 1.5,
-    titulo: 'Onde está tudo',
-    aviso: "Os comandos estão no Teams: copia-os de lá.",
-    intro: 'Instalar noutra máquina:',
-    codigo: '{{ONE_LINER_MAC}}\n\n{{ONE_LINER_WIN}}',
-    depois: 'Repositório: {{WORKSHOP_REPO}} · versão {{WORKSHOP_VERSION}} · atualizar a memória: memoria update',
-    notas: 'Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada. Antes deste slide, enviar os comandos no Teams para todos copiarem.',
-  },
-  {
     seccao: 'Encerramento', tipo: 'lista', min: 1,
     titulo: 'Amanhã',
     itens: [
@@ -472,5 +518,5 @@ Answer in the participant's language.`,
     ],
     notas: 'Três ações concretas.',
   },
-  { seccao: 'Encerramento', tipo: 'titulo', fecho: true, min: 0.5, titulo: 'Perguntas', subtitulo: 'Sem limite de tempo', notas: 'As perguntas podem passar dos 90 minutos. Quem não fez o setup instala agora.' },
+  { seccao: 'Encerramento', tipo: 'titulo', fecho: true, min: 0.5, titulo: 'Perguntas', subtitulo: 'Sem limite de tempo', rodape: '{{WORKSHOP_REPO}}', notas: 'As perguntas podem passar dos 90 minutos. Quem não fez o setup instala agora.' },
 ];

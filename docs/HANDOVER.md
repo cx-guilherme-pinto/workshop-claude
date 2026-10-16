@@ -18,7 +18,7 @@ The kit and the app were built on another machine, against a private Gitea (`rep
 | Project 1 (Arena) | 100 cards; 15 in participant mode | Benchmark with the skills in pt (D-16): 10/10, US$ 1.03 on average and 4.0 min. With the skills in English: 6/6, US$ 0.94 to 1.05 and 4.0 to 4.5 min (Arena in pt and in en; D-20). Presenter: 3/3, US$ 2.54 and 7.1 min |
 | Project 2 (`/task-*`) | Jira through the MCP, with `acli` as the fallback (D-19); Confluence through the MCP or `acli`; GitHub through `gh` | End to end on the practice project (D-18). **Never run against a real corporate Jira, Confluence or GitHub** |
 | Memória app v0.4.0 | 4 languages, log of the MCP calls, portable app | 227 tests, selftest and an isolated install |
-| Slides | 45 slides, 90 min, in pt and en | Rendered in LibreOffice |
+| Slides | 47 slides, 90 min, in pt and en | Rendered in LibreOffice |
 | Releases | `v1.0.0-dev.3` on Gitea | `--check` from the release |
 
 ## What is left (in order)

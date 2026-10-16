@@ -20,7 +20,7 @@ Date: 16 Oct 2026. Development releases on Gitea:
 | Practice project (Project 2 without Jira) | Municipal Library with 3 local issues, linked to the epic EX-100 | `exemplo-projeto-real/` |
 | Memória app | Markdown + SQLite FTS5, graph, search by name, project, ticket and epic, MCP server, `memoria update`, and the same look as the Arena | repo `claude-memory-app` |
 | Design skill | MIT fork inside the repo (commit `2b44c81`), without the network script | `skills-shared/design-taste-frontend/` |
-| Presentation | 45 slides for 90 min, with notes, running clock, "Do it now" slides, the real video of the 100 agents and screenshots | `slides/workshop.pptx`, `slides/speaker-notes.md` |
+| Presentation | 47 slides for 90 min, with notes, running clock, "Do it now" slides, the real video of the 100 agents and screenshots | `slides/workshop.pptx`, `slides/speaker-notes.md` |
 | Swarm preview | Sped-up video (92 s), GIF and the recorded Arena for replay without the API | `slides/media/`, `presenter-replay/` |
 | Documentation | FAQ, TROUBLESHOOTING (error catalog), INSTALL, ORGANIZER, PUBLISHING, MANUAL-TESTS, DECISIONS (D-01 to D-21); English first, the docs also in Portuguese, and the README and install guide in Hindi and Hebrew | `docs/`, `docs/pt/`, `docs/hi/`, `docs/he/`, `DECISIONS.md` |
 

@@ -3,10 +3,10 @@
 // {{...}} are replaced from repos.conf and the benchmark (see build.mjs).
 // min = minutes for the slide; saltar = can be skipped if running late.
 
-export const SECCOES = ['Opening', 'Check', 'Concepts', 'Preview', 'Project 1', 'Memory', 'Project 2', 'Closing'];
+export const SECCOES = ['Opening', 'Install', 'Concepts', 'Preview', 'Project 1', 'Memory', 'Project 2', 'Closing'];
 
 export const SLIDES = [
-  // ---------------- Opening (0–5)
+  // ---------------- Opening (0–4)
   {
     seccao: 'Opening', tipo: 'titulo', min: 1,
     titulo: 'Agent orchestration with Claude',
@@ -15,11 +15,11 @@ export const SLIDES = [
   },
   {
     seccao: 'Opening', tipo: 'colunas', min: 1.5,
-    titulo: 'What you take home',
+    titulo: "You'll leave the workshop with this",
     colunas: [
-      { titulo: 'A swarm', texto: 'that builds a security game with 15 agents in parallel' },
-      { titulo: 'Your task', texto: 'a real one, from Jira or GitHub, broken down and running' },
-      { titulo: 'A memory', texto: 'a graph of what you learned, ready to use tomorrow' },
+      { icone: 'network', titulo: 'A swarm', texto: 'that builds a security game with 15 agents in parallel' },
+      { icone: 'clipboard-check', titulo: 'Your task', texto: 'a real one, from Jira or GitHub, broken down and running' },
+      { icone: 'share-2', titulo: 'A memory', texto: 'a graph of what you learned, ready to use tomorrow' },
     ],
     notas: 'Three concrete outcomes. Everything stays installed on each laptop and keeps working after today.',
   },
@@ -35,9 +35,21 @@ export const SLIDES = [
     notas: 'The budget is backed by the benchmark, not by cuts. If someone goes over the target, a warning shows up and they keep working.',
   },
 
-  // ---------------- Check (5–10)
+  // ---------------- Install (4–10.5)
   {
-    seccao: 'Check', tipo: 'faca', min: 3,
+    seccao: 'Install', tipo: 'faca', min: 1.5,
+    titulo: 'Install the kit',
+    aviso: "The commands are in Teams: copy them from there.",
+    passos: ['Already installed? Go to the next slide', 'Copy the command for your system', 'Paste it into a terminal and answer the questions'],
+    comandos: [
+      { rotulo: 'Mac (Terminal)', cmd: '{{ONE_LINER_MAC}}' },
+      { rotulo: 'Windows (PowerShell)', cmd: '{{ONE_LINER_WIN}}' },
+    ],
+    esperado: 'The setup summary table, with every step done',
+    notas: 'Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 15 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version ({{WORKSHOP_VERSION}}). To update only the memory app: memoria update. Before this slide, post the commands in Teams so everyone can copy them.',
+  },
+  {
+    seccao: 'Install', tipo: 'faca', min: 3,
     titulo: 'Check your installation',
     aviso: "The commands are in Teams: copy them from there.",
     passos: ['Open a terminal', 'Run the command for your system', 'Wait for the summary table'],
@@ -49,7 +61,7 @@ export const SLIDES = [
     notas: 'Everyone runs the check. It takes 2 to 3 minutes and installs nothing. Anyone who did not run the setup follows along with a neighbour and installs during the questions. The setup speaks English, but it detects the machine language and writes the Claude Code language setting (Portuguese, English, Hindi or Hebrew): the skills answer in that language. The Arena, the orchestrator tables and the docs come in Portuguese or English (any other language gets English). Before this slide, post the commands in Teams so everyone can copy them.',
   },
   {
-    seccao: 'Check', tipo: 'faca', min: 2,
+    seccao: 'Install', tipo: 'faca', min: 2,
     titulo: 'Did a step fail?',
     aviso: "The commands are in Teams: copy them from there.",
     passos: ['Run doctor mode', 'Accept the analysis by Claude (under US$ 0.01)', 'Confirm the commands one by one'],
@@ -61,15 +73,15 @@ export const SLIDES = [
     notas: 'Claude reads only the log excerpt for that step, with no secrets, and suggests commands. It never runs anything without confirmation. If Claude is not installed yet, the pre-written message from TROUBLESHOOTING is shown. Before this slide, post the commands in Teams so everyone can copy them.',
   },
 
-  // ---------------- Concepts (10–25)
+  // ---------------- Concepts (10.5–24.5)
   { seccao: 'Concepts', tipo: 'seccao', min: 0.5, titulo: 'Concepts', subtitulo: 'Skills, agents, graphs and money', notas: 'Fifteen minutes of ideas, one concept per slide.' },
   {
     seccao: 'Concepts', tipo: 'colunas', min: 1.5,
     titulo: 'Claude Code works in your project',
     colunas: [
-      { titulo: 'Reads and writes', texto: 'project files, with permissions you control' },
-      { titulo: 'Runs commands', texto: 'tests, git, scripts: it sees the result and fixes it' },
-      { titulo: 'Connects to tools', texto: 'Jira, GitHub and your memory, via MCP' },
+      { icone: 'file-pen-line', titulo: 'Reads and writes', texto: 'project files, with permissions you control' },
+      { icone: 'square-terminal', titulo: 'Runs commands', texto: 'tests, git, scripts: it sees the result and fixes it' },
+      { icone: 'plug', titulo: 'Connects to tools', texto: 'Jira, GitHub and your memory, via MCP' },
     ],
     notas: 'Claude Code is not a chat: it is an agent that acts on the repository. Everything it does goes through permissions. Plan mode (Shift+Tab) makes it only plan, without touching anything.',
   },
@@ -96,9 +108,9 @@ Answer in the participant's language.`,
     seccao: 'Concepts', tipo: 'modelos', min: 2,
     titulo: 'Subagents: their own context and model',
     modelos: [
-      { nome: 'Opus', papel: 'plan and review', cor: 'accent', preco: 'US$ 4 / 20' },
-      { nome: 'Sonnet', papel: 'integration and hard logic', cor: 'verde', preco: 'US$ 2 / 10' },
-      { nome: 'Haiku', papel: 'the bulk of the swarm', cor: 'amarelo', preco: 'US$ 0.10 / 0.50' },
+      { nome: 'Opus', papel: 'plan and review', icone: 'brain', preco: 'US$ 4 / 20' },
+      { nome: 'Sonnet', papel: 'integration and hard logic', icone: 'puzzle', preco: 'US$ 2 / 10' },
+      { nome: 'Haiku', papel: 'the bulk of the swarm', icone: 'feather', preco: 'US$ 0.10 / 0.50' },
     ],
     rodape: 'Price per million tokens: input / output. Source: {{PRICING_URL}} ({{PRICING_DATA}}).',
     notas: 'A subagent is a Claude instance with a clean context, its own tools and the model we choose. It is defined in a .claude/agents/<name>.md file. The /agents command no longer opens a wizard: you edit the file.',
@@ -123,36 +135,61 @@ Answer in the participant's language.`,
     seccao: 'Concepts', tipo: 'colunas', min: 1.5,
     titulo: 'A script decides the graph',
     colunas: [
-      { titulo: 'next-wave.mjs', texto: 'reads the plan and the state and returns the next batch of calls' },
-      { titulo: 'the model', texto: 'launches exactly those calls, all in the same message' },
-      { titulo: 'grade.mjs', texto: 'runs the test of each task and decides: green or red' },
+      { icone: 'route', titulo: 'next-wave.mjs', texto: 'reads the plan and the state and returns the next batch of calls' },
+      { icone: 'bot', titulo: 'the model', texto: 'launches exactly those calls, all in the same message' },
+      { icone: 'list-checks', titulo: 'grade.mjs', texto: 'runs the test of each task and decides: green or red' },
     ],
     notas: 'With 15 calls in parallel, a model forgets dependencies or rewrites prompts. The script is reproducible: that is what makes the cost predictable and the benchmark comparable.',
   },
   {
     seccao: 'Concepts', tipo: 'fluxo', min: 1.5,
     titulo: 'Measure, don\'t guess',
-    passos: ['The subagent finishes', 'The SubagentStop hook runs', 'Transcript tokens × price', 'One line in usage.jsonl', 'Statusline and /demo-cost'],
+    passos: [
+      { titulo: 'The subagent finishes', texto: 'every swarm agent, when it is done' },
+      { titulo: 'The SubagentStop hook runs', texto: 'a kit script, called by Claude Code' },
+      { titulo: 'Tokens × price', texto: 'the real transcript tokens, at the published prices' },
+      { titulo: 'One line in usage.jsonl', texto: 'agent, model, time and cost' },
+      { titulo: 'Statusline and /demo-cost', texto: 'the live cost and the final report' },
+    ],
     notas: 'Hooks are commands that Claude Code runs on events. Ours only measures: it reads the real tokens from the transcript, multiplies them by the published prices and appends one line. It never blocks anything.',
   },
   {
     seccao: 'Concepts', tipo: 'fluxo', min: 1,
     titulo: 'The cycle of every task',
-    passos: ['plan', 'swarm', 'review', 'cost', 'memory'],
+    passos: [
+      { titulo: 'plan', texto: 'Opus breaks the task into a graph' },
+      { titulo: 'swarm', texto: 'Haiku agents build the pieces in parallel' },
+      { titulo: 'review', texto: 'Opus checks the tests and the security' },
+      { titulo: 'cost', texto: 'what it cost, per agent and per model' },
+      { titulo: 'memory', texto: 'the lessons stay for next time' },
+    ],
     notas: 'It is the same cycle in both projects: plan with Opus, run as a swarm, a security gate, measure and save what was learned.',
   },
 
-  // ---------------- Preview (25–30)
+  // ---------------- Preview (24.5–29.5)
+  {
+    seccao: 'Preview', tipo: 'apresenta', min: 1,
+    titulo: 'What we will build: the Security Arena',
+    media: 'media/arena-cartao.en.png',
+    legendaImagem: 'One card: click the line that exposes the secret and confirm.',
+    pontos: [
+      { icone: 'gamepad-2', titulo: 'A mini-game, ready to play', texto: 'Short security challenges, in the browser, across 10 categories: passwords, phishing, web, networks, cryptography and more.' },
+      { icone: 'layers', titulo: 'Each card is a challenge', texto: 'In 4 formats: point at the insecure line, pick the answer, put the steps in order or type it in.' },
+      { icone: 'bot', titulo: 'One agent per card', texto: 'Each agent builds one card, and that card\'s test says whether it is right. In the video: 100 cards. On your laptop: 15.' },
+    ],
+    estados: true,
+    notas: 'Before the video, say what is going to be built. The Arena is a security mini-game: each card is a small challenge (find the line that exposes a secret, pick the real website, order the parts of a URL, type an answer). The app shell and the tests already exist; the agents write the cards. Explain the colours now, because they show up everywhere: each square is a card, grey while it waits, yellow while an agent works on it, green when its test passes, red when it fails.',
+  },
   {
     "seccao": "Preview",
     "tipo": "seccao",
     "min": 0.5,
     "titulo": "The swarm in action",
-    "subtitulo": "Before you run yours: the same cycle, recorded with 100 cards",
+    "subtitulo": "The Arena with 100 cards, built by agents in parallel. Then you build yours, with 15.",
     "notas": "Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 cards. Right after, each person does the same with 15."
   },
   {
-    seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 3,
+    seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 2.5, estados: true,
     titulo: '100 agents building the Arena',
     media: 'media/enxame-acelerado.mp4',
     poster: 'media/estado-final.png',
@@ -171,7 +208,7 @@ Answer in the participant's language.`,
     "notas": "Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each card explains the why at the end. At the end of Project 1 everyone plays their own."
   },
 
-  // ---------------- Project 1 (30–55)
+  // ---------------- Project 1 (29.5–57.5)
   { seccao: 'Project 1', tipo: 'seccao', min: 0.5, titulo: 'Project 1', subtitulo: 'The Security Arena', notas: '25 minutes of hands-on. In the benchmark, the 15-card swarm took 4 to 6 minutes; in interactive mode and with new accounts it can take longer. We use that time to look at features.' },
   {
     seccao: 'Project 1', tipo: 'colunas', min: 1,
@@ -192,14 +229,17 @@ Answer in the participant's language.`,
     "codigo": "---\nname: demo-plan\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\n1. Look up lessons in the memory\n2. node tools/plan.mjs  → the graph\n3. The planner agent (Opus) reviews it\n4. Show the waves, the diagram and the cost",
     "pontos": [
       {
+        "icone": "scroll-text",
         "titulo": "It is a skill",
         "texto": "A Markdown file with steps. You type /demo-plan and Claude follows the recipe, the same way every time."
       },
       {
+        "icone": "workflow",
         "titulo": "What goes in and out",
         "texto": "In: TASKS.md, the Arena tasks. Out: plan.json and PLANO.md, the graph with the dependencies, the waves and the cost estimate."
       },
       {
+        "icone": "folder-git-2",
         "titulo": "In your project",
         "texto": "/task-plan does the same for one of your Jira or GitHub issues."
       }
@@ -228,14 +268,17 @@ Answer in the participant's language.`,
     "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepeat until ESTADO: FIM\n  1. next-wave.mjs → the next batch\n  2. Launch the batch agents, in parallel\n  3. Each agent does 1 card and runs its test\n  4. Show the table: agent, model, cost",
     "pontos": [
       {
+        "icone": "route",
         "titulo": "The script decides",
         "texto": "The graph says what can run now. Claude only launches the batch the script hands it: no improvising."
       },
       {
+        "icone": "bot",
         "titulo": "One agent, one task",
         "texto": "Each agent starts with a clean context, gets one card and that card's test, and uses the right model: Haiku for the bulk."
       },
       {
+        "icone": "folder-git-2",
         "titulo": "In your project",
         "texto": "/task-swarm does the same with the subtasks of your issue."
       }
@@ -270,14 +313,17 @@ Answer in the participant's language.`,
     "codigo": "SubagentStop      ← an agent finished\n  └─ node hooks/subagent-stop.mjs\n       reads the tokens that agent used\n       writes the cost to .workshop/usage.jsonl\n\nOther events: PreToolUse, PostToolUse,\nUserPromptSubmit, Stop, SessionStart",
     "pontos": [
       {
+        "icone": "lightbulb",
         "titulo": "What it is",
         "texto": "A command Claude Code runs on its own at the right moment: before or after a tool, when an agent finishes, at the end of the session."
       },
       {
+        "icone": "target",
         "titulo": "What it is for",
         "texto": "Measuring, checking, formatting or blocking, every time, without relying on the model to remember. Here it measures the cost of each agent."
       },
       {
+        "icone": "wand-sparkles",
         "titulo": "Make your own",
         "texto": "Ask Claude: \"Create a PostToolUse hook that runs prettier on every file you edit.\" It writes it into settings.json; you review and approve it in /hooks."
       }
@@ -293,14 +339,17 @@ Answer in the participant's language.`,
     "codigo": "Claude Code ── session JSON ──▶ statusline.mjs\nstatusline.mjs ──── one line ────▶ screen\n\nSonnet · session US$ 0.42 · project US$ 1.10 / 5\n· 3 min · swarm 12/15",
     "pontos": [
       {
+        "icone": "lightbulb",
         "titulo": "What it is",
         "texto": "A script that receives the session state (model, folder, cost) and returns one line of text."
       },
       {
+        "icone": "gauge",
         "titulo": "In the kit",
         "texto": "It reads what the hook recorded and shows the session and project cost, live, against the US$ 5 target."
       },
       {
+        "icone": "wand-sparkles",
         "titulo": "Make your own",
         "texto": "Type /statusline and say what you want to see, for example \"the git branch and the session cost\". Claude writes the script."
       }
@@ -319,12 +368,12 @@ Answer in the participant's language.`,
     notas: 'Plan mode only reads and proposes. claude -p is the basis for scripts and CI. Esc Esc opens rewind: it restores code and conversation to a checkpoint, but not what was done through Bash nor most of what the subagents did.',
   },
   {
-    seccao: 'Project 1', tipo: 'colunas', min: 2, saltar: true,
+    seccao: 'Project 1', tipo: 'colunas', min: 1.5, saltar: true,
     titulo: 'Worktrees and routines',
     colunas: [
-      { titulo: 'claude -w experiment', texto: 'an isolated copy of the repository, on its own branch, to work in parallel' },
-      { titulo: 'isolation: worktree', texto: 'a subagent in its own worktree, when the tasks touch the same files' },
-      { titulo: 'Local routine', texto: 'the system scheduler runs claude -p every day. The cloud /schedule needs a subscription' },
+      { icone: 'git-fork', titulo: 'claude -w experiment', texto: 'an isolated copy of the repository, on its own branch, to work in parallel' },
+      { icone: 'git-branch', titulo: 'isolation: worktree', texto: 'a subagent in its own worktree, when the tasks touch the same files' },
+      { icone: 'calendar-clock', titulo: 'Local routine', texto: 'the system scheduler runs claude -p every day. The cloud /schedule needs a subscription' },
     ],
     notas: 'Skip if running late. Example routine: a daily security review with node tools/rotina.mjs --instalar, which registers a claude -p "/demo-review --auto" in launchd or in Task Scheduler.',
   },
@@ -361,7 +410,7 @@ Answer in the participant's language.`,
     notas: 'The tests also run in the browser. It is the same test that decided the colour of the square.',
   },
 
-  // ---------------- Memory (55–60)
+  // ---------------- Memory (57.5–62.5)
   {
     seccao: 'Memory', tipo: 'imagem', min: 2,
     titulo: 'The memory of what you did',
@@ -381,12 +430,18 @@ Answer in the participant's language.`,
     notas: 'The app opens in your native language and has a language selector. Routines, worktrees and headless mode were already covered during the waiting moments.',
   },
 
-  // ---------------- Project 2 (60–85)
+  // ---------------- Project 2 (62.5–86.5)
   { seccao: 'Project 2', tipo: 'seccao', min: 0.5, titulo: 'Project 2', subtitulo: 'Your real task', notas: '25 minutes. The task may not finish here: the goal is to leave with the orchestration running and to know how to continue.' },
   {
     seccao: 'Project 2', tipo: 'fluxo', min: 1.5,
     titulo: 'The same cycle, in your repository',
-    passos: ['/task-intake', '/task-plan', '/task-swarm', '/task-gate', '/task-report'],
+    passos: [
+      { titulo: '/task-intake', texto: 'reads the Jira or GitHub issue' },
+      { titulo: '/task-plan', texto: 'decides how many agents and why' },
+      { titulo: '/task-swarm', texto: 'the agents work in batches' },
+      { titulo: '/task-gate', texto: 'tests, secrets and the Opus verdict' },
+      { titulo: '/task-report', texto: 'comments, worklog and PR, after your yes' },
+    ],
     notas: 'The /task-* skills are installed at user level and work in any repository. Every write to Jira or GitHub asks for confirmation.',
   },
   {
@@ -423,9 +478,9 @@ Answer in the participant's language.`,
     seccao: 'Project 2', tipo: 'colunas', min: 1, saltar: true,
     titulo: 'Jira and GitHub',
     colunas: [
-      { titulo: 'Jira (MCP + acli)', texto: 'MCP with login in /mcp; if it fails, the Atlassian CLI (acli auth login)' },
-      { titulo: 'GitHub (gh)', texto: 'gh auth login: less context than an MCP and no shared tokens' },
-      { titulo: 'Always with confirmation', texto: 'comments, worklog and PR only after your yes' },
+      { icone: 'ticket', titulo: 'Jira (MCP + acli)', texto: 'MCP with login in /mcp; if it fails, the Atlassian CLI (acli auth login)' },
+      { icone: 'git-pull-request', titulo: 'GitHub (gh)', texto: 'gh auth login: less context than an MCP and no shared tokens' },
+      { icone: 'user-check', titulo: 'Always with confirmation', texto: 'comments, worklog and PR only after your yes' },
     ],
     notas: 'Skip if running late. The Atlassian MCP spends the company Rovo credits and the admin can limit it. If the MCP fails, the skills use the official Atlassian CLI (acli), which the setup already installed: it reads the issue and posts the comments; hours are logged by hand.',
   },
@@ -433,14 +488,14 @@ Answer in the participant's language.`,
     seccao: 'Project 2', tipo: 'colunas', min: 2,
     titulo: 'After the workshop',
     colunas: [
-      { titulo: '/task-gate', texto: 'tests, secrets, dangerous code and the Opus verdict' },
-      { titulo: '/task-report', texto: 'Jira: one comment per subtask, with agent, model, time and cost, and the worklog. GitHub: the PR' },
-      { titulo: '/memoria', texto: 'the lessons from this task stay for the next one' },
+      { icone: 'shield-check', titulo: '/task-gate', texto: 'tests, secrets, dangerous code and the Opus verdict' },
+      { icone: 'message-square-text', titulo: '/task-report', texto: 'Jira: one comment per subtask, with agent, model, time and cost, and the worklog. GitHub: the PR' },
+      { icone: 'share-2', titulo: '/memoria', texto: 'the lessons from this task stay for the next one' },
     ],
     notas: 'Example comment: agent ws-worker-07 · Haiku · 5 s · US$ 0.004.',
   },
 
-  // ---------------- Closing (85–90)
+  // ---------------- Closing (86.5–90)
   {
     seccao: 'Closing', tipo: 'lista', min: 2,
     titulo: 'Five ideas to take with you',
@@ -454,15 +509,6 @@ Answer in the participant's language.`,
     notas: 'A summary in five sentences.',
   },
   {
-    seccao: 'Closing', tipo: 'codigo', min: 1.5,
-    titulo: 'Where everything is',
-    aviso: "The commands are in Teams: copy them from there.",
-    intro: 'Install on another machine:',
-    codigo: '{{ONE_LINER_MAC}}\n\n{{ONE_LINER_WIN}}',
-    depois: 'Repository: {{WORKSHOP_REPO}} · version {{WORKSHOP_VERSION}} · update the memory: memoria update',
-    notas: 'The commands are generated from repos.conf: they are always right for the published version. Before this slide, post the commands in Teams so everyone can copy them.',
-  },
-  {
     seccao: 'Closing', tipo: 'lista', min: 1,
     titulo: 'Tomorrow',
     itens: [
@@ -472,5 +518,5 @@ Answer in the participant's language.`,
     ],
     notas: 'Three concrete actions.',
   },
-  { seccao: 'Closing', tipo: 'titulo', fecho: true, min: 0.5, titulo: 'Questions', subtitulo: 'No time limit', notas: 'Questions can go past 90 minutes. Anyone who did not run the setup installs now.' },
+  { seccao: 'Closing', tipo: 'titulo', fecho: true, min: 0.5, titulo: 'Questions', subtitulo: 'No time limit', rodape: '{{WORKSHOP_REPO}}', notas: 'Questions can go past 90 minutes. Anyone who did not run the setup installs now.' },
 ];

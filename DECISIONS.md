@@ -296,6 +296,19 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - **swarm:** a gravação original do `/estado` estava parada no estado final. O `tools/record/montar-preview.sh` refá-lo sem correr o swarm: a grelha vem do replay, fotograma a fotograma (`record-replay.mjs`), e o terminal do `terminal.cast`, os dois a 5× e alinhados pela hora real do evento "inicio". Fica com 83 s;
   - **jogo:** o `tools/record/record-jogo.mjs` grava uma partida real, com um cartão de cada formato e as respostas tiradas do `specs/cards.json`. A versão inglesa monta os cartões a partir da especificação em inglês, e os 600 testes dos cartões passam;
   - **proporção:** o `build.mjs` encaixa as imagens e os vídeos pela proporção real do ficheiro, sem esticar.
+- Atualizado pela D-23: o fundo passou a lilás e as cores dos modelos saíram.
+
+## D-23 · Slides: fundo lilás, cores só para o estado e a Arena antes do vídeo (16 out. 2026)
+
+- **Fundo:** a pedido do organizador, todos os slides de conteúdo, os "Faça agora" e os separadores ficam com o lilás do modelo (`#f4effe`), sem fundo branco. Os blocos por cima passam a brancos. O fundo dos separadores (`slides/modelo/fundo-seccao.png`) é o do modelo com o branco multiplicado para lilás; as linhas da onda ficam iguais.
+- **Cores com um só significado:** os quadrados coloridos que eram só decoração confundiam (o verde e o amarelo também querem dizer "teste passou" e "a trabalhar"). Agora:
+  - cinzento, amarelo, verde e vermelho só aparecem em quadrados, e um quadrado é sempre um cartão ou uma tarefa. Onde aparecem, há a legenda "Cada quadrado é um cartão: à espera · um agente a trabalhar · teste passou · teste falhou";
+  - no vídeo do swarm, a legenda vai numa barra escura colada ao vídeo, com as cores do tema escuro do `/estado` (o cinzento "à espera" é escuro no ecrã do projetor);
+  - a decoração é um ícone branco num círculo roxo (Lucide, `lucide-static` 1.48.0, licença ISC, rasterizado com `sharp` 0.34.5, só no build) e os passos de um fluxo ou de uma lista levam um número no círculo;
+  - os modelos deixaram de ter cor: Opus, Sonnet e Haiku têm cada um o seu ícone (cérebro, peça de puzzle, pena), também nas ondas.
+- **A Arena antes do vídeo:** antes de "O swarm em ação" entra "O que vamos construir: a Arena de Segurança": um cartão real (frame do vídeo do jogo), o que é a Arena (mini-jogo em 10 categorias, 4 formatos, um agente por cartão; 100 no vídeo, 15 no portátil) e a legenda das cores. Assim, "100 cartões" e "a Arena" já têm significado quando aparecem.
+- **Ordem:** o slide com o comando de instalação ("Onde está tudo") passou do fim para o início ("Instala o kit", slide 4, antes do check e do doctor). A secção "Verificar" chama-se agora "Instalar". O endereço do repositório fica no slide das perguntas.
+- **Outros:** o slide 2 chama-se "Vais sair do workshop com isto"; os fluxos têm uma frase por passo; os comandos dos "Faça agora" encolhem para caberem por cima do resultado esperado; os minutos usam a vírgula em português. Continua nos 90 minutos e com 47 slides.
 
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
