@@ -16,18 +16,18 @@ Faz isto **antes** do workshop. Demora 10 a 20 minutos. Não precisas de admin.
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
 ```
 
-Alternativa: `bash <(curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh)`
+Alternativa: `bash <(curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh)`
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
 ```
 
-Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1](https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-windows.ps1) e corre, na pasta onde o guardaste:
+Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1](https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-windows.ps1) e corre, na pasta onde o guardaste:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
@@ -53,4 +53,4 @@ Depois, fecha e volta a abrir o terminal (e o VS Code).
 
 ## Verificar antes de executar (opcional)
 
-Os SHA-256 de todos os ficheiros da release estão em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/SHA256SUMS. Página da release: https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.2.
+Os SHA-256 de todos os ficheiros da release estão em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS. Página da release: https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3.

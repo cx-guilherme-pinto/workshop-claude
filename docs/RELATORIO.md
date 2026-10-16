@@ -1,7 +1,7 @@
 # Relatório final — kit do workshop "Orquestração de Agentes com Claude"
 
 Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
-- `workshop-claude` **v1.0.0-dev.2** (prerelease): setup-mac.sh, bootstrap-windows.ps1, setup-windows.ps1, o kit em .tar.gz e .zip (0,9 MB) e SHA256SUMS;
+- `workshop-claude` **v1.0.0-dev.3** (prerelease): setup-mac.sh, bootstrap-windows.ps1, setup-windows.ps1, o kit em .tar.gz e .zip (0,9 MB) e SHA256SUMS;
 - `claude-memory-app` **v0.2.1**: wheel, constraints.txt, instaladores e SHA256SUMS.
 
 ## O que foi feito

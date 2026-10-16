@@ -76,6 +76,12 @@ O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depo
 **Como encontro tudo o que aprendi num ticket ou num épico?**
 Na app Memória, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memoria` gravam o id, o épico e o URL.
 
+**O `/task-intake` lê as páginas do Confluence ligadas na issue?**
+Sim, até 2. Se a descrição da issue do Jira tiver links para páginas do Confluence (`…/wiki/spaces/<espaço>/pages/<id>/…`), o intake lê-as pelo MCP ou, se o MCP falhar, pelo `acli`. Depois guarda um resumo curto de cada uma em `.workshop/tarefa.md`, na secção "Documentação (Confluence)", e o `/task-plan` usa-o.
+- Só lê: nunca escreve no Confluence.
+- Se o MCP falhar e o `acli` não tiver login (`acli auth login`), avisa numa linha e continua sem as páginas.
+- Os links curtos (`…/wiki/x/…`) não têm o id da página e ficam de fora. Na issue, cola o link completo.
+
 **Porque é que o `/schedule` (rotinas) não aparece?**
 As rotinas na cloud exigem uma assinatura claude.ai. Com conta Console, usa o `/loop` (com a sessão aberta) ou uma "rotina local": o agendador do sistema (launchd no Mac, Agendador de Tarefas no Windows) a correr `claude -p "..."`.
 

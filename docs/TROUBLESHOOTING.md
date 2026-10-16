@@ -90,7 +90,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-01"></a>
@@ -191,7 +191,7 @@ curl -sv https://api.anthropic.com -o /dev/null
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/setup-mac.sh | bash
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
 ```
 
 <a id="mac-e-so-03"></a>
@@ -634,7 +634,7 @@ pbpaste | acli jira auth login --site <empresa>.atlassian.net --email <o teu ema
 Comando (macOS):
 
 ```
-curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/workshop-kit-v1.0.0-dev.2.tar.gz
+curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.tar.gz
 ```
 
 <a id="mac-e-kit-02"></a>
@@ -835,7 +835,7 @@ xcode-select --install
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-01"></a>
@@ -936,7 +936,7 @@ Test-NetConnection api.anthropic.com -Port 443
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/bootstrap-windows.ps1 | iex
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1417,7 +1417,7 @@ Get-Clipboard | acli jira auth login --site <empresa>.atlassian.net --email <o t
 Comando (Windows):
 
 ```
-Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.2/workshop-kit-v1.0.0-dev.2.zip
+Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.zip
 ```
 
 <a id="windows-e-kit-02"></a>
