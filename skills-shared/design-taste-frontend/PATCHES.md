@@ -1,11 +1,11 @@
-# Alterações face ao original
+# Changes from the original
 
-1. **`SKILL.md`, frontmatter:** acrescentado `disable-model-invocation: true`. A skill só corre quando é chamada pelo nome (`/design-taste-frontend`). Assim não dispara sozinha em cada página e não gasta tokens sem querer.
-2. **`scripts/assets.mjs` removido.** Era o único ficheiro com pedidos de rede, a seis APIs públicas de imagens. Ajustes no `SKILL.md`:
-   - a introdução, o passo 1, o passo 6.4.3, o vídeo no passo 6 e o passo 10 deixam de mandar correr o script;
-   - "Special cases → No network" passa a dizer que a pesquisa nunca é automática;
-   - a linha de `scripts/assets.mjs` saiu da tabela "Files".
-   O `README.md`, o `references/imagery.md`, o `library/directions.json`, o `scripts/draw.mjs` e o `scripts/lib/rules.mjs` ainda mencionam `assets.mjs` em texto. Essas menções são inofensivas, porque o ficheiro já não existe.
-3. **`SKILL.md`, secção "Uso neste kit"** no início. Explica como aplicar as regras a ecrãs de app, cartões e slides, fora do âmbito original de landing pages, sem o ritual completo.
+1. **`SKILL.md`, frontmatter:** added `disable-model-invocation: true`. The skill only runs when it is called by name (`/design-taste-frontend`). That way it does not fire on its own on every page and does not spend tokens by accident.
+2. **`scripts/assets.mjs` removed.** It was the only file with network requests, to six public image APIs. Changes in `SKILL.md`:
+   - the introduction, step 1, step 6.4.3, the video in step 6 and step 10 no longer say to run the script;
+   - "Special cases → No network" now says that the search is never automatic;
+   - the `scripts/assets.mjs` row left the "Files" table.
+   `README.md`, `references/imagery.md`, `library/directions.json`, `scripts/draw.mjs` and `scripts/lib/rules.mjs` still mention `assets.mjs` in their text. Those mentions are harmless, because the file no longer exists.
+3. **`SKILL.md`, "Use in this kit" section** at the start. Explains how to apply the rules to app screens, cards and slides, outside the original landing-page scope, without the full ritual, and tells Claude to talk to the user in their language.
 
-Não houve mais nenhuma alteração. Os restantes ficheiros são byte a byte iguais ao commit fixado.
+There were no other changes. The remaining files are byte-for-byte identical to the pinned commit.

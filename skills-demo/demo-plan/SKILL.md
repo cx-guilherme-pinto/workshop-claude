@@ -1,6 +1,6 @@
 ---
 name: demo-plan
-description: Planeia o enxame da Arena de Segurança. Lê TASKS.md, gera o grafo de dependências (plan.json + PLANO.md com diagrama Mermaid), mostra as ondas e a estimativa de custo. Primeiro passo do Projeto 1 do workshop.
+description: Plans the Security Arena swarm. Reads TASKS.md, generates the dependency graph (plan.json + PLANO.md with a Mermaid diagram), shows the waves and the cost estimate. First step of Project 1 of the workshop.
 argument-hint: "[--modo participante|apresentador] [--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -11,24 +11,26 @@ allowed-tools:
   - mcp__memoria__memoria_procurar
 ---
 
-# /demo-plan — planear o enxame
+# /demo-plan — plan the swarm
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas, porque é o modo do benchmark. Por defeito o modo é `participante`.
+**Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers, Mermaid) exactly as it comes. Never translate the status marker `PLANO OK`.
 
-Faz estes passos por ordem, sem explorar o projeto além do que é pedido:
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions, because it is the benchmark mode. The default mode is `participante`.
 
-1. **Memória.** Se a ferramenta `memoria_procurar` existir, chama-a com `texto: "arena enxame"` e `projeto: "arena-de-seguranca"`. Guarda as lições (até 5, uma linha cada). Se não existir, diz numa linha que a app de memória não está instalada e continua.
-2. **Gerar o grafo.** Corre `node tools/plan.mjs --modo <modo>`. O DAG vem das specs e é determinístico.
-3. **Planner (Opus).** Lança **um** subagente `planner` com este prompt:
-   > Revê o plano da Arena. Lê .workshop/plano-resumo.md. Lições da memória: <as lições, ou "nenhuma">. Escreve .workshop/planner.json.
-4. **Aplicar.** Corre `node tools/plan.mjs --aplicar .workshop/planner.json`.
-5. **Mostrar** ao participante, de forma compacta:
-   - a tabela das 4 ondas;
-   - o bloco Mermaid de `PLANO.md`, copiado tal como está;
-   - a tabela da estimativa de custo, com o alvo de US$ 5 e o teto de US$ 10;
-   - os ajustes do planner, numa ou duas linhas.
-6. Sem `--auto`, termina com: "Plano pronto. Para executar: `/demo-swarm`". Com `--auto`, termina só com `PLANO OK`.
+Do these steps in order, without exploring the project beyond what is asked:
 
-Não leias `TASKS.md` inteiro: o `plan.mjs` já o resume.
+1. **Memory.** If the `memoria_procurar` tool exists, call it with `texto: "arena swarm"` and `projeto: "arena-de-seguranca"`. Keep the lessons (up to 5, one line each). If it does not exist, say in one line that the memory app is not installed and continue.
+2. **Generate the graph.** Run `node tools/plan.mjs --modo <modo>`. The DAG comes from the specs and is deterministic.
+3. **Planner (Opus).** Launch **one** `planner` subagent with this prompt:
+   > Review the Arena plan. Read .workshop/plano-resumo.md. Lessons from memory: <the lessons, or "none">. Write .workshop/planner.json.
+4. **Apply.** Run `node tools/plan.mjs --aplicar .workshop/planner.json`.
+5. **Show** the participant, in compact form:
+   - the table of the 4 waves;
+   - the Mermaid block from `PLANO.md`, copied exactly as it is;
+   - the cost estimate table, with the US$ 5 target and the US$ 10 ceiling;
+   - the planner's adjustments, in one or two lines.
+6. Without `--auto`, end with: "Plan ready. To run it: `/demo-swarm`". With `--auto`, end only with `PLANO OK`.
+
+Do not read the whole `TASKS.md`: `plan.mjs` already summarises it.

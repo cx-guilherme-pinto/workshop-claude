@@ -1,6 +1,6 @@
 ---
 name: demo-reset
-description: Repõe a Arena de Segurança no estado inicial para repetir o exercício (os cartões construídos são apagados; o histórico de custos fica guardado em .workshop/historico/).
+description: Resets the Security Arena to its initial state so the exercise can be repeated (the built cards are deleted; the cost history is kept in .workshop/historico/).
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -8,14 +8,16 @@ allowed-tools:
   - Bash(node tools/*)
 ---
 
-# /demo-reset — recomeçar
+# /demo-reset — start over
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`.
+**Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output exactly as it comes. Never translate status markers.
 
-1. Sem `--auto`, pergunta primeiro: "Isto apaga os cartões construídos e o plano atual. O histórico de custos fica em `.workshop/historico/`. Continuo?" Espera por um sim claro.
-2. Corre `node tools/reset.mjs`.
-3. Mostra o que o script fez em 2 ou 3 linhas e termina com: "Pronto. Para recomeçar: `/demo-plan`."
+Arguments: `$ARGUMENTS`.
 
-Nunca uses `git` diretamente para isto: o script confirma que estás mesmo na Arena antes de apagar alguma coisa.
+1. Without `--auto`, ask first: "This deletes the built cards and the current plan. The cost history stays in `.workshop/historico/`. Shall I continue?" Wait for a clear yes.
+2. Run `node tools/reset.mjs`.
+3. Show what the script did in 2 or 3 lines and end with: "Done. To start over: `/demo-plan`."
+
+Never use `git` directly for this: the script checks that you are really in the Arena before deleting anything.
