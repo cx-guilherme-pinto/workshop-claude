@@ -2,6 +2,8 @@
 
 # Resolução de problemas do setup
 
+**Português** · [English](en/TROUBLESHOOTING.md)
+
 Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra o código, a causa e o que fazer. Aqui está o catálogo completo, por sistema operativo.
 
 ## Antes de tudo
@@ -313,12 +315,12 @@ node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/sett
 - **Porquê:** O teu Claude Code já mostra uma statusline tua. O setup manteve-a e não instalou a do workshop, que mostra o custo.
 - **O que fazer:**
   - Podes continuar: o custo também aparece no /demo-cost.
-  - Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --desinstalar.
+  - Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --uninstall.
 
 Comando (macOS):
 
 ```
-bash ~/.workshop-claude/setup-mac.sh --substituir-statusline
+bash ~/.workshop-claude/setup-mac.sh --replace-statusline
 ```
 
 <a id="mac-e-cfg-07"></a>
@@ -1082,12 +1084,12 @@ Get-Content "$env:USERPROFILE\.claude\settings.json" -Raw | ConvertFrom-Json
 - **Porquê:** O teu Claude Code já mostra uma statusline tua. O setup manteve-a e não instalou a do workshop, que mostra o custo.
 - **O que fazer:**
   - Podes continuar: o custo também aparece no /demo-cost.
-  - Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --desinstalar.
+  - Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --uninstall.
 
 Comando (Windows):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -SubstituirStatusline
+powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -ReplaceStatusline
 ```
 
 <a id="windows-e-cfg-07"></a>

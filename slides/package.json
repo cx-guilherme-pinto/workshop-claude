@@ -2,7 +2,7 @@
   "name": "workshop-slides",
   "private": true,
   "type": "module",
-  "description": "Gera slides/workshop.pptx e slides/speaker-notes.md (ferramenta do organizador, nao do participante).",
+  "description": "Gera slides/workshop.pptx + speaker-notes.md (pt) e slides/workshop.en.pptx + speaker-notes.en.md (en). Ferramenta do organizador, nao do participante.",
   "scripts": { "build": "node build.mjs" },
   "devDependencies": { "pptxgenjs": "4.0.1" }
 }

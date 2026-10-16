@@ -24,9 +24,9 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 18 | 1 | 29:00 | Preview | O resultado: um jogo para jogar |  |
 | 19 | 0.5 | 30:00 | Projeto 1 | Projeto 1 |  |
 | 20 | 1 | 30:30 | Projeto 1 | O que já está pronto e o que falta |  |
-| 21 | 3 | 31:30 | Projeto 1 | Planeia o enxame |  |
+| 21 | 3 | 31:30 | Projeto 1 | Planeia o swarm |  |
 | 22 | 1.5 | 34:30 | Projeto 1 | O teu plano: 4 ondas |  |
-| 23 | 2 | 36:00 | Projeto 1 | Solta o enxame |  |
+| 23 | 2 | 36:00 | Projeto 1 | Solta o swarm |  |
 | 24 | 2 | 38:00 | Projeto 1 | Pergunta sem interromper |  |
 | 25 | 2 | 40:00 | Projeto 1 | A statusline e o hook que a alimenta |  |
 | 26 | 3 | 42:00 | Projeto 1 | No Terminal 2: três funcionalidades |  |
@@ -34,14 +34,14 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 28 | 2 | 47:00 | Projeto 1 | Até ficar tudo verde |  |
 | 29 | 2 | 49:00 | Projeto 1 | O gate de segurança |  |
 | 30 | 2 | 51:00 | Projeto 1 | Quanto custou? |  |
-| 31 | 2 | 53:00 | Projeto 1 | Joga o que o enxame construiu |  |
+| 31 | 2 | 53:00 | Projeto 1 | Joga o que o swarm construiu |  |
 | 32 | 2 | 55:00 | Memória | A memória do que fizeste |  |
 | 33 | 3 | 57:00 | Memória | Abre o teu primeiro grafo |  |
 | 34 | 0.5 | 60:00 | Projeto 2 | Projeto 2 |  |
 | 35 | 1.5 | 60:30 | Projeto 2 | O mesmo ciclo, no teu repositório |  |
 | 36 | 4 | 62:00 | Projeto 2 | Traz a tua tarefa |  |
 | 37 | 5 | 66:00 | Projeto 2 | O planner decide quantos agentes |  |
-| 38 | 10 | 71:00 | Projeto 2 | Põe o enxame a trabalhar |  |
+| 38 | 10 | 71:00 | Projeto 2 | Põe o swarm a trabalhar |  |
 | 39 | 1 | 81:00 | Projeto 2 | Jira e GitHub | PODE SALTAR |
 | 40 | 2 | 82:00 | Projeto 2 | Depois do workshop |  |
 | 41 | 1 | 84:00 | Projeto 2 | Claude Desktop e telemóvel | PODE SALTAR |
@@ -58,7 +58,7 @@ Total: 90 min.
 
 [0:00 → 1:00] 1 min · deves estar aqui aos 0 min
 
-Boas-vindas. Em 90 minutos vamos pôr um enxame de agentes a construir um jogo e, depois, a trabalhar numa tarefa real de cada um.
+Boas-vindas. Em 90 minutos vamos pôr um swarm de agentes a construir um jogo e, depois, a trabalhar numa tarefa real de cada um.
 
 ### 2. O que levas para casa
 
@@ -82,7 +82,7 @@ O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o a
 
 [5:00 → 8:00] 3 min · deves estar aqui aos 5 min
 
-Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não fez o setup segue com o vizinho e instala no intervalo das perguntas.
+Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não fez o setup segue com o vizinho e instala no intervalo das perguntas. O setup fala inglês, mas deteta a língua da máquina e grava a definição language do Claude Code (português, inglês, hindi ou hebraico): as skills respondem nessa língua. A Arena, as tabelas do orquestrador e as docs ficam em português ou inglês (as outras línguas ficam em inglês).
 
 ### 6. Algum passo falhou?
 
@@ -106,7 +106,7 @@ O Claude Code não é um chat: é um agente que age no repositório. Tudo o que 
 
 [12:00 → 14:00] 2 min · deves estar aqui aos 12 min
 
-As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois sets: os /demo-* na Arena e os /task-* no dia a dia.
+As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois sets: os /demo-* na Arena e os /task-* no dia a dia. As skills do kit estão em inglês e mandam o Claude responder na língua do participante.
 
 ### 10. Subagentes: contexto e modelo próprios
 
@@ -118,7 +118,7 @@ Um subagente é uma instância do Claude com contexto limpo, ferramentas própri
 
 [16:00 → 18:00] 2 min · deves estar aqui aos 16 min
 
-O enxame barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.
+O swarm barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.
 
 ### 12. Tarefa → grafo → ondas
 
@@ -142,7 +142,7 @@ Os hooks são comandos que o Claude Code corre em eventos. O nosso só mede: lê
 
 [23:00 → 24:00] 1 min · deves estar aqui aos 23 min
 
-É o mesmo ciclo nos dois projetos: planear com Opus, executar em enxame, um gate de segurança, medir e guardar o que se aprendeu.
+É o mesmo ciclo nos dois projetos: planear com Opus, executar em swarm, um gate de segurança, medir e guardar o que se aprendeu.
 
 ### 16. Limites que respeitamos
 
@@ -160,13 +160,13 @@ Vídeo acelerado de uma execução real do modo apresentador. O tempo e o custo 
 
 [29:00 → 30:00] 1 min · deves estar aqui aos 29 min
 
-Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem risco.
+Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem risco. O jogo vem em português ou inglês, conforme a língua da máquina.
 
 ### 19. Projeto 1
 
 [30:00 → 30:30] 0.5 min · deves estar aqui aos 30 min
 
-25 minutos de hands-on. No benchmark, o enxame de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
+25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
 
 ### 20. O que já está pronto e o que falta
 
@@ -174,7 +174,7 @@ Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem ris
 
 Os testes já existem: cada agente só tem de pôr o seu teste verde. É isto que deixa o Haiku fazer o grosso do trabalho com segurança.
 
-### 21. Planeia o enxame
+### 21. Planeia o swarm
 
 [31:30 → 34:30] 3 min · deves estar aqui aos 32 min
 
@@ -186,11 +186,11 @@ O diálogo de confiança é importante: sem ele, as permissões do projeto ficam
 
 Mostrar o plano de alguém no projetor. Na onda 1, o lib/hash e os cartões arrancam juntos; os de criptografia entram assim que o hash fica verde.
 
-### 23. Solta o enxame
+### 23. Solta o swarm
 
 [36:00 → 38:00] 2 min · deves estar aqui aos 36 min
 
-A partir daqui o enxame trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
+A partir daqui o swarm trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
 
 ### 24. Pergunta sem interromper
 
@@ -234,7 +234,7 @@ Um jogo de segurança com falhas de segurança seria o pior exemplo. O gate liga
 
 O relatório usa tokens reais e preços publicados. No fim grava as lições na app de memória.
 
-### 31. Joga o que o enxame construiu
+### 31. Joga o que o swarm construiu
 
 [53:00 → 55:00] 2 min · deves estar aqui aos 53 min
 
@@ -250,7 +250,7 @@ São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no t
 
 [57:00 → 60:00] 3 min · deves estar aqui aos 57 min
 
-Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.
+A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.
 
 ### 34. Projeto 2
 
@@ -276,7 +276,7 @@ Para o Jira é preciso ter feito login no /mcp (atlassian). O GitHub usa o gh. O
 
 O planner (Opus) propõe o grafo e um script valida-o: ciclos, ficheiros em comum, agentes conhecidos. A integração e a revisão são acrescentadas sozinhas.
 
-### 38. Põe o enxame a trabalhar
+### 38. Põe o swarm a trabalhar
 
 [71:00 → 81:00] 10 min · deves estar aqui aos 71 min
 

@@ -1,5 +1,7 @@
 # Instalar o kit do workshop
 
+**Português** · [English](en/INSTALL.md)
+
 Faz isto **antes** do workshop. Demora 10 a 20 minutos. Não precisas de admin.
 
 ## 1. Antes de começar
@@ -31,11 +33,13 @@ Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1]({{SET
 {{ONE_LINER_WINDOWS_FALLBACK}}
 ```
 
-O setup faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Feito · ⏭️ Já estava feito · ⚠️ Feito com aviso · ❌ Falhou. Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
+O setup fala inglês, em todas as máquinas. Faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Done (feito) · ⏭️ Already done (já estava feito) · ⚠️ Done with warning (feito com aviso) · ❌ Failed (falhou). Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
+
+O setup também deteta a língua da máquina. Se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills estão em inglês, mas respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes.
 
 ## 3. Confirmar
 
-No fim aparece «Está tudo pronto para o workshop» ou a lista do que falta. Para verificar outra vez, sem instalar nada:
+No fim aparece «Everything is ready for the workshop.» (está tudo pronto) ou a lista do que falta. Para verificar outra vez, sem instalar nada:
 
 - macOS: `{{CHECK_MAC}}`
 - Windows: `{{CHECK_WINDOWS}}`

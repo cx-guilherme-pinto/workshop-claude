@@ -1,16 +1,69 @@
 #!/usr/bin/env node
-// Gera slides/workshop.pptx e slides/speaker-notes.md a partir de content.mjs + repos.conf + benchmark.
-//   cd slides && npm install && node build.mjs
+// Gera a apresentacao em portugues e em ingles a partir de content.mjs / content.en.mjs + repos.conf + benchmark:
+//   pt: slides/workshop.pptx    + slides/speaker-notes.md
+//   en: slides/workshop.en.pptx + slides/speaker-notes.en.md
+//   cd slides && npm install && node build.mjs [--lingua pt|en]    (sem --lingua: as duas)
 // Ferramenta do organizador. Os comandos e URLs vem SEMPRE do repos.conf (installer/lib/conf.mjs).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pptxgen from 'pptxgenjs';
-import { SLIDES } from './content.mjs';
 import { loadConf, derived } from '../installer/lib/conf.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const KIT = join(AQUI, '..');
+
+// ---------- Textos fixos de cada lingua (o resto vem do content) ----------
+const TEXTOS = {
+  pt: {
+    conteudo: './content.mjs', pptx: 'workshop.pptx', notas: 'speaker-notes.md',
+    titulo: 'Orquestração de agentes com Claude',
+    decimal: ',',
+    porMedir: 'a medir', porGravar: 'a gravar', pesoOrq: 'a maior parte',
+    ondas: [
+      ['Onda 1', 'lib-hash e 15 cartões'],
+      ['Onda 2', 'categorias e pontuação'],
+      ['Onda 3', 'integração e suite'],
+      ['Onda 4', 'revisão e veredito'],
+    ],
+    legendaDag: 'Cinzento: à espera. Os 3 de criptografia arrancam quando o lib-hash fica verde.',
+    agendaFim: '90′ e depois perguntas, sem limite',
+    faca: (min) => `Faça agora · ${min} min`,
+    esperado: 'Resultado esperado: ',
+    videoFalta: 'Vídeo por gravar: tools/record (modo apresentador)',
+    imagemFalta: (m) => `Captura por gerar: ${m}`,
+    saltar: 'PODE SALTAR',
+    estarAqui: (m) => `deves estar aqui aos ${m} min`,
+    notasCab: (t) => [`# Notas do apresentador — ${t}`, '', 'Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE SALTAR** saltam-se se houver atraso.', '', '| # | min | relógio | secção | slide | saltar |', '|---|---|---|---|---|---|'],
+    total: (m) => `Total: ${m} min.`,
+    porSlide: '## Notas por slide',
+    aviso: (m) => `AVISO: a apresentação soma ${m} min (devia ser 90).`,
+  },
+  en: {
+    conteudo: './content.en.mjs', pptx: 'workshop.en.pptx', notas: 'speaker-notes.en.md',
+    titulo: 'Agent orchestration with Claude',
+    decimal: '.',
+    porMedir: 'to be measured', porGravar: 'to be recorded', pesoOrq: 'most',
+    ondas: [
+      ['Wave 1', 'lib-hash and 15 cards'],
+      ['Wave 2', 'categories and scoring'],
+      ['Wave 3', 'integration and suite'],
+      ['Wave 4', 'review and verdict'],
+    ],
+    legendaDag: 'Grey: waiting. The 3 cryptography cards start when lib-hash turns green.',
+    agendaFim: '90′, then questions, no time limit',
+    faca: (min) => `Do it now · ${min} min`,
+    esperado: 'Expected result: ',
+    videoFalta: 'Video not recorded yet: tools/record (presenter mode)',
+    imagemFalta: (m) => `Screenshot not generated yet: ${m}`,
+    saltar: 'CAN SKIP',
+    estarAqui: (m) => `you should be here at ${m} min`,
+    notasCab: (t) => [`# Speaker notes — ${t}`, '', 'Running clock: "you should be here at X min". Slides marked **CAN SKIP** can be skipped if you are running late.', '', '| # | min | clock | section | slide | skip |', '|---|---|---|---|---|---|'],
+    total: (m) => `Total: ${m} min.`,
+    porSlide: '## Notes per slide',
+    aviso: (m) => `WARNING: the presentation adds up to ${m} min (should be 90).`,
+  },
+};
 
 // ---------- Paleta (DESIGN.md) ----------
 const COR = {
@@ -26,10 +79,17 @@ const W = 13.333;
 const H = 7.5;
 const M = 0.6;
 
+// Estado da lingua que esta a ser construida (as linguas constroem-se uma de cada vez).
+let T; // textos fixos
+let V; // valores {{...}}
+let pres;
+
 // ---------- Valores dinamicos ----------
 function valores() {
   const d = derived(loadConf());
   const pricing = JSON.parse(readFileSync(join(KIT, 'pricing.json'), 'utf8'));
+  // Separador decimal da lingua: "US$ 0,003" em pt, "US$ 0.003" em en.
+  const dec = (s) => String(s).replace(/(\d)[.,](\d)/g, `$1${T.decimal}$2`);
   const v = {
     CHECK_MAC: d.CHECK_MAC,
     CHECK_WIN: d.CHECK_WINDOWS,
@@ -40,11 +100,11 @@ function valores() {
     WORKSHOP_REPO: d.WORKSHOP_REPO_URL.replace(/\.git$/, ''),
     WORKSHOP_VERSION: d.WORKSHOP_VERSION,
     PRICING_DATA: pricing.consultado_em,
-    BENCH_N: '10', BENCH_MEDIA: 'a medir', BENCH_MAX: 'a medir',
-    CUSTO_CARTAO: 'US$ 0,003', PESO_ORQ: 'a maior parte', ESTIMATIVA: 'US$ 2',
-    APRES_DURACAO: 'a gravar', APRES_CUSTO: 'a medir', APRES_AGENTES: '100',
+    BENCH_N: '10', BENCH_MEDIA: T.porMedir, BENCH_MAX: T.porMedir,
+    CUSTO_CARTAO: dec('US$ 0.003'), PESO_ORQ: T.pesoOrq, ESTIMATIVA: 'US$ 2',
+    APRES_DURACAO: T.porGravar, APRES_CUSTO: T.porMedir, APRES_AGENTES: '100',
   };
-  const usd = (x) => 'US$ ' + Number(x).toFixed(2).replace('.', ',');
+  const usd = (x) => 'US$ ' + dec(Number(x).toFixed(2));
   const csv = join(KIT, 'benchmark', 'results.csv');
   if (existsSync(csv)) {
     const [cab, ...ls] = readFileSync(csv, 'utf8').trim().split('\n');
@@ -57,54 +117,56 @@ function valores() {
       v.BENCH_MAX = usd(Math.max(...part));
     }
   }
-  const dados = join(AQUI, 'dados.json'); // escrito depois do benchmark/gravacao
-  if (existsSync(dados)) Object.assign(v, JSON.parse(readFileSync(dados, 'utf8')));
+  const dados = join(AQUI, 'dados.json'); // escrito depois do benchmark/gravacao (numeros como em pt: "US$ 0,0017")
+  if (existsSync(dados)) for (const [k, x] of Object.entries(JSON.parse(readFileSync(dados, 'utf8')))) v[k] = dec(x);
   return v;
 }
 
-const V = valores();
 const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? `{{${k}}}`) : s);
 
 // ---------- Apresentacao e layouts ----------
-const pres = new pptxgen();
-pres.layout = 'LAYOUT_WIDE';
-pres.title = 'Orquestração de agentes com Claude';
-pres.author = 'Workshop Claude';
-pres.theme = { headFontFace: FONTE_TITULO, bodyFontFace: FONTE_TEXTO };
+function novaApresentacao() {
+  const p = new pptxgen();
+  p.layout = 'LAYOUT_WIDE';
+  p.title = T.titulo;
+  p.author = 'Workshop Claude';
+  p.theme = { headFontFace: FONTE_TITULO, bodyFontFace: FONTE_TEXTO };
 
-pres.defineSlideMaster({
-  title: 'TITULO',
-  background: { color: COR.escuro },
-  objects: [
-    { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.0, w: 8.6, h: 2.1, fontFace: FONTE_TITULO, fontSize: 52, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
-    { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.35, w: 8.6, h: 1.0, fontFace: FONTE_TEXTO, fontSize: 22, color: COR.escuroMuted, valign: 'top', align: 'left', margin: 0 }, text: '' } },
-  ],
-});
-pres.defineSlideMaster({
-  title: 'SECCAO',
-  background: { color: COR.escuro },
-  objects: [
-    { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.5, w: 12, h: 1.5, fontFace: FONTE_TITULO, fontSize: 60, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
-    { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.2, w: 12, h: 0.8, fontFace: FONTE_TEXTO, fontSize: 24, color: COR.escuroMuted, align: 'left', margin: 0 }, text: '' } },
-  ],
-});
-pres.defineSlideMaster({
-  title: 'CONTEUDO',
-  background: { color: COR.bg },
-  objects: [
-    { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.45, w: W - 2 * M, h: 1.0, fontFace: FONTE_TITULO, fontSize: 36, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
-    { text: { text: 'Orquestração de agentes com Claude', options: { x: M, y: H - 0.5, w: 6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, margin: 0 } } },
-  ],
-  slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, align: 'right' },
-});
-pres.defineSlideMaster({
-  title: 'FACA',
-  background: { color: COR.amarelo },
-  objects: [
-    { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.95, w: W - 2 * M, h: 0.95, fontFace: FONTE_TITULO, fontSize: 38, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
-  ],
-  slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.ink, align: 'right' },
-});
+  p.defineSlideMaster({
+    title: 'TITULO',
+    background: { color: COR.escuro },
+    objects: [
+      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.0, w: 8.6, h: 2.1, fontFace: FONTE_TITULO, fontSize: 52, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
+      { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.35, w: 8.6, h: 1.0, fontFace: FONTE_TEXTO, fontSize: 22, color: COR.escuroMuted, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+    ],
+  });
+  p.defineSlideMaster({
+    title: 'SECCAO',
+    background: { color: COR.escuro },
+    objects: [
+      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.5, w: 12, h: 1.5, fontFace: FONTE_TITULO, fontSize: 60, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
+      { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.2, w: 12, h: 0.8, fontFace: FONTE_TEXTO, fontSize: 24, color: COR.escuroMuted, align: 'left', margin: 0 }, text: '' } },
+    ],
+  });
+  p.defineSlideMaster({
+    title: 'CONTEUDO',
+    background: { color: COR.bg },
+    objects: [
+      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.45, w: W - 2 * M, h: 1.0, fontFace: FONTE_TITULO, fontSize: 36, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+      { text: { text: T.titulo, options: { x: M, y: H - 0.5, w: 6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, margin: 0 } } },
+    ],
+    slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, align: 'right' },
+  });
+  p.defineSlideMaster({
+    title: 'FACA',
+    background: { color: COR.amarelo },
+    objects: [
+      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.95, w: W - 2 * M, h: 0.95, fontFace: FONTE_TITULO, fontSize: 38, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+    ],
+    slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.ink, align: 'right' },
+  });
+  return p;
+}
 
 // ---------- Pecas ----------
 const quadrado = (s, x, y, lado, cor, nome) => s.addShape(pres.shapes.RECTANGLE, { x, y, w: lado, h: lado, fill: { color: cor }, line: { color: cor, width: 0 }, objectName: nome || 'quadrado' });
@@ -211,11 +273,11 @@ const R = {
   dag(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     const ondas = [
-      { nome: 'Onda 1', modelo: 'Haiku', sub: 'lib-hash e 15 cartões', n: 16, cor: COR.amarelo },
-      { nome: 'Onda 2', modelo: 'Sonnet', sub: 'categorias e pontuação', n: 2, cor: COR.verde },
-      { nome: 'Onda 3', modelo: 'Sonnet', sub: 'integração e suite', n: 1, cor: COR.verde },
-      { nome: 'Onda 4', modelo: 'Opus', sub: 'revisão e veredito', n: 1, cor: COR.accent },
-    ];
+      { modelo: 'Haiku', n: 16, cor: COR.amarelo },
+      { modelo: 'Sonnet', n: 2, cor: COR.verde },
+      { modelo: 'Sonnet', n: 1, cor: COR.verde },
+      { modelo: 'Opus', n: 1, cor: COR.accent },
+    ].map((o, i) => ({ ...o, nome: T.ondas[i][0], sub: T.ondas[i][1] }));
     const ws = [4.5, 2.4, 2.4, 2.4];
     const gap = (W - 2 * M - ws.reduce((x, y) => x + y, 0)) / 3;
     let x = M;
@@ -241,7 +303,7 @@ const R = {
       if (i < ondas.length - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.06, y: 4.05, w: gap - 0.12, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `seta-${i}` });
       x += w + gap;
     });
-    texto(s, 'Cinzento: à espera. Os 3 de criptografia arrancam quando o lib-hash fica verde.', { x: M, y: 6.4, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda-dag' });
+    texto(s, T.legendaDag, { x: M, y: 6.4, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda-dag' });
   },
   fluxo(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -272,10 +334,10 @@ const R = {
       texto(s, `${b.ini}′`, { x, y: yy, w: 1.6, h: 0.32, fontSize: 14, color: COR.muted, objectName: `bloco-min-${i}` });
       texto(s, b.nome, { x, y: yy + 0.3, w: 2.2, h: 0.45, fontFace: FONTE_TITULO, fontSize: 18, bold: true, objectName: `bloco-nome-${i}` });
     });
-    texto(s, '90′ e depois perguntas, sem limite', { x: W - M - 4.5, y: 6.2, w: 4.5, h: 0.4, fontSize: 14, color: COR.muted, align: 'right', objectName: 'agenda-fim' });
+    texto(s, T.agendaFim, { x: W - M - 4.5, y: 6.2, w: 4.5, h: 0.4, fontSize: 14, color: COR.muted, align: 'right', objectName: 'agenda-fim' });
   },
   faca(s, d) {
-    texto(s, `Faça agora · ${d.min} min`, { x: M, y: 0.45, w: 6, h: 0.45, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: 'faca-rotulo' });
+    texto(s, T.faca(d.min), { x: M, y: 0.45, w: 6, h: 0.45, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: 'faca-rotulo' });
     s.addText(d.titulo, { placeholder: 'title' });
     texto(s, d.passos.map((p, i) => ({ text: p, options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: 2.1, w: 4.4, h: 3.6, fontSize: 20, paraSpaceAfter: 12, objectName: 'faca-passos' });
     const xc = M + 4.8;
@@ -288,7 +350,7 @@ const R = {
       yc += h + 0.25;
     }
     quadrado(s, M, 6.18, 0.32, COR.verde, 'esperado-marca');
-    texto(s, [{ text: 'Resultado esperado: ', options: { bold: true } }, { text: sub(d.esperado) }], { x: M + 0.5, y: 6.12, w: W - 2 * M - 1.4, h: 0.6, fontSize: 18, objectName: 'faca-esperado' });
+    texto(s, [{ text: T.esperado, options: { bold: true } }, { text: sub(d.esperado) }], { x: M + 0.5, y: 6.12, w: W - 2 * M - 1.4, h: 0.6, fontSize: 18, objectName: 'faca-esperado' });
   },
   video(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -300,7 +362,7 @@ const R = {
     } else {
       s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.escuro }, line: { color: COR.escuro, width: 0 }, objectName: 'video-falta' });
       grelhaEstado(s, M + 0.5, 2.1, 20, 5, 0.42, 0.12);
-      texto(s, 'Vídeo por gravar: tools/record (modo apresentador)', { x: M + 0.5, y: 5.5, w: 10, h: 0.5, fontSize: 16, color: COR.escuroMuted, objectName: 'video-aviso' });
+      texto(s, T.videoFalta, { x: M + 0.5, y: 5.5, w: 10, h: 0.5, fontSize: 16, color: COR.escuroMuted, objectName: 'video-aviso' });
     }
     texto(s, sub(d.legenda), { x: M, y: 6.5, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda' });
   },
@@ -311,7 +373,7 @@ const R = {
     if (existsSync(p)) s.addImage({ path: p, ...box, sizing: { type: 'contain', w: box.w, h: box.h }, objectName: 'imagem', altText: d.legenda });
     else {
       s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: 'imagem-falta' });
-      texto(s, `Captura por gerar: ${d.media}`, { x: M + 0.4, y: 3.7, w: 10, h: 0.5, fontSize: 16, color: COR.muted, objectName: 'imagem-aviso' });
+      texto(s, T.imagemFalta(d.media), { x: M + 0.4, y: 3.7, w: 10, h: 0.5, fontSize: 16, color: COR.muted, objectName: 'imagem-aviso' });
     }
     texto(s, sub(d.legenda), { x: M, y: 6.5, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda' });
   },
@@ -326,31 +388,48 @@ const R = {
 };
 
 const LAYOUT = { titulo: 'TITULO', seccao: 'SECCAO', faca: 'FACA' };
-
-// ---------- Construir ----------
-let relogio = 0;
-let seccaoAtual = null;
-const notasMd = ['# Notas do apresentador — Orquestração de agentes com Claude', '', 'Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE SALTAR** saltam-se se houver atraso.', '', '| # | min | relógio | secção | slide | saltar |', '|---|---|---|---|---|---|'];
-const detalhe = [];
 const mmss = (m) => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
 
-SLIDES.forEach((d, i) => {
-  if (d.seccao !== seccaoAtual) {
-    pres.addSection({ title: d.seccao });
-    seccaoAtual = d.seccao;
-  }
-  const s = pres.addSlide({ masterName: LAYOUT[d.tipo] || 'CONTEUDO', sectionTitle: d.seccao });
-  (R[d.tipo] || R.lista)(s, d);
-  const ini = relogio;
-  relogio += d.min;
-  const cab = `[${mmss(ini)} → ${mmss(relogio)}] ${d.min} min${d.saltar ? ' · PODE SALTAR' : ''} · deves estar aqui aos ${Math.round(ini)} min`;
-  s.addNotes(`${cab}\n\n${sub(d.notas)}`);
-  notasMd.push(`| ${i + 1} | ${d.min} | ${mmss(ini)} | ${d.seccao} | ${d.titulo} | ${d.saltar ? 'PODE SALTAR' : ''} |`);
-  detalhe.push(`### ${i + 1}. ${d.titulo}`, '', `${cab}`, '', sub(d.notas), '');
-});
-if (Math.abs(relogio - 90) > 0.01) console.warn(`AVISO: a apresentação soma ${relogio} min (devia ser 90).`);
-notasMd.push('', `Total: ${relogio} min.`, '', '## Notas por slide', '', ...detalhe);
+// ---------- Construir uma lingua ----------
+async function construir(lingua) {
+  T = TEXTOS[lingua];
+  V = valores();
+  pres = novaApresentacao();
+  const { SLIDES } = await import(T.conteudo);
 
-await pres.writeFile({ fileName: join(AQUI, 'workshop.pptx') });
-writeFileSync(join(AQUI, 'speaker-notes.md'), notasMd.join('\n') + '\n');
-console.log(`workshop.pptx: ${SLIDES.length} slides, ${relogio} min · speaker-notes.md`);
+  let relogio = 0;
+  let seccaoAtual = null;
+  const notasMd = T.notasCab(T.titulo);
+  const detalhe = [];
+
+  SLIDES.forEach((d, i) => {
+    if (d.seccao !== seccaoAtual) {
+      pres.addSection({ title: d.seccao });
+      seccaoAtual = d.seccao;
+    }
+    const s = pres.addSlide({ masterName: LAYOUT[d.tipo] || 'CONTEUDO', sectionTitle: d.seccao });
+    (R[d.tipo] || R.lista)(s, d);
+    const ini = relogio;
+    relogio += d.min;
+    const cab = `[${mmss(ini)} → ${mmss(relogio)}] ${d.min} min${d.saltar ? ` · ${T.saltar}` : ''} · ${T.estarAqui(Math.round(ini))}`;
+    s.addNotes(`${cab}\n\n${sub(d.notas)}`);
+    notasMd.push(`| ${i + 1} | ${d.min} | ${mmss(ini)} | ${d.seccao} | ${d.titulo} | ${d.saltar ? T.saltar : ''} |`);
+    detalhe.push(`### ${i + 1}. ${d.titulo}`, '', `${cab}`, '', sub(d.notas), '');
+  });
+  if (Math.abs(relogio - 90) > 0.01) console.warn(T.aviso(relogio));
+  notasMd.push('', T.total(relogio), '', T.porSlide, '', ...detalhe);
+
+  await pres.writeFile({ fileName: join(AQUI, T.pptx) });
+  writeFileSync(join(AQUI, T.notas), notasMd.join('\n') + '\n');
+  console.log(`${T.pptx}: ${SLIDES.length} slides, ${relogio} min · ${T.notas}`);
+}
+
+// node build.mjs [--lingua pt|en]  (ou --lingua=en); sem --lingua constroi as duas.
+const args = process.argv.slice(2);
+const k = args.findIndex((a) => a === '--lingua' || a.startsWith('--lingua='));
+const pedida = k < 0 ? null : args[k].includes('=') ? args[k].split('=')[1] : args[k + 1];
+if (k >= 0 && !TEXTOS[pedida]) {
+  console.error('Uso / usage: node build.mjs [--lingua pt|en]');
+  process.exit(2);
+}
+for (const l of pedida ? [pedida] : Object.keys(TEXTOS)) await construir(l);

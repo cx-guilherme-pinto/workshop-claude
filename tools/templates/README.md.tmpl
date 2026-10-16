@@ -1,5 +1,7 @@
 # Workshop «Orquestração de Agentes com Claude»
 
+**Português** · [English](README.en.md)
+
 Kit do workshop: o setup de um só comando, as skills e os agentes, os hooks de custo, a statusline, o orquestrador e os projetos práticos (a Arena de Segurança e o projeto de treino). Versão do kit: **{{WORKSHOP_VERSION}}**.
 
 ## Instalar (participantes)
@@ -47,26 +49,28 @@ Algo falhou? Cada erro tem um código. Vê [docs/TROUBLESHOOTING.md](docs/TROUBL
 | 8 | Skills, agentes `ws-*`, hooks de custo e statusline, com merge seguro do `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Projetos do workshop | `~/workshop-claude/` |
 | 10 | App Memória {{MEMORY_APP_VERSION}} (opcional, não bloqueia) | `uv tool`, `~/.memoria` |
-| 11 | Claude Desktop (opcional, `--sem-desktop` / `-SemDesktop` salta) | `~/Applications` |
+| 11 | Claude Desktop (opcional, `{{FLAG_SEM_DESKTOP}}` salta) | `~/Applications` |
 | 12 | Teste final com o Haiku e o custo pelo `pricing.json` | — |
 
 Tudo o que é instalado fica registado em `~/.workshop-claude/manifest.json`. O `settings.json` tem backup em `~/.workshop-claude/backup/`. O log (sem segredos) está em `~/.workshop-claude/setup.log`.
+
+**Línguas.** O setup fala só inglês, e as opções também (as antigas, em português, continuam a funcionar). Deteta a língua da máquina e, se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills e os agentes estão em inglês e respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas.
 
 ## Estrutura
 
 | Pasta | Conteúdo |
 |---|---|
-| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e o catálogo de mensagens `messages.pt.json` |
+| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e os catálogos de mensagens: `messages.en.json` (o que o setup mostra) e `messages.pt.json` (o TROUBLESHOOTING em português) |
 | `installer/` | Instalação em Node, igual nos dois sistemas (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
-| `hooks/`, `statusline/`, `orquestrador/` | Medição de custo e orquestração do enxame |
-| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes |
+| `hooks/`, `statusline/`, `orquestrador/` | Medição de custo e orquestração do swarm |
+| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes (em inglês; respondem na língua de quem os usa) |
 | `demo-project/`, `exemplo-projeto-real/` | Projetos práticos |
 | `tools/` | `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` e os testes |
-| `docs/` | Instalação, resolução de problemas, publicação |
+| `docs/` | Instalação, resolução de problemas, publicação; em inglês em `docs/en/` |
 
 ## Para o organizador
 
-- Todos os URLs e versões estão em `repos.conf`. Este README é gerado: edita `tools/templates/README.md.tmpl` e corre `node tools/render.mjs`.
+- Todos os URLs e versões estão em `repos.conf`. Este README é gerado: edita `tools/templates/README.md.tmpl` (e `tools/templates/en/README.md.tmpl`, para o `README.en.md`) e corre `node tools/render.mjs`.
 - Release: `tools/build-release.sh {{WORKSHOP_VERSION}}` (gera `dist/{{WORKSHOP_VERSION}}/`) e `tools/publish-release.sh {{WORKSHOP_VERSION}}` (cria a release em {{RELEASE_URL}}).
 - Verificar o repositório: `node tools/check-repo.mjs`. Testes: `node --test tools/test/` e `bash setup/test/test-mac.sh`.
 - Mudar para os repositórios públicos: [docs/PUBLICAR.md](docs/PUBLICAR.md).

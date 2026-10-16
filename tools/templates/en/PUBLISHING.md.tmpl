@@ -1,0 +1,42 @@
+# Publishing to the public repositories
+
+[Português](../PUBLICAR.md) · **English**
+
+Today the kit points to **{{REPO_URL}}** (memory app: **{{MEMORY_REPO}}**). You switch in one file, `repos.conf`, and the rest is generated.
+
+## Checklist (5 steps)
+
+1. **Update `repos.conf`.** Use the script, which edits the file and generates the documentation again:
+
+   ```bash
+   tools/switch-repos.sh --workshop-url https://github.com/<owner>/workshop-claude.git \
+     --memory-url https://github.com/<owner>/claude-memory-app.git \
+     --raw-pattern 'https://raw.githubusercontent.com/{owner}/{name}/{version}/{path}' \
+     --release-pattern '{repo}/releases/download/{version}/{file}'
+   ```
+
+   On Windows: `tools/switch-repos.ps1 -WorkshopUrl … -MemoryUrl …`. To create the releases on GitHub, also set `RELEASE_PROVIDER=github`.
+
+2. **Generate the slides and the documentation again.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, `docs/PUBLICAR.md` and the English versions: `README.en.md`, `docs/en/`, this file) and the slides build, which reads `repos.conf` directly.
+
+3. **Create the public releases with the same versions.** Kit `{{WORKSHOP_VERSION}}` and app `{{MEMORY_APP_VERSION}}`:
+
+   ```bash
+   tools/build-release.sh {{WORKSHOP_VERSION}}
+   tools/publish-release.sh {{WORKSHOP_VERSION}} --dry-run   # shows what will be uploaded
+   tools/publish-release.sh {{WORKSHOP_VERSION}}
+   ```
+
+   The memory app is published from its own repository, with the same version.
+
+4. **Run `--check` against the new URLs**, on a clean machine or with a temporary `HOME`:
+
+   ```bash
+   {{CHECK_MAC_FIRST}}
+   ```
+
+   On Windows: `{{CHECK_WINDOWS_FIRST}}`.
+
+5. **Look for leftovers of the development server.** `node tools/check-repo.mjs` fails if `{{DEV_REPO_HOST}}` appears outside `repos.conf` and the generated files. Also confirm with `git grep -n {{DEV_REPO_HOST}}`.
+
+Current values: release at {{RELEASE_URL}}, checksums at {{SHA256SUMS_URL}}.

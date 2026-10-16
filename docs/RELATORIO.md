@@ -1,5 +1,7 @@
 # Relatório final — kit do workshop "Orquestração de Agentes com Claude"
 
+**Português** · [English](en/REPORT.md)
+
 Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 - `workshop-claude` **v1.0.0-dev.3** (prerelease): setup-mac.sh, bootstrap-windows.ps1, setup-windows.ps1, o kit em .tar.gz e .zip (0,9 MB) e SHA256SUMS;
 - `claude-memory-app` **v0.2.1**: wheel, constraints.txt, instaladores e SHA256SUMS.
@@ -8,7 +10,8 @@ Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 
 | Peça | Estado | Onde |
 |---|---|---|
-| Setup de um só comando, Mac e Windows | Instala e configura tudo a partir do zero, sem admin: git (portátil no Mac sem Command Line Tools), Claude Code, login Claude, Node, uv + Python, gh, login GitHub (obrigatório), MCP Jira e o Atlassian CLI como reserva, skills, agentes, hooks, statusline, projetos, app de memória e Desktop (opcional). Tem `--check`, `--doctor` (com o ajudante Claude), `--desinstalar` e retoma | `setup/`, `installer/` |
+| Setup de um só comando, Mac e Windows | Instala e configura tudo a partir do zero, sem admin: git (portátil no Mac sem Command Line Tools), Claude Code, login Claude, Node, uv + Python, gh, login GitHub (obrigatório), MCP Jira e o Atlassian CLI como reserva, skills, agentes, hooks, statusline, projetos, app de memória e Desktop (opcional). Tem `--check`, `--doctor` (com o ajudante Claude), `--uninstall` e retoma | `setup/`, `installer/` |
+| Línguas (D-20) | O setup fala só inglês (opções em inglês; as portuguesas continuam a funcionar) e grava a definição `language` do Claude Code com a língua da máquina, se não existir. Skills e agentes em inglês, que respondem na língua do participante. Arena, orquestrador e statusline em português ou inglês, conforme a máquina (`WORKSHOP_LANG` força). Docs em português e inglês | `setup/messages.en.json`, `docs/en/`, `README.en.md` |
 | URLs num só ficheiro | `repos.conf`; README e docs gerados; `tools/switch-repos` e `docs/PUBLICAR.md` para mudar para os repositórios públicos | `repos.conf`, `tools/` |
 | Arena de Segurança (Projeto 1) | 100 cartões especificados em 10 categorias (15 no modo participante), 4 modelos, testes pré-escritos, servidor com CSP, galeria, `/estado` ao vivo e em replay, e soluções de referência fora do kit | `demo-project/`, `dev/solutions/` |
 | Orquestrador determinístico | `next-wave` (ondas, dependências, sem ficheiros em comum no mesmo lote, tentativas com escalada para Sonnet), `grade`, `gate`, `digest`, `report`, `painel`, `validate-plan`, estimativa calibrada | `orquestrador/` |
@@ -18,8 +21,8 @@ Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 | App Memória | Markdown + SQLite FTS5, grafo, pesquisa por nome, projeto, ticket e épico, servidor MCP, `memoria update`, e o mesmo visual da Arena | repo `claude-memory-app` |
 | Skill de design | Fork MIT dentro do repo (commit `2b44c81`), sem o script de rede | `skills-shared/design-taste-frontend/` |
 | Apresentação | 45 slides para 90 min, com notas, relógio acumulado, slides "Faça agora", o vídeo real dos 100 agentes e capturas | `slides/workshop.pptx`, `slides/speaker-notes.md` |
-| Preview do enxame | Vídeo acelerado (92 s), GIF e a Arena gravada para replay sem API | `slides/media/`, `presenter-replay/` |
-| Documentação | FAQ, TROUBLESHOOTING (catálogo de erros), INSTALAR, ORGANIZADOR, PUBLICAR, TESTES-MANUAIS, DECISIONS (D-01 a D-18) | `docs/`, `DECISIONS.md` |
+| Preview do swarm | Vídeo acelerado (92 s), GIF e a Arena gravada para replay sem API | `slides/media/`, `presenter-replay/` |
+| Documentação | FAQ, TROUBLESHOOTING (catálogo de erros), INSTALAR, ORGANIZADOR, PUBLICAR, TESTES-MANUAIS, DECISIONS (D-01 a D-18); as docs também em inglês | `docs/`, `docs/en/`, `DECISIONS.md` |
 
 ## Custos medidos
 
