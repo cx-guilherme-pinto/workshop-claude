@@ -92,7 +92,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 Command (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-01"></a>
@@ -193,7 +193,7 @@ curl -sv https://api.anthropic.com -o /dev/null
 Command (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-so-03"></a>
@@ -630,13 +630,13 @@ pbpaste | acli jira auth login --site <company>.atlassian.net --email <your emai
 
 - **Why:** The download of the kit archive failed, and the fallback git clone failed too.
 - **What to do:**
-  - Check that you can reach the repository server (gitea.guilhermepinto.pt).
+  - Check that you can reach the repository server (github.com).
   - Run the setup again. If it still fails, send the log to the organizer.
 
 Command (macOS):
 
 ```
-curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.tar.gz
+curl -sSI https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/workshop-kit-v1.0.0-rc.1.tar.gz
 ```
 
 <a id="mac-e-kit-02"></a>
@@ -711,7 +711,7 @@ mv ~/workshop-claude ~/workshop-claude-old
 
 ### E-MEM-01 · The Memória app release is not published yet
 
-- **Why:** I couldn't find the files for the Memória app v0.4.0 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Memória app v0.4.1 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 
@@ -837,7 +837,7 @@ xcode-select --install
 Command (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-01"></a>
@@ -938,7 +938,7 @@ Test-NetConnection api.anthropic.com -Port 443
 Command (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1413,13 +1413,13 @@ Get-Clipboard | acli jira auth login --site <company>.atlassian.net --email <you
 
 - **Why:** The download of the kit archive failed, and the fallback git clone failed too.
 - **What to do:**
-  - Check that you can reach the repository server (gitea.guilhermepinto.pt).
+  - Check that you can reach the repository server (github.com).
   - Run the setup again. If it still fails, send the log to the organizer.
 
 Command (Windows):
 
 ```
-Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.zip
+Invoke-WebRequest -UseBasicParsing -Method Head https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/workshop-kit-v1.0.0-rc.1.zip
 ```
 
 <a id="windows-e-kit-02"></a>
@@ -1494,7 +1494,7 @@ Rename-Item ~/workshop-claude workshop-claude-old
 
 ### E-MEM-01 · The Memória app release is not published yet
 
-- **Why:** I couldn't find the files for the Memória app v0.4.0 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Memória app v0.4.1 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 
@@ -1624,7 +1624,6 @@ Ask IT to allow HTTPS (port 443) to these domains:
 - `pypi.org`
 - `files.pythonhosted.org`
 - `mcp.atlassian.com`
-- `gitea.guilhermepinto.pt`
 
 ## Corporate proxies and certificates
 

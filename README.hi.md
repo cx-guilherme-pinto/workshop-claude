@@ -4,7 +4,7 @@
 
 [English](README.md) · [Português](README.pt.md) · **हिन्दी** · [עברית](README.he.md)
 
-Workshop का kit: एक ही command वाला setup, skills और agents, cost hooks, statusline, orchestrator और hands-on projects (Security Arena और practice project)। Kit version: **v1.0.0-dev.3**।
+Workshop का kit: एक ही command वाला setup, skills और agents, cost hooks, statusline, orchestrator और hands-on projects (Security Arena और practice project)। Kit version: **v1.0.0-rc.1**।
 
 ## Install करें (participants के लिए)
 
@@ -13,13 +13,13 @@ Workshop का kit: एक ही command वाला setup, skills और age
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 Setup में 10 से 20 मिनट लगते हैं। अगर बीच में रुक जाए, तो वही command दोबारा चलाएँ: जो steps पूरे हो चुके हैं, वो skip हो जाते हैं। पूरी guide, pre-work के साथ: [docs/hi/INSTALL.md](docs/hi/INSTALL.md)।
@@ -32,7 +32,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 | Claude के साथ diagnosis | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Uninstall | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
-अगर पहले से कुछ install नहीं है, तो check सीधे भी चल जाता है: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash -s -- --check` (macOS) या `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex` (Windows)।
+अगर पहले से कुछ install नहीं है, तो check सीधे भी चल जाता है: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash -s -- --check` (macOS) या `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex` (Windows)।
 
 कुछ fail हुआ? हर error का अपना एक code होता है। [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) (English में) देखें।
 
@@ -50,7 +50,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 | 7 | Jira MCP (Atlassian), user scope में | `~/.claude.json` |
 | 8 | Skills, `ws-*` agents, cost hooks और statusline, `settings.json` के safe merge के साथ | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Workshop के projects | `~/workshop-claude/` |
-| 10 | Memória app v0.4.0 (optional, setup को रोकता नहीं) | `uv tool`, `~/.memoria` |
+| 10 | Memória app v0.4.1 (optional, setup को रोकता नहीं) | `uv tool`, `~/.memoria` |
 | 11 | Claude Desktop (optional, `--no-desktop / -NoDesktop` से skip होता है) | `~/Applications` |
 | 12 | Haiku के साथ final test, और `pricing.json` से cost | — |
 
@@ -73,9 +73,9 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 ## Organizer के लिए
 
 - सारे URLs और versions `repos.conf` में हैं। यह README generated है: `tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) में templates edit करें और `node tools/render.mjs` चलाएँ।
-- Release: `tools/build-release.sh v1.0.0-dev.3` (`dist/v1.0.0-dev.3/` बनाता है) और `tools/publish-release.sh v1.0.0-dev.3` (https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3 पर release बनाता है)।
+- Release: `tools/build-release.sh v1.0.0-rc.1` (`dist/v1.0.0-rc.1/` बनाता है) और `tools/publish-release.sh v1.0.0-rc.1` (https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1 पर release बनाता है)।
 - Repository check करने के लिए: `node tools/check-repo.mjs`। Tests: `node --test tools/test/` और `bash setup/test/test-mac.sh`।
 - Public repositories पर move करने के लिए: [docs/PUBLISHING.md](docs/PUBLISHING.md) (English में)।
 - Decisions और sources (Portuguese में): [DECISIONS.md](DECISIONS.md)।
 
-अगर चलाने से पहले verify करना चाहें, तो SHA-256 checksums https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS पर हैं।
+अगर चलाने से पहले verify करना चाहें, तो SHA-256 checksums https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS पर हैं।

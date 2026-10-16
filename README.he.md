@@ -4,7 +4,7 @@
 
 [English](README.md) · [Português](README.pt.md) · [हिन्दी](README.hi.md) · **עברית**
 
-ערכת הסדנה: setup בפקודה אחת, ה-skills וה-agents, ה-hooks למדידת עלויות, ה-statusline, ה-orchestrator והפרויקטים המעשיים (ה-Security Arena ופרויקט התרגול). גרסת הערכה: **v1.0.0-dev.3**.
+ערכת הסדנה: setup בפקודה אחת, ה-skills וה-agents, ה-hooks למדידת עלויות, ה-statusline, ה-orchestrator והפרויקטים המעשיים (ה-Security Arena ופרויקט התרגול). גרסת הערכה: **v1.0.0-rc.1**.
 
 ## התקנה (למשתתפים)
 
@@ -13,13 +13,13 @@
 **ב-macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 **ב-Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 ה-setup לוקח 10 עד 20 דקות. אם הוא נעצר באמצע, פשוט הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים. המדריך המלא, כולל ההכנות מראש: [docs/he/INSTALL.md](docs/he/INSTALL.md).
@@ -32,7 +32,7 @@ irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/
 | אבחון בעזרת Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` |
 | הסרת ההתקנה | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
-אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash -s -- --check` (ב-macOS) או `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex` (ב-Windows).
+אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash -s -- --check` (ב-macOS) או `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex` (ב-Windows).
 
 משהו נכשל? לכל שגיאה יש קוד. ראו [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) (באנגלית).
 
@@ -50,7 +50,7 @@ irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/
 | 7 | הגדרת Jira MCP (Atlassian) ב-user scope | `~/.claude.json` |
 | 8 | ה-skills, ה-agents מסוג `ws-*`, ה-hooks של העלויות וה-statusline, עם merge בטוח של `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | פרויקטי הסדנה | `~/workshop-claude/` |
-| 10 | אפליקציית Memória v0.4.0 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
+| 10 | אפליקציית Memória v0.4.1 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
 | 11 | התקנת Claude Desktop (אופציונלי; ה-flag `--no-desktop / -NoDesktop` מדלג עליו) | `~/Applications` |
 | 12 | בדיקה סופית עם Haiku וחישוב העלות לפי `pricing.json` | — |
 
@@ -73,9 +73,9 @@ irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/
 ## למארגנים
 
 - כל ה-URLs והגרסאות נמצאים ב-`repos.conf`. ה-README הזה נוצר אוטומטית: ערכו את ה-templates ב-`tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) והריצו `node tools/render.mjs`.
-- יצירת release: `tools/build-release.sh v1.0.0-dev.3` (יוצר את `dist/v1.0.0-dev.3/`) ו-`tools/publish-release.sh v1.0.0-dev.3` (יוצר את ה-release בכתובת https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3).
+- יצירת release: `tools/build-release.sh v1.0.0-rc.1` (יוצר את `dist/v1.0.0-rc.1/`) ו-`tools/publish-release.sh v1.0.0-rc.1` (יוצר את ה-release בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1).
 - בדיקת ה-repository: `node tools/check-repo.mjs`. טסטים: `node --test tools/test/` ו-`bash setup/test/test-mac.sh`.
 - מעבר ל-repositories הציבוריים: [docs/PUBLISHING.md](docs/PUBLISHING.md) (באנגלית).
 - החלטות ומקורות (בפורטוגזית): [DECISIONS.md](DECISIONS.md).
 
-אם רוצים לאמת לפני שמריצים, ה-checksums של SHA-256 נמצאים בכתובת https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS.
+אם רוצים לאמת לפני שמריצים, ה-checksums של SHA-256 נמצאים בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS.

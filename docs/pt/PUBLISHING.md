@@ -4,7 +4,7 @@
 
 [English](../PUBLISHING.md) · **Português**
 
-Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-claude** (app de memória: **https://gitea.guilhermepinto.pt/guilherme/claude-memory-app**). A troca faz-se num só ficheiro, `repos.conf`, e o resto é gerado.
+Hoje o kit aponta para **https://github.com/cx-guilherme-pinto/workshop-claude** (app de memória: **https://github.com/cx-guilherme-pinto/claude-memory-app**). A troca faz-se num só ficheiro, `repos.conf`, e o resto é gerado.
 
 ## Checklist (5 passos)
 
@@ -21,12 +21,12 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 
 2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (os READMEs de todas as línguas, `docs/pt/INSTALL.md`, `docs/pt/TROUBLESHOOTING.md`, este ficheiro e as versões em `docs/`, `docs/hi/` e `docs/he/`) e o build dos slides, que leem o `repos.conf` diretamente.
 
-3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.3` e app `v0.4.0`:
+3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-rc.1` e app `v0.4.1`:
 
    ```bash
-   tools/build-release.sh v1.0.0-dev.3
-   tools/publish-release.sh v1.0.0-dev.3 --dry-run   # confirma o que vai ser enviado
-   tools/publish-release.sh v1.0.0-dev.3
+   tools/build-release.sh v1.0.0-rc.1
+   tools/publish-release.sh v1.0.0-rc.1 --dry-run   # confirma o que vai ser enviado
+   tools/publish-release.sh v1.0.0-rc.1
    ```
 
    A app de memória publica-se a partir do repositório dela, com a mesma versão.
@@ -34,11 +34,11 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 4. **Correr o `--check` contra os URLs novos**, numa máquina limpa ou com `HOME` temporário:
 
    ```bash
-   curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash -s -- --check
+   curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash -s -- --check
    ```
 
-   No Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex`.
+   No Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex`.
 
 5. **Procurar restos do servidor de desenvolvimento.** `node tools/check-repo.mjs` falha se `gitea.guilhermepinto.pt` aparecer fora do `repos.conf` e dos ficheiros gerados. Confirma também com `git grep -n gitea.guilhermepinto.pt`.
 
-Valores atuais: release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3, checksums em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS.
+Valores atuais: release em https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1, checksums em https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS.

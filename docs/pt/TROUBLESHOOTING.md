@@ -92,7 +92,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-01"></a>
@@ -193,7 +193,7 @@ curl -sv https://api.anthropic.com -o /dev/null
 Comando (macOS):
 
 ```
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-so-03"></a>
@@ -630,13 +630,13 @@ pbpaste | acli jira auth login --site <empresa>.atlassian.net --email <o teu ema
 
 - **Porquê:** O download do arquivo do kit falhou, e o git clone de recurso também.
 - **O que fazer:**
-  - Confirma o acesso ao servidor do repositório (gitea.guilhermepinto.pt).
+  - Confirma o acesso ao servidor do repositório (github.com).
   - Volta a correr o setup. Se continuar, envia o log ao organizador.
 
 Comando (macOS):
 
 ```
-curl -sSI https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.tar.gz
+curl -sSI https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/workshop-kit-v1.0.0-rc.1.tar.gz
 ```
 
 <a id="mac-e-kit-02"></a>
@@ -711,7 +711,7 @@ mv ~/workshop-claude ~/workshop-claude-antigo
 
 ### E-MEM-01 · A release da app Memória ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.0 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 
@@ -837,7 +837,7 @@ xcode-select --install
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-01"></a>
@@ -938,7 +938,7 @@ Test-NetConnection api.anthropic.com -Port 443
 Comando (Windows):
 
 ```
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1413,13 +1413,13 @@ Get-Clipboard | acli jira auth login --site <empresa>.atlassian.net --email <o t
 
 - **Porquê:** O download do arquivo do kit falhou, e o git clone de recurso também.
 - **O que fazer:**
-  - Confirma o acesso ao servidor do repositório (gitea.guilhermepinto.pt).
+  - Confirma o acesso ao servidor do repositório (github.com).
   - Volta a correr o setup. Se continuar, envia o log ao organizador.
 
 Comando (Windows):
 
 ```
-Invoke-WebRequest -UseBasicParsing -Method Head https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/workshop-kit-v1.0.0-dev.3.zip
+Invoke-WebRequest -UseBasicParsing -Method Head https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/workshop-kit-v1.0.0-rc.1.zip
 ```
 
 <a id="windows-e-kit-02"></a>
@@ -1494,7 +1494,7 @@ Rename-Item ~/workshop-claude workshop-claude-antigo
 
 ### E-MEM-01 · A release da app Memória ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.0 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 
@@ -1624,7 +1624,6 @@ Pede ao IT que estes domínios fiquem acessíveis por HTTPS (porta 443):
 - `pypi.org`
 - `files.pythonhosted.org`
 - `mcp.atlassian.com`
-- `gitea.guilhermepinto.pt`
 
 ## Proxies e certificados da empresa
 

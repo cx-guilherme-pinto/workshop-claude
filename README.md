@@ -4,7 +4,7 @@
 
 **English** · [Português](README.pt.md) · [हिन्दी](README.hi.md) · [עברית](README.he.md)
 
-Workshop kit: the one-command setup, the skills and agents, the cost hooks, the statusline, the orchestrator and the hands-on projects (the Security Arena and the practice project). Kit version: **v1.0.0-dev.3**.
+Workshop kit: the one-command setup, the skills and agents, the cost hooks, the statusline, the orchestrator and the hands-on projects (the Security Arena and the practice project). Kit version: **v1.0.0-rc.1**.
 
 ## Install (participants)
 
@@ -13,13 +13,13 @@ You need an account on the [Anthropic Console](https://platform.claude.com) with
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 The setup takes 10 to 20 minutes. If it stops halfway, run the same command again: finished steps are skipped. Full guide, with the pre-work: [docs/INSTALL.md](docs/INSTALL.md).
@@ -32,7 +32,7 @@ The setup takes 10 to 20 minutes. If it stops halfway, run the same command agai
 | Diagnosis with Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Uninstall | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
-With no previous install, the check also runs directly: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash -s -- --check` (macOS) or `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex` (Windows).
+With no previous install, the check also runs directly: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash -s -- --check` (macOS) or `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex` (Windows).
 
 Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
@@ -50,7 +50,7 @@ Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TRO
 | 7 | Jira MCP (Atlassian), user scope | `~/.claude.json` |
 | 8 | Skills, `ws-*` agents, cost hooks and statusline, with a safe merge of `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Workshop projects | `~/workshop-claude/` |
-| 10 | Memória app v0.4.0 (optional, does not block) | `uv tool`, `~/.memoria` |
+| 10 | Memória app v0.4.1 (optional, does not block) | `uv tool`, `~/.memoria` |
 | 11 | Claude Desktop (optional, `--no-desktop / -NoDesktop` skips it) | `~/Applications` |
 | 12 | Final test with Haiku and the cost from `pricing.json` | — |
 
@@ -73,9 +73,9 @@ Everything installed is recorded in `~/.workshop-claude/manifest.json`. `setting
 ## For the organizer
 
 - All URLs and versions are in `repos.conf`. This README is generated: edit the templates in `tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) and run `node tools/render.mjs`.
-- Release: `tools/build-release.sh v1.0.0-dev.3` (creates `dist/v1.0.0-dev.3/`) and `tools/publish-release.sh v1.0.0-dev.3` (creates the release at https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3).
+- Release: `tools/build-release.sh v1.0.0-rc.1` (creates `dist/v1.0.0-rc.1/`) and `tools/publish-release.sh v1.0.0-rc.1` (creates the release at https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1).
 - Check the repository: `node tools/check-repo.mjs`. Tests: `node --test tools/test/` and `bash setup/test/test-mac.sh`.
 - Move to the public repositories: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 - Decisions and sources (in Portuguese): [DECISIONS.md](DECISIONS.md).
 
-If you want to verify before running, the SHA-256 checksums are at https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS.
+If you want to verify before running, the SHA-256 checksums are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS.

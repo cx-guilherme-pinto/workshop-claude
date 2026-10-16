@@ -18,18 +18,18 @@ Do this **before** the workshop. It takes 10 to 20 minutes. You don't need admin
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 ```
 
-Alternative: `bash <(curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh)`
+Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh)`
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
-If PowerShell blocks the command above, download [setup-windows.ps1](https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-windows.ps1) and run, in the folder where you saved it:
+If PowerShell blocks the command above, download [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) and run, in the folder where you saved it:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
@@ -57,4 +57,4 @@ Then close and reopen the terminal (and VS Code).
 
 ## Verify before running (optional)
 
-The SHA-256 checksums of every release file are at https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS. Release page: https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3.
+The SHA-256 checksums of every release file are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS. Release page: https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1.
