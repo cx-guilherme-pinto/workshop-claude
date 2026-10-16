@@ -1,0 +1,7 @@
+{
+  "name": "workshop-record",
+  "private": true,
+  "type": "module",
+  "description": "Gravacao do preview do enxame (so para o organizador; nunca entra no setup do participante).",
+  "devDependencies": { "playwright": "1.64.1" }
+}

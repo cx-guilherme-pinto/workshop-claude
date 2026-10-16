@@ -66,7 +66,7 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
       ],
       deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)'],
     },
-    env: { ARENA_MAX_PARALELO: '8' },
+    // O paralelismo vem do plan.json (8 participante, 16 apresentador); ARENA_MAX_PARALELO no ambiente sobrepoe-se.
     hooks: {
       SubagentStop: [{ hooks: [hook('hooks/subagent-stop.mjs')] }],
       Stop: [{ hooks: [hook('hooks/stop.mjs')] }],
