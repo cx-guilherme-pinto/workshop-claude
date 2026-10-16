@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.workshop/
+/benchmark/runs/
+/benchmark/tmp/
+/tools/record/out/
+/tools/record/node_modules/
+/slides/build/
+__pycache__/
+.env
+.env.*

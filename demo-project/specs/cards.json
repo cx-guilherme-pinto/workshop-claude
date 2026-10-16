@@ -1,0 +1,75 @@
+{
+  "v": 1,
+  "categorias": [
+    { "id": "passwords", "nome": "Passwords" },
+    { "id": "phishing", "nome": "Phishing" },
+    { "id": "web", "nome": "Web (XSS, SQLi, CSRF)" },
+    { "id": "redes", "nome": "Redes" },
+    { "id": "privacidade", "nome": "Privacidade" },
+    { "id": "engenharia-social", "nome": "Engenharia social" },
+    { "id": "criptografia", "nome": "Criptografia básica" },
+    { "id": "segredos-cloud", "nome": "Segredos e cloud" },
+    { "id": "mobile", "nome": "Dispositivos móveis" },
+    { "id": "codigo-seguro", "nome": "Código seguro" }
+  ],
+  "cartoes": [
+    {
+      "id": "pw-01",
+      "modo": "participante",
+      "categoria": "passwords",
+      "dificuldade": 1,
+      "modelo": "escolha",
+      "titulo": "Qual é a password mais forte?",
+      "conceito": "O comprimento e a imprevisibilidade pesam mais do que trocar letras por símbolos.",
+      "enunciado": "Um atacante testa milhares de milhões de combinações por segundo. Qual destas aguenta mais tempo?",
+      "opcoes": [
+        { "id": "a", "texto": "P@ssw0rd!" },
+        { "id": "b", "texto": "Benfica2024" },
+        { "id": "c", "texto": "cavalo-agrafo-bateria-nuvem" },
+        { "id": "d", "texto": "Qw3rty!!" }
+      ],
+      "certa": "c",
+      "erradas": ["a", "b", "d"],
+      "explicacao": "Quatro palavras ao acaso formam uma frase longa e imprevisível. Trocar a por @ não ajuda: essas trocas já estão nos dicionários dos atacantes.",
+      "depende": []
+    },
+    {
+      "id": "web-01",
+      "modo": "participante",
+      "categoria": "web",
+      "dificuldade": 2,
+      "modelo": "clica-erro",
+      "titulo": "Encontra a injeção SQL",
+      "conceito": "Juntar texto do utilizador a uma consulta SQL deixa o atacante reescrever a consulta.",
+      "enunciado": "Este código de login vai para produção amanhã. Que linha permite uma injeção SQL?",
+      "linguagem": "js",
+      "segmentos": [
+        "const email = req.body.email;",
+        "const pass = req.body.password;",
+        "const sql = \"SELECT * FROM users WHERE email = '\" + email + \"'\";",
+        "const user = await db.query(sql);",
+        "if (!user || !(await verify(pass, user.hash))) return res.status(401).end();"
+      ],
+      "certa": [2],
+      "erradas": [[0], [3], [2, 3]],
+      "explicacao": "Ao colar o email no SQL, o atacante pode fechar a aspa e juntar ' OR '1'='1. Usa consultas parametrizadas: db.query('… WHERE email = ?', [email]).",
+      "depende": []
+    },
+    {
+      "id": "cr-01",
+      "modo": "participante",
+      "categoria": "criptografia",
+      "dificuldade": 1,
+      "modelo": "resposta",
+      "titulo": "Decifra a mensagem de César",
+      "conceito": "A cifra de César troca cada letra por outra a uma distância fixa. Com só 25 chaves, parte-se em segundos.",
+      "enunciado": "Intercetaste uma mensagem cifrada com a cifra de César, com deslocamento 3. O que diz?",
+      "cenario": { "kind": "texto", "label": "Mensagem intercetada", "lines": ["DWDTXH DR PHLR-GLD"] },
+      "verificacao": "O validate tem de usar a função cesar de ../../lib/hash.js: a resposta certa é cesar('DWDTXH DR PHLR-GLD', -3). Compara com normalizar() dos dois lados, para maiúsculas e acentos não contarem.",
+      "certa": "Ataque ao meio-dia",
+      "erradas": ["ataque à meia-noite", "DWDTXH DR PHLR-GLD", ""],
+      "explicacao": "Cada letra recua 3 posições: D passa a A, W passa a T. Um atacante experimenta as 25 chaves em segundos. Serve para aprender, não para proteger.",
+      "depende": ["lib-hash"]
+    }
+  ]
+}
