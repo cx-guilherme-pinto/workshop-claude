@@ -53,7 +53,7 @@ Then close and reopen the terminal (and VS Code).
 - Run the same command again: finished steps are skipped.
 - Look up the error code in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 - Diagnosis with Claude's help (costs less than US$ 0.01): `bash ~/.workshop-claude/setup-mac.sh --doctor` or `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
-- Send the organizer the file `~/.workshop-claude/resumo.txt`. `setup.log` also helps and already comes without secrets.
+- Send the organizer the file `~/.workshop-claude/summary.txt`. `setup.log` also helps and already comes without secrets.
 
 ## Verify before running (optional)
 

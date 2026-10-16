@@ -11,18 +11,18 @@ Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 | Peça | Estado | Onde |
 |---|---|---|
 | Setup de um só comando, Mac e Windows | Instala e configura tudo a partir do zero, sem admin: git (portátil no Mac sem Command Line Tools), Claude Code, login Claude, Node, uv + Python, gh, login GitHub (obrigatório), MCP Jira e o Atlassian CLI como reserva, skills, agentes, hooks, statusline, projetos, app de memória e Desktop (opcional). Tem `--check`, `--doctor` (com o ajudante Claude), `--uninstall` e retoma | `setup/`, `installer/` |
-| Línguas (D-20) | O setup fala só inglês (opções em inglês; as portuguesas continuam a funcionar) e grava a definição `language` do Claude Code com a língua da máquina, se não existir. Skills e agentes em inglês, que respondem na língua do participante. Arena, orquestrador e statusline em português ou inglês, conforme a máquina (`WORKSHOP_LANG` força). Docs em português e inglês | `setup/messages.en.json`, `docs/en/`, `README.en.md` |
+| Línguas (D-20) | O setup fala só inglês (opções em inglês; as portuguesas continuam a funcionar) e grava a definição `language` do Claude Code com a língua da máquina, se não existir. Skills e agentes em inglês, que respondem na língua do participante. Arena, orquestrador e statusline em português ou inglês, conforme a máquina (`WORKSHOP_LANG` força). Docs em português e inglês. Desde a D-25, os nomes de ficheiros, comandos, opções e marcadores estão em inglês nas duas línguas | `setup/messages.en.json`, `docs/`, `README.md` |
 | URLs num só ficheiro | `repos.conf`; README e docs gerados; `tools/switch-repos` e `docs/pt/PUBLISHING.md` para mudar para os repositórios públicos | `repos.conf`, `tools/` |
-| Arena de Segurança (Projeto 1) | 100 cartões especificados em 10 categorias (15 no modo participante), 4 modelos, testes pré-escritos, servidor com CSP, galeria, `/estado` ao vivo e em replay, e soluções de referência fora do kit | `demo-project/`, `dev/solutions/` |
-| Orquestrador determinístico | `next-wave` (ondas, dependências, sem ficheiros em comum no mesmo lote, tentativas com escalada para Sonnet), `grade`, `gate`, `digest`, `report`, `painel`, `validate-plan`, estimativa calibrada | `orquestrador/` |
+| Arena de Segurança (Projeto 1) | 100 cartões especificados em 10 categorias (15 no modo participante), 4 modelos, testes pré-escritos, servidor com CSP, galeria, `/status` ao vivo e em replay, e soluções de referência fora do kit | `demo-project/`, `dev/solutions/` |
+| Orquestrador determinístico | `next-wave` (ondas, dependências, sem ficheiros em comum no mesmo lote, tentativas com escalada para Sonnet), `grade`, `gate`, `digest`, `report`, `dashboard`, `validate-plan`, estimativa calibrada | `orchestrator/` |
 | Medição de custo | Hooks `SubagentStop`/`Stop` que leem os tokens reais dos transcripts × `pricing.json`; statusline; aviso informativo aos US$ 5 e aos US$ 10 | `hooks/`, `statusline/`, `pricing.json` |
-| Skills e agentes | Demo: `/demo-plan`, `/demo-swarm`, `/demo-review`, `/demo-cost`, `/demo-reset`, `/memoria`. Produção: `/task-intake`, `/task-plan`, `/task-swarm`, `/task-gate`, `/task-report`, `/memoria`. Agentes Opus, Sonnet e Haiku | `skills-*/`, `agents/` |
-| Projeto de treino (Projeto 2 sem Jira) | Biblioteca Municipal com 3 issues locais, ligadas ao épico EX-100 | `exemplo-projeto-real/` |
-| App Memória | Markdown + SQLite FTS5, grafo, pesquisa por nome, projeto, ticket e épico, servidor MCP, `memoria update`, e o mesmo visual da Arena | repo `claude-memory-app` |
+| Skills e agentes | Demo: `/demo-plan`, `/demo-swarm`, `/demo-review`, `/demo-cost`, `/demo-reset`, `/memory`. Produção: `/task-intake`, `/task-plan`, `/task-swarm`, `/task-gate`, `/task-report`, `/memory`. Agentes Opus, Sonnet e Haiku | `skills-*/`, `agents/` |
+| Projeto de treino (Projeto 2 sem Jira) | Biblioteca Municipal com 3 issues locais, ligadas ao épico EX-100 | `practice-project/` |
+| App Agent Memory | Markdown + SQLite FTS5, grafo, pesquisa por nome, projeto, ticket e épico, servidor MCP, `agent-memory update`, e o mesmo visual da Arena | repo `claude-memory-app` |
 | Skill de design | Fork MIT dentro do repo (commit `2b44c81`), sem o script de rede | `skills-shared/design-taste-frontend/` |
 | Apresentação | 47 slides para 90 min, com notas, relógio acumulado, slides "Faz agora", o vídeo real dos 100 agentes e capturas | `slides/workshop.pptx`, `slides/speaker-notes.md` |
 | Preview do swarm | Vídeo acelerado (92 s), GIF e a Arena gravada para replay sem API | `slides/media/`, `presenter-replay/` |
-| Documentação | FAQ, TROUBLESHOOTING (catálogo de erros), INSTALAR, ORGANIZADOR, PUBLICAR, TESTES-MANUAIS, DECISIONS (D-01 a D-21); primeiro em inglês, as docs também em português, e o README e o guia de instalação em hindi e hebraico | `docs/`, `docs/pt/`, `docs/hi/`, `docs/he/`, `DECISIONS.md` |
+| Documentação | FAQ, TROUBLESHOOTING (catálogo de erros), INSTALL, ORGANIZER, PUBLISHING, MANUAL-TESTS, DECISIONS (D-01 a D-25); primeiro em inglês, as docs também em português, e o README e o guia de instalação em hindi e hebraico | `docs/`, `docs/pt/`, `docs/hi/`, `docs/he/`, `DECISIONS.md` |
 
 ## Custos medidos
 
@@ -43,13 +43,13 @@ Tokens reais × preços publicados (`pricing.json`). Detalhe em `benchmark/REPOR
 
 - Testes automáticos: hooks (9), orquestrador (6), Arena (665 com soluções), app da Arena (16), setup (80 bash, 32 Node, 41 Pester), memória (147).
 - Lint: shellcheck limpo e PSScriptAnalyzer sem erros (regras de compatibilidade com PS 5.1). `check-repo` confirma que não há URLs fora do `repos.conf`, que os `.ps1` são ASCII e que não há chamadas a Python.
-- Setup de ponta a ponta no Mac, em HOMEs vazios com acentos e espaços, a partir do comando de uma linha real no Gitea: instala tudo; idempotente; retoma; `--check`, `--desinstalar`.
+- Setup de ponta a ponta no Mac, em HOMEs vazios com acentos e espaços, a partir do comando de uma linha real no Gitea: instala tudo; idempotente; retoma; `--check`, `--uninstall`.
 - Mac sem Command Line Tools → git portátil. Sem Python no sistema → Python do uv. Sem Node → Node oficial. Downloads por `curl` → sem pedidos do Gatekeeper, mesmo com binários sem assinatura (D-17).
 
 ## Riscos em aberto
 
-1. **Logins interativos** (Claude Console, GitHub e Atlassian CLI): o código está pronto e os comandos foram verificados, mas o fluxo no browser só se testa com uma pessoa a correr o setup. Checklist M5 a M7 em `docs/TESTES-MANUAIS.md`.
-2. **Windows real nunca foi corrido**: só análise estática, Pester e PSScriptAnalyzer. É preciso correr W1 a W17 em Windows 10 e 11, numa conta sem admin.
+1. **Logins interativos** (Claude Console, GitHub e Atlassian CLI): o código está pronto e os comandos foram verificados, mas o fluxo no browser só se testa com uma pessoa a correr o setup. Checklist M5 a M7 em `docs/pt/MANUAL-TESTS.md`.
+2. **Windows real nunca foi corrido**: só análise estática, Pester e PSScriptAnalyzer. É preciso correr W1 a W19 em Windows 10 e 11, numa conta sem admin.
 3. **Contas Console novas (tier Evaluation)**: os limites de taxa não são públicos e pode haver 429 (lentidão, não falha). Mitigação: paralelismo 8, pré-trabalho uns dias antes, replay como plano B.
 4. **Jira de cada empresa**: o administrador pode restringir o MCP da Atlassian; as chamadas gastam créditos Rovo. Reserva: o Atlassian CLI (`acli`), que lê a issue e publica os comentários quando o MCP falha (D-19). O admin tem de autorizar a app ACLI no site uma vez, e o `acli` não regista horas. Sem Jira: o projeto de treino.
 5. **Redes corporativas**: interceção TLS tratada; proxies só NTLM não são suportados; EDR/AppLocker podem bloquear binários no perfil (D-17 tem o plano de assinatura).
@@ -58,6 +58,6 @@ Tokens reais × preços publicados (`pricing.json`). Detalhe em `benchmark/REPOR
 
 ## Próximos passos do organizador
 
-1. Correr os testes manuais M5 a M7 (Mac) e W1 a W17 (Windows), e registar os resultados no `DECISIONS.md`.
+1. Correr os testes manuais M5 a M9 (Mac) e W1 a W19 (Windows), e registar os resultados no `DECISIONS.md`.
 2. Uma sessão interativa cronometrada do Projeto 1 numa conta Console nova.
 3. Quando houver repositórios públicos: seguir o `docs/pt/PUBLISHING.md` (atualizar o `repos.conf`, regenerar, criar as releases e fazer `--check`).

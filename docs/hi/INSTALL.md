@@ -53,7 +53,7 @@ Setup machine की language भी detect करता है। अगर Cla
 - वही command दोबारा चलाएँ: जो steps पूरे हो चुके हैं, वो skip हो जाते हैं।
 - Error code का मतलब और fix जानने के लिए [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (English में) देखें; आम सवालों के लिए [FAQ.md](../FAQ.md) (English में) देखें।
 - Claude की मदद से diagnosis (खर्च US$ 0.01 से भी कम): `bash ~/.workshop-claude/setup-mac.sh --doctor` या `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`।
-- Organizer को `~/.workshop-claude/resumo.txt` file भेजें। `setup.log` भी काम आता है, और उसमें पहले से ही कोई secrets नहीं होते।
+- Organizer को `~/.workshop-claude/summary.txt` file भेजें। `setup.log` भी काम आता है, और उसमें पहले से ही कोई secrets नहीं होते।
 
 ## चलाने से पहले verify करें (optional)
 

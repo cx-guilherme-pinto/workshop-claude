@@ -78,7 +78,7 @@ O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o a
 
 [4:00 → 5:30] 1,5 min · deves estar aqui aos 4 min
 
-Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 20 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.1). Para atualizar só a app de memória: memoria update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
+Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 20 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.1). Para atualizar só a app Agent Memory: agent-memory update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
 
 ### 5. Verifica a instalação
 
@@ -162,7 +162,7 @@ Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → sw
 
 [26:00 → 28:30] 2,5 min · deves estar aqui aos 26 min
 
-Vídeo acelerado de uma execução real com 100 tarefas. À esquerda, a página /estado: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /estado?replay=gravacao na Arena gravada.
+Vídeo acelerado de uma execução real com 100 tarefas. À esquerda, a página /status: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /status?replay=recording na Arena gravada.
 
 ### 19. O resultado: o jogo pronto para usar
 
@@ -240,7 +240,7 @@ Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc 
 
 [48:00 → 49:30] 1,5 min · PODE SALTAR · deves estar aqui aos 48 min
 
-Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/rotina.mjs --instalar --sim (sem --sim só mostra o que faria), que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".
+Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/routine.mjs --install --yes (sem --yes só mostra o que faria), que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".
 
 ### 32. Até ficar tudo verde
 
@@ -270,7 +270,7 @@ Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadr
 
 [57:30 → 59:30] 2 min · deves estar aqui aos 58 min
 
-São ficheiros Markdown em ~/.memoria, com um índice SQLite. Fica tudo só no teu portátil. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
+São ficheiros Markdown em ~/.agent-memory, com um índice SQLite. Fica tudo só no teu portátil. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
 
 ### 37. Abre o teu primeiro grafo
 

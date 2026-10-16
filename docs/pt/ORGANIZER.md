@@ -9,20 +9,20 @@
    - tenha uma **conta Console** própria, com créditos;
    - defina um **limite de gasto mensal bem acima de US$ 10** (por exemplo, US$ 25), só como proteção contra abusos. Nunca abaixo, porque um limite atingido corta a sessão a meio;
    - corra o setup e depois `--check`;
-   - envie o `~/.workshop-claude/resumo.txt` se faltar algum passo.
+   - envie o `~/.workshop-claude/summary.txt` se faltar algum passo.
 3. **Contas novas e limites de taxa.** As organizações Console novas podem começar no tier *Evaluation*, com limites mais baixos e não publicados. O swarm do participante usa até 8 agentes em paralelo (`ARENA_MAX_PARALELO`). Se aparecerem erros 429, o Claude Code repete sozinho e o swarm fica só mais lento. Recomenda-se que cada pessoa faça o setup e um `/demo-plan` uns dias antes, para a conta ganhar histórico de uso.
 4. **Jira.** O servidor MCP da Atlassian usa OAuth e gasta créditos Rovo da organização. Em cada empresa, o administrador pode:
    - limitar os domínios permitidos (Atlassian Administration → Connectors → Atlassian MCP server);
    - desligar ferramentas de escrita.
    **Reserva:** o setup instala também o Atlassian CLI (`acli`, oficial), que as skills usam quando o MCP falha. Desde a versão 1.3.15, um administrador de cada site tem de autorizar a app ACLI uma vez: corre `acli jira auth login`, escolhe "Web" e aprova o site. Peçam isso ao administrador junto com o pedido do MCP. Sem OAuth, cada pessoa pode entrar com um API token (`E-ACLI-02`). O `acli` não regista horas (worklog): com ele, o `/task-report` só publica comentários.
-   Quem não tiver Jira usa o `exemplo-projeto-real/` (issues em JSON).
+   Quem não tiver Jira usa o `practice-project/` (issues em JSON).
 5. **Rede da sala.** Centenas de portáteis a descarregar ao mesmo tempo esgotam a rede. Por isso o setup é feito **antes** do dia. No dia só se corre o `--check` e as chamadas à API. Domínios que a rede da sala tem de deixar passar:
    - `api.anthropic.com`, `claude.ai`, `platform.claude.com`, `downloads.claude.ai`;
    - o servidor dos repositórios (do `repos.conf`);
    - `mcp.atlassian.com`, `*.atlassian.net`, `acli.atlassian.com` (download do Atlassian CLI);
    - `github.com`, `api.github.com`;
    - para quem ainda não instalou: `nodejs.org`, `astral.sh`, `releases.astral.sh`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`.
-6. **Língua.** O setup fala só inglês. As skills estão em inglês e respondem na língua de cada pessoa (o setup grava a definição `language` do Claude Code, se ainda não existir). A Arena, o orquestrador e a statusline ficam em português nas máquinas em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas. A documentação está primeiro em inglês (`README.md`, `docs/`), com versões em português (`README.pt.md`, `docs/pt/`); o README e o guia de instalação também em hindi e hebraico (`README.hi.md`, `README.he.md`, `docs/hi/`, `docs/he/`): envia a versão certa a cada grupo.
+6. **Língua.** O setup fala só inglês. As skills estão em inglês e respondem na língua de cada pessoa (o setup grava a definição `language` do Claude Code, se ainda não existir). A Arena, o orquestrador e a statusline ficam em português nas máquinas em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas. Os nomes de ficheiros e pastas, os comandos, as opções, os marcadores, os ids das tarefas da Arena e as ferramentas MCP da memória estão em inglês nas duas línguas (D-25), por isso uma sessão em inglês não mostra português. A documentação está primeiro em inglês (`README.md`, `docs/`), com versões em português (`README.pt.md`, `docs/pt/`); o README e o guia de instalação também em hindi e hebraico (`README.hi.md`, `README.he.md`, `docs/hi/`, `docs/he/`): envia a versão certa a cada grupo.
 
 ## Acompanhar o gasto dos participantes
 
@@ -40,10 +40,10 @@ Se for o organizador a dar acesso (convidando as pessoas para a sua organizaçã
 ## No dia
 
 - **Abertura:** toda a gente corre `--check`. Quem tiver ❌ corre `--doctor` e mostra o resultado a um assistente. Quem não tiver setup segue com o vizinho e instala no intervalo das perguntas.
-- **Plano B para o vídeo:** se o MP4 falhar no projetor, abre `/estado?replay=gravacao` na Arena gravada (`presenter-replay/`), que reproduz a execução real sem chamar a API.
-- **Ritmo:** o `slides/speaker-notes.md` tem o relógio acumulado e os slides que se podem saltar.
+- **Plano B para o vídeo:** se o MP4 falhar no projetor, abre `/status?replay=recording` na Arena gravada (`presenter-replay/`), que reproduz a execução real sem chamar a API.
+- **Ritmo:** o `slides/speaker-notes.md` (apresentação em português, `slides/workshop.pptx`) tem o relógio acumulado e os slides que se podem saltar. A apresentação em inglês tem o seu, `slides/speaker-notes.en.md`.
 
 ## Depois
 
-- `memoria update` atualiza a app de memória sem tocar nas memórias.
+- `agent-memory update` atualiza a app Agent Memory sem tocar nas notas.
 - Para limpar uma máquina: setup com `--uninstall` (Windows: `-Uninstall`).
