@@ -670,23 +670,44 @@ ws_check_network() {
 }
 
 # ================================================================= PASSO 1 - git
+# Ordem: um git real no PATH (Command Line Tools, Homebrew, ...) -> o git portatil do workshop
+# (dugite-native, em ~/.workshop-claude/git, sem admin). /usr/bin/git sem Command Line Tools e so
+# um "shim" que abre o instalador da Apple: nunca o chamamos nesse caso.
+ws_git_portatil_ok() { [ -x "$WS_HOME/bin/git" ] && [ -x "$WS_HOME/git/bin/git" ]; }
 ws_s1_detect() {
   local g v
   g=$(command -v git 2>/dev/null)
   if [ "$g" = /usr/bin/git ] || [ -z "$g" ]; then
-    xcode-select -p >/dev/null 2>&1 || { ws_fail E-GIT-01 "xcode-select -p"; return 1; }
+    if xcode-select -p >/dev/null 2>&1; then :
+    elif ws_git_portatil_ok; then g="$WS_HOME/bin/git"
+    else return 1
+    fi
   fi
-  v=$(git --version 2>>"$WS_STEP_LOG" </dev/null) || { ws_fail E-GIT-01 "git --version"; return 1; }
+  v=$("${g:-git}" --version 2>>"$WS_STEP_LOG" </dev/null) || return 1
   WS_GIT_VER=$(ws_ver_of "$v")
-  ws_detail "$(ws_msg s1_ja VERSAO="$WS_GIT_VER")"
+  if [ "$g" = "$WS_HOME/bin/git" ]; then ws_detail "$(ws_msg s1_portatil VERSAO="$WS_GIT_VER")"; else ws_detail "$(ws_msg s1_ja VERSAO="$WS_GIT_VER")"; fi
   return 0
 }
 ws_s1_install() {
-  ws_fail E-GIT-01 "xcode-select -p"
-  if ws_has_tty && [ "$WS_SIM" != 1 ] && ws_ask "$(ws_m s1_pergunta)" s; then
-    xcode-select --install >>"$WS_STEP_LOG" 2>&1 || true
-  fi
-  return 1
+  local file sha url d
+  if [ "$WS_ARCH" = arm64 ]; then file=$C_GIT_MAC_FILE_ARM64; sha=$C_GIT_MAC_SHA256_ARM64; else file=$C_GIT_MAC_FILE_X64; sha=$C_GIT_MAC_SHA256_X64; fi
+  url=$(ws_expand "$C_GIT_MAC_URL" "" "" "" "" "$C_GIT_MAC_VERSION" "$file" "")
+  d="$WS_TMP/git"; mkdir -p "$d" "$WS_HOME/bin" || { ws_fail E-PERM-01 "$WS_HOME"; return 1; }
+  if ! ws_dl "$url" "$d/$file"; then ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; fi
+  if [ "$(shasum -a 256 "$d/$file" | cut -d' ' -f1)" != "$sha" ]; then ws_fail E-GIT-04 "SHA-256 $file"; return 1; fi
+  rm -rf "$WS_HOME/git.tmp" && mkdir -p "$WS_HOME/git.tmp" && tar -xzf "$d/$file" -C "$WS_HOME/git.tmp" ||
+    { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
+  rm -rf "$WS_HOME/git" && mv "$WS_HOME/git.tmp" "$WS_HOME/git" || { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
+  # O wrapper define as variaveis do git portatil so para o proprio git (nao mexe no ambiente).
+  # O wrapper fica em <WS_HOME>/bin/git e encontra o git portatil em <WS_HOME>/git a partir de onde esta.
+  printf '%s\n' '#!/bin/sh' '# Git portatil do workshop (dugite-native, sem as Command Line Tools da Apple).' \
+    'R="$(cd "$(dirname "$0")/.." && pwd)/git"' \
+    'GIT_EXEC_PATH="$R/libexec/git-core" GIT_TEMPLATE_DIR="$R/share/git-core/templates" exec "$R/bin/git" "$@"' > "$WS_HOME/bin/git"
+  chmod +x "$WS_HOME/bin/git" || { ws_fail E-PERM-01 "$WS_HOME/bin/git"; return 1; }
+  ws_registar ficheiro git-portatil "$WS_HOME/git"
+  ws_registar ficheiro git-wrapper "$WS_HOME/bin/git"
+  hash -r 2>/dev/null || true
+  ws_s1_detect || { ws_fail E-GIT-01 "git --version"; return 1; }
 }
 
 # ================================================================= PASSO 2 - Claude Code
@@ -867,20 +888,32 @@ ws_s6_detect() {
   [ -n "$v" ] || return 1
   WS_GH_VER=$(ws_ver_of "$v")
   ws_detail "$(ws_msg s6_ja VERSAO="$WS_GH_VER")"
+  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh).
   if ! gh auth status >/dev/null 2>&1 </dev/null; then
     if [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_GH_ASKED:-}" ] && ws_has_tty; then
       WS_GH_ASKED=1
-      if ws_ask "$(ws_m s6_pergunta_login)" s; then gh auth login </dev/tty >/dev/tty 2>&1 || true; fi
-      gh auth status >/dev/null 2>&1 </dev/null && return 0
+      if ws_ask "$(ws_m s6_pergunta_login)" s; then
+        ws_log "\$ gh auth login --hostname github.com --git-protocol https --web (interativo)"
+        gh auth login --hostname github.com --git-protocol https --web </dev/tty >/dev/tty 2>&1 || true
+      fi
     fi
-    ws_warn E-GH-02 ""
+    if ! gh auth status >/dev/null 2>&1 </dev/null; then
+      WS_GH_SEM_LOGIN=1
+      ws_fail E-GH-02 ""
+      return 1
+    fi
   fi
+  WS_GH_SEM_LOGIN=0
+  # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
+  [ "$WS_MODE" = install ] && gh auth setup-git >>"$WS_STEP_LOG" 2>&1 </dev/null
   return 0
 }
 ws_s6_install() {
+  # Ja instalado, so falta o login: nao voltar a descarregar.
+  if [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && command -v gh >/dev/null 2>&1; then ws_fail E-GH-02 ""; return 1; fi
   local brew; brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
-    HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect; return 0; }
+    HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect; return $?; }
   fi
   local a=arm64 file sums url d="$WS_TMP/gh" want got
   [ "$WS_ARCH" = x64 ] && a=amd64
@@ -898,7 +931,9 @@ ws_s6_install() {
   chmod +x "$WS_HOME/bin/gh"
   ws_path_setup
   ws_profile_update
-  ws_s6_detect || { ws_fail E-GH-01 "gh --version"; return 1; }
+  ws_s6_detect && return 0
+  [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && return 1
+  ws_fail E-GH-01 "gh --version"; return 1
 }
 
 # ================================================================= PASSO 7 - MCP Atlassian

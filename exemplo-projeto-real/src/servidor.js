@@ -47,7 +47,16 @@ export function criarServidor() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const principal = (() => {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+if (principal) {
   const porta = Number(process.env.PORTA || 3100);
   criarServidor().listen(porta, '127.0.0.1', () => console.log(`Biblioteca em http://127.0.0.1:${porta}`));
 }

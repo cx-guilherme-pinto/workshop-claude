@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadPricing, requestCost, modelName } from '../hooks/lib/cost.mjs';
 import { lerPlano, resolverNoProjeto } from './lib/estado.mjs';
 import { usd } from './lib/tabela.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
@@ -59,7 +60,7 @@ export function tabelaEstimativa(e) {
   return L.join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const i = process.argv.indexOf('--plano');
   const caminho = i > 0 ? process.argv[i + 1] : resolverNoProjeto(process.cwd(), 'plan.json');
   const e = estimar(lerPlano(caminho));

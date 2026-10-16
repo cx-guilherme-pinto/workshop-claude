@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { estimar, tabelaEstimativa } from './estimate.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 export const PAPEIS = {
   'ws-worker': { modelo: 'claude-haiku-5-5', nome: 'Haiku' },
@@ -119,7 +120,7 @@ function mermaid(plano) {
   return L.join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const a = process.argv.slice(2);
   const projeto = a.includes('--projeto') ? a[a.indexOf('--projeto') + 1] : process.cwd();
   const proposta = JSON.parse(readFileSync(a[0], 'utf8'));

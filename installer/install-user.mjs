@@ -22,6 +22,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseConf } from './lib/conf.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 import {
   checkSettings,
   mergeSettings,
@@ -365,7 +366,7 @@ export function desinstalar(flags, env = process.env) {
 
 const CMDS = { instalar, verificar, desinstalar, registar, extras };
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = ehPrincipal(import.meta.url);
 if (isMain) {
   const { cmd, flags } = parseArgs(process.argv.slice(2));
   const fn = CMDS[cmd];

@@ -40,7 +40,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-PERM-01` | Sem permissão para escrever na pasta pessoal | [macOS](#mac-e-perm-01) · [Windows](#windows-e-perm-01) |
 | `E-PERM-02` | Um programa foi bloqueado pela segurança do computador | [macOS](#mac-e-perm-02) · [Windows](#windows-e-perm-02) |
 | `E-PERM-03` | O instalador pediu permissões de administrador | [macOS](#mac-e-perm-03) · [Windows](#windows-e-perm-03) |
-| `E-GIT-01` | Faltam as ferramentas de linha de comandos da Apple (git) | [macOS](#mac-e-git-01) |
+| `E-GIT-01` | Não foi possível instalar o git | [macOS](#mac-e-git-01) |
 | `E-GIT-02` | Não consegui instalar o Git for Windows | [Windows](#windows-e-git-02) |
 | `E-GIT-03` | Não encontrei o Git Bash (bash.exe) | [Windows](#windows-e-git-03) |
 | `E-CC-01` | O instalador do Claude Code falhou | [macOS](#mac-e-cc-01) · [Windows](#windows-e-cc-01) |
@@ -53,7 +53,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-NODE-02` | Há um Node antigo à frente no PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
 | `E-UV-01` | Não consegui instalar o uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-GH-01` | Não consegui instalar o GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
-| `E-GH-02` | O gh não tem login no GitHub | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
+| `E-GH-02` | Falta o login no GitHub (obrigatório) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
 | `E-MCP-01` | Não consegui adicionar o MCP do Atlassian | [macOS](#mac-e-mcp-01) · [Windows](#windows-e-mcp-01) |
 | `E-MCP-02` | Falta o login no Atlassian (OAuth) | [macOS](#mac-e-mcp-02) · [Windows](#windows-e-mcp-02) |
 | `E-KIT-01` | Não consegui obter o kit do workshop | [macOS](#mac-e-kit-01) · [Windows](#windows-e-kit-01) |
@@ -73,6 +73,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-SMOKE-02` | A conta da Console não tem créditos | [macOS](#mac-e-smoke-02) · [Windows](#windows-e-smoke-02) |
 | `E-SMOKE-03` | Limite de pedidos atingido (erro 429) | [macOS](#mac-e-smoke-03) · [Windows](#windows-e-smoke-03) |
 | `E-SMOKE-04` | O modelo do teste não está disponível na tua conta | [macOS](#mac-e-smoke-04) · [Windows](#windows-e-smoke-04) |
+| `E-GIT-04` | O download do git portátil está corrompido | [macOS](#mac-e-git-04) |
 
 ## macOS
 
@@ -375,12 +376,12 @@ xattr -l ~/.local/bin/claude
 
 <a id="mac-e-git-01"></a>
 
-### E-GIT-01 · Faltam as ferramentas de linha de comandos da Apple (git)
+### E-GIT-01 · Não foi possível instalar o git
 
-- **Porquê:** No Mac, o git vem com as Command Line Tools da Apple, e elas não estão instaladas. Este passo é feito por ti, uma vez, antes do workshop.
+- **Porquê:** O Mac não tem as Command Line Tools da Apple e o git portátil do workshop não ficou a funcionar.
 - **O que fazer:**
-  - Corre o comando abaixo e carrega em «Instalar» na janela que aparece (demora 5 a 15 minutos).
-  - Quando acabar, volta a correr o setup.
+  - Volta a correr o setup: o git portátil é descarregado outra vez.
+  - Se continuar a falhar, instala as ferramentas da Apple com o comando abaixo (pode pedir a password de administrador) e volta a correr o setup.
 
 Comando (macOS):
 
@@ -543,17 +544,18 @@ brew install gh
 
 <a id="mac-e-gh-02"></a>
 
-### E-GH-02 · O gh não tem login no GitHub
+### E-GH-02 · Falta o login no GitHub (obrigatório)
 
-- **Porquê:** O gh está instalado mas sem conta. O Projeto 2 usa o gh para ler issues e abrir PRs.
+- **Porquê:** O gh está instalado mas sem conta. O workshop precisa do login no GitHub para o Projeto 2: ler issues, criar branches e abrir PRs.
 - **O que fazer:**
-  - Corre o comando abaixo e escolhe GitHub.com, HTTPS e «Login with a web browser».
-  - Se não tens acesso ao GitHub da empresa, usa o projeto de treino exemplo-projeto-real.
+  - Corre o comando abaixo: abre o browser com um código para confirmares o login.
+  - Se a tua empresa usa GitHub Enterprise, troca github.com pelo servidor da empresa.
+  - Depois volta a correr o setup.
 
 Comando (macOS):
 
 ```
-gh auth login
+gh auth login --hostname github.com --git-protocol https --web
 ```
 
 <a id="mac-e-mcp-01"></a>
@@ -770,6 +772,21 @@ claude -p "responde só OK" --model claude-haiku-5-5
 - **Porquê:** A tua organização não tem acesso ao modelo claude-haiku-5-5, ou um gateway da empresa bloqueia-o.
 - **O que fazer:**
   - Confirma os modelos disponíveis na Console e fala com o organizador.
+
+<a id="mac-e-git-04"></a>
+
+### E-GIT-04 · O download do git portátil está corrompido
+
+- **Porquê:** O ficheiro descarregado não tem o SHA-256 esperado. Pode ser um proxy a alterar o download.
+- **O que fazer:**
+  - Volta a correr o setup.
+  - Se continuar, testa noutra rede e mostra o setup.log a quem te ajudar.
+
+Comando (macOS):
+
+```
+xcode-select --install
+```
 
 ## Windows
 
@@ -1278,17 +1295,18 @@ winget install --id GitHub.cli -e --scope user --source winget
 
 <a id="windows-e-gh-02"></a>
 
-### E-GH-02 · O gh não tem login no GitHub
+### E-GH-02 · Falta o login no GitHub (obrigatório)
 
-- **Porquê:** O gh está instalado mas sem conta. O Projeto 2 usa o gh para ler issues e abrir PRs.
+- **Porquê:** O gh está instalado mas sem conta. O workshop precisa do login no GitHub para o Projeto 2: ler issues, criar branches e abrir PRs.
 - **O que fazer:**
-  - Corre o comando abaixo e escolhe GitHub.com, HTTPS e «Login with a web browser».
-  - Se não tens acesso ao GitHub da empresa, usa o projeto de treino exemplo-projeto-real.
+  - Corre o comando abaixo: abre o browser com um código para confirmares o login.
+  - Se a tua empresa usa GitHub Enterprise, troca github.com pelo servidor da empresa.
+  - Depois volta a correr o setup.
 
 Comando (Windows):
 
 ```
-gh auth login
+gh auth login --hostname github.com --git-protocol https --web
 ```
 
 <a id="windows-e-mcp-01"></a>

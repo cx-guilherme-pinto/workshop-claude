@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { caminhos, lerPlano, fotografia, lerJson } from './lib/estado.mjs';
 import { tabelaMarkdown } from './lib/tabela.mjs';
 import { gate, gateMd } from './gate.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 export function digest(dir, { base = null } = {}) {
   const c = caminhos(dir);
@@ -55,7 +56,7 @@ ${[...numstat, ...novos].map((p) => `- ${p}`).join('\n') || '- (sem alterações
   return md;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const a = process.argv.slice(2);
   const dir = a.includes('--projeto') ? a[a.indexOf('--projeto') + 1] : process.cwd();
   digest(dir, { base: a.includes('--base') ? a[a.indexOf('--base') + 1] : null });

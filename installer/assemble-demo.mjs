@@ -11,6 +11,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, rea
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { ehPrincipal } from './lib/principal.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -127,7 +128,7 @@ export function montar(o) {
   return { estado: 'montado', versao: kitVersion() };
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('assemble-demo.mjs')) {
+if (ehPrincipal(import.meta.url)) {
   try {
     const r = montar(args(process.argv.slice(2)));
     console.log(JSON.stringify(r));

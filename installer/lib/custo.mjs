@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ehPrincipal } from './principal.mjs';
 
 export function resolveModelo(id, pricing) {
   if (!id) return null;
@@ -50,7 +51,7 @@ export function formatUsd(v) {
   return 'US$ ' + v.toFixed(casas).replace('.', ',');
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMain = ehPrincipal(import.meta.url);
 if (isMain) {
   try {
     const r = JSON.parse(readFileSync(process.argv[2], 'utf8'));

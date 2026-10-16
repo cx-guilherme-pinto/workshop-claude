@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { SEGREDOS, CODIGO_PERIGOSO, procurar } from './lib/padroes.mjs';
 import { resumirSaida } from './grade.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 const CODIGO = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.go', '.rb', '.php', '.java', '.kt', '.cs', '.rs']);
 const MANIFESTOS = /(^|\/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|go\.(mod|sum)|Cargo\.(toml|lock)|pom\.xml|build\.gradle(\.kts)?|Gemfile(\.lock)?|composer\.(json|lock))$/;
@@ -93,7 +94,7 @@ export function gateMd(r) {
   ].join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const a = process.argv.slice(2);
   const opt = (k) => (a.includes(k) ? a[a.indexOf(k) + 1] : null);
   const dir = opt('--projeto') || process.cwd();

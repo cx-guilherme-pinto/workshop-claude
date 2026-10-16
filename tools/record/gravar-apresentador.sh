@@ -22,7 +22,7 @@ main() {
   # Servidor da Arena para a pagina /estado.
   ( cd "$ARENA" && "$NODE" server.js --porta "$PORTA" > "$OUT/server.log" 2>&1 ) &
   local SRV=$!
-  trap 'kill $SRV 2>/dev/null || true' EXIT
+  trap "kill $SRV 2>/dev/null || true" EXIT
   sleep 2
 
   # Gravador do browser (em paralelo com o enxame).

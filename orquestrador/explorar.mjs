@@ -6,6 +6,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { ehPrincipal } from './lib/principal.mjs';
 
 export function explorar(dir) {
   const git = spawnSync('git', ['ls-files'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -77,7 +78,7 @@ export function explorarMd(r) {
   ].join('\n');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const a = process.argv.slice(2);
   const dir = a.includes('--projeto') ? a[a.indexOf('--projeto') + 1] : process.cwd();
   const r = explorar(dir);

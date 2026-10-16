@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { caminhos, garantirPastas, lerPlano, todosEstados, gravarEstado, lerJson, escreverJson, evento, fotografia, resolverNoProjeto } from './lib/estado.mjs';
 import { avaliarVarias } from './grade.mjs';
 import { tabelaMarkdown, linhaResumo, usd, tempo } from './lib/tabela.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const TERMINAL_OK = new Set(['verde', 'falhou']);
@@ -141,7 +142,7 @@ function imprimir({ f, loteAnterior, lote, chamadas, pendentes, run }) {
   console.log(out.join('\n'));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   try {
     imprimir(await proximaOnda(args(process.argv.slice(2))));
   } catch (e) {

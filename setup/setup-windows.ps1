@@ -1198,20 +1198,32 @@ function Test-WsStep6 {
   $script:GhExe = $exe
   $script:GhVer = Get-WsVersionOf $r.StdOut
   Set-WsDetail (M 's6_ja' @{ VERSAO = $script:GhVer })
+  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh).
   $st = Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60
   if ($st.ExitCode -ne 0) {
     if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhAsked -and (Test-WsInteractive)) {
       $script:GhAsked = $true
-      if (Read-WsYesNo (M 's6_pergunta_login') $true) { & $exe auth login }
-      if ((Invoke-WsProcess $exe @('auth', 'status')).ExitCode -eq 0) { return $true }
+      if (Read-WsYesNo (M 's6_pergunta_login') $true) {
+        Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interativo)'
+        & $exe auth login --hostname github.com --git-protocol https --web
+      }
     }
-    Set-WsWarn 'E-GH-02' ''
+    if ((Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60).ExitCode -ne 0) {
+      $script:GhSemLogin = $true
+      Set-WsFail 'E-GH-02' ''
+      return $false
+    }
   }
+  $script:GhSemLogin = $false
+  # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
+  if ($script:Mode -eq 'install') { $null = Invoke-WsProcess $exe @('auth', 'setup-git') -TimeoutSec 60 }
   return $true
 }
 
 function Install-WsStep6 {
-  if ((Test-WsWinget) -and (Invoke-WsWinget 'GitHub.cli')) { if (Test-WsStep6) { return $true } }
+  # Ja instalado, so falta o login: nao voltar a descarregar.
+  if ($script:GhSemLogin -and $script:GhExe) { Set-WsFail 'E-GH-02' ''; return $false }
+  if ((Test-WsWinget) -and (Invoke-WsWinget 'GitHub.cli')) { if (Test-WsStep6) { return $true }; if ($script:GhSemLogin) { return $false } }
   $a = 'amd64'
   if ($script:Arch -eq 'arm64') { $a = 'arm64' }
   $file = 'gh_{0}_windows_{1}.zip' -f $script:C.GH_VERSION, $a
@@ -1231,8 +1243,9 @@ function Install-WsStep6 {
   New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'bin') -Force | Out-Null
   Copy-Item -LiteralPath $src.FullName -Destination (Join-Path $script:WsHome 'bin\gh.exe') -Force
   Add-WsUserPath (Join-Path $script:WsHome 'bin')
-  if (-not (Test-WsStep6)) { Set-WsFail 'E-GH-01' 'gh --version'; return $false }
-  return $true
+  if (Test-WsStep6) { return $true }
+  if ($script:GhSemLogin) { return $false }
+  Set-WsFail 'E-GH-01' 'gh --version'; return $false
 }
 
 # =============================================================== PASSO 7 - MCP Atlassian

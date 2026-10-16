@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { caminhos, lerPlano, fotografia, lerJsonl, lerJson, resolverNoProjeto, usageUnico } from './lib/estado.mjs';
 import { usd, tempo, nomeModelo, tabelaMarkdown } from './lib/tabela.mjs';
 import { loadPricing } from '../hooks/lib/cost.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 export function relatorio(projeto, caminhoPlano) {
   const c = caminhos(projeto);
@@ -107,7 +108,7 @@ export function relatorio(projeto, caminhoPlano) {
   return { md, f, porModelo: Object.fromEntries(porModelo), duracao, plano };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const a = process.argv.slice(2);
   const projeto = a.includes('--projeto') ? a[a.indexOf('--projeto') + 1] : process.cwd();
   const ponteiro = lerJson(join(projeto, '.workshop', 'orquestrador.json'), {});

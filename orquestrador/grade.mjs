@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { caminhos, garantirPastas, lerPlano, lerEstado, gravarEstado, lerJson, resolverNoProjeto, fotografia } from './lib/estado.mjs';
 import { tabelaTexto } from './lib/tabela.mjs';
+import { ehPrincipal } from './lib/principal.mjs';
 
 const LIMITE_SAIDA = 1500;
 
@@ -121,7 +122,7 @@ function args(argv) {
   return o;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (ehPrincipal(import.meta.url)) {
   const o = args(process.argv.slice(2));
   const plano = lerPlano(o.plano);
   const c = caminhos(o.projeto);

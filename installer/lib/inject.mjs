@@ -9,6 +9,7 @@ import { join as _join, resolve as _resolve } from 'node:path';
 import { fileURLToPath as _f2p } from 'node:url';
 import { expand, loadConf, repoParts } from './conf.mjs';
 import { flattenToShell } from './messages.mjs';
+import { ehPrincipal } from './principal.mjs';
 
 export const INICIO = '# >>> WS-INJETADO >>>';
 export const FIM = '# <<< WS-INJETADO <<<';
@@ -97,7 +98,7 @@ export const toCrlf = (t) => t.replace(/\r?\n/g, '\r\n');
 // O repos.conf, o pricing.json e as mensagens vem de --raiz (o arquivo da release), com as variaveis
 // de ambiente do mesmo nome a sobreporem o repos.conf.
 
-if (process.argv[1] && _resolve(process.argv[1]) === _f2p(import.meta.url)) {
+if (ehPrincipal(import.meta.url)) {
   const [kind, ...rest] = process.argv.slice(2);
   const o = {};
   for (let i = 0; i < rest.length; i += 2) o[rest[i].replace(/^--/, '')] = rest[i + 1];

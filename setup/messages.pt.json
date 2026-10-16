@@ -86,7 +86,6 @@
     "s0_rede_falha": "Sem acesso a: {LISTA}",
     "s0_disco": "Espaço livre: {GB} GB",
     "s1_ja": "git {VERSAO}",
-    "s1_pergunta": "Abrir agora o instalador das ferramentas da Apple (xcode-select --install)?",
     "s2_ja": "Claude Code {VERSAO}",
     "s3_console": "Console ({EMAIL})",
     "s3_outro": "Método: {METODO}",
@@ -97,7 +96,7 @@
     "s4_ja": "Node {VERSAO} em {CAMINHO}",
     "s5_ja": "uv {VERSAO}",
     "s6_ja": "gh {VERSAO}",
-    "s6_pergunta_login": "Fazer agora o login no GitHub (gh auth login)?",
+    "s6_pergunta_login": "Fazer agora o login no GitHub? (abre o browser)",
     "s6_sem_login": "gh instalado, sem login no GitHub.",
     "s7_ja": "atlassian (âmbito utilizador)",
     "s7_oauth": "Para terminar: abre o Claude Code, escreve /mcp, escolhe atlassian e faz o login no browser.",
@@ -114,7 +113,8 @@
     "s12_prompt": "responde só OK",
     "s12_ok": "Resposta «{RESPOSTA}» em {SEG} s · custo {USD}",
     "s12_custo_desconhecido": "modelo sem preço no pricing.json",
-    "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados."
+    "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados.",
+    "s1_portatil": "git {VERSAO} (portátil do workshop, sem as ferramentas da Apple)"
   },
   "passos": {
     "0": "Deteção do ambiente",
@@ -471,12 +471,12 @@
       "windows": []
     },
     "E-GIT-01": {
-      "titulo": "Faltam as ferramentas de linha de comandos da Apple (git)",
+      "titulo": "Não foi possível instalar o git",
       "so": "mac",
-      "causa": "No Mac, o git vem com as Command Line Tools da Apple, e elas não estão instaladas. Este passo é feito por ti, uma vez, antes do workshop.",
+      "causa": "O Mac não tem as Command Line Tools da Apple e o git portátil do workshop não ficou a funcionar.",
       "fazer": [
-        "Corre o comando abaixo e carrega em «Instalar» na janela que aparece (demora 5 a 15 minutos).",
-        "Quando acabar, volta a correr o setup."
+        "Volta a correr o setup: o git portátil é descarregado outra vez.",
+        "Se continuar a falhar, instala as ferramentas da Apple com o comando abaixo (pode pedir a password de administrador) e volta a correr o setup."
       ],
       "mac": [
         "xcode-select --install"
@@ -666,18 +666,19 @@
       ]
     },
     "E-GH-02": {
-      "titulo": "O gh não tem login no GitHub",
+      "titulo": "Falta o login no GitHub (obrigatório)",
       "so": "todos",
-      "causa": "O gh está instalado mas sem conta. O Projeto 2 usa o gh para ler issues e abrir PRs.",
+      "causa": "O gh está instalado mas sem conta. O workshop precisa do login no GitHub para o Projeto 2: ler issues, criar branches e abrir PRs.",
       "fazer": [
-        "Corre o comando abaixo e escolhe GitHub.com, HTTPS e «Login with a web browser».",
-        "Se não tens acesso ao GitHub da empresa, usa o projeto de treino exemplo-projeto-real."
+        "Corre o comando abaixo: abre o browser com um código para confirmares o login.",
+        "Se a tua empresa usa GitHub Enterprise, troca github.com pelo servidor da empresa.",
+        "Depois volta a correr o setup."
       ],
       "mac": [
-        "gh auth login"
+        "gh auth login --hostname github.com --git-protocol https --web"
       ],
       "windows": [
-        "gh auth login"
+        "gh auth login --hostname github.com --git-protocol https --web"
       ]
     },
     "E-MCP-01": {
@@ -922,6 +923,19 @@
         "Confirma os modelos disponíveis na Console e fala com o organizador."
       ],
       "mac": [],
+      "windows": []
+    },
+    "E-GIT-04": {
+      "titulo": "O download do git portátil está corrompido",
+      "so": "mac",
+      "causa": "O ficheiro descarregado não tem o SHA-256 esperado. Pode ser um proxy a alterar o download.",
+      "fazer": [
+        "Volta a correr o setup.",
+        "Se continuar, testa noutra rede e mostra o setup.log a quem te ajudar."
+      ],
+      "mac": [
+        "xcode-select --install"
+      ],
       "windows": []
     }
   }
