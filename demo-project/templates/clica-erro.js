@@ -7,7 +7,7 @@
 //   segments: ['linha 0', 'linha 1', ...],
 //   answer: [1],            // indices dos segmentos inseguros
 // })
-import { h, criarCartao, verificarDefinicao, cabecalho, botaoConfirmar, bloquear } from './common.js';
+import { h, criarCartao, verificarDefinicao, cabecalho, botaoConfirmar, bloquear, TEXTOS } from './common.js';
 
 function normalizarIndices(v) {
   const arr = Array.isArray(v) ? v : [v];
@@ -18,8 +18,8 @@ function normalizarIndices(v) {
 export function clicaErro(def) {
   verificarDefinicao(def, 'clica-erro', ['segments', 'answer']);
   const certa = normalizarIndices(def.answer);
-  if (!certa || certa.length === 0) throw new Error(`${def.id}: answer tem de ter pelo menos um indice`);
-  if (certa.some((i) => i < 0 || i >= def.segments.length)) throw new Error(`${def.id}: indice fora dos segmentos`);
+  if (!certa || certa.length === 0) throw new Error(TEXTOS.semIndice(def.id));
+  if (certa.some((i) => i < 0 || i >= def.segments.length)) throw new Error(TEXTOS.indiceFora(def.id));
 
   return criarCartao('clica-erro', def, {
     validate: (answer) => {
@@ -53,8 +53,8 @@ export function clicaErro(def) {
       container.replaceChildren(
         h(doc, 'article', { class: 'cartao cartao-clica-erro', 'data-cartao': def.id },
           cabecalho(doc, def),
-          h(doc, 'div', { class: `excerto excerto-${def.language || 'texto'}`, role: 'group', attrs: { 'aria-label': 'Excerto' } }, ...segmentos),
-          h(doc, 'p', { class: 'cartao-ajuda', text: 'Clica no(s) trecho(s) inseguro(s) e confirma.' }),
+          h(doc, 'div', { class: `excerto excerto-${def.language || 'texto'}`, role: 'group', attrs: { 'aria-label': TEXTOS.excerto } }, ...segmentos),
+          h(doc, 'p', { class: 'cartao-ajuda', text: TEXTOS.ajudaClicaErro }),
           h(doc, 'div', { class: 'cartao-acoes' }, confirmar),
         ),
       );

@@ -4,17 +4,81 @@
 //
 //   node report.mjs [--projeto <dir>] [--plano <plan.json>] [--json]
 // Escreve tambem .workshop/relatorio.md e .workshop/memoria-resumo.md (entrada para a memoria).
+// Os textos saem na lingua do kit. No memoria-resumo.md, as chaves que o memoria-extrator passa
+// tal e qual a app de memoria (projeto, tarefa, epico, url, etiquetas, custo_usd) ficam iguais.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { caminhos, lerPlano, fotografia, lerJsonl, lerJson, resolverNoProjeto, usageUnico } from './lib/estado.mjs';
-import { usd, tempo, nomeModelo, tabelaMarkdown } from './lib/tabela.mjs';
+import { usd, tempo, nomeModelo, nomeEstado, tabelaMarkdown } from './lib/tabela.mjs';
 import { loadPricing } from '../hooks/lib/cost.mjs';
 import { ehPrincipal } from './lib/principal.mjs';
+import { lingua, textos } from '../hooks/lib/lingua.mjs';
 
-export function relatorio(projeto, caminhoPlano) {
+const TEXTOS = {
+  pt: {
+    titulo: (p, m) => `# Relatório do swarm — ${p} (modo ${m})`,
+    resultado: (v, t, f, r) => `- **Resultado:** ${v}/${t} tarefas verdes${f ? `, ${f} falhadas` : ''}${r ? ` · ${r} repetições` : ''}`,
+    duracao: (d) => `- **Duração:** ${d}`,
+    custo: (t, p, s, a, x) => `- **Custo total:** ${t} (sessão principal ${p} + subagentes ${s}) · alvo ${a} · teto ${x}`,
+    fonte: (d) => `- **Fonte do custo:** tokens reais dos transcripts × preços de \`pricing.json\` (${d}). A fatura oficial está na Console.`,
+    porModelo: '## Por modelo',
+    colModelo: ['| modelo | agentes | custo | tempo somado |', '|---|---|---|---|'],
+    porOnda: '## Por onda',
+    colOnda: ['| onda | tarefas | verdes | custo | agente mais lento |', '|---|---|---|---|---|'],
+    porAgente: '## Por agente',
+    mem: {
+      titulo: '# Resumo para a memória',
+      tituloTarefa: 'titulo da tarefa',
+      data: 'data',
+      resultado: (v, t, f, r) => `resultado: ${v}/${t} verdes, ${f} falhadas, ${r} repetições`,
+      duracao: 'duracao',
+      paralelismo: 'paralelismo',
+      porModelo: 'custo por modelo',
+      ajustes: 'ajustes do planner',
+      nenhum: 'nenhum',
+      falhas: 'Tarefas que precisaram de mais de uma tentativa ou falharam:',
+      falha: (id, e, n, m) => `${id} (${e}, tentativa ${n}, ${m})`,
+      nenhuma: '- nenhuma',
+      ficheiros: 'Ficheiros tocados:',
+    },
+  },
+  en: {
+    titulo: (p, m) => `# Swarm report — ${p} (mode ${m})`,
+    resultado: (v, t, f, r) => `- **Result:** ${v}/${t} tasks green${f ? `, ${f} failed` : ''}${r ? ` · ${r} ${r === 1 ? 'retry' : 'retries'}` : ''}`,
+    duracao: (d) => `- **Duration:** ${d}`,
+    custo: (t, p, s, a, x) => `- **Total cost:** ${t} (main session ${p} + subagents ${s}) · target ${a} · cap ${x}`,
+    fonte: (d) => `- **Cost source:** real tokens from the transcripts × prices from \`pricing.json\` (${d}). The official invoice is in the Console.`,
+    porModelo: '## By model',
+    colModelo: ['| model | agents | cost | total time |', '|---|---|---|---|'],
+    porOnda: '## By wave',
+    colOnda: ['| wave | tasks | green | cost | slowest agent |', '|---|---|---|---|---|'],
+    porAgente: '## By agent',
+    mem: {
+      titulo: '# Summary for memory',
+      tituloTarefa: 'task title',
+      data: 'date',
+      resultado: (v, t, f, r) => `result: ${v}/${t} green, ${f} failed, ${r} ${r === 1 ? 'retry' : 'retries'}`,
+      duracao: 'duration',
+      paralelismo: 'parallelism',
+      porModelo: 'cost by model',
+      ajustes: 'planner adjustments',
+      nenhum: 'none',
+      falhas: 'Tasks that needed more than one attempt or failed:',
+      falha: (id, e, n, m) => `${id} (${nomeEstado(e, 'en')}, attempt ${n}, ${m})`,
+      nenhuma: '- none',
+      ficheiros: 'Files touched:',
+    },
+  },
+};
+
+// `l` ('pt'|'en') e opcional: por omissao, a lingua do kit.
+export function relatorio(projeto, caminhoPlano, l = lingua()) {
+  const T = textos(TEXTOS, l);
+  const M = T.mem;
+  const u = (v) => usd(v, l);
   const c = caminhos(projeto);
-  const plano = lerPlano(caminhoPlano);
+  const plano = lerPlano(caminhoPlano, l);
   const f = fotografia(c, plano);
   const usage = usageUnico(lerJsonl(c.usage));
   const pricing = loadPricing();
@@ -57,28 +121,26 @@ export function relatorio(projeto, caminhoPlano) {
   const tentativasExtra = usage.filter((r) => r.tipo === 'subagente' && (r.tentativa || 1) > 1).length;
 
   const md = [
-    `# Relatório do enxame — ${plano.projeto} (modo ${plano.modo})`,
+    T.titulo(plano.projeto, plano.modo),
     '',
-    `- **Resultado:** ${f.contagem.verde}/${f.total} tarefas verdes${f.contagem.falhou ? `, ${f.contagem.falhou} falhadas` : ''}${tentativasExtra ? ` · ${tentativasExtra} repetições` : ''}`,
-    `- **Duração:** ${tempo(duracao)}`,
-    `- **Custo total:** ${usd(f.custo.total)} (sessão principal ${usd(f.custo.principal)} + subagentes ${usd(f.custo.subagentes)}) · alvo ${usd(alvo)} · teto ${usd(teto)}`,
-    `- **Fonte do custo:** tokens reais dos transcripts × preços de \`pricing.json\` (${pricing.consultado_em}). A fatura oficial está na Console.`,
+    T.resultado(f.contagem.verde, f.total, f.contagem.falhou, tentativasExtra),
+    T.duracao(tempo(duracao)),
+    T.custo(u(f.custo.total), u(f.custo.principal), u(f.custo.subagentes), u(alvo), u(teto)),
+    T.fonte(pricing.consultado_em),
     '',
-    '## Por modelo',
+    T.porModelo,
     '',
-    '| modelo | agentes | custo | tempo somado |',
-    '|---|---|---|---|',
-    ...[...porModelo.entries()].sort((a, b) => b[1].custo - a[1].custo).map(([m, a]) => `| ${m} | ${a.agentes || '—'} | ${usd(a.custo)} | ${a.segundos ? tempo(a.segundos) : '—'} |`),
+    ...T.colModelo,
+    ...[...porModelo.entries()].sort((a, b) => b[1].custo - a[1].custo).map(([m, a]) => `| ${m} | ${a.agentes || '—'} | ${u(a.custo)} | ${a.segundos ? tempo(a.segundos) : '—'} |`),
     '',
-    '## Por onda',
+    T.porOnda,
     '',
-    '| onda | tarefas | verdes | custo | agente mais lento |',
-    '|---|---|---|---|---|',
-    ...[...porOnda.entries()].sort((a, b) => a[0] - b[0]).map(([o, a]) => `| ${o} | ${a.tarefas} | ${a.verdes} | ${usd(a.custo)} | ${tempo(a.segundos)} |`),
+    ...T.colOnda,
+    ...[...porOnda.entries()].sort((a, b) => a[0] - b[0]).map(([o, a]) => `| ${o} | ${a.tarefas} | ${a.verdes} | ${u(a.custo)} | ${tempo(a.segundos)} |`),
     '',
-    '## Por agente',
+    T.porAgente,
     '',
-    tabelaMarkdown(f),
+    tabelaMarkdown(f, undefined, l),
     '',
   ].join('\n');
 
@@ -86,25 +148,25 @@ export function relatorio(projeto, caminhoPlano) {
   const falhas = f.tarefas.filter((t) => t.estado === 'falhou' || t.tentativa > 1);
   const tarefaInfo = lerJson(join(c.ws, 'tarefa.json'), {});
   const resumoMem = [
-    `# Resumo para a memória`,
+    M.titulo,
     `projeto: ${plano.projeto}`,
     `tarefa: ${tarefaInfo.id || plano.tarefa_id || plano.projeto + '-' + plano.modo}`,
     ...(tarefaInfo.epico ? [`epico: ${tarefaInfo.epico}`] : []),
     ...(tarefaInfo.url ? [`url: ${tarefaInfo.url}`] : []),
     ...(tarefaInfo.etiquetas?.length ? [`etiquetas: ${tarefaInfo.etiquetas.join(', ')}`] : []),
-    ...(tarefaInfo.titulo ? [`titulo da tarefa: ${tarefaInfo.titulo}`] : []),
-    `data: ${new Date().toISOString().slice(0, 10)}`,
-    `resultado: ${f.contagem.verde}/${f.total} verdes, ${f.contagem.falhou} falhadas, ${tentativasExtra} repetições`,
-    `duracao: ${tempo(duracao)}`,
+    ...(tarefaInfo.titulo ? [`${M.tituloTarefa}: ${tarefaInfo.titulo}`] : []),
+    `${M.data}: ${new Date().toISOString().slice(0, 10)}`,
+    M.resultado(f.contagem.verde, f.total, f.contagem.falhou, tentativasExtra),
+    `${M.duracao}: ${tempo(duracao)}`,
     `custo_usd: ${f.custo.total.toFixed(4)}`,
-    `paralelismo: ${plano.config?.max_paralelo}`,
-    `custo por modelo: ${[...porModelo.entries()].map(([m, a]) => `${m} ${usd(a.custo)}`).join(', ')}`,
-    `ajustes do planner: ${plano.ajustes?.aplicados?.join('; ') || 'nenhum'}`,
+    `${M.paralelismo}: ${plano.config?.max_paralelo}`,
+    `${M.porModelo}: ${[...porModelo.entries()].map(([m, a]) => `${m} ${u(a.custo)}`).join(', ')}`,
+    `${M.ajustes}: ${plano.ajustes?.aplicados?.join('; ') || M.nenhum}`,
     '',
-    'Tarefas que precisaram de mais de uma tentativa ou falharam:',
-    ...(falhas.length ? falhas.map((t) => `- ${t.id} (${t.estado}, tentativa ${t.tentativa}, ${nomeModelo(t.modelo)}): ${(t.teste?.excerto || '').split('\n').slice(0, 2).join(' / ').slice(0, 240)}`) : ['- nenhuma']),
+    M.falhas,
+    ...(falhas.length ? falhas.map((t) => `- ${M.falha(t.id, t.estado, t.tentativa, nomeModelo(t.modelo))}: ${(t.teste?.excerto || '').split('\n').slice(0, 2).join(' / ').slice(0, 240)}`) : [M.nenhuma]),
     '',
-    'Ficheiros tocados:',
+    M.ficheiros,
     ...plano.tarefas.flatMap((t) => t.ficheiros || []).slice(0, 40).map((p) => `- ${p}`),
   ].join('\n');
 

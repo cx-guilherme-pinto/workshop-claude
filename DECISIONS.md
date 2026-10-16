@@ -102,7 +102,7 @@ O MCP remoto do GitHub exige um PAT por pessoa, e a documentação de custos rec
 - Origem: `github.com/Leonxlnx/taste-skill`, pasta `skills/taste-skill/` (nome `design-taste-frontend`), commit `2b44c81bbe36ac8a8a6bdd1c9ff593f28b8728f4` (tag v2.0.0, assinado), tree hash `d11cb9568d2f27401ce1f48217721e69ee32637f`.
 - Licença MIT, que permite copiar e redistribuir desde que a nota de licença acompanhe a cópia.
 - Revisão de segurança: não há código malicioso, ofuscação nem exfiltração. Só `scripts/assets.mjs` faz pedidos de rede (a 6 APIs públicas de imagens). Os restantes scripts correm localmente (lint, sorteio de direções, inspeção com Chrome headless).
-- Alterações no fork (ver `skills-shared/design-taste-frontend/PATCHES.md`): `disable-model-invocation: true`; `scripts/assets.mjs` removido; secção "Uso neste kit".
+- Alterações no fork (ver `skills-shared/design-taste-frontend/PATCHES.md`): `disable-model-invocation: true`; `scripts/assets.mjs` removido; secção "Use in this kit" ("Uso neste kit" até à D-20).
 - Os agentes do enxame **não** carregam a skill completa: é para landing pages e custa centenas de milhares de tokens por página. Recebem um `DESIGN.md` de uma página derivado dela.
 
 ## D-11 · App de memória
@@ -234,6 +234,34 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - o `acli` tem um login geral (`acli auth login`) e logins por produto (`acli jira auth …`, `acli confluence auth …`). Sem login, `acli confluence auth status` e `page view` dão "unauthorized" com rc 1. Por isso a skill confirma `acli auth status` e, se falhar, `acli confluence auth status`;
   - no `allowed-tools` entram só `mcp__atlassian__getConfluenceContent`, `Bash(acli confluence auth status*)` e `Bash(acli confluence page view *)`, cada um corrido sozinho. Não há escrita no Confluence. O texto das páginas é tratado como informação, não como instruções.
 - **Testes:** `test-mac.sh` com 8 casos do passo 7 (claude e acli falsos, tarball local) e Pester com 7. Instalação real a partir de acli.atlassian.com num HOME temporário com espaço e acentos, em arm64 e x64. O login OAuth e a publicação num Jira real ficam nos testes manuais M7 e W17.
+
+## D-20 · Línguas: setup em inglês, skills em inglês que respondem na língua da pessoa, kit em pt e en
+
+- **Pedido do organizador (16 out. 2026):** respeitar a língua da máquina de cada pessoa e suportar português, inglês, hindi e hebraico. As skills, criadas em português, passam a existir em inglês. A app Memória fica na língua nativa, com seletor de língua; é feita noutra sessão, no repositório `claude-memory-app`.
+- **Decisões do organizador:**
+  - **skills e agentes:** uma só versão por nome, em inglês, que substitui a portuguesa (os nomes `/demo-*` e `/task-*` não podem repetir-se). Cada skill tem a linha **Language:** e fala com a pessoa na língua dela;
+  - **setup (Mac e Windows):** só em inglês, "mais seguro, todos falam". Assim evita-se o hebraico (RTL) invertido nas consolas do Windows e o devanágari partido na consola clássica. A língua da máquina continua a ser detetada, mas só para configurar o resto;
+  - **docs e slides:** em português e em inglês, slides e notas do orador incluídos;
+  - **orquestrador, hooks, statusline, ferramentas e jogo da Arena, e projeto de treino:** em português ou em inglês, conforme a língua da máquina.
+- **Como funciona:**
+  - **Deteção.** Mac: `WORKSHOP_LANG`, depois `defaults read -g AppleLanguages` (a primeira), `LC_ALL`, `LC_MESSAGES`, `LANG` e, por fim, `en`. Windows: `WORKSHOP_LANG`, depois `Get-UICulture`, `Get-Culture` e `en`. A etiqueta é normalizada (`pt_PT.UTF-8` dá `pt-PT`; `iw` dá `he`). Os casos estão em `tools/test/lingua-cases.json`, partilhados pelo Node, pelo bash e pelo Pester.
+  - **O setup mostra a língua** no passo 0 (nota e tabela) e passa-a ao `install-user.mjs --lingua-maquina`, que faz duas coisas:
+    - grava a definição `language` do Claude Code (`European Portuguese`, `Brazilian Portuguese`, `English`, `Hindi` ou `Hebrew`), só se a pessoa não tiver uma. Se a que lá está foi posta pelo setup e ninguém lhe mexeu, acompanha a máquina. O `--uninstall` só a tira se ainda for a do setup. Noutras línguas não se grava nada, e o Claude responde na língua em que a pessoa escreve. O passo 8 diz qual destes casos se aplicou;
+    - escreve `~/.workshop-claude/kit/lingua.json`: `pt` se a máquina estiver em português, `en` em todos os outros casos (hindi e hebraico incluídos). O kit só tem textos em pt e en.
+  - **Textos do kit:** `hooks/lib/lingua.mjs` escolhe pela ordem `WORKSHOP_LANG`, `lingua.json` junto do motor (kit instalado ou `<arena>/tools/workshop/`), locale do sistema e `en`.
+  - **Arena:** `demo-project/` é a fonte em pt e `demo-project/i18n/en/` sobrepõe-se com os mesmos caminhos. O `assemble-demo.mjs --lingua pt|en` monta a Arena, regenera os cartões na língua (`tools/gen.mjs` lê o `"lingua"` do `cards.json`) e grava a língua em `.arena-kit.json` e em `tools/workshop/lingua.json`. O projeto de treino segue o mesmo esquema (`exemplo-projeto-real/i18n/en/`, com código, rotas e issues em inglês).
+  - **Marcadores que não se traduzem**, porque as skills, o benchmark e as gravações dependem deles: `ESTADO: LOTE|FIM|BLOQUEADO`, `<<<CHAMADAS`/`CHAMADAS>>>`, `GATE: APROVADO|REPROVADO`, `PLANO INVALIDO`, `ERRO: Plano nao encontrado`, `PLANO OK`, `ENXAME OK`, `CUSTO OK` e `OK <id>`/`FALHOU <id>`. Também não mudam os nomes de ficheiros, as chaves JSON e os tipos da app Memória (`licao`, `fazer`, `nao_fazer`, `historico`).
+  - **Opções do setup em inglês:** `--uninstall`, `--no-desktop`, `--yes` e `--replace-statusline` no Mac; `-Uninstall`, `-NoDesktop`, `-Yes` e `-ReplaceStatusline` no Windows. As portuguesas continuam a funcionar como sinónimos. No setup, os custos usam ponto decimal (`US$ 0.0003`); nos textos pt do kit fica a vírgula.
+  - **Catálogos:** o setup mostra `setup/messages.en.json`, que é o injetado na release. `setup/messages.pt.json` gera `docs/TROUBLESHOOTING.md` e o en gera `docs/en/TROUBLESHOOTING.md`. O `check-repo` exige nos dois as mesmas chaves, listas e marcadores `{NOME}`.
+  - **Docs em inglês:** `README.en.md` e `docs/en/` (INSTALL, TROUBLESHOOTING, FAQ, ORGANIZER, PUBLISHING, REPORT e MANUAL-TESTS). Os slides em inglês são `slides/workshop.en.pptx` e `slides/speaker-notes.en.md` (`node build.mjs --lingua en`).
+- **Benchmark:** a Arena do benchmark e o projeto de treino continuam em pt por defeito; `BENCH_LINGUA=en` mede-os em inglês. As medições da D-16 e da D-18 foram feitas com as skills em português. As skills em inglês ainda não foram medidas, por isso o custo e o tempo podem mudar um pouco.
+- **Fica de fora:**
+  - textos do kit em hindi e em hebraico. Nessas máquinas as skills respondem na língua da pessoa, mas as tabelas, a Arena e as docs ficam em inglês;
+  - `presenter-replay/`, que é uma gravação, continua em pt;
+  - este DECISIONS.md continua em pt;
+  - os títulos das secções de `.workshop/tarefa.md` continuam em português (o `publicar-texto.mjs` aceita os dois);
+  - as capturas de ecrã dos slides continuam em pt.
+- **Testes:** `tools/test/linguas.test.mjs`, `catalogos.test.mjs`, `settings.test.mjs` (`language`), `install-user.test.mjs` (`lingua.json` e `language`), `assemble-sandbox.test.mjs`, os testes do orquestrador e dos hooks em pt e en, `setup/test/test-mac.sh` (etiquetas, AppleLanguages, LANG e a nota do passo 8) e o Pester (etiquetas, Get-UICulture e Get-Culture, a nota do passo 8 e os argumentos do `install-user`).
 
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 

@@ -1,6 +1,6 @@
 ---
 name: demo-review
-description: Gate final da Arena de Segurança — testes, verificações estáticas (sem eval, sem innerHTML, CSP no servidor), procura de segredos e o veredito de segurança do revisor (Opus).
+description: Final gate of the Security Arena — tests, static checks (no eval, no innerHTML, CSP on the server), secret scan and the security verdict of the reviewer (Opus).
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -11,27 +11,29 @@ allowed-tools:
   - Agent
 ---
 
-# /demo-review — gate final
+# /demo-review — final gate
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
+**Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status markers (`GATE: APROVADO`, `GATE: REPROVADO`).
 
-1. Corre `node tools/workshop/orquestrador/gate.mjs --teste "node tools/check-integracao.mjs" --base arena-inicial --ignorar cards/`. A pasta `cards/` fica fora da procura genérica de segredos e de código perigoso: os desafios mostram código inseguro de propósito, como texto. Cada `card.js` já tem a sua verificação estática própria, que ignora as strings e corre nos testes. O script não faz perguntas e verifica:
-   - os testes de todos os cartões e da própria app (CSP, cabeçalhos, sem caminhos fora do projeto);
-   - segredos nos ficheiros alterados;
-   - padrões perigosos (`eval`, `innerHTML`…);
-   - o veredito do revisor.
-2. Se ainda não existir `.workshop/veredito.json` (por exemplo, se a onda 4 não correu):
-   - corre `node tools/review-digest.mjs`;
-   - lança **um** subagente `reviewer` com o prompt "Revê a Arena. Segue specs/revisao.md. Lê .workshop/revisao-resumo.md.";
-   - volta a correr o gate.
-3. Mostra a tabela do gate tal como veio. Depois, em 3 a 5 linhas, explica ao participante o que cada verificação protege, ligando-a ao OWASP Top 10:
-   - injeção (A03);
-   - XSS e CSP (A03/A05);
-   - segredos (A02/A07);
-   - dependências (A06).
-4. Se o veredito tiver problemas, lista-os com gravidade, ficheiro e correção sugerida. Não corrijas nada sozinho. Sem `--auto`, sugere `/loop 2m corre node tools/check-integracao.mjs e corrige o primeiro teste vermelho com o implementer; para quando estiver tudo verde`.
-5. Termina com `GATE: APROVADO` ou `GATE: REPROVADO`, como o script disse.
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
 
-Um jogo de segurança com falhas de segurança seria o pior exemplo possível. Por isso este gate é obrigatório antes de jogar.
+1. Run `node tools/workshop/orquestrador/gate.mjs --teste "node tools/check-integracao.mjs" --base arena-inicial --ignorar cards/`. The `cards/` folder stays out of the generic search for secrets and dangerous code: the challenges show insecure code on purpose, as text. Each `card.js` already has its own static check, which ignores strings and runs in the tests. The script asks no questions and checks:
+   - the tests of all cards and of the app itself (CSP, headers, no paths outside the project);
+   - secrets in the changed files;
+   - dangerous patterns (`eval`, `innerHTML`…);
+   - the reviewer's verdict.
+2. If `.workshop/veredito.json` does not exist yet (for example, if wave 4 did not run):
+   - run `node tools/review-digest.mjs`;
+   - launch **one** `reviewer` subagent with the prompt "Review the Arena. Follow specs/revisao.md. Read .workshop/revisao-resumo.md.";
+   - run the gate again.
+3. Show the gate table exactly as it came. Then, in 3 to 5 lines, explain to the participant what each check protects, linking it to the OWASP Top 10:
+   - injection (A03);
+   - XSS and CSP (A03/A05);
+   - secrets (A02/A07);
+   - dependencies (A06).
+4. If the verdict has problems, list them with severity, file and suggested fix. Do not fix anything on your own. Without `--auto`, suggest `/loop 2m run node tools/check-integracao.mjs and fix the first red test with the implementer; stop when everything is green`.
+5. End with `GATE: APROVADO` or `GATE: REPROVADO`, as the script said.
+
+A security game with security flaws would be the worst possible example. That is why this gate is mandatory before playing.

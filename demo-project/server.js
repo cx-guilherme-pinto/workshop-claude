@@ -13,6 +13,9 @@ import { createServer } from 'node:http';
 import { createReadStream, existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { T } from './lib/textos.js';
+
+const S = T.servidor;
 
 export const RAIZ = dirname(fileURLToPath(import.meta.url));
 
@@ -188,7 +191,7 @@ function enviarFicheiro(res, f) {
   s.pipe(res);
 }
 
-const naoEncontrado = (res) => enviarTexto(res, 404, 'Não encontrado.\n');
+const naoEncontrado = (res) => enviarTexto(res, 404, S.naoEncontrado);
 
 // ---------- /api/cards ----------
 
@@ -430,10 +433,10 @@ export function criarServidor({ raiz = RAIZ } = {}) {
   const difusor = criarDifusor(raiz);
   const srv = createServer(async (req, res) => {
     try {
-      if (req.method !== 'GET' && req.method !== 'HEAD') return enviarTexto(res, 405, 'Método não permitido.\n', { Allow: 'GET, HEAD' });
+      if (req.method !== 'GET' && req.method !== 'HEAD') return enviarTexto(res, 405, S.metodo, { Allow: 'GET, HEAD' });
       const bruto = String(req.url || '');
       const caminho = bruto.split('?')[0].split('#')[0];
-      if (!caminho.startsWith('/')) return enviarTexto(res, 400, 'Pedido inválido.\n');
+      if (!caminho.startsWith('/')) return enviarTexto(res, 400, S.pedidoInvalido);
 
       if (PAGINAS.has(caminho)) {
         const f = resolverSeguro(raiz, `/${PAGINAS.get(caminho)}`);
@@ -451,7 +454,7 @@ export function criarServidor({ raiz = RAIZ } = {}) {
       const f = resolverSeguro(raiz, caminho);
       return f ? enviarFicheiro(res, f) : naoEncontrado(res);
     } catch {
-      if (!res.headersSent) enviarTexto(res, 500, 'Erro interno.\n');
+      if (!res.headersSent) enviarTexto(res, 500, S.erroInterno);
       else res.destroy();
     }
   });
@@ -493,7 +496,7 @@ function portaPedida(argv) {
   const v = i >= 0 ? argv[i + 1] : process.env.PORT || '3000';
   const n = Number(v);
   if (!Number.isInteger(n) || n < 0 || n > 65535) {
-    console.error(`Porta inválida: ${v}`);
+    console.error(S.portaInvalida(v));
     process.exit(2);
   }
   return n;
@@ -504,11 +507,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const srv = await iniciar({ porta: pedida });
     const { port } = srv.address();
-    if (pedida && port !== pedida) console.log(`A porta ${pedida} estava ocupada; uso a ${port}.`);
-    console.log(`Arena de Segurança:  http://localhost:${port}/`);
-    console.log(`Estado do enxame:    http://localhost:${port}/estado`);
-    console.log(`Repetição de exemplo: http://localhost:${port}/estado?replay=exemplo`);
-    console.log('Só aceita ligações deste computador (127.0.0.1). Ctrl+C para parar.');
+    if (pedida && port !== pedida) console.log(S.portaOcupada(pedida, port));
+    console.log(S.arena(`http://localhost:${port}/`));
+    console.log(S.estado(`http://localhost:${port}/estado`));
+    console.log(S.repeticao(`http://localhost:${port}/estado?replay=exemplo`));
+    console.log(S.soLocal);
     const parar = () => {
       srv.fecharTudo();
       srv.close(() => process.exit(0));
@@ -517,7 +520,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     process.on('SIGINT', parar);
     process.on('SIGTERM', parar);
   } catch (e) {
-    console.error(`Não consegui arrancar o servidor: ${e.message}`);
+    console.error(S.naoArrancou(e.message));
     process.exit(1);
   }
 }

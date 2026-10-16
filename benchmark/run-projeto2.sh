@@ -4,6 +4,7 @@
 # As skills e os agentes de producao sao instalados ao nivel do PROJETO numa copia temporaria
 # (nunca em ~/.claude), com {{KIT_DIR}} a apontar para este kit. Custo medido pelos hooks do kit.
 #   benchmark/run-projeto2.sh [EX-3]
+# Lingua: pt por defeito (a da D-18); BENCH_LINGUA=en usa o projeto de treino e os textos do kit em ingles (D-20).
 set -uo pipefail
 
 main() {
@@ -13,7 +14,8 @@ main() {
   local ID; ID="$(date +%Y%m%d-%H%M%S)-projeto2-$ISSUE"
   local RUN="$KIT/benchmark/runs/$ID"; mkdir -p "$RUN"
   local P="$RUN/projeto"
-  "$NODE" "$KIT/installer/assemble-sandbox.mjs" --dest "$P" >/dev/null
+  export WORKSHOP_LANG="${BENCH_LINGUA:-pt}"
+  "$NODE" "$KIT/installer/assemble-sandbox.mjs" --dest "$P" --lingua "$WORKSHOP_LANG" >/dev/null
   mkdir -p "$P/.claude/skills" "$P/.claude/agents"
   cp -R "$KIT/skills-prod/." "$P/.claude/skills/"
   cp "$KIT/agents/prod/"*.md "$P/.claude/agents/"

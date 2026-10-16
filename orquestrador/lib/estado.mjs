@@ -2,6 +2,7 @@
 // Um escritor por ficheiro de estado; os hooks so fazem append a usage.jsonl / events.jsonl.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, appendFileSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
+import { lingua, textos } from '../../hooks/lib/lingua.mjs';
 
 export const ESTADOS = ['por_fazer', 'em_curso', 'verde', 'vermelho', 'falhou'];
 
@@ -58,10 +59,22 @@ export function evento(c, ev) {
   appendFileSync(c.eventos, JSON.stringify({ ts: new Date().toISOString(), ...ev }) + '\n', 'utf8');
 }
 
-export function lerPlano(caminho) {
+// "Plano nao encontrado" e um marcador (as skills procuram "ERRO: Plano nao encontrado"): fica igual nas duas linguas.
+const ERROS_PLANO = {
+  pt: {
+    falta: (c) => `Plano nao encontrado em ${c}. Corre primeiro o planeamento (/demo-plan ou /task-plan).`,
+    invalido: (c) => `Plano invalido: ${c}`,
+  },
+  en: {
+    falta: (c) => `Plano nao encontrado — no plan at ${c}. Run the planning step first (/demo-plan or /task-plan).`,
+    invalido: (c) => `Invalid plan: ${c}`,
+  },
+};
+
+export function lerPlano(caminho, l = lingua()) {
   const p = lerJson(caminho);
-  if (!p) throw new Error(`Plano nao encontrado em ${caminho}. Corre primeiro o planeamento (/demo-plan ou /task-plan).`);
-  if (p.v !== 1 || !Array.isArray(p.tarefas)) throw new Error(`Plano invalido: ${caminho}`);
+  if (!p) throw new Error(textos(ERROS_PLANO, l).falta(caminho));
+  if (p.v !== 1 || !Array.isArray(p.tarefas)) throw new Error(textos(ERROS_PLANO, l).invalido(caminho));
   // Expandir "*cartoes" e "*todas" nas dependencias.
   const ids = p.tarefas.map((t) => t.id);
   const doGrupo = (g) => p.tarefas.filter((t) => t.grupo_tipo === g).map((t) => t.id);

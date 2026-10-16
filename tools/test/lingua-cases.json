@@ -1,0 +1,41 @@
+{
+  "nota": "Casos partilhados pelos testes da lingua da maquina (Node, bash e PowerShell). D-20. 'etiquetas': normalizacao e mapeamento (o Node tambem verifica 'claude', o valor da definicao language). 'mac': WORKSHOP_LANG, defaults read -g AppleLanguages, LC_ALL, LC_MESSAGES, LANG. 'windows': WORKSHOP_LANG, Get-UICulture, Get-Culture.",
+  "etiquetas": [
+    { "in": "pt-PT", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
+    { "in": "pt_PT.UTF-8", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
+    { "in": "pt-BR", "tag": "pt-BR", "kit": "pt", "claude": "Brazilian Portuguese" },
+    { "in": "pt_br", "tag": "pt-BR", "kit": "pt", "claude": "Brazilian Portuguese" },
+    { "in": "pt", "tag": "pt", "kit": "pt", "claude": "European Portuguese" },
+    { "in": "en-US", "tag": "en-US", "kit": "en", "claude": "English" },
+    { "in": "en_GB.UTF-8@euro", "tag": "en-GB", "kit": "en", "claude": "English" },
+    { "in": "hi-IN", "tag": "hi-IN", "kit": "en", "claude": "Hindi" },
+    { "in": "hi", "tag": "hi", "kit": "en", "claude": "Hindi" },
+    { "in": "he-IL", "tag": "he-IL", "kit": "en", "claude": "Hebrew" },
+    { "in": "iw_IL", "tag": "he-IL", "kit": "en", "claude": "Hebrew" },
+    { "in": "HE", "tag": "he", "kit": "en", "claude": "Hebrew" },
+    { "in": "es-ES", "tag": "es-ES", "kit": "en", "claude": null },
+    { "in": "zh-Hans-CN", "tag": "zh-Hans-CN", "kit": "en", "claude": null },
+    { "in": "", "tag": "en", "kit": "en", "claude": "English" },
+    { "in": "C", "tag": "en", "kit": "en", "claude": "English" },
+    { "in": "POSIX", "tag": "en", "kit": "en", "claude": "English" }
+  ],
+  "mac": [
+    { "nome": "AppleLanguages primeiro", "override": "", "apple": "(\n    \"pt-PT\",\n    \"en-PT\"\n)", "lc_all": "", "lc_messages": "", "lang": "en_US.UTF-8", "tag": "pt-PT" },
+    { "nome": "AppleLanguages sem aspas", "override": "", "apple": "(\n    he,\n    \"en-IL\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "he" },
+    { "nome": "hindi", "override": "", "apple": "(\n    \"hi-IN\"\n)", "lc_all": "", "lc_messages": "", "lang": "en_IN.UTF-8", "tag": "hi-IN" },
+    { "nome": "WORKSHOP_LANG sobrepoe-se", "override": "pt-BR", "apple": "(\n    \"en-US\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "pt-BR" },
+    { "nome": "sem AppleLanguages: LC_ALL", "override": "", "apple": "", "lc_all": "pt_PT.UTF-8", "lc_messages": "en_US.UTF-8", "lang": "en_US.UTF-8", "tag": "pt-PT" },
+    { "nome": "sem AppleLanguages: LC_MESSAGES", "override": "", "apple": "", "lc_all": "", "lc_messages": "he_IL.UTF-8", "lang": "en_US.UTF-8", "tag": "he-IL" },
+    { "nome": "sem AppleLanguages: LANG", "override": "", "apple": "", "lc_all": "", "lc_messages": "", "lang": "pt_BR.UTF-8", "tag": "pt-BR" },
+    { "nome": "C e POSIX nao contam", "override": "", "apple": "", "lc_all": "C", "lc_messages": "POSIX", "lang": "C.UTF-8", "tag": "en" },
+    { "nome": "nada: ingles", "override": "", "apple": "", "lc_all": "", "lc_messages": "", "lang": "", "tag": "en" }
+  ],
+  "windows": [
+    { "nome": "lingua de apresentacao primeiro", "override": "", "ui": "pt-PT", "cultura": "en-US", "tag": "pt-PT" },
+    { "nome": "hebraico", "override": "", "ui": "he-IL", "cultura": "he-IL", "tag": "he-IL" },
+    { "nome": "hindi", "override": "", "ui": "hi-IN", "cultura": "en-IN", "tag": "hi-IN" },
+    { "nome": "WORKSHOP_LANG sobrepoe-se", "override": "en", "ui": "pt-BR", "cultura": "pt-BR", "tag": "en" },
+    { "nome": "sem UICulture: Culture", "override": "", "ui": "", "cultura": "pt-BR", "tag": "pt-BR" },
+    { "nome": "cultura invariante: ingles", "override": "", "ui": "", "cultura": "", "tag": "en" }
+  ]
+}

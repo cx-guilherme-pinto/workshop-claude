@@ -1,6 +1,6 @@
 ---
 name: task-gate
-description: Gate de produção. Corre os testes do projeto, procura segredos e código perigoso nas alterações, assinala dependências alteradas e pede a revisão de segurança e qualidade ao revisor (Opus). Só passa código pronto para produção.
+description: Production gate. Runs the project's tests, looks for secrets and dangerous code in the changes, flags changed dependencies and asks the reviewer (Opus) for the security and quality review. Only code that is ready for production passes.
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -10,20 +10,22 @@ allowed-tools:
   - Agent
 ---
 
-# /task-gate — está pronto para produção?
+# /task-gate — is it ready for production?
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`.
+**Language:** talk to the user in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status markers (`GATE: APROVADO`, `GATE: REPROVADO`).
 
-1. Lê `.workshop/plan.json` (campo `config.teste_global`) e `.workshop/base.json` (campo `base`). Se não houver `teste_global`, corre `node "{{KIT_DIR}}/orquestrador/explorar.mjs"` e usa o primeiro comando de teste provável. Se não houver nenhum, pergunta ao utilizador qual é o comando (sem `--auto`).
-2. Se ainda não existir `.workshop/veredito.json`:
-   - corre `node "{{KIT_DIR}}/orquestrador/digest.mjs" --base <base>`;
-   - lança **um** subagente `ws-reviewer` com o prompt "Revê as alterações desta tarefa para produção. Lê .workshop/revisao-resumo.md e .workshop/tarefa.md. Escreve .workshop/veredito.json.".
-3. Corre `node "{{KIT_DIR}}/orquestrador/gate.mjs" --base <base> --teste "<comando de teste>"`.
-4. Mostra a tabela tal como veio. Se houver problemas do revisor, lista-os com gravidade, ficheiro e correção.
-5. Se aparecer `GATE: REPROVADO`:
-   - diz o que bloqueia, em linguagem simples;
-   - sugere `/loop 3m corre <comando de teste>; se falhar, corrige a primeira falha; quando passar, corre /task-gate e para`;
-   - não corrijas nada sem o utilizador pedir.
-6. Se aparecer `GATE: APROVADO`, termina com: "Pronto para produção. Próximo passo: `/task-report`."
+Arguments: `$ARGUMENTS`.
+
+1. Read `.workshop/plan.json` (field `config.teste_global`) and `.workshop/base.json` (field `base`). If there is no `teste_global`, run `node "{{KIT_DIR}}/orquestrador/explorar.mjs"` and use the first likely test command. If there is none, ask the user which command it is (without `--auto`).
+2. If `.workshop/veredito.json` does not exist yet:
+   - run `node "{{KIT_DIR}}/orquestrador/digest.mjs" --base <base>`;
+   - launch **one** `ws-reviewer` subagent with the prompt "Review the changes of this task for production. Read .workshop/revisao-resumo.md and .workshop/tarefa.md. Write .workshop/veredito.json.".
+3. Run `node "{{KIT_DIR}}/orquestrador/gate.mjs" --base <base> --teste "<test command>"`.
+4. Show the table exactly as it came. If the reviewer found problems, list them with severity, file and fix.
+5. If `GATE: REPROVADO` appears:
+   - say what is blocking, in plain language;
+   - suggest `/loop 3m run <test command>; if it fails, fix the first failure; when it passes, run /task-gate and stop`;
+   - do not fix anything unless the user asks.
+6. If `GATE: APROVADO` appears, end with: "Ready for production. Next step: `/task-report`."

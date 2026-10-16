@@ -11,10 +11,27 @@ import { pathToFileURL } from 'node:url';
 import { caminhos, garantirPastas, lerPlano, lerEstado, gravarEstado, lerJson, resolverNoProjeto, fotografia } from './lib/estado.mjs';
 import { tabelaTexto } from './lib/tabela.mjs';
 import { ehPrincipal } from './lib/principal.mjs';
+import { lingua, textos } from '../hooks/lib/lingua.mjs';
 
 const LIMITE_SAIDA = 1500;
 
-function correr(cmd, { cwd, timeoutS, env }) {
+// Textos que vao para o estado da tarefa (o excerto volta ao subagente na tentativa seguinte).
+const TEXTOS = {
+  pt: {
+    esgotado: (s) => `[tempo esgotado: ${s}s]`,
+    falta: (f, campo) => `falta ${f} com o campo "${campo}"`,
+    semTeste: 'sem teste definido',
+    uso: 'Indica os ids das tarefas, --todos ou --resumo.',
+  },
+  en: {
+    esgotado: (s) => `[timed out: ${s}s]`,
+    falta: (f, campo) => `missing ${f} with the field "${campo}"`,
+    semTeste: 'no test defined',
+    uso: 'Give the task ids, --todos or --resumo.',
+  },
+};
+
+function correr(cmd, { cwd, timeoutS, env, l = lingua() }) {
   return new Promise((done) => {
     let argv = [...cmd];
     let opts = { cwd, env: { ...process.env, ...env, FORCE_COLOR: '0', NO_COLOR: '1' } };
@@ -34,7 +51,7 @@ function correr(cmd, { cwd, timeoutS, env }) {
     p.stdout.on('data', add);
     p.stderr.on('data', add);
     const timer = setTimeout(() => {
-      out += `\n[tempo esgotado: ${timeoutS}s]`;
+      out += `\n${textos(TEXTOS, l).esgotado(timeoutS)}`;
       p.kill('SIGKILL');
     }, timeoutS * 1000);
     p.on('close', (code) => {
@@ -62,7 +79,8 @@ export function resumirSaida(out) {
   return { passados: n('pass'), falhados: n('fail'), excerto };
 }
 
-export async function avaliar(projeto, plano, tarefa, { soAgente = null } = {}) {
+export async function avaliar(projeto, plano, tarefa, { soAgente = null, l = lingua() } = {}) {
+  const T = textos(TEXTOS, l);
   const c = caminhos(projeto);
   garantirPastas(c);
   const st = lerEstado(c, tarefa.id);
@@ -73,7 +91,7 @@ export async function avaliar(projeto, plano, tarefa, { soAgente = null } = {}) 
   let ok = false;
   let teste = {};
   if (Array.isArray(tarefa.teste)) {
-    const r = await correr(tarefa.teste, { cwd: projeto, timeoutS: tarefa.timeout_s || (tarefa.teste.length <= 2 ? 600 : 120) });
+    const r = await correr(tarefa.teste, { cwd: projeto, timeoutS: tarefa.timeout_s || (tarefa.teste.length <= 2 ? 600 : 120), l });
     const s = resumirSaida(r.out);
     ok = r.code === 0 && s.falhados === 0;
     teste = { comando: tarefa.teste.join(' '), codigo: r.code, ...s };
@@ -82,10 +100,10 @@ export async function avaliar(projeto, plano, tarefa, { soAgente = null } = {}) 
     const j = existsSync(f) ? lerJson(f) : null;
     const valor = j?.[tarefa.teste.campo];
     ok = valor !== undefined && valor !== null && valor !== '';
-    teste = { ficheiro: tarefa.teste.ficheiro_json, valor: valor ?? null, excerto: ok ? '' : `falta ${tarefa.teste.ficheiro_json} com o campo "${tarefa.teste.campo}"` };
+    teste = { ficheiro: tarefa.teste.ficheiro_json, valor: valor ?? null, excerto: ok ? '' : T.falta(tarefa.teste.ficheiro_json, tarefa.teste.campo) };
   } else {
     ok = true;
-    teste = { excerto: 'sem teste definido' };
+    teste = { excerto: T.semTeste };
   }
   teste.ms = Date.now() - inicioTeste;
   const max = plano.config?.max_tentativas ?? 3;
@@ -129,7 +147,7 @@ if (ehPrincipal(import.meta.url)) {
   if (!o.resumo) {
     const alvo = o.todos ? plano.tarefas : plano.tarefas.filter((t) => o.ids.includes(t.id));
     if (!alvo.length) {
-      console.error('Indica os ids das tarefas, --todos ou --resumo.');
+      console.error(textos(TEXTOS).uso);
       process.exit(2);
     }
     if (o.agente) {

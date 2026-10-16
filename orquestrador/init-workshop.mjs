@@ -6,6 +6,7 @@
 import { mkdirSync, existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { textos } from '../hooks/lib/lingua.mjs';
 
 const a = process.argv.slice(2);
 const dir = a.includes('--projeto') ? a[a.indexOf('--projeto') + 1] : process.cwd();
@@ -13,7 +14,10 @@ const git = (...x) => spawnSync('git', x, { cwd: dir, encoding: 'utf8' });
 
 const top = git('rev-parse', '--show-toplevel');
 if (top.status !== 0) {
-  console.log('ERRO: esta pasta não é um repositório git. Abre o Claude Code na raiz do teu projeto.');
+  console.log(textos({
+    pt: 'ERRO: esta pasta não é um repositório git. Abre o Claude Code na raiz do teu projeto.',
+    en: 'ERRO: this folder is not a git repository. Open Claude Code at the root of your project.',
+  }));
   process.exit(1);
 }
 const raiz = top.stdout.trim();

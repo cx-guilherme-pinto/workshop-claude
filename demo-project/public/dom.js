@@ -1,6 +1,7 @@
 // DOM seguro da app: so createElement, textContent e atributos de uma lista.
 // Igual ao h() de templates/common.js, mais href (so caminhos deste servidor) e aria-current.
 // Nunca HTML a partir de texto.
+import { T } from '/lib/textos.js';
 
 const PERMITIDOS = new Set([
   'class', 'id', 'role', 'type', 'name', 'value', 'tabindex', 'for', 'placeholder', 'title',
@@ -11,13 +12,13 @@ const PERMITIDOS = new Set([
 function hrefSeguro(v) {
   const s = String(v);
   const interno = s.startsWith('#') || (s.startsWith('/') && !s.startsWith('//'));
-  if (!interno) throw new Error(`ligacao nao permitida: ${s}`);
+  if (!interno) throw new Error(T.cartao.ligacaoProibida(s));
   return s;
 }
 
 function definir(no, nome, valor) {
   const ok = PERMITIDOS.has(nome) || /^aria-[a-z]+$/.test(nome) || /^data-[a-z][a-z0-9-]*$/.test(nome);
-  if (!ok) throw new Error(`atributo nao permitido: ${nome}`);
+  if (!ok) throw new Error(T.cartao.atributoProibido(nome));
   no.setAttribute(nome, nome === 'href' ? hrefSeguro(valor) : String(valor));
 }
 

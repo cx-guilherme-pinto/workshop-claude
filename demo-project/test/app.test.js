@@ -13,6 +13,7 @@ import { problemasDeSeguranca } from '../lib/seguranca.js';
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CSP_ESPERADA = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'";
 const MOTOR = join(RAIZ, 'tools', 'workshop', 'orquestrador', 'lib', 'estado.mjs');
+const MOTOR_LINGUA = join(RAIZ, 'tools', 'workshop', 'hooks', 'lib');
 
 function ouvir(srv) {
   return new Promise((ok) => srv.listen(0, '127.0.0.1', () => ok(srv.address().port)));
@@ -83,6 +84,8 @@ function montarProjetoFalso() {
     /* sem permissao para ligacoes simbolicas (Windows): esses casos ficam por testar */
   }
   if (existsSync(MOTOR)) cpSync(dirname(MOTOR), join(d, 'tools', 'workshop', 'orquestrador', 'lib'), { recursive: true });
+  // O orquestrador le a lingua do kit em hooks/lib/lingua.mjs.
+  if (existsSync(MOTOR_LINGUA)) cpSync(MOTOR_LINGUA, join(d, 'tools', 'workshop', 'hooks', 'lib'), { recursive: true });
   return d;
 }
 

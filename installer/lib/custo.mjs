@@ -44,11 +44,11 @@ export function custoDeResultado(resultado, pricing) {
   return { usd: desconhecidos.length ? null : total, porModelo, desconhecidos };
 }
 
-// US$ 0,0012 (virgula decimal; 4 casas abaixo de 1 centimo, 2 casas acima)
+// US$ 0.0012 (ponto decimal, como o setup em ingles: D-20; 4 casas abaixo de 1 centimo, 2 casas acima)
 export function formatUsd(v) {
   if (v === null || v === undefined || Number.isNaN(v)) return 'US$ ?';
   const casas = v < 0.01 ? 4 : 2;
-  return 'US$ ' + v.toFixed(casas).replace('.', ',');
+  return 'US$ ' + v.toFixed(casas);
 }
 
 const isMain = ehPrincipal(import.meta.url);

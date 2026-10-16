@@ -66,10 +66,10 @@ fi
 # --- JS (node e JXA): mensagens e custo
 for engine in node jxa; do
   if [ "$engine" = node ]; then WS_NODE=$NODE; [ -n "$NODE" ] || continue; else WS_NODE=""; command -v osascript >/dev/null || continue; fi
-  code=$(ws_js "$WS_JS_MSGS" "$ROOT/setup/messages.pt.json")
+  code=$(ws_js "$WS_JS_MSGS" "$ROOT/setup/messages.en.json")
   eval "$code"
-  eq "$M_ui_final_pronto" "Está tudo pronto para o workshop." "msgs $engine"
-  eq "$M_passos_12" "Teste final" "msgs $engine passos"
+  eq "$M_ui_final_pronto" "Everything is ready for the workshop." "msgs $engine"
+  eq "$M_passos_12" "Final test" "msgs $engine passos"
   [ "${M_erros_E_NET_01_fazer_n:-0}" -ge 1 ] && ok || ko "msgs $engine listas"
   if [ -n "$NODE" ]; then
     n=$("$NODE" -e 'const c=require(process.argv[1]); console.log(c.casos.length)' "$ROOT/tools/test/custo-cases.json")
@@ -117,7 +117,7 @@ eq "$(UV_PYTHON_DOWNLOADS=Never UV_NO_MANAGED_PYTHON="" UV_PYTHON_PREFERENCE="" 
 eq "$(UV_PYTHON_DOWNLOADS=automatic UV_NO_MANAGED_PYTHON=1 UV_PYTHON_PREFERENCE=only-system ws_uv_python_blockers | tr '\n' ,)" "UV_NO_MANAGED_PYTHON,UV_PYTHON_PREFERENCE," "uv managed bloqueado"
 FAKE="$WS_TMP/memoria-falso"; printf '#!/bin/sh\nprintf "Mem\303\263ria 0.1.0 \302\267 Python 3.12.13 \302\267 Darwin arm64\\n  [OK] SQLite 3.50 com FTS5\\nselftest: OK\\n"\n' > "$FAKE"; chmod +x "$FAKE"
 ( WS_CUR=10; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memoria_selftest "$FAKE" 0.1.0; printf '%s' "$SD_10" ) > "$WS_TMP/s10.out"
-eq "$(cat "$WS_TMP/s10.out")" "App Memória 0.1.0 (Python 3.12.13 gerido pelo uv, FTS5 ok)" "selftest mostra o Python gerido"
+eq "$(cat "$WS_TMP/s10.out")" "Memória app 0.1.0 (Python 3.12.13 managed by uv, FTS5 ok)" "selftest mostra o Python gerido"
 printf '#!/bin/sh\nprintf "Memoria 0.1.0 - Python 3.12.13\\n  [FALHOU] SQLite sem FTS5\\n"; exit 1\n' > "$FAKE"
 ( WS_CUR=10; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memoria_selftest "$FAKE" 0.1.0; printf '%s' "$SW_10" ) > "$WS_TMP/s10.out"
 eq "$(cat "$WS_TMP/s10.out")" "E-MEM-05|SQLite sem FTS5" "selftest falhado -> E-MEM-05"
@@ -141,15 +141,48 @@ s7() { # modo existe_mcp acli_no_path sha_certo -> rc|SD|SW|SF|SN ; corre num su
     printf '%s|%s|%s|%s|%s|%s' "$rc" "$inst" "$SD_7" "${SW_7%%|*}" "${SF_7%%|*}" "$(printf '%s' "$SN_7" | grep -c 'acli auth login')" ) 2>/dev/null
 }
 if [ -n "${M_ui_s7_ja_acli:-}" ]; then
-  eq "$(s7 check 1 1 1)" "0|-|atlassian (âmbito utilizador) · Atlassian CLI 9.9.9 (reserva)|||1" "s7 check: acli no PATH, sem login = nota"
-  eq "$(ACLI_FAKE_AUTH=0 s7 check 1 1 1)" "0|-|atlassian (âmbito utilizador) · Atlassian CLI 9.9.9 (reserva)|||0" "s7 check: acli com login"
-  eq "$(s7 check 1 0 1)" "0|-|atlassian (âmbito utilizador)|E-ACLI-01||0" "s7 check: sem acli = aviso, nao falha"
+  eq "$(s7 check 1 1 1)" "0|-|atlassian (user scope) · Atlassian CLI 9.9.9 (backup)|||1" "s7 check: acli no PATH, sem login = nota"
+  eq "$(ACLI_FAKE_AUTH=0 s7 check 1 1 1)" "0|-|atlassian (user scope) · Atlassian CLI 9.9.9 (backup)|||0" "s7 check: acli com login"
+  eq "$(s7 check 1 0 1)" "0|-|atlassian (user scope)|E-ACLI-01||0" "s7 check: sem acli = aviso, nao falha"
   eq "$(s7 check 0 1 1)" "1|-|||E-MCP-01|0" "s7 check: sem MCP = falta"
-  eq "$(s7 install 1 0 1 | cut -d'|' -f1-4)" "0|bin|atlassian (âmbito utilizador) · Atlassian CLI 9.9.9 (reserva)|" "s7 install: instala o acli em ~/.workshop-claude/bin"
+  eq "$(s7 install 1 0 1 | cut -d'|' -f1-4)" "0|bin|atlassian (user scope) · Atlassian CLI 9.9.9 (backup)|" "s7 install: instala o acli em ~/.workshop-claude/bin"
   eq "$(s7 install 0 0 1 | cut -d'|' -f1,2,4)" "0|bin|" "s7 install: MCP e acli de raiz"
   eq "$(s7 install 1 0 0 | cut -d'|' -f1,2,4)" "0|-|E-ACLI-01" "s7 install: SHA errado = aviso e nada instalado"
   eq "$(s7 install 1 0 1 | cut -d'|' -f6)" 1 "s7 install: uma so nota de login (sem duplicados)"
 else ko "mensagens s7 nao carregadas"; fi
+
+# --- lingua da maquina (casos partilhados com o Node e o PowerShell: tools/test/lingua-cases.json)
+LC="$ROOT/tools/test/lingua-cases.json"
+if [ -n "$NODE" ]; then
+  n=$("$NODE" -e 'console.log(require(process.argv[1]).etiquetas.length)' "$LC"); i=0
+  while [ "$i" -lt "$n" ]; do
+    IFS="|" read -r inp tag kit <<EOF
+$("$NODE" -e 'const c=require(process.argv[1]).etiquetas[+process.argv[2]]; console.log([c.in,c.tag,c.kit].join("|"))' "$LC" "$i")
+EOF
+    t=$(ws_lang_tag "$inp"); eq "$(ws_lang_kit "${t:-en}")|${t:-en}" "$kit|$tag" "lingua: etiqueta [$inp]"
+    i=$((i + 1))
+  done
+  n=$("$NODE" -e 'console.log(require(process.argv[1]).mac.length)' "$LC"); i=0
+  while [ "$i" -lt "$n" ]; do
+    for k in nome override apple lc_all lc_messages lang tag; do
+      printf -v "L_$k" '%s' "$("$NODE" -e 'process.stdout.write(String(require(process.argv[1]).mac[+process.argv[2]][process.argv[3]]))' "$LC" "$i" "$k")"
+    done
+    eq "$(ws_lang_pick "$L_override" "$L_apple" "$L_lc_all" "$L_lc_messages" "$L_lang")" "$L_tag" "lingua mac: $L_nome"
+    i=$((i + 1))
+  done
+else ko "lingua: sem node para ler os casos"; fi
+( WORKSHOP_LANG=he_IL.UTF-8; ws_lang_detect; printf '%s|%s' "$WS_LANG" "$WS_LANG_KIT" ) > "$WS_TMP/lang.out"
+eq "$(cat "$WS_TMP/lang.out")" "he-IL|en" "ws_lang_detect com WORKSHOP_LANG"
+grep -q 'defaults read -g AppleLanguages' "$ROOT/setup/setup-mac.sh" && ok || ko "deteta pelo AppleLanguages"
+# passo 8: a saida do install-user da a nota da lingua
+( WS_CUR=8; WS_LANG=pt-PT; WS_LANG_KIT=pt; SN_8=""; ws_s8_parse "$(printf 'skills\t7\nagentes\t6\nlingua_kit\tpt\nlanguage\tEuropean Portuguese\nlanguage_nossa\t1\n')"; printf '%s' "$SN_8" ) > "$WS_TMP/s8.out"
+grep -q 'Claude answers in European Portuguese' "$WS_TMP/s8.out" && grep -q 'Workshop texts: Portuguese' "$WS_TMP/s8.out" && ok || ko "s8: nota da language nossa [$(cat "$WS_TMP/s8.out")]"
+( WS_CUR=8; WS_LANG=es-ES; WS_LANG_KIT=en; SN_8=""; ws_s8_parse "$(printf 'lingua_kit\ten\nlanguage\t\nlanguage_nossa\t0\n')"; printf '%s' "$SN_8" ) > "$WS_TMP/s8.out"
+grep -q 'No "language" setting for es-ES' "$WS_TMP/s8.out" && ok || ko "s8: sem language [$(cat "$WS_TMP/s8.out")]"
+grep -q -- '--lingua-maquina' "$ROOT/setup/setup-mac.sh" && grep -q -- 'assemble-demo.mjs.*--lingua' "$ROOT/setup/setup-mac.sh" && ok || ko "passa a lingua ao install-user e a montagem"
+
+# --- o setup so fala ingles: nenhuma frase portuguesa fora do catalogo pt
+grep -nE "printf '[^']*(Nao |nao |ja esta|Opcao|Responde|Passo |Excerto|portugues)" "$ROOT/setup/setup-mac.sh" | grep -q . && ko "setup-mac.sh ainda tem texto em portugues" || ok
 
 # --- alinhamento com acentos
 eq "$(ws_pad 'Memória' 9)|" "Memória  |" ws_pad

@@ -3,11 +3,13 @@
 // As paginas de categoria e de pontuacao (pages/*.js) sao feitas pelo enxame na onda 2:
 // importam-se dinamicamente e, enquanto nao existem, aparece um aviso.
 import { el, reanimar, ID_VALIDO } from './dom.js';
-import { NOME_MODELO_CARTAO, plural } from './formatos.js';
+import { NOME_MODELO_CARTAO, decimal } from './formatos.js';
 import { lerProgresso, apagarProgresso, pontosDe } from './progresso.js';
 import { carregarCartao, montarJogo } from './jogo.js';
+import { T } from '/lib/textos.js';
 
-const TITULO = 'Arena de Segurança';
+const A = T.app;
+const TITULO = T.nome;
 const main = document.getElementById('conteudo');
 
 const estado = {
@@ -29,7 +31,7 @@ const estado = {
 
 async function obterCartoes() {
   const r = await fetch('/api/cards', { cache: 'no-store' });
-  if (!r.ok) throw new Error(`/api/cards respondeu ${r.status}`);
+  if (!r.ok) throw new Error(A.apiFalhou(r.status));
   const d = await r.json();
   return {
     modo: d.modo ?? null,
@@ -50,7 +52,7 @@ function agrupar(lista) {
   const cats = estado.dados.categorias.map((c) => ({ id: c.id, nome: c.nome, cartoes: lista.filter((x) => x.category === c.id) }));
   const conhecidas = new Set(cats.map((c) => c.id));
   const outros = lista.filter((x) => !conhecidas.has(x.category));
-  if (outros.length) cats.push({ id: 'outros', nome: 'Outros', cartoes: outros, extra: true });
+  if (outros.length) cats.push({ id: 'outros', nome: A.outros, cartoes: outros, extra: true });
   return cats.filter((c) => c.cartoes.length);
 }
 
@@ -61,12 +63,7 @@ function estadoProgresso(c, progresso) {
   return p.certo ? 'certo' : 'errado';
 }
 
-const TEXTO_ESTADO = {
-  por_construir: 'Por construir',
-  por_jogar: 'Por jogar',
-  certo: 'Resolvido',
-  errado: 'Errado, tenta outra vez',
-};
+const TEXTO_ESTADO = A.estadoCartao;
 
 // ---------- rotas ----------
 
@@ -136,15 +133,15 @@ function vistaInicio() {
 
   const abertura = el('section', { class: 'abertura' },
     el('h1', { class: 'abertura-titulo', text: TITULO }),
-    el('p', { class: 'abertura-texto', text: 'Desafios curtos sobre segurança, feitos e testados por um enxame de agentes Claude. Escolhe um e joga.' }),
+    el('p', { class: 'abertura-texto', text: A.abertura }),
     el('dl', { class: 'placar' },
-      itemPlacar('pontos', pontos),
-      itemPlacar('resolvidos', `${resolvidos.length} de ${construidos.length}`),
-      itemPlacar('construídos', `${construidos.length} de ${lista.length}`),
+      itemPlacar(A.pontos, pontos),
+      itemPlacar(A.resolvidos, A.xDeY(resolvidos.length, construidos.length)),
+      itemPlacar(A.construidos, A.xDeY(construidos.length, lista.length)),
     ),
     el('div', { class: 'abertura-acoes' },
-      el('button', { class: 'botao botao-principal', type: 'button', id: 'correr-testes', on: { click: () => correrTestes() } }, estado.aCorrer ? textoBotaoACorrer() : 'Correr testes'),
-      el('a', { class: 'botao', href: '#/pontuacao' }, 'Ver pontuação'),
+      el('button', { class: 'botao botao-principal', type: 'button', id: 'correr-testes', on: { click: () => correrTestes() } }, estado.aCorrer ? textoBotaoACorrer() : A.correrTestes),
+      el('a', { class: 'botao', href: '#/pontuacao' }, A.verPontuacao),
     ),
     el('div', { class: 'testes-zona', id: 'testes-zona', attrs: { 'aria-live': 'polite' } }, faixaTestes()),
   );
@@ -157,8 +154,8 @@ function vistaInicio() {
     return el('section', { class: 'categoria-bloco', attrs: { 'aria-labelledby': `cat-${cat.id}` } },
       el('header', { class: 'categoria-bloco-cabecalho' },
         el('h2', { class: 'titulo-secao', id: `cat-${cat.id}`, text: cat.nome }),
-        el('p', { class: 'nota', text: `${feitos} de ${cat.cartoes.length} construídos · ${plural(ok, 'resolvido', 'resolvidos')}` }),
-        cat.extra ? null : el('a', { class: 'ligacao', href: `#/categoria/${cat.id}` }, 'Abrir a categoria'),
+        el('p', { class: 'nota', text: A.notaCategoria(feitos, cat.cartoes.length, ok) }),
+        cat.extra ? null : el('a', { class: 'ligacao', href: `#/categoria/${cat.id}` }, A.abrirCategoria),
       ),
       el('ul', { class: 'tiles', role: 'list' }, ...cat.cartoes.map((c) => tile(c, progresso))),
     );
@@ -167,17 +164,17 @@ function vistaInicio() {
   const corpo = grupos.length
     ? el('div', { class: 'galeria', 'data-vista': estado.vista }, ...blocos)
     : el('section', { class: 'vazio' },
-      el('h2', { class: 'titulo-secao', text: 'Ainda não há cartões' }),
-      el('p', { text: 'Os desafios vêm de specs/cards.json. Planeia o enxame com /demo-plan e corre-o com /demo-swarm.' }));
+      el('h2', { class: 'titulo-secao', text: A.semCartoes }),
+      el('p', { text: A.semCartoesTexto }));
 
   main.replaceChildren(abertura, corpo);
 }
 
 function textoTile(c, est, teste) {
   if (estado.vista === 'testes' && teste) {
-    if (teste.estado === 'a_correr') return 'A correr os testes…';
-    if (teste.estado === 'na_fila') return 'Na fila';
-    return `${teste.passados} de ${plural(teste.total, 'teste passa', 'testes passam')}`;
+    if (teste.estado === 'a_correr') return A.aCorrerTestes;
+    if (teste.estado === 'na_fila') return A.naFila;
+    return A.testesPassam(teste.passados, teste.total);
   }
   return TEXTO_ESTADO[est];
 }
@@ -185,12 +182,12 @@ function textoTile(c, est, teste) {
 function textoFalha(id, teste) {
   const f = estado.vista === 'testes' ? teste?.falhas?.[0] : null;
   if (!f) return '';
-  return semCartao(f) ? 'Ainda não há card.js.' : resumirFalha(f, id);
+  return semCartao(f) ? A.semCardJs : resumirFalha(f, id);
 }
 
 function tile(c, progresso) {
   const est = estadoProgresso(c, progresso);
-  const meta = [c.difficulty ? `Nível ${c.difficulty}` : null, NOME_MODELO_CARTAO[c.model] ?? null].filter(Boolean).join(' · ');
+  const meta = [c.difficulty ? A.nivel(c.difficulty) : null, NOME_MODELO_CARTAO[c.model] ?? null].filter(Boolean).join(' · ');
   const teste = estado.testes.get(c.id);
   const li = el('li', { class: 'tile-item', 'data-cartao': c.id, 'data-estado': est, 'data-teste': teste?.estado });
   const partes = [
@@ -229,6 +226,7 @@ function mudarVista(v) {
 // ---------- correr testes no browser ----------
 
 // "pw-01: card.js existe e carrega: cards/pw-01/card.js nao existe..." fica "card.js existe e carrega: ...".
+// (Na Arena em ingles: "pw-01: card.js exists and loads: cards/pw-01/card.js does not exist...".)
 function resumirFalha(f, id) {
   const nome = id && String(f.nome).startsWith(`${id}: `) ? String(f.nome).slice(id.length + 2) : String(f.nome);
   const msg = String(f.erro || '').replace(/\s+/g, ' ').trim();
@@ -236,28 +234,28 @@ function resumirFalha(f, id) {
   return curta ? `${nome}: ${curta}` : nome;
 }
 
-const semCartao = (f) => /existe e carrega/.test(f.nome) && /nao existe|Failed to fetch|Cannot find/.test(f.erro || '');
+const semCartao = (f) => /existe e carrega|exists and loads/.test(f.nome) && /nao existe|does not exist|Failed to fetch|Cannot find/.test(f.erro || '');
 
 function listaFalhas(falhados) {
   const faltam = falhados.filter((x) => x.falhas[0] && semCartao(x.falhas[0])).map((x) => x.id);
   const outros = falhados.filter((x) => !faltam.includes(x.id));
   const linhas = [];
   if (faltam.length) {
-    const ids = faltam.slice(0, 8).join(', ') + (faltam.length > 8 ? ` e mais ${faltam.length - 8}` : '');
-    linhas.push(`${plural(faltam.length, 'cartão ainda não tem', 'cartões ainda não têm')} card.js: ${ids}.`);
+    const ids = faltam.slice(0, 8).join(', ') + (faltam.length > 8 ? A.eMais(faltam.length - 8) : '');
+    linhas.push(A.faltamCardJs(faltam.length, ids));
   }
-  for (const x of outros.slice(0, 5)) linhas.push(`${x.id}: ${x.falhas[0] ? resumirFalha(x.falhas[0], x.id) : 'falhou'}`);
-  if (outros.length > 5) linhas.push(`E mais ${outros.length - 5} com falhas.`);
+  for (const x of outros.slice(0, 5)) linhas.push(`${x.id}: ${x.falhas[0] ? resumirFalha(x.falhas[0], x.id) : A.falhou}`);
+  if (outros.length > 5) linhas.push(A.maisComFalhas(outros.length - 5));
   return linhas;
 }
 
 function duracao(ms) {
-  return ms < 1000 ? `${Math.max(1, Math.round(ms))} ms` : `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
+  return ms < 1000 ? `${Math.max(1, Math.round(ms))} ms` : `${decimal((ms / 1000).toFixed(1))} s`;
 }
 
 function textoBotaoACorrer() {
   const r = estado.resumo;
-  return r ? `A correr… ${r.feitos} de ${r.total}` : 'A correr…';
+  return r ? A.aCorrerN(r.feitos, r.total) : A.aCorrer;
 }
 
 function faixaTestes() {
@@ -265,25 +263,25 @@ function faixaTestes() {
   if (!r) return null;
   const aCorrer = r.estado === 'a_correr';
   const veredito = aCorrer
-    ? `A correr os testes: ${r.feitos} de ${r.total}`
+    ? A.vereditoACorrer(r.feitos, r.total)
     : r.total === 0
-      ? 'Não há testes de cartões'
-      : `${r.passaram} de ${r.total} cartões passam os testes`;
+      ? A.semTestes
+      : A.passamOsTestes(r.passaram, r.total);
   const detalhe = aCorrer
-    ? 'Cada cartão corre o seu card.test.js aqui no browser, um de cada vez.'
-    : `${plural(r.testes, 'teste', 'testes')} em ${duracao(r.ms)}, no browser.`;
+    ? A.detalheACorrer
+    : A.detalheFim(r.testes, duracao(r.ms));
   const falhas = aCorrer ? [] : listaFalhas(r.falhados);
   const botoesVista = ['progresso', 'testes'].map((v) =>
     el('button', { class: 'segmento-vista', type: 'button', attrs: { 'aria-pressed': estado.vista === v ? 'true' : 'false' }, on: { click: () => mudarVista(v) } },
-      v === 'testes' ? 'Testes' : 'O meu progresso'));
+      v === 'testes' ? A.vistaTestes : A.vistaProgresso));
   return el('div', { class: 'faixa', 'data-estado': aCorrer ? 'a_correr' : r.passaram === r.total && r.total ? 'passou' : 'falhou' },
     el('p', { class: 'faixa-veredito numero', text: veredito }),
     el('div', { class: 'faixa-corpo' },
       el('p', { class: 'numero', text: detalhe }),
       falhas.length ? el('ul', { class: 'faixa-lista', role: 'list' }, ...falhas.map((linha) => el('li', { text: linha }))) : null,
       r.aviso ? el('p', { class: 'nota', text: r.aviso }) : null,
-      el('div', { class: 'segmentos', role: 'group', attrs: { 'aria-label': 'Cor dos cartões' } },
-        el('span', { class: 'nota', text: 'Cor dos cartões:' }), ...botoesVista),
+      el('div', { class: 'segmentos', role: 'group', attrs: { 'aria-label': A.corDosCartoes } },
+        el('span', { class: 'nota', text: A.corDosCartoesRotulo }), ...botoesVista),
     ),
   );
 }
@@ -294,7 +292,7 @@ function atualizarFaixa() {
   const b = document.getElementById('correr-testes');
   if (b) {
     b.disabled = estado.aCorrer;
-    b.textContent = estado.aCorrer ? textoBotaoACorrer() : 'Correr testes';
+    b.textContent = estado.aCorrer ? textoBotaoACorrer() : A.correrTestes;
   }
 }
 
@@ -314,14 +312,14 @@ async function correrFicheiro(c) {
   const antes = new Set(document.body.children);
   const inicio = performance.now();
   try {
-    await comLimite(import(`/cards/${c.id}/card.test.js?execucao=${++estado.execucao}`), 15000, 'o teste demorou mais de 15 s a carregar');
+    await comLimite(import(`/cards/${c.id}/card.test.js?execucao=${++estado.execucao}`), 15000, A.demorouACarregar);
     let n = -1;
     while (n !== pendentes.length) {
       n = pendentes.length;
-      await comLimite(Promise.allSettled([...pendentes]), 15000, 'os testes demoraram mais de 15 s');
+      await comLimite(Promise.allSettled([...pendentes]), 15000, A.demorou);
     }
   } catch (e) {
-    resultados.push({ nome: 'carregar card.test.js', ok: false, erro: String(e?.message || e) });
+    resultados.push({ nome: A.carregarTeste, ok: false, erro: String(e?.message || e) });
   } finally {
     for (const filho of [...document.body.children]) if (!antes.has(filho)) filho.remove();
   }
@@ -364,7 +362,7 @@ async function correrTestes() {
   estado.assinaturaTestada ??= estado.dados.assinatura;
   const alvo = visiveis().filter((c) => c.teste);
   estado.testes = new Map(alvo.map((c) => [c.id, { estado: 'na_fila', passados: 0, total: 0, falhas: [] }]));
-  estado.resumo = { estado: 'a_correr', feitos: 0, total: alvo.length, passaram: 0, testes: 0, ms: 0, falhados: [], aviso: mudou ? 'Há cartões novos desde o último teste: recarrega a página para testar a versão nova.' : null };
+  estado.resumo = { estado: 'a_correr', feitos: 0, total: alvo.length, passaram: 0, testes: 0, ms: 0, falhados: [], aviso: mudou ? A.cartoesNovos : null };
   estado.vista = 'testes';
   desenhar({ aoVivo: true });
   const inicio = performance.now();
@@ -389,8 +387,8 @@ async function correrTestes() {
 // ---------- paginas da onda 2 ----------
 
 const PAGINA = {
-  categoria: { nome: 'A página de categoria', ficheiro: 'pages/categoria.js', spec: 'specs/pagina-categoria.md' },
-  pontuacao: { nome: 'A tabela de pontuação', ficheiro: 'pages/pontuacao.js', spec: 'specs/tabela-pontuacao.md' },
+  categoria: { nome: A.paginaCategoria, ficheiro: 'pages/categoria.js', spec: 'specs/pagina-categoria.md' },
+  pontuacao: { nome: A.paginaPontuacao, ficheiro: 'pages/pontuacao.js', spec: 'specs/tabela-pontuacao.md' },
 };
 
 async function importarPagina(nome) {
@@ -405,14 +403,14 @@ async function importarPagina(nome) {
 
 function porConstruir(contentor, nome, erro) {
   const p = PAGINA[nome];
-  document.title = `Ainda por construir — onda 2 do enxame · ${TITULO}`;
+  document.title = `${A.porConstruirDoc} · ${TITULO}`;
   contentor.replaceChildren(
     el('div', { class: 'por-construir' },
-      el('h1', { class: 'por-construir-titulo', text: 'Ainda por construir' }),
-      el('p', { class: 'por-construir-onda', text: 'Onda 2 do enxame' }),
-      el('p', { class: 'por-construir-texto', text: `${p.nome} é escrita por um agente Sonnet em ${p.ficheiro}, a partir de ${p.spec}. Aparece aqui quando o teste dela passar.` }),
-      erro ? el('p', { class: 'nota', text: `O ficheiro existe mas deu erro: ${String(erro?.message || erro).slice(0, 300)}` }) : null,
-      el('a', { class: 'botao', href: '#/' }, 'Voltar aos desafios'),
+      el('h1', { class: 'por-construir-titulo', text: A.porConstruirTitulo }),
+      el('p', { class: 'por-construir-onda', text: A.onda2 }),
+      el('p', { class: 'por-construir-texto', text: A.porConstruirTexto(p.nome, p.ficheiro, p.spec) }),
+      erro ? el('p', { class: 'nota', text: A.ficheiroComErro(String(erro?.message || erro).slice(0, 300)) }) : null,
+      el('a', { class: 'botao', href: '#/' }, A.voltar),
     ),
   );
 }
@@ -449,7 +447,7 @@ async function vistaCategoria(id, passo) {
 }
 
 async function vistaPontuacao(passo) {
-  titulo('Pontuação');
+  titulo(A.pontuacao);
   const lista = visiveis();
   const contentor = el('section', { class: 'pagina' });
   main.replaceChildren(contentor);
@@ -481,7 +479,7 @@ function aviso(tituloTexto, texto) {
   return el('div', { class: 'aviso' },
     el('h1', { class: 'titulo-secao', text: tituloTexto }),
     texto ? el('p', { text: texto }) : null,
-    el('a', { class: 'botao', href: '#/' }, 'Voltar aos desafios'));
+    el('a', { class: 'botao', href: '#/' }, A.voltar));
 }
 
 async function vistaCartao(id, passo) {
@@ -489,22 +487,22 @@ async function vistaCartao(id, passo) {
   if (!meta) return vistaNaoEncontrado();
   const cat = estado.dados.categorias.find((c) => c.id === meta.category);
   titulo(meta.title);
-  const info = [cat?.nome, meta.difficulty ? `Nível ${meta.difficulty}` : null, meta.difficulty ? `${pontosDe(meta.difficulty)} pontos` : null].filter(Boolean).join(' · ');
+  const info = [cat?.nome, meta.difficulty ? A.nivel(meta.difficulty) : null, meta.difficulty ? A.nPontos(pontosDe(meta.difficulty)) : null].filter(Boolean).join(' · ');
   const area = el('div', { class: 'jogo-area' });
   main.replaceChildren(
     el('section', { class: 'jogo' },
       area,
-      el('div', { class: 'jogo-rodape' }, el('p', { class: 'nota', text: info }), el('a', { class: 'ligacao', href: '#/' }, 'Todos os desafios'))),
+      el('div', { class: 'jogo-rodape' }, el('p', { class: 'nota', text: info }), el('a', { class: 'ligacao', href: '#/' }, A.todos))),
   );
   if (!meta.existe) {
-    area.replaceChildren(aviso('Este cartão ainda está por construir', 'Um agente do enxame escreve-o na onda 1. Volta daqui a pouco.'));
+    area.replaceChildren(aviso(A.cartaoPorConstruir, A.cartaoPorConstruirTexto));
     return;
   }
   let cartao;
   try {
     cartao = await carregarCartao(id, meta.versao);
   } catch (e) {
-    if (!desatualizado(passo)) area.replaceChildren(aviso('Este cartão não carregou', String(e?.message || e)));
+    if (!desatualizado(passo)) area.replaceChildren(aviso(A.cartaoNaoCarregou, String(e?.message || e)));
     return;
   }
   if (desatualizado(passo)) return;
@@ -513,10 +511,10 @@ async function vistaCartao(id, passo) {
     acoes: ({ certo, repetir }) => {
       const prox = proximoPorResolver(id);
       const irProximo = (principal) => (prox
-        ? el('a', { class: principal ? 'botao botao-principal' : 'botao', href: `#/cartao/${prox.id}` }, 'Próximo desafio')
-        : el('a', { class: principal ? 'botao botao-principal' : 'botao', href: '#/pontuacao' }, 'Ver pontuação'));
-      if (certo) return [irProximo(true), el('a', { class: 'botao', href: '#/' }, 'Todos os desafios')];
-      return [el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => repetir() } }, 'Tentar outra vez'), irProximo(false)];
+        ? el('a', { class: principal ? 'botao botao-principal' : 'botao', href: `#/cartao/${prox.id}` }, A.proximo)
+        : el('a', { class: principal ? 'botao botao-principal' : 'botao', href: '#/pontuacao' }, A.verPontuacao));
+      if (certo) return [irProximo(true), el('a', { class: 'botao', href: '#/' }, A.todos)];
+      return [el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => repetir() } }, A.tentarOutraVez), irProximo(false)];
     },
   });
 }
@@ -524,15 +522,15 @@ async function vistaCartao(id, passo) {
 // ---------- outras vistas ----------
 
 function vistaNaoEncontrado() {
-  titulo('Não encontrado');
-  main.replaceChildren(aviso('Não encontrámos esta página', 'A ligação pode estar errada ou o cartão já não existe.'));
+  titulo(A.naoEncontrado);
+  main.replaceChildren(aviso(A.naoEncontradoTitulo, A.naoEncontradoTexto));
 }
 
 function vistaSemServidor() {
   titulo(null);
   return el('section', { class: 'aviso' },
-    el('h1', { class: 'titulo-secao', text: 'Não consegui falar com o servidor' }),
-    el('p', { text: 'Arranca-o na pasta do projeto com node server.js e recarrega esta página.' }),
+    el('h1', { class: 'titulo-secao', text: A.semServidor }),
+    el('p', { text: A.semServidorTexto }),
     estado.erro ? el('p', { class: 'nota', text: String(estado.erro.message || estado.erro) }) : null);
 }
 
@@ -544,18 +542,18 @@ function ligarRodape() {
   let armado = null;
   b.addEventListener('click', () => {
     if (!armado) {
-      b.textContent = 'Carrega outra vez para apagar';
+      b.textContent = A.confirmarApagar;
       armado = setTimeout(() => {
         armado = null;
-        b.textContent = 'Apagar o meu progresso';
+        b.textContent = A.apagarProgresso;
       }, 4000);
       return;
     }
     clearTimeout(armado);
     armado = null;
     apagarProgresso();
-    b.textContent = 'Progresso apagado';
-    setTimeout(() => (b.textContent = 'Apagar o meu progresso'), 2500);
+    b.textContent = A.progressoApagado;
+    setTimeout(() => (b.textContent = A.apagarProgresso), 2500);
     if (estado.rota?.nome !== 'cartao') desenhar({ aoVivo: true });
   });
 }

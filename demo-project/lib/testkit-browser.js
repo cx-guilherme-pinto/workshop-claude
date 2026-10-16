@@ -1,5 +1,8 @@
 // Implementacao minima de test()/assert para correr os testes dos cartoes no browser.
 // Os resultados ficam em globalThis.__arenaResultados, lidos pelo botao "Correr testes".
+import { T } from './textos.js';
+
+const M = T.testes;
 
 const resultados = (globalThis.__arenaResultados ||= []);
 const pendentes = (globalThis.__arenaPendentes ||= []);
@@ -21,19 +24,19 @@ function igualProfundo(a, b) {
 }
 
 export const assert = {
-  ok: (v, msg) => v || falha(msg || 'esperado verdadeiro'),
-  equal: (a, b, msg) => Object.is(a, b) || falha(msg || `esperado ${JSON.stringify(b)}, recebido ${JSON.stringify(a)}`),
-  notEqual: (a, b, msg) => !Object.is(a, b) || falha(msg || `nao devia ser ${JSON.stringify(b)}`),
-  deepEqual: (a, b, msg) => igualProfundo(a, b) || falha(msg || `esperado ${JSON.stringify(b)}, recebido ${JSON.stringify(a)}`),
-  match: (s, re, msg) => re.test(s) || falha(msg || `${JSON.stringify(s)} nao corresponde a ${re}`),
-  fail: (msg) => falha(msg || 'falhou'),
+  ok: (v, msg) => v || falha(msg || M.esperadoVerdadeiro),
+  equal: (a, b, msg) => Object.is(a, b) || falha(msg || M.esperado(JSON.stringify(b), JSON.stringify(a))),
+  notEqual: (a, b, msg) => !Object.is(a, b) || falha(msg || M.naoDeviaSer(JSON.stringify(b))),
+  deepEqual: (a, b, msg) => igualProfundo(a, b) || falha(msg || M.esperado(JSON.stringify(b), JSON.stringify(a))),
+  match: (s, re, msg) => re.test(s) || falha(msg || M.naoCorresponde(JSON.stringify(s), re)),
+  fail: (msg) => falha(msg || M.falhou),
   throws: (fn, msg) => {
     try {
       fn();
     } catch {
       return;
     }
-    falha(msg || 'esperava uma excecao');
+    falha(msg || M.esperavaExcecao);
   },
 };
 
@@ -53,7 +56,7 @@ export function test(nome, fn) {
 
 export async function readSource(rel, base) {
   const r = await fetch(new URL(rel, base), { cache: 'no-store' });
-  if (!r.ok) throw new Error(`nao foi possivel ler ${rel} (${r.status})`);
+  if (!r.ok) throw new Error(M.naoLeu(rel, r.status));
   return r.text();
 }
 

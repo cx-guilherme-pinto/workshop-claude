@@ -136,3 +136,23 @@ test('checkSettings deteta o que falta e statusline alheia', () => {
   assert.equal(c.ok, true);
   assert.equal(c.statusline, 'alheia');
 });
+
+test('language (D-20): define so se nao houver; atualiza a nossa; nunca toca na da pessoa; unmerge so tira a nossa', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC };
+  const a = mergeSettings(alheio(), { ...opts, language: 'European Portuguese' });
+  assert.equal(a.settings.language, 'European Portuguese');
+  assert.equal(a.record.language_criado, true);
+  const b = mergeSettings(a.settings, { ...opts, language: 'Hebrew' }, a.record);
+  assert.equal(b.settings.language, 'Hebrew', 'a nossa acompanha a lingua da maquina');
+  assert.equal(unmergeSettings(b.settings, b.record).language, undefined);
+  const mudada = { ...b.settings, language: 'japanese' };
+  const c = mergeSettings(mudada, { ...opts, language: 'English' }, b.record);
+  assert.equal(c.settings.language, 'japanese', 'a pessoa mudou-a: fica');
+  assert.equal(unmergeSettings(c.settings, c.record).language, 'japanese');
+  const propria = mergeSettings({ language: 'spanish' }, { ...opts, language: 'Hindi' });
+  assert.equal(propria.settings.language, 'spanish');
+  assert.equal(propria.record.language_criado, false);
+  assert.equal(unmergeSettings(propria.settings, propria.record).language, 'spanish');
+  const sem = mergeSettings(alheio(), opts);
+  assert.equal('language' in sem.settings, false, 'sem lingua suportada nao se define nada');
+});

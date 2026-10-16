@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { estimar, tabelaEstimativa } from './workshop/orquestrador/estimate.mjs';
+import { textos } from './workshop/hooks/lib/lingua.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ler = (p) => JSON.parse(readFileSync(join(ROOT, p), 'utf8'));
@@ -28,25 +29,106 @@ const MODELOS = {
   'memoria-extrator': 'claude-haiku-5-5',
 };
 
-const INSTRUCOES = {
-  cartao: (c) => `Constrói o cartão ${c.id} ("${c.titulo}").
+// Textos na lingua da Arena (tools/workshop/lingua.json). Os ids, os caminhos e os comandos nao mudam.
+const T = textos({
+  pt: {
+    instrucoes: {
+      cartao: (c) => `Constrói o cartão ${c.id} ("${c.titulo}").
 1. Lê cards/${c.id}/spec.md e cards/CONTRACT.md.
 2. Escreve só cards/${c.id}/card.js, com o modelo indicado na spec.
 3. Verifica: node --test cards/${c.id}/card.test.js
 Responde com uma única linha: "OK ${c.id}" ou "FALHOU ${c.id}: <motivo em poucas palavras>".`,
-  lib: (t) => `Implementa ${t.ficheiros.join(', ')} conforme ${t.spec}.
+      lib: (t) => `Implementa ${t.ficheiros.join(', ')} conforme ${t.spec}.
 Verifica: ${t.teste.join(' ')}
 Responde com uma única linha: "OK ${t.id}" ou "FALHOU ${t.id}: <motivo>".`,
-  pagina: (t) => `Implementa ${t.ficheiros.join(', ')} conforme ${t.spec}. Segue DESIGN.md.
+      pagina: (t) => `Implementa ${t.ficheiros.join(', ')} conforme ${t.spec}. Segue DESIGN.md.
 Verifica: ${t.teste.join(' ')}
 Responde com uma única linha: "OK ${t.id}" ou "FALHOU ${t.id}: <motivo>".`,
-  integracao: (t) => `Integração final. Segue ${t.spec}.
+      integracao: (t) => `Integração final. Segue ${t.spec}.
 Corre a suite completa: node --test
 Responde com uma única linha: "OK ${t.id}" ou "FALHOU ${t.id}: <motivo>".`,
-  revisao: (t) => `Revisão de segurança e qualidade. Segue ${t.spec}.
+      revisao: (t) => `Revisão de segurança e qualidade. Segue ${t.spec}.
 Lê primeiro .workshop/revisao-resumo.md (já gerado). Escreve o veredito em .workshop/veredito.json.
 Responde com uma única linha: "OK ${t.id}: <veredito>".`,
-};
+    },
+    modo: { participante: 'participante', apresentador: 'apresentador' },
+    sonnet: (id) => `${id} → Sonnet`,
+    paralelismo: (n) => `paralelismo: ${n}`,
+    paginas: 'onda 2 · Sonnet<br/>categorias + pontuação',
+    integracao: 'onda 3 · Sonnet<br/>integração + suite',
+    revisao: 'onda 4 · Opus<br/>revisão',
+    planoMd: (modo, n, cripto, max) => `# Plano da Arena — modo ${modo}
+
+| onda | modelo | o quê | em paralelo |
+|---|---|---|---|
+| 1 | Haiku | \`lib-hash\` + ${n} cartões (${cripto} esperam pelo \`lib-hash\`) | até ${max} |
+| 2 | Sonnet | página de categoria + tabela de pontuação | 2 |
+| 3 | Sonnet | integração e suite completa; cartões que falhem 2× são refeitos em Sonnet | 1+ |
+| 4 | Opus | revisão de segurança e qualidade, veredito final | 1 |
+`,
+    estimativa: '## Estimativa de custo',
+    ajustes: '## Ajustes do planner',
+    riscos: 'Riscos:',
+    resumo: (modo, total, n, max) => `# Resumo do plano (modo ${modo})
+
+Tarefas: ${total} (${n} cartões, lib-hash, 2 páginas, integração, revisão).
+Modelos: cartões e lib-hash em Haiku; páginas e integração em Sonnet; revisão em Opus.
+Paralelismo atual: ${max}. Tentativas por tarefa: 3 (a 3.ª em Sonnet).
+
+Cartões:`,
+    dependeDe: (ids) => ` · depende de ${ids}`,
+    modoInvalido: 'modo tem de ser participante ou apresentador',
+  },
+  en: {
+    instrucoes: {
+      cartao: (c) => `Build the card ${c.id} ("${c.titulo}").
+1. Read cards/${c.id}/spec.md and cards/CONTRACT.md.
+2. Write only cards/${c.id}/card.js, with the template given in the spec.
+3. Check: node --test cards/${c.id}/card.test.js
+Answer with one single line: "OK ${c.id}" or "FAILED ${c.id}: <reason in a few words>".`,
+      lib: (t) => `Implement ${t.ficheiros.join(', ')} as described in ${t.spec}.
+Check: ${t.teste.join(' ')}
+Answer with one single line: "OK ${t.id}" or "FAILED ${t.id}: <reason>".`,
+      pagina: (t) => `Implement ${t.ficheiros.join(', ')} as described in ${t.spec}. Follow DESIGN.md.
+Check: ${t.teste.join(' ')}
+Answer with one single line: "OK ${t.id}" or "FAILED ${t.id}: <reason>".`,
+      integracao: (t) => `Final integration. Follow ${t.spec}.
+Run the full suite: node --test
+Answer with one single line: "OK ${t.id}" or "FAILED ${t.id}: <reason>".`,
+      revisao: (t) => `Security and quality review. Follow ${t.spec}.
+Read .workshop/revisao-resumo.md first (already generated). Write the verdict to .workshop/veredito.json.
+Answer with one single line: "OK ${t.id}: <verdict>".`,
+    },
+    modo: { participante: 'participant', apresentador: 'presenter' },
+    sonnet: (id) => `${id} → Sonnet`,
+    paralelismo: (n) => `parallelism: ${n}`,
+    paginas: 'wave 2 · Sonnet<br/>categories + score',
+    integracao: 'wave 3 · Sonnet<br/>integration + suite',
+    revisao: 'wave 4 · Opus<br/>review',
+    planoMd: (modo, n, cripto, max) => `# Arena plan — ${modo} mode
+
+| wave | model | what | in parallel |
+|---|---|---|---|
+| 1 | Haiku | \`lib-hash\` + ${n} cards (${cripto} wait for \`lib-hash\`) | up to ${max} |
+| 2 | Sonnet | category page + score table | 2 |
+| 3 | Sonnet | integration and full suite; cards that fail twice are redone in Sonnet | 1+ |
+| 4 | Opus | security and quality review, final verdict | 1 |
+`,
+    estimativa: '## Cost estimate',
+    ajustes: '## Planner adjustments',
+    riscos: 'Risks:',
+    resumo: (modo, total, n, max) => `# Plan summary (${modo} mode)
+
+Tasks: ${total} (${n} cards, lib-hash, 2 pages, integration, review).
+Models: cards and lib-hash on Haiku; pages and integration on Sonnet; review on Opus.
+Current parallelism: ${max}. Attempts per task: 3 (the 3rd on Sonnet).
+
+Cards:`,
+    dependeDe: (ids) => ` · depends on ${ids}`,
+    modoInvalido: 'mode must be participante or apresentador',
+  },
+});
+const INSTRUCOES = T.instrucoes;
 
 function construir(modo, maxParalelo) {
   const specs = ler('specs/cards.json');
@@ -93,13 +175,13 @@ function aplicarAjustes(plano, aj) {
   const notas = [];
   if (Number.isInteger(aj.max_paralelo) && aj.max_paralelo >= 1 && aj.max_paralelo <= 16) {
     plano.config.max_paralelo = aj.max_paralelo;
-    notas.push(`paralelismo: ${aj.max_paralelo}`);
+    notas.push(T.paralelismo(aj.max_paralelo));
   }
   for (const id of aj.promover_para_sonnet || []) {
     const t = plano.tarefas.find((x) => x.id === id && x.agente === 'worker');
     if (t) {
       t.agente = 'implementer';
-      notas.push(`${id} → Sonnet`);
+      notas.push(T.sonnet(id));
     }
   }
   plano.ajustes = { justificacao: String(aj.justificacao || '').slice(0, 1500), riscos: (aj.riscos || []).slice(0, 8).map(String), aplicados: notas };
@@ -127,44 +209,30 @@ function mermaid(plano) {
     }
   }
   L.push('  hash --> paginas');
-  L.push('  paginas["onda 2 · Sonnet<br/>categorias + pontuação"] --> integracao["onda 3 · Sonnet<br/>integração + suite"]');
-  L.push('  integracao --> revisao["onda 4 · Opus<br/>revisão"]');
+  L.push(`  paginas["${T.paginas}"] --> integracao["${T.integracao}"]`);
+  L.push(`  integracao --> revisao["${T.revisao}"]`);
   return L.join('\n');
 }
 
 function planoMd(plano, est) {
   const n = plano.tarefas.filter((t) => t.grupo_tipo === 'cartao').length;
   const cripto = plano.tarefas.filter((t) => t.depende.includes('lib-hash')).map((t) => t.id);
-  return `# Plano da Arena — modo ${plano.modo}
-
-| onda | modelo | o quê | em paralelo |
-|---|---|---|---|
-| 1 | Haiku | \`lib-hash\` + ${n} cartões (${cripto.join(', ')} esperam pelo \`lib-hash\`) | até ${plano.config.max_paralelo} |
-| 2 | Sonnet | página de categoria + tabela de pontuação | 2 |
-| 3 | Sonnet | integração e suite completa; cartões que falhem 2× são refeitos em Sonnet | 1+ |
-| 4 | Opus | revisão de segurança e qualidade, veredito final | 1 |
-
+  return `${T.planoMd(T.modo[plano.modo] ?? plano.modo, n, cripto.join(', '), plano.config.max_paralelo)}
 \`\`\`mermaid
 ${mermaid(plano)}
 \`\`\`
 
-## Estimativa de custo
+${T.estimativa}
 
 ${tabelaEstimativa(est)}
-${plano.ajustes ? `\n## Ajustes do planner\n\n${plano.ajustes.justificacao}\n\n${plano.ajustes.aplicados.map((a) => `- ${a}`).join('\n')}\n${plano.ajustes.riscos.length ? '\nRiscos:\n' + plano.ajustes.riscos.map((r) => `- ${r}`).join('\n') : ''}` : ''}
+${plano.ajustes ? `\n${T.ajustes}\n\n${plano.ajustes.justificacao}\n\n${plano.ajustes.aplicados.map((a) => `- ${a}`).join('\n')}\n${plano.ajustes.riscos.length ? `\n${T.riscos}\n` + plano.ajustes.riscos.map((r) => `- ${r}`).join('\n') : ''}` : ''}
 `;
 }
 
 function resumoParaPlanner(plano) {
   const cartoes = plano.tarefas.filter((t) => t.grupo_tipo === 'cartao');
-  const linhas = cartoes.map((t) => `- ${t.id} · ${t.grupo} · ${t.titulo}${t.depende.length ? ` · depende de ${t.depende.join(', ')}` : ''}`);
-  return `# Resumo do plano (modo ${plano.modo})
-
-Tarefas: ${plano.tarefas.length} (${cartoes.length} cartões, lib-hash, 2 páginas, integração, revisão).
-Modelos: cartões e lib-hash em Haiku; páginas e integração em Sonnet; revisão em Opus.
-Paralelismo atual: ${plano.config.max_paralelo}. Tentativas por tarefa: 3 (a 3.ª em Sonnet).
-
-Cartões:
+  const linhas = cartoes.map((t) => `- ${t.id} · ${t.grupo} · ${t.titulo}${t.depende.length ? T.dependeDe(t.depende.join(', ')) : ''}`);
+  return `${T.resumo(T.modo[plano.modo] ?? plano.modo, plano.tarefas.length, cartoes.length, plano.config.max_paralelo)}
 ${linhas.join('\n')}
 `;
 }
@@ -177,7 +245,7 @@ if (aplicar) {
 } else {
   const modo = opt('--modo', 'participante');
   if (!['participante', 'apresentador'].includes(modo)) {
-    console.error('modo tem de ser participante ou apresentador');
+    console.error(T.modoInvalido);
     process.exit(2);
   }
   plano = construir(modo, Number(opt('--max', process.env.ARENA_MAX_PARALELO || (modo === 'apresentador' ? 16 : 8))));

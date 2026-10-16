@@ -2,6 +2,8 @@
 
 # Workshop «Orquestração de Agentes com Claude»
 
+**Português** · [English](README.en.md)
+
 Kit do workshop: o setup de um só comando, as skills e os agentes, os hooks de custo, a statusline, o orquestrador e os projetos práticos (a Arena de Segurança e o projeto de treino). Versão do kit: **v1.0.0-dev.3**.
 
 ## Instalar (participantes)
@@ -28,7 +30,7 @@ O setup demora 10 a 20 minutos. Se parar a meio, volta a correr o mesmo comando:
 |---|---|---|
 | Verificar | `bash ~/.workshop-claude/setup-mac.sh --check` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check` |
 | Diagnóstico com o Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` |
-| Desinstalar | `bash ~/.workshop-claude/setup-mac.sh --desinstalar` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Desinstalar` |
+| Desinstalar | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
 Sem instalação anterior, a verificação também corre diretamente: `curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash -s -- --check` (macOS) ou `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex` (Windows).
 
@@ -49,26 +51,28 @@ Algo falhou? Cada erro tem um código. Vê [docs/TROUBLESHOOTING.md](docs/TROUBL
 | 8 | Skills, agentes `ws-*`, hooks de custo e statusline, com merge seguro do `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Projetos do workshop | `~/workshop-claude/` |
 | 10 | App Memória v0.4.0 (opcional, não bloqueia) | `uv tool`, `~/.memoria` |
-| 11 | Claude Desktop (opcional, `--sem-desktop` / `-SemDesktop` salta) | `~/Applications` |
+| 11 | Claude Desktop (opcional, `--no-desktop / -NoDesktop` salta) | `~/Applications` |
 | 12 | Teste final com o Haiku e o custo pelo `pricing.json` | — |
 
 Tudo o que é instalado fica registado em `~/.workshop-claude/manifest.json`. O `settings.json` tem backup em `~/.workshop-claude/backup/`. O log (sem segredos) está em `~/.workshop-claude/setup.log`.
+
+**Línguas.** O setup fala só inglês, e as opções também (as antigas, em português, continuam a funcionar). Deteta a língua da máquina e, se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills e os agentes estão em inglês e respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas.
 
 ## Estrutura
 
 | Pasta | Conteúdo |
 |---|---|
-| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e o catálogo de mensagens `messages.pt.json` |
+| `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e os catálogos de mensagens: `messages.en.json` (o que o setup mostra) e `messages.pt.json` (o TROUBLESHOOTING em português) |
 | `installer/` | Instalação em Node, igual nos dois sistemas (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
-| `hooks/`, `statusline/`, `orquestrador/` | Medição de custo e orquestração do enxame |
-| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes |
+| `hooks/`, `statusline/`, `orquestrador/` | Medição de custo e orquestração do swarm |
+| `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes (em inglês; respondem na língua de quem os usa) |
 | `demo-project/`, `exemplo-projeto-real/` | Projetos práticos |
 | `tools/` | `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` e os testes |
-| `docs/` | Instalação, resolução de problemas, publicação |
+| `docs/` | Instalação, resolução de problemas, publicação; em inglês em `docs/en/` |
 
 ## Para o organizador
 
-- Todos os URLs e versões estão em `repos.conf`. Este README é gerado: edita `tools/templates/README.md.tmpl` e corre `node tools/render.mjs`.
+- Todos os URLs e versões estão em `repos.conf`. Este README é gerado: edita `tools/templates/README.md.tmpl` (e `tools/templates/en/README.md.tmpl`, para o `README.en.md`) e corre `node tools/render.mjs`.
 - Release: `tools/build-release.sh v1.0.0-dev.3` (gera `dist/v1.0.0-dev.3/`) e `tools/publish-release.sh v1.0.0-dev.3` (cria a release em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3).
 - Verificar o repositório: `node tools/check-repo.mjs`. Testes: `node --test tools/test/` e `bash setup/test/test-mac.sh`.
 - Mudar para os repositórios públicos: [docs/PUBLICAR.md](docs/PUBLICAR.md).

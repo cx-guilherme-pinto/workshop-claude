@@ -11,6 +11,27 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+// Textos na lingua da Arena (tools/workshop/lingua.json); fora de uma Arena montada, em portugues.
+const { textos } = await import('./workshop/hooks/lib/lingua.mjs').catch(() => ({ textos: (d) => d.pt }));
+const T = textos({
+  pt: {
+    foraDoPlano: (n) => `(${n} cartões fora do plano deste modo não entram.)`,
+    integracao: (n) => `Integração: ${n} ficheiro(s) de teste.`,
+    ficamDeFora: (lista) => `Ficam de fora (falharam de vez no swarm): ${lista}`,
+    semTestes: 'Não há testes para correr.',
+    verde: '\nIntegração verde: todos os testes passam.',
+    vermelha: '\nIntegração vermelha: há testes a falhar (vê acima).',
+  },
+  en: {
+    foraDoPlano: (n) => `(${n} cards outside the plan for this mode are left out.)`,
+    integracao: (n) => `Integration: ${n} test file(s).`,
+    ficamDeFora: (lista) => `Left out (failed for good in the swarm): ${lista}`,
+    semTestes: 'No tests to run.',
+    verde: '\nIntegration green: all tests pass.',
+    vermelha: '\nIntegration red: some tests fail (see above).',
+  },
+});
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SO_LISTA = process.argv.includes('--lista');
 
@@ -94,22 +115,22 @@ const todos = descobrir(ROOT);
 const fora = excluidos();
 const naoPlaneados = foraDoPlano();
 const correr = todos.filter((f) => !fora.has(f) && !naoPlaneados.has(f));
-if (naoPlaneados.size) console.log(`(${naoPlaneados.size} cartões fora do plano deste modo não entram.)`);
+if (naoPlaneados.size) console.log(T.foraDoPlano(naoPlaneados.size));
 
-console.log(`Integração: ${correr.length} ficheiro(s) de teste.`);
+console.log(T.integracao(correr.length));
 if (fora.size) {
-  console.log(`Ficam de fora (falharam de vez no enxame): ${[...fora].map(([f, id]) => `${f} (${id})`).join(', ')}`);
+  console.log(T.ficamDeFora([...fora].map(([f, id]) => `${f} (${id})`).join(', ')));
 }
 if (SO_LISTA) {
   for (const f of correr) console.log(`  ${f}`);
   process.exit(0);
 }
 if (!correr.length) {
-  console.log('Não há testes para correr.');
+  console.log(T.semTestes);
   process.exit(0);
 }
 
 const r = spawnSync(process.execPath, ['--test', '--test-timeout=20000', ...correr], { cwd: ROOT, stdio: 'inherit' });
 const codigo = r.status ?? 1;
-console.log(codigo === 0 ? '\nIntegração verde: todos os testes passam.' : '\nIntegração vermelha: há testes a falhar (vê acima).');
+console.log(codigo === 0 ? T.verde : T.vermelha);
 process.exit(codigo);

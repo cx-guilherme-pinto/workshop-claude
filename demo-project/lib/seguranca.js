@@ -1,6 +1,9 @@
 // Analise estatica simples do codigo-fonte dos cartoes e da app.
 // Remove strings e comentarios (o texto dos desafios pode falar de "innerHTML" ou "eval"
-// sem ser codigo) e procura padroes perigosos no que sobra.
+// sem ser codigo) e procura padroes perigosos no que sobra. Os nomes dos problemas vem de ./textos.js.
+import { T } from './textos.js';
+
+const S = T.seguranca;
 
 // Remove comentarios e o conteudo de strings, mantendo as expressoes ${...} dos template literals.
 export function semStringsNemComentarios(src) {
@@ -71,10 +74,10 @@ const PERIGOSOS = [
   [/\bdocument\s*\.\s*write(ln)?\b/, 'document.write'],
   [/\beval\s*\(/, 'eval('],
   [/\bnew\s+Function\b|\bFunction\s*\(/, 'Function('],
-  [/\bset(Timeout|Interval)\s*\(\s*(""|''|``)/, 'setTimeout com string'],
+  [/\bset(Timeout|Interval)\s*\(\s*(""|''|``)/, S.setTimeoutString],
   [/\bsrcdoc\b/, 'srcdoc'],
   [/\bcreateContextualFragment\b/, 'createContextualFragment'],
-  [/\.\s*on[a-z]+\s*=/, 'atribuicao a on*='],
+  [/\.\s*on[a-z]+\s*=/, S.atribuicaoOn],
 ];
 
 // Padroes que so fazem sentido verificar no texto original (dentro de strings).
@@ -96,11 +99,11 @@ export function problemasDeSeguranca(src, { emStrings = true } = {}) {
 
 // Regras extra para card.js: so dados + validate(); o render e dos templates.
 const PROIBIDOS_NO_CARTAO = [
-  [/\bdocument\b/, 'acesso direto a document'],
-  [/\bwindow\b/, 'acesso a window'],
-  [/\bfetch\s*\(|XMLHttpRequest|WebSocket|navigator\s*\.\s*sendBeacon/, 'pedidos de rede'],
-  [/\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|document\s*\.\s*cookie/, 'acesso a armazenamento'],
-  [/\bimport\s*\(/, 'import dinamico'],
+  [/\bdocument\b/, S.document],
+  [/\bwindow\b/, S.window],
+  [/\bfetch\s*\(|XMLHttpRequest|WebSocket|navigator\s*\.\s*sendBeacon/, S.rede],
+  [/\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|document\s*\.\s*cookie/, S.armazenamento],
+  [/\bimport\s*\(/, S.importDinamico],
 ];
 
 export function problemasNoCartao(src) {
@@ -110,7 +113,7 @@ export function problemasNoCartao(src) {
   // Imports so de templates/ e lib/ do proprio projeto.
   for (const m of src.matchAll(/^\s*import\s[^'"]*['"]([^'"]+)['"]/gm)) {
     const alvo = m[1];
-    if (!/^\.\.\/\.\.\/(templates|lib)\/[\w-]+\.js$/.test(alvo)) out.push(`import nao permitido: ${alvo}`);
+    if (!/^\.\.\/\.\.\/(templates|lib)\/[\w-]+\.js$/.test(alvo)) out.push(S.importProibido(alvo));
   }
   return out;
 }

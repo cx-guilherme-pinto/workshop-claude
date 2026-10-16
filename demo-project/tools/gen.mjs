@@ -2,6 +2,7 @@
 // Gera, a partir de specs/cards.json, os ficheiros pre-escritos do projeto:
 //   cards/<id>/spec.md, cards/<id>/card.test.js e TASKS.md.
 // Corre-o quando mudares specs/cards.json:  node tools/gen.mjs   (--check so verifica)
+// A lingua dos ficheiros gerados vem de specs/cards.json ("lingua": "pt" ou "en"; sem campo, pt).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,146 @@ const CHECK = process.argv.includes('--check');
 
 const specs = JSON.parse(readFileSync(join(ROOT, 'specs/cards.json'), 'utf8'));
 const extra = JSON.parse(readFileSync(join(ROOT, 'specs/tarefas.json'), 'utf8'));
+const LINGUA = specs.lingua === 'en' ? 'en' : 'pt';
+
+// Textos dos ficheiros gerados. Os nomes dos campos, os ids e os comandos nao se traduzem.
+const TEXTOS = {
+  pt: {
+    cartao: 'Cartão',
+    categoria: 'Categoria',
+    dificuldade: 'Dificuldade',
+    modelo: 'Modelo',
+    modeloDe: (fn, ficheiro) => `\`${fn}\` de \`../../templates/${ficheiro}\``,
+    dependeDe: 'Depende de',
+    conceito: 'Conceito',
+    enunciado: 'Enunciado (campo `prompt`)',
+    cenario: 'Cenário (campo `scenario`)',
+    conteudo: 'Conteúdo',
+    opcoes: 'Campo `options` (mantém os ids):',
+    campo: (nome) => `Campo \`${nome}\``,
+    segmentos: 'Campo `segments` (índices a partir de 0):',
+    respostaInseguros: 'Campo `answer` (índices inseguros)',
+    itens: 'Campo `items` (já baralhados; mantém esta ordem):',
+    respostaOrdem: 'Campo `answer` (ordem certa)',
+    logicaCheck: 'Lógica do `check` (em vez de `accept`):',
+    exemplo: 'Exemplo de resposta certa',
+    explicacao: 'Explicação (campo `explanation`)',
+    feitoQuando: 'Feito quando',
+    passa: 'passa sem erros. Regras: `cards/CONTRACT.md`.',
+    teste: {
+      gerado: '// GERADO por tools/gen.mjs a partir de specs/cards.json. Nao editar a mao.',
+      cartao: 'Cartao',
+      carrega: 'card.js existe e carrega',
+      naoCarrega: (id) => `cards/${id}/card.js nao existe, nao tem export default ou tem um erro: `,
+      contrato: 'cumpre o contrato',
+      idErrado: 'id errado',
+      categoriaErrada: 'category errada',
+      usaModelo: 'tem de usar o modelo ',
+      dificuldade: 'difficulty tem de ser 1, 2 ou 3',
+      semTitle: 'falta title',
+      semExplanation: 'falta explanation',
+      aceita: 'aceita a resposta certa',
+      devia: 'validate devia aceitar ',
+      rejeita: 'rejeita as respostas erradas',
+      naoDevia: 'validate nao devia aceitar ',
+      desenha: 'desenha o desafio e devolve a resposta',
+      mostraTitle: 'o render tem de mostrar o title',
+      devolve: 'a interacao devia devolver a resposta certa',
+      fonte: 'fonte segura',
+      usaHash: 'este cartao tem de usar ../../lib/hash.js',
+    },
+    tasks: {
+      titulo: '# TASKS — Arena de Segurança',
+      intro: 'Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/gen.mjs` a partir de `specs/cards.json` e `specs/tarefas.json`.',
+      participante: (n) => `- Modo participante: **${n} cartões** + utilitário + 2 páginas + integração + revisão.`,
+      apresentador: (n) => `- Modo apresentador: **${n} cartões** + as mesmas tarefas.`,
+      suporte: '## Tarefas de suporte',
+      colunasSuporte: ['id', 'onda', 'o quê', 'spec', 'depende de'],
+      colunasCartoes: ['id', 'modo', 'modelo', 'título', 'conceito', 'depende de'],
+    },
+    msg: {
+      idRepetido: (id) => `id repetido: ${id}`,
+      categoria: (id, cat) => `${id}: categoria desconhecida ${cat}`,
+      modelo: (id, m) => `${id}: modelo desconhecido ${m}`,
+      modo: (id) => `${id}: modo invalido`,
+      erradas: (id) => `${id}: precisa de respostas erradas`,
+      dependencia: (id, d) => `${id}: dependencia desconhecida ${d}`,
+      problemas: 'specs/cards.json tem problemas:',
+      desatualizado: (rel) => `desatualizado: ${rel}`,
+      desatualizados: (n) => `${n} ficheiro(s) desatualizados. Corre: node tools/gen.mjs`,
+      atualizado: 'gen: tudo atualizado',
+      escritos: (n, m) => `gen: ${n} cartoes, ${m} ficheiro(s) escritos`,
+    },
+  },
+  en: {
+    cartao: 'Card',
+    categoria: 'Category',
+    dificuldade: 'Difficulty',
+    modelo: 'Template',
+    modeloDe: (fn, ficheiro) => `\`${fn}\` from \`../../templates/${ficheiro}\``,
+    dependeDe: 'Depends on',
+    conceito: 'Concept',
+    enunciado: 'Prompt (field `prompt`)',
+    cenario: 'Scenario (field `scenario`)',
+    conteudo: 'Content',
+    opcoes: 'Field `options` (keep the ids):',
+    campo: (nome) => `Field \`${nome}\``,
+    segmentos: 'Field `segments` (indexes start at 0):',
+    respostaInseguros: 'Field `answer` (unsafe indexes)',
+    itens: 'Field `items` (already shuffled; keep this order):',
+    respostaOrdem: 'Field `answer` (right order)',
+    logicaCheck: 'Logic of `check` (instead of `accept`):',
+    exemplo: 'Example of a right answer',
+    explicacao: 'Explanation (field `explanation`)',
+    feitoQuando: 'Done when',
+    passa: 'passes with no errors. Rules: `cards/CONTRACT.md`.',
+    teste: {
+      gerado: '// GENERATED by tools/gen.mjs from specs/cards.json. Do not edit by hand.',
+      cartao: 'Card',
+      carrega: 'card.js exists and loads',
+      naoCarrega: (id) => `cards/${id}/card.js does not exist, has no default export or has an error: `,
+      contrato: 'follows the contract',
+      idErrado: 'wrong id',
+      categoriaErrada: 'wrong category',
+      usaModelo: 'must use the template ',
+      dificuldade: 'difficulty must be 1, 2 or 3',
+      semTitle: 'missing title',
+      semExplanation: 'missing explanation',
+      aceita: 'accepts the right answer',
+      devia: 'validate should accept ',
+      rejeita: 'rejects the wrong answers',
+      naoDevia: 'validate should not accept ',
+      desenha: 'draws the challenge and returns the answer',
+      mostraTitle: 'render must show the title',
+      devolve: 'the interaction should return the right answer',
+      fonte: 'safe source',
+      usaHash: 'this card must use ../../lib/hash.js',
+    },
+    tasks: {
+      titulo: '# TASKS — Security Arena',
+      intro: 'Each task is done by one agent. **This file is generated** by `node tools/gen.mjs` from `specs/cards.json` and `specs/tarefas.json`.',
+      participante: (n) => `- Participant mode: **${n} cards** + utility + 2 pages + integration + review.`,
+      apresentador: (n) => `- Presenter mode: **${n} cards** + the same tasks.`,
+      suporte: '## Support tasks',
+      colunasSuporte: ['id', 'wave', 'what', 'spec', 'depends on'],
+      colunasCartoes: ['id', 'mode', 'template', 'title', 'concept', 'depends on'],
+    },
+    msg: {
+      idRepetido: (id) => `repeated id: ${id}`,
+      categoria: (id, cat) => `${id}: unknown category ${cat}`,
+      modelo: (id, m) => `${id}: unknown template ${m}`,
+      modo: (id) => `${id}: invalid mode`,
+      erradas: (id) => `${id}: needs wrong answers`,
+      dependencia: (id, d) => `${id}: unknown dependency ${d}`,
+      problemas: 'specs/cards.json has problems:',
+      desatualizado: (rel) => `out of date: ${rel}`,
+      desatualizados: (n) => `${n} file(s) out of date. Run: node tools/gen.mjs`,
+      atualizado: 'gen: everything up to date',
+      escritos: (n, m) => `gen: ${n} cards, ${m} file(s) written`,
+    },
+  },
+}[LINGUA];
+const M = TEXTOS.msg;
 
 const TEMPLATES = {
   escolha: { fn: 'escolha', ficheiro: 'escolha.js' },
@@ -23,16 +164,16 @@ const erros = [];
 const ids = new Set();
 const cats = new Set(specs.categorias.map((c) => c.id));
 for (const c of specs.cartoes) {
-  if (ids.has(c.id)) erros.push(`id repetido: ${c.id}`);
+  if (ids.has(c.id)) erros.push(M.idRepetido(c.id));
   ids.add(c.id);
-  if (!cats.has(c.categoria)) erros.push(`${c.id}: categoria desconhecida ${c.categoria}`);
-  if (!TEMPLATES[c.modelo]) erros.push(`${c.id}: modelo desconhecido ${c.modelo}`);
-  if (!['participante', 'apresentador'].includes(c.modo)) erros.push(`${c.id}: modo invalido`);
-  if (!Array.isArray(c.erradas) || c.erradas.length === 0) erros.push(`${c.id}: precisa de respostas erradas`);
-  for (const d of c.depende || []) if (!ids.has(d) && !extra.lib.some((l) => l.id === d) && !specs.cartoes.some((x) => x.id === d)) erros.push(`${c.id}: dependencia desconhecida ${d}`);
+  if (!cats.has(c.categoria)) erros.push(M.categoria(c.id, c.categoria));
+  if (!TEMPLATES[c.modelo]) erros.push(M.modelo(c.id, c.modelo));
+  if (!['participante', 'apresentador'].includes(c.modo)) erros.push(M.modo(c.id));
+  if (!Array.isArray(c.erradas) || c.erradas.length === 0) erros.push(M.erradas(c.id));
+  for (const d of c.depende || []) if (!ids.has(d) && !extra.lib.some((l) => l.id === d) && !specs.cartoes.some((x) => x.id === d)) erros.push(M.dependencia(c.id, d));
 }
 if (erros.length) {
-  console.error('specs/cards.json tem problemas:\n- ' + erros.join('\n- '));
+  console.error(M.problemas + '\n- ' + erros.join('\n- '));
   process.exit(1);
 }
 
@@ -43,36 +184,37 @@ const linhaTabela = (cols) => '| ' + cols.map((x) => String(x).replace(/\|/g, '\
 function specMd(c) {
   const t = TEMPLATES[c.modelo];
   const L = [];
-  L.push(`# Cartão ${c.id} — ${c.titulo}`, '');
-  L.push(`- **Categoria:** ${c.categoria}`);
-  L.push(`- **Dificuldade:** ${c.dificuldade}`);
-  L.push(`- **Modelo:** \`${t.fn}\` de \`../../templates/${t.ficheiro}\``);
-  if (c.depende?.length) L.push(`- **Depende de:** ${c.depende.join(', ')}`);
-  L.push('', '## Conceito', '', c.conceito, '', '## Enunciado (campo `prompt`)', '', c.enunciado, '');
+  const X = TEXTOS;
+  L.push(`# ${X.cartao} ${c.id} — ${c.titulo}`, '');
+  L.push(`- **${X.categoria}:** ${c.categoria}`);
+  L.push(`- **${X.dificuldade}:** ${c.dificuldade}`);
+  L.push(`- **${X.modelo}:** ${X.modeloDe(t.fn, t.ficheiro)}`);
+  if (c.depende?.length) L.push(`- **${X.dependeDe}:** ${c.depende.join(', ')}`);
+  L.push('', `## ${X.conceito}`, '', c.conceito, '', `## ${X.enunciado}`, '', c.enunciado, '');
   if (c.cenario) {
-    L.push('## Cenário (campo `scenario`)', '', '```json', JSON.stringify(c.cenario, null, 2), '```', '');
+    L.push(`## ${X.cenario}`, '', '```json', JSON.stringify(c.cenario, null, 2), '```', '');
   }
-  L.push('## Conteúdo', '');
+  L.push(`## ${X.conteudo}`, '');
   if (c.modelo === 'escolha') {
-    L.push('Campo `options` (mantém os ids):', '', linhaTabela(['id', 'text']), linhaTabela(['---', '---']));
+    L.push(X.opcoes, '', linhaTabela(['id', 'text']), linhaTabela(['---', '---']));
     for (const o of c.opcoes) L.push(linhaTabela([o.id, o.texto]));
-    L.push('', `Campo \`answer\`: \`${j(c.certa)}\``);
+    L.push('', `${X.campo('answer')}: \`${j(c.certa)}\``);
   } else if (c.modelo === 'clica-erro') {
-    L.push(`Campo \`language\`: \`${j(c.linguagem || 'texto')}\``, '', 'Campo `segments` (índices a partir de 0):', '');
+    L.push(`${X.campo('language')}: \`${j(c.linguagem || 'texto')}\``, '', X.segmentos, '');
     L.push('```json', JSON.stringify(c.segmentos, null, 2), '```', '');
-    L.push(`Campo \`answer\` (índices inseguros): \`${j(c.certa)}\``);
+    L.push(`${X.respostaInseguros}: \`${j(c.certa)}\``);
   } else if (c.modelo === 'ordenar') {
-    L.push('Campo `items` (já baralhados; mantém esta ordem):', '', linhaTabela(['id', 'text']), linhaTabela(['---', '---']));
+    L.push(X.itens, '', linhaTabela(['id', 'text']), linhaTabela(['---', '---']));
     for (const o of c.itens) L.push(linhaTabela([o.id, o.texto]));
-    L.push('', `Campo \`answer\` (ordem certa): \`${j(c.certa)}\``);
+    L.push('', `${X.respostaOrdem}: \`${j(c.certa)}\``);
   } else if (c.modelo === 'resposta') {
-    if (c.placeholder) L.push(`Campo \`placeholder\`: ${cod(c.placeholder)}`, '');
-    if (c.aceites) L.push(`Campo \`accept\`: \`${j(c.aceites)}\``, '');
-    if (c.verificacao) L.push('Lógica do `check` (em vez de `accept`):', '', c.verificacao, '');
-    L.push(`Exemplo de resposta certa: ${cod(c.certa)}`);
+    if (c.placeholder) L.push(`${X.campo('placeholder')}: ${cod(c.placeholder)}`, '');
+    if (c.aceites) L.push(`${X.campo('accept')}: \`${j(c.aceites)}\``, '');
+    if (c.verificacao) L.push(X.logicaCheck, '', c.verificacao, '');
+    L.push(`${X.exemplo}: ${cod(c.certa)}`);
   }
-  L.push('', '## Explicação (campo `explanation`)', '', c.explicacao, '');
-  L.push('## Feito quando', '', '```', `node --test cards/${c.id}/card.test.js`, '```', '', 'passa sem erros. Regras: `cards/CONTRACT.md`.', '');
+  L.push('', `## ${X.explicacao}`, '', c.explicacao, '');
+  L.push(`## ${X.feitoQuando}`, '', '```', `node --test cards/${c.id}/card.test.js`, '```', '', X.passa, '');
   return L.join('\n');
 }
 
@@ -102,8 +244,10 @@ function interacao(c) {
 function testJs(c) {
   const spec = { id: c.id, categoria: c.categoria, modelo: c.modelo, certa: c.certa, erradas: c.erradas, depende: c.depende || [] };
   const cmp = c.modelo === 'escolha' || c.modelo === 'resposta' ? 'equal' : 'deepEqual';
-  return `// GERADO por tools/gen.mjs a partir de specs/cards.json. Nao editar a mao.
-// Cartao ${c.id}: ${c.titulo}
+  const X = TEXTOS.teste;
+  const q = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `${X.gerado}
+// ${X.cartao} ${c.id}: ${c.titulo}
 import { test, assert, readSource, novoContentor } from '../../lib/testkit.js';
 import { problemasNoCartao } from '../../lib/seguranca.js';
 
@@ -117,56 +261,57 @@ try {
   erro = e;
 }
 
-test('${c.id}: card.js existe e carrega', () => {
-  assert.ok(cartao, 'cards/${c.id}/card.js nao existe, nao tem export default ou tem um erro: ' + (erro?.message ?? ''));
+test('${c.id}: ${q(X.carrega)}', () => {
+  assert.ok(cartao, '${q(X.naoCarrega(c.id))}' + (erro?.message ?? ''));
 });
 
 if (cartao) {
-  test('${c.id}: cumpre o contrato', () => {
-    assert.equal(cartao.id, SPEC.id, 'id errado');
-    assert.equal(cartao.category, SPEC.categoria, 'category errada');
-    assert.equal(cartao.template, SPEC.modelo, 'tem de usar o modelo ' + SPEC.modelo);
-    assert.ok([1, 2, 3].includes(cartao.difficulty), 'difficulty tem de ser 1, 2 ou 3');
-    assert.ok(typeof cartao.title === 'string' && cartao.title.length > 3, 'falta title');
-    assert.ok(typeof cartao.explanation === 'string' && cartao.explanation.length > 10, 'falta explanation');
+  test('${c.id}: ${q(X.contrato)}', () => {
+    assert.equal(cartao.id, SPEC.id, '${q(X.idErrado)}');
+    assert.equal(cartao.category, SPEC.categoria, '${q(X.categoriaErrada)}');
+    assert.equal(cartao.template, SPEC.modelo, '${q(X.usaModelo)}' + SPEC.modelo);
+    assert.ok([1, 2, 3].includes(cartao.difficulty), '${q(X.dificuldade)}');
+    assert.ok(typeof cartao.title === 'string' && cartao.title.length > 3, '${q(X.semTitle)}');
+    assert.ok(typeof cartao.explanation === 'string' && cartao.explanation.length > 10, '${q(X.semExplanation)}');
     assert.equal(typeof cartao.render, 'function');
     assert.equal(typeof cartao.validate, 'function');
   });
 
-  test('${c.id}: aceita a resposta certa', () => {
-    assert.equal(cartao.validate(SPEC.certa), true, 'validate devia aceitar ' + JSON.stringify(SPEC.certa));
+  test('${c.id}: ${q(X.aceita)}', () => {
+    assert.equal(cartao.validate(SPEC.certa), true, '${q(X.devia)}' + JSON.stringify(SPEC.certa));
   });
 
-  test('${c.id}: rejeita as respostas erradas', () => {
-    for (const e of SPEC.erradas) assert.equal(cartao.validate(e), false, 'validate nao devia aceitar ' + JSON.stringify(e));
+  test('${c.id}: ${q(X.rejeita)}', () => {
+    for (const e of SPEC.erradas) assert.equal(cartao.validate(e), false, '${q(X.naoDevia)}' + JSON.stringify(e));
   });
 
-  test('${c.id}: desenha o desafio e devolve a resposta', () => {
+  test('${c.id}: ${q(X.desenha)}', () => {
     const c = novoContentor();
     let recebida;
     cartao.render(c, { responder: (r) => { recebida = r; return { certo: cartao.validate(r) }; } });
-    assert.ok(c.textContent.includes(cartao.title), 'o render tem de mostrar o title');
+    assert.ok(c.textContent.includes(cartao.title), '${q(X.mostraTitle)}');
     ${interacao(c)}
     c.querySelector('.botao-principal').click();
-    assert.${cmp}(recebida, SPEC.certa, 'a interacao devia devolver a resposta certa');
+    assert.${cmp}(recebida, SPEC.certa, '${q(X.devolve)}');
   });
 
-  test('${c.id}: fonte segura', async () => {
+  test('${c.id}: ${q(X.fonte)}', async () => {
     const src = await readSource('./card.js', import.meta.url);
     assert.deepEqual(problemasNoCartao(src), []);
-    if (SPEC.depende.includes('lib-hash')) assert.match(src, /from\\s+['"]\\.\\.\\/\\.\\.\\/lib\\/hash\\.js['"]/, 'este cartao tem de usar ../../lib/hash.js');
+    if (SPEC.depende.includes('lib-hash')) assert.match(src, /from\\s+['"]\\.\\.\\/\\.\\.\\/lib\\/hash\\.js['"]/, '${q(X.usaHash)}');
   });
 }
 `;
 }
 
 function tasksMd() {
-  const L = ['# TASKS — Arena de Segurança', ''];
-  L.push('Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/gen.mjs` a partir de `specs/cards.json` e `specs/tarefas.json`.', '');
+  const X = TEXTOS.tasks;
+  const L = [X.titulo, ''];
+  L.push(X.intro, '');
   const part = specs.cartoes.filter((c) => c.modo === 'participante');
-  L.push(`- Modo participante: **${part.length} cartões** + utilitário + 2 páginas + integração + revisão.`);
-  L.push(`- Modo apresentador: **${specs.cartoes.length} cartões** + as mesmas tarefas.`, '');
-  L.push('## Tarefas de suporte', '', linhaTabela(['id', 'onda', 'o quê', 'spec', 'depende de']), linhaTabela(['---', '---', '---', '---', '---']));
+  L.push(X.participante(part.length));
+  L.push(X.apresentador(specs.cartoes.length), '');
+  L.push(X.suporte, '', linhaTabela(X.colunasSuporte), linhaTabela(['---', '---', '---', '---', '---']));
   for (const t of [...extra.lib, ...extra.paginas, extra.integracao, extra.revisao]) {
     L.push(linhaTabela([t.id, t.onda, t.titulo, t.spec ? `\`${t.spec}\`` : '—', (t.depende || []).join(', ') || '—']));
   }
@@ -174,7 +319,7 @@ function tasksMd() {
   for (const cat of specs.categorias) {
     const cs = specs.cartoes.filter((c) => c.categoria === cat.id);
     if (!cs.length) continue;
-    L.push(`## ${cat.nome}`, '', linhaTabela(['id', 'modo', 'modelo', 'título', 'conceito', 'depende de']), linhaTabela(['---', '---', '---', '---', '---', '---']));
+    L.push(`## ${cat.nome}`, '', linhaTabela(X.colunasCartoes), linhaTabela(['---', '---', '---', '---', '---', '---']));
     for (const c of cs) L.push(linhaTabela([c.id, c.modo, c.modelo, c.titulo, c.conceito, (c.depende || []).join(', ') || '—']));
     L.push('');
   }
@@ -188,7 +333,7 @@ function escrever(rel, conteudo) {
   if (atual === conteudo) return;
   mudou++;
   if (CHECK) {
-    console.error(`desatualizado: ${rel}`);
+    console.error(M.desatualizado(rel));
     return;
   }
   mkdirSync(dirname(p), { recursive: true });
@@ -202,7 +347,7 @@ for (const c of specs.cartoes) {
 escrever('TASKS.md', tasksMd());
 
 if (CHECK && mudou) {
-  console.error(`${mudou} ficheiro(s) desatualizados. Corre: node tools/gen.mjs`);
+  console.error(M.desatualizados(mudou));
   process.exit(1);
 }
-console.log(CHECK ? 'gen: tudo atualizado' : `gen: ${specs.cartoes.length} cartoes, ${mudou} ficheiro(s) escritos`);
+console.log(CHECK ? M.atualizado : M.escritos(specs.cartoes.length, mudou));

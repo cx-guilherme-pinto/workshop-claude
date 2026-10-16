@@ -6,13 +6,13 @@
 //   options: [{ id: 'a', text: '...', detail?: '...' }, ...],
 //   answer: 'b',
 // })
-import { h, criarCartao, verificarDefinicao, cabecalho, cenario, botaoConfirmar, bloquear } from './common.js';
+import { h, criarCartao, verificarDefinicao, cabecalho, cenario, botaoConfirmar, bloquear, TEXTOS } from './common.js';
 
 export function escolha(def) {
   verificarDefinicao(def, 'escolha', ['options', 'answer']);
   const ids = def.options.map((o) => o.id);
-  if (new Set(ids).size !== ids.length) throw new Error(`${def.id}: ids de opcao repetidos`);
-  if (!ids.includes(def.answer)) throw new Error(`${def.id}: a resposta "${def.answer}" nao e uma opcao`);
+  if (new Set(ids).size !== ids.length) throw new Error(TEXTOS.opcoesRepetidas(def.id));
+  if (!ids.includes(def.answer)) throw new Error(TEXTOS.respostaNaoEOpcao(def.id, def.answer));
 
   return criarCartao('escolha', def, {
     validate: (answer) => answer === def.answer,
@@ -42,7 +42,7 @@ export function escolha(def) {
         h(doc, 'article', { class: 'cartao cartao-escolha', 'data-cartao': def.id },
           cabecalho(doc, def),
           cenario(doc, def.scenario),
-          h(doc, 'div', { class: 'opcoes', role: 'radiogroup', attrs: { 'aria-label': 'Opcoes' } }, ...botoes),
+          h(doc, 'div', { class: 'opcoes', role: 'radiogroup', attrs: { 'aria-label': TEXTOS.opcoes } }, ...botoes),
           h(doc, 'div', { class: 'cartao-acoes' }, confirmar),
         ),
       );

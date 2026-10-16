@@ -1,4 +1,7 @@
 // Testes do motor de medicao: precos, leitura de transcripts, totais e regras dos hooks.
+// Lingua fixa para os testes existentes (os textos em portugues); os casos em ingles mudam-na
+// localmente ou passam a lingua explicita. Nenhum modulo le a lingua ao ser importado.
+process.env.WORKSHOP_LANG = 'pt';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, cpSync } from 'node:fs';
@@ -6,9 +9,11 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadPricing, resolveModel, requestCost, tokensFromUsage } from '../lib/cost.mjs';
+import { loadPricing, resolveModel, requestCost, tokensFromUsage, fmtUsd } from '../lib/cost.mjs';
 import { summarize, parseMarkers } from '../lib/transcript.mjs';
 import { totals } from '../lib/totals.mjs';
+import { lingua, normalizar, textos } from '../lib/lingua.mjs';
+import { budgetMessage } from '../budget.mjs';
 
 const KIT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pricing = loadPricing(join(KIT, 'pricing.json'));
@@ -105,4 +110,81 @@ test('hooks saem sempre com 0, mesmo com stdin inválido', () => {
     const r = spawnSync(process.execPath, [join(KIT, 'hooks', h)], { input: 'isto não é json' });
     assert.equal(r.status, 0, h);
   }
+});
+
+// ---------- lingua do kit (pt/en) ----------
+
+test('lingua: normalizar tags de locale', () => {
+  assert.equal(normalizar('pt-PT'), 'pt');
+  assert.equal(normalizar('pt_BR.UTF-8'), 'pt');
+  assert.equal(normalizar('pt'), 'pt');
+  assert.equal(normalizar('en-US'), 'en');
+  assert.equal(normalizar('he-IL'), 'en');
+  assert.equal(normalizar('hi_IN'), 'en');
+  assert.equal(normalizar('C'), null);
+  assert.equal(normalizar('C.UTF-8'), null);
+  assert.equal(normalizar('POSIX'), null);
+  assert.equal(normalizar(''), null);
+  assert.equal(normalizar(undefined), null);
+});
+
+test('lingua: WORKSHOP_LANG > lingua.json > LANG', () => {
+  const comJson = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
+  writeFileSync(join(comJson, 'lingua.json'), JSON.stringify({ lingua: 'pt' }));
+  const semJson = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
+  // WORKSHOP_LANG ganha a tudo.
+  assert.equal(lingua({ env: { WORKSHOP_LANG: 'en', LANG: 'pt_PT.UTF-8' }, raiz: comJson }), 'en');
+  assert.equal(lingua({ env: { WORKSHOP_LANG: 'pt-PT', LANG: 'en_US.UTF-8' }, raiz: semJson }), 'pt');
+  // Sem WORKSHOP_LANG: o lingua.json da instalacao ganha ao locale.
+  assert.equal(lingua({ env: { LANG: 'en_US.UTF-8' }, raiz: comJson }), 'pt');
+  writeFileSync(join(comJson, 'lingua.json'), JSON.stringify({ lingua: 'en' }));
+  assert.equal(lingua({ env: { LANG: 'pt_PT.UTF-8' }, raiz: comJson }), 'en');
+  // Sem lingua.json: LC_ALL, depois LC_MESSAGES, depois LANG; 'C' nao conta.
+  assert.equal(lingua({ env: { LANG: 'pt_PT.UTF-8' }, raiz: semJson }), 'pt');
+  assert.equal(lingua({ env: { LC_ALL: 'he_IL.UTF-8', LANG: 'pt_PT.UTF-8' }, raiz: semJson }), 'en');
+  assert.equal(lingua({ env: { LC_ALL: 'C', LANG: 'pt_PT.UTF-8' }, raiz: semJson }), 'pt');
+  assert.equal(lingua({ env: { WORKSHOP_LANG: '', LANG: 'hi_IN' }, raiz: semJson }), 'en');
+  // Sem nada: Intl do Node (pt ou en, conforme a maquina).
+  assert.ok(['pt', 'en'].includes(lingua({ env: {}, raiz: semJson })));
+  // textos(): lingua desconhecida cai no ingles.
+  assert.equal(textos({ pt: 'ola', en: 'hello' }, 'pt'), 'ola');
+  assert.equal(textos({ pt: 'ola', en: 'hello' }, 'xx'), 'hello');
+});
+
+test('fmtUsd: virgula em portugues, ponto em ingles', () => {
+  assert.equal(fmtUsd(1.5, 'pt'), 'US$ 1,50');
+  assert.equal(fmtUsd(1.5, 'en'), 'US$ 1.50');
+  assert.equal(fmtUsd(0.01234, 'pt'), 'US$ 0,0123');
+  assert.equal(fmtUsd(0.01234, 'en'), 'US$ 0.0123');
+  assert.equal(fmtUsd(null, 'en'), 'US$ ?');
+  assert.equal(fmtUsd(2), 'US$ 2,00', 'sem lingua explicita usa WORKSHOP_LANG (pt nos testes)');
+});
+
+function projetoComCusto(usd) {
+  const proj = mkdtempSync(join(tmpdir(), 'ws-custo-'));
+  const ws = join(proj, '.workshop');
+  mkdirSync(join(ws, 'status'), { recursive: true });
+  writeFileSync(join(ws, 'usage.jsonl'), JSON.stringify({ tipo: 'principal', sessao: 's', custo_usd: usd, modelo: 'claude-sonnet-5-5' }) + '\n');
+  writeFileSync(join(ws, 'status', 'a.json'), JSON.stringify({ tarefa: 'a', estado: 'verde' }));
+  writeFileSync(join(ws, 'status', 'b.json'), JSON.stringify({ tarefa: 'b', estado: 'vermelho' }));
+  return { proj, ws };
+}
+
+test('aviso de orcamento em portugues e em ingles (uma vez cada)', () => {
+  const orc = { orcamento: { alvo_usd: 5, teto_usd: 10 } };
+  const pt = projetoComCusto(6);
+  assert.equal(budgetMessage(pt.ws, orc, 'pt').systemMessage, 'Aviso: o custo acumulado deste projeto chegou a US$ 6,00, acima do alvo de US$ 5,00. A execucao continua normalmente.');
+  assert.equal(budgetMessage(pt.ws, orc, 'pt'), null, 'so avisa uma vez');
+  const en = projetoComCusto(6);
+  assert.equal(budgetMessage(en.ws, orc, 'en').systemMessage, "Warning: this project's total cost has reached US$ 6.00, above the US$ 5.00 target. The run continues as normal.");
+  const teto = projetoComCusto(12);
+  assert.match(budgetMessage(teto.ws, orc, 'en').systemMessage, /^Warning: .* US\$ 12\.00, above the US\$ 10\.00 cap\. The run continues; nothing was stopped\.$/);
+});
+
+test('statusline: palavras e numeros na lingua do kit', () => {
+  const { proj } = projetoComCusto(6);
+  const input = JSON.stringify({ cwd: proj, model: { display_name: 'Sonnet' }, cost: { total_duration_ms: 3900000 } });
+  const correr = (l) => spawnSync(process.execPath, [join(KIT, 'statusline', 'statusline.mjs')], { input, encoding: 'utf8', env: { ...process.env, WORKSHOP_LANG: l } }).stdout;
+  assert.equal(correr('pt'), 'Sonnet · sessão US$ ? · projeto US$ 6,00 de US$ 5,00 ⚠ acima do alvo · swarm 1✓ 0… 1✗ · 1 h 5 min');
+  assert.equal(correr('en'), 'Sonnet · session US$ ? · project US$ 6.00 of US$ 5.00 ⚠ over the target · swarm 1✓ 0… 1✗ · 1 h 5 min');
 });

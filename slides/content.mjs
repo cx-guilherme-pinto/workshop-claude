@@ -1,4 +1,5 @@
 // Conteudo da apresentacao (pt-PT). O build.mjs transforma isto em workshop.pptx e speaker-notes.md.
+// A versao inglesa (content.en.mjs) tem a mesma forma: mudar um slide aqui = mudar o mesmo slide la.
 // {{...}} sao substituidos a partir do repos.conf e do benchmark (ver build.mjs).
 // min = minutos do slide; saltar = pode ser saltado se houver atraso.
 
@@ -9,14 +10,14 @@ export const SLIDES = [
   {
     seccao: 'Abertura', tipo: 'titulo', min: 1,
     titulo: 'Orquestração de agentes com Claude',
-    subtitulo: 'Skills, subagentes e enxames paralelos, com custo medido',
-    notas: 'Boas-vindas. Em 90 minutos vamos pôr um enxame de agentes a construir um jogo e, depois, a trabalhar numa tarefa real de cada um.',
+    subtitulo: 'Skills, subagentes e swarms paralelos, com custo medido',
+    notas: 'Boas-vindas. Em 90 minutos vamos pôr um swarm de agentes a construir um jogo e, depois, a trabalhar numa tarefa real de cada um.',
   },
   {
     seccao: 'Abertura', tipo: 'colunas', min: 1.5,
     titulo: 'O que levas para casa',
     colunas: [
-      { titulo: 'Um enxame', texto: 'que constrói um jogo de segurança com 15 agentes em paralelo', cor: 'verde' },
+      { titulo: 'Um swarm', texto: 'que constrói um jogo de segurança com 15 agentes em paralelo', cor: 'verde' },
       { titulo: 'A tua tarefa', texto: 'real, do Jira ou do GitHub, decomposta e a correr', cor: 'accent' },
       { titulo: 'Uma memória', texto: 'em grafo do que aprendeste, para usar amanhã', cor: 'amarelo' },
     ],
@@ -52,8 +53,8 @@ export const SLIDES = [
       { rotulo: 'Mac', cmd: '{{CHECK_MAC}}' },
       { rotulo: 'Windows', cmd: '{{CHECK_WIN}}' },
     ],
-    esperado: '"Está tudo pronto para o workshop"',
-    notas: 'Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não fez o setup segue com o vizinho e instala no intervalo das perguntas.',
+    esperado: '"Everything is ready for the workshop" (o setup fala inglês)',
+    notas: 'Toda a gente corre o check. Demora 2 a 3 minutos e não instala nada. Quem não fez o setup segue com o vizinho e instala no intervalo das perguntas. O setup fala inglês, mas deteta a língua da máquina e grava a definição language do Claude Code (português, inglês, hindi ou hebraico): as skills respondem nessa língua. A Arena, as tabelas do orquestrador e as docs ficam em português ou inglês (as outras línguas ficam em inglês).',
   },
   {
     seccao: 'Verificar', tipo: 'faca', min: 2,
@@ -85,17 +86,18 @@ export const SLIDES = [
     intro: 'Um ficheiro SKILL.md numa pasta. Escreves /nome e o Claude segue a receita.',
     codigo: `---
 name: demo-swarm
-description: Executa o enxame da Arena em ondas
+description: Runs the Arena swarm in waves
 model: sonnet
 allowed-tools:
   - Bash(node tools/*)
   - Agent
 ---
-1. Corre next-wave.mjs
-2. Lança exatamente as chamadas que ele devolve
-3. Repete até ESTADO: FIM`,
-    depois: '.claude/skills/ no projeto · ~/.claude/skills/ para todos os projetos',
-    notas: 'As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois sets: os /demo-* na Arena e os /task-* no dia a dia.',
+1. Run next-wave.mjs
+2. Launch exactly the calls it returns
+3. Repeat until ESTADO: FIM
+Answer in the participant's language.`,
+    depois: '.claude/skills/ no projeto · ~/.claude/skills/ para todos os projetos · escritas em inglês, respondem na tua língua',
+    notas: 'As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois sets: os /demo-* na Arena e os /task-* no dia a dia. As skills do kit estão em inglês e mandam o Claude responder na língua do participante.',
   },
   {
     seccao: 'Conceitos', tipo: 'modelos', min: 2,
@@ -103,7 +105,7 @@ allowed-tools:
     modelos: [
       { nome: 'Opus', papel: 'planear e rever', cor: 'accent', preco: 'US$ 4 / 20' },
       { nome: 'Sonnet', papel: 'integrar e lógica difícil', cor: 'verde', preco: 'US$ 2 / 10' },
-      { nome: 'Haiku', papel: 'o grosso do enxame', cor: 'amarelo', preco: 'US$ 0,10 / 0,50' },
+      { nome: 'Haiku', papel: 'o grosso do swarm', cor: 'amarelo', preco: 'US$ 0,10 / 0,50' },
     ],
     rodape: 'Preço por milhão de tokens: entrada / saída. Fonte: pricing.json ({{PRICING_DATA}}).',
     notas: 'Um subagente é uma instância do Claude com contexto limpo, ferramentas próprias e o modelo que quisermos. É definido num ficheiro .claude/agents/<nome>.md. O comando /agents já não abre um assistente: edita-se o ficheiro.',
@@ -114,10 +116,10 @@ allowed-tools:
     stats: [
       { valor: '20×', rotulo: 'o Haiku é 20 vezes mais barato que o Sonnet' },
       { valor: '{{CUSTO_CARTAO}}', rotulo: 'custo médio de um cartão feito por um agente Haiku' },
-      { valor: '{{PESO_ORQ}}', rotulo: 'do custo vai para a sessão principal, não para o enxame' },
+      { valor: '{{PESO_ORQ}}', rotulo: 'do custo vai para a sessão principal, não para o swarm' },
     ],
     rodape: 'O máximo possível em Haiku. Sonnet só onde o Haiku falha. Opus só para pensar e rever.',
-    notas: 'O enxame barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.',
+    notas: 'O swarm barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.',
   },
   {
     seccao: 'Conceitos', tipo: 'dag', min: 2,
@@ -144,7 +146,7 @@ allowed-tools:
     seccao: 'Conceitos', tipo: 'fluxo', min: 1,
     titulo: 'O ciclo de cada tarefa',
     passos: ['plan', 'swarm', 'review', 'cost', 'memória'],
-    notas: 'É o mesmo ciclo nos dois projetos: planear com Opus, executar em enxame, um gate de segurança, medir e guardar o que se aprendeu.',
+    notas: 'É o mesmo ciclo nos dois projetos: planear com Opus, executar em swarm, um gate de segurança, medir e guardar o que se aprendeu.',
   },
   {
     seccao: 'Conceitos', tipo: 'stats', min: 1, saltar: true,
@@ -171,24 +173,24 @@ allowed-tools:
     titulo: 'O resultado: um jogo para jogar',
     media: 'media/arena.png',
     legenda: 'Verde: o teste passou · vermelho: falhou. O que não funcionou também se vê.',
-    notas: 'Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem risco.',
+    notas: 'Abrir a Arena final no browser e jogar um cartão. É uma app estática, sem risco. O jogo vem em português ou inglês, conforme a língua da máquina.',
   },
 
   // ---------------- Projeto 1 (30–55)
-  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o enxame de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
+  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 4 a 6 minutos; em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
   {
     seccao: 'Projeto 1', tipo: 'colunas', min: 1,
     titulo: 'O que já está pronto e o que falta',
     colunas: [
       { titulo: 'Pronto', texto: 'a casca da app, 4 modelos de cartão e um teste para cada cartão', cor: 'verde' },
       { titulo: 'Por fazer', texto: '15 cartões, o lib/hash e duas páginas', cor: 'cinza' },
-      { titulo: 'Quem faz', texto: 'o teu enxame: Haiku, Sonnet e Opus', cor: 'amarelo' },
+      { titulo: 'Quem faz', texto: 'o teu swarm: Haiku, Sonnet e Opus', cor: 'amarelo' },
     ],
     notas: 'Os testes já existem: cada agente só tem de pôr o seu teste verde. É isto que deixa o Haiku fazer o grosso do trabalho com segurança.',
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 3,
-    titulo: 'Planeia o enxame',
+    titulo: 'Planeia o swarm',
     passos: ['Entra na pasta da Arena', 'Abre o Claude Code e aceita confiar na pasta', 'Corre /demo-plan'],
     comandos: [{ rotulo: 'Terminal 1', cmd: 'cd ~/workshop-claude/demo-project\nclaude\n/demo-plan' }],
     esperado: 'Um diagrama Mermaid, 4 ondas e uma estimativa perto de {{ESTIMATIVA}}',
@@ -201,27 +203,27 @@ allowed-tools:
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
-    titulo: 'Solta o enxame',
+    titulo: 'Solta o swarm',
     passos: ['Corre /demo-swarm', 'Abre um segundo terminal', 'Arranca o servidor e abre /estado'],
     comandos: [
       { rotulo: 'Terminal 1', cmd: '/demo-swarm' },
       { rotulo: 'Terminal 2', cmd: 'cd ~/workshop-claude/demo-project\nnode server.js' },
     ],
     esperado: 'http://localhost:3000/estado: os quadrados ficam amarelos e depois verdes',
-    notas: 'A partir daqui o enxame trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.',
+    notas: 'A partir daqui o swarm trabalha alguns minutos (4 a 6 no benchmark). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.',
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
     titulo: 'Pergunta sem interromper',
-    passos: ['Enquanto o enxame trabalha, no Terminal 1', 'Usa /btw para uma pergunta lateral'],
+    passos: ['Enquanto o swarm trabalha, no Terminal 1', 'Usa /btw para uma pergunta lateral'],
     comandos: [{ rotulo: 'Terminal 1', cmd: '/btw porque é que o cr-01 espera pelo lib-hash?' }],
-    esperado: 'Uma resposta que não entra na conversa nem para o enxame',
+    esperado: 'Uma resposta que não entra na conversa nem para o swarm',
     notas: 'O /btw responde ao lado. É a forma certa de tirar dúvidas durante uma execução longa.',
   },
   {
     seccao: 'Projeto 1', tipo: 'codigo', min: 2,
     titulo: 'A statusline e o hook que a alimenta',
-    intro: 'Em baixo: modelo · sessão · projeto contra o alvo · tempo · enxame.',
+    intro: 'Em baixo: modelo · sessão · projeto contra o alvo · tempo · swarm.',
     codigo: `"hooks": {
   "SubagentStop": [{ "hooks": [{
     "type": "command",
@@ -282,7 +284,7 @@ allowed-tools:
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
-    titulo: 'Joga o que o enxame construiu',
+    titulo: 'Joga o que o swarm construiu',
     passos: ['Abre a galeria', 'Escolhe um cartão e joga', 'Carrega em "Correr testes"'],
     comandos: [{ rotulo: 'Browser', cmd: 'http://localhost:3000' }],
     esperado: 'Cartões verdes jogáveis; os vermelhos mostram porque falharam',
@@ -306,7 +308,7 @@ allowed-tools:
       { rotulo: 'Windows', cmd: 'Menu Iniciar → Memória   (ou: memoria)' },
     ],
     esperado: 'O grafo da sessão da Arena, com as lições ligadas ao projeto',
-    notas: 'Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.',
+    notas: 'A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já ficaram vistos nos momentos de espera.',
   },
 
   // ---------------- Projeto 2 (60–85)
@@ -338,7 +340,7 @@ allowed-tools:
   },
   {
     seccao: 'Projeto 2', tipo: 'faca', min: 10,
-    titulo: 'Põe o enxame a trabalhar',
+    titulo: 'Põe o swarm a trabalhar',
     passos: ['Corre /task-swarm', 'Vê o painel noutro terminal', 'Pára com Esc e retoma quando quiseres'],
     comandos: [
       { rotulo: 'Terminal 1', cmd: '/task-swarm' },

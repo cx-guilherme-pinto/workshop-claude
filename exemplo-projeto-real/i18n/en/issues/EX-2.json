@@ -1,0 +1,20 @@
+{
+  "id": "EX-2",
+  "fonte": "local",
+  "url": "issues/EX-2.json",
+  "titulo": "Search books by title or author, with pagination",
+  "descricao": "Readers need to find books. We want GET /books?q=<text>&page=<n>&perPage=<n>, which searches the title and the author, ignores case and accents, and returns paginated results.",
+  "criterios": [
+    "new function searchBooks(q, { page, perPage }) in src/search.js",
+    "the search ignores upper/lower case and accents ('garcia' finds 'Gabriel García Márquez')",
+    "pagination: page starts at 1, perPage defaults to 10 with a maximum of 50; returns { total, page, perPage, results }",
+    "GET /books without q still returns the full list (compatibility)",
+    "invalid page/perPage values return 400",
+    "tests for search, accents, pagination and errors"
+  ],
+  "epico": "EX-100",
+  "etiquetas": [
+    "search",
+    "api"
+  ]
+}

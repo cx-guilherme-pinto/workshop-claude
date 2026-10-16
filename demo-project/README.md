@@ -1,6 +1,6 @@
 # Arena de Segurança
 
-Um jogo de desafios curtos sobre segurança. É o projeto demo do workshop Claude Code: um enxame de agentes Claude constrói os cartões e as páginas, cada um com o seu teste.
+Um jogo de desafios curtos sobre segurança. É o projeto demo do workshop Claude Code: um swarm de agentes Claude constrói os cartões e as páginas, cada um com o seu teste.
 
 ## Correr
 
@@ -18,8 +18,8 @@ O servidor só aceita ligações deste computador (127.0.0.1).
 |---|---|
 | `/` | A galeria: categorias, cartões, pontuação e o botão "Correr testes" (corre os `card.test.js` no browser) |
 | `/#/cartao/<id>` | Jogar um cartão |
-| `/#/categoria/<id>` e `/#/pontuacao` | Páginas feitas pelo enxame na onda 2 |
-| `/estado` | O estado do enxame ao vivo, um quadrado por tarefa (tema escuro, para o projetor) |
+| `/#/categoria/<id>` e `/#/pontuacao` | Páginas feitas pelo swarm na onda 2 |
+| `/estado` | O estado do swarm ao vivo, um quadrado por tarefa (tema escuro, para o projetor) |
 | `/estado?replay=exemplo` | Uma execução gravada, repetida sem chamar a API |
 
 ## Onde está cada coisa
@@ -36,10 +36,10 @@ O servidor só aceita ligações deste computador (127.0.0.1).
 | `test/app.test.js` | Testes de segurança da app: cabeçalhos, caminhos recusados e fonte sem padrões perigosos |
 | `replays/` | Repetições para o `/estado` (formato em `replays/README.md`) |
 | `specs/*.md` | As tarefas de suporte: `lib-hash`, `pagina-categoria`, `tabela-pontuacao`, `integracao` e `revisao` |
-| `tools/` | `gen.mjs`, `plan.mjs` (plano do enxame), `check-integracao.mjs`, `review-digest.mjs` e `reset.mjs` |
+| `tools/` | `gen.mjs`, `plan.mjs` (plano do swarm), `check-integracao.mjs`, `review-digest.mjs` e `reset.mjs` |
 | `DESIGN.md` | O sistema de design, numa página |
 
-## O enxame
+## O swarm
 
 No Claude Code, dentro desta pasta:
 

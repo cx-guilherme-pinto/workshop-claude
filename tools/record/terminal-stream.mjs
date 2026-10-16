@@ -62,7 +62,7 @@ rl.on('line', (l) => {
       } else {
         const m = /ESTADO: (LOTE \d+[^\n]*|FIM[^\n]*|BLOQUEADO[^\n]*)/.exec(texto);
         if (m) out(C.azul + C.negrito, m[1]);
-        const prog = /Progresso: ([^\n]*)/.exec(texto);
+        const prog = /(?:Progresso|Progress): ([^\n]*)/.exec(texto); // pt ou en (D-20)
         if (prog) out(C.dim, prog[1]);
       }
     }

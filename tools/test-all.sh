@@ -17,6 +17,7 @@ main() {
   corre "orquestrador (ondas, tentativas, plano)" node --test "orquestrador/test/*.test.mjs"
   corre "Arena: ficheiros gerados atualizados" node demo-project/tools/gen.mjs --check
   corre "Arena: soluções de referência passam" node tools/dev/check-solutions.mjs
+  corre "Arena em inglês: soluções passam" node tools/dev/check-solutions.mjs --lingua en
   corre "sandbox do Projeto 2" bash -c "cd exemplo-projeto-real && node --test"
   if [ -f tools/check-repo.mjs ]; then corre "sem URLs fora do repos.conf, .ps1 em ASCII" node tools/check-repo.mjs; fi
   for t in installer/test tools/test setup/test; do

@@ -2,13 +2,44 @@
 // Resumo barato do repositorio atual (sem LLM): linguagens, manifestos, comandos de teste provaveis,
 // pastas principais e ficheiros de orientacao. Usado pelo /task-intake para nao gastar tokens a explorar.
 //   node explorar.mjs [--projeto <dir>]
+// O resumo sai na lingua do kit; `l` e opcional (testes).
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { ehPrincipal } from './lib/principal.mjs';
+import { lingua, textos } from '../hooks/lib/lingua.mjs';
 
-export function explorar(dir) {
+const TEXTOS = {
+  pt: {
+    raiz: '(raiz)',
+    titulo: (n) => `# Repositório ${n}`,
+    branch: (b, r, n, mb) => `- Branch: ${b} · remoto: ${r} · ${n} ficheiros (${mb} MB)`,
+    linguagens: 'Linguagens (por n.º de ficheiros)',
+    pastas: 'Pastas principais',
+    manifestos: 'Manifestos',
+    guias: 'Guias para agentes',
+    testes: 'Comandos de teste prováveis',
+    nenhum: 'nenhum',
+    nenhumEncontrado: 'nenhum encontrado',
+    readme: '## Início do README',
+  },
+  en: {
+    raiz: '(root)',
+    titulo: (n) => `# Repository ${n}`,
+    branch: (b, r, n, mb) => `- Branch: ${b} · remote: ${r} · ${n} files (${mb} MB)`,
+    linguagens: 'Languages (by number of files)',
+    pastas: 'Main folders',
+    manifestos: 'Manifests',
+    guias: 'Guides for agents',
+    testes: 'Likely test commands',
+    nenhum: 'none',
+    nenhumEncontrado: 'none found',
+    readme: '## Start of the README',
+  },
+};
+
+export function explorar(dir, l = lingua()) {
   const git = spawnSync('git', ['ls-files'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const ficheiros = git.status === 0 ? git.stdout.split('\n').filter(Boolean) : [];
   const porExt = {};
@@ -16,7 +47,7 @@ export function explorar(dir) {
   for (const f of ficheiros) {
     const e = extname(f).toLowerCase() || basename(f);
     porExt[e] = (porExt[e] || 0) + 1;
-    const top = f.includes('/') ? f.split('/')[0] + '/' : '(raiz)';
+    const top = f.includes('/') ? f.split('/')[0] + '/' : textos(TEXTOS, l).raiz;
     pastas[top] = (pastas[top] || 0) + 1;
   }
   const existe = (p) => existsSync(join(dir, p));
@@ -63,18 +94,19 @@ export function explorar(dir) {
   };
 }
 
-export function explorarMd(r) {
+export function explorarMd(r, l = lingua()) {
+  const T = textos(TEXTOS, l);
   return [
-    `# Repositório ${r.nome}`,
+    T.titulo(r.nome),
     '',
-    `- Branch: ${r.branch || '?'} · remoto: ${r.remoto || 'nenhum'} · ${r.total_ficheiros} ficheiros (${r.tamanho_mb} MB)`,
-    `- Linguagens (por n.º de ficheiros): ${r.linguagens.map(([e, n]) => `${e} ${n}`).join(', ') || '—'}`,
-    `- Pastas principais: ${r.pastas.map(([p, n]) => `${p} (${n})`).join(', ') || '—'}`,
-    `- Manifestos: ${r.manifestos.join(', ') || 'nenhum'}`,
-    `- Guias para agentes: ${r.orientacao.join(', ') || 'nenhum'}`,
-    `- Comandos de teste prováveis: ${r.testes_provaveis.map((t) => '`' + t.join(' ') + '`').join(', ') || 'nenhum encontrado'}`,
+    T.branch(r.branch || '?', r.remoto || T.nenhum, r.total_ficheiros, r.tamanho_mb),
+    `- ${T.linguagens}: ${r.linguagens.map(([e, n]) => `${e} ${n}`).join(', ') || '—'}`,
+    `- ${T.pastas}: ${r.pastas.map(([p, n]) => `${p} (${n})`).join(', ') || '—'}`,
+    `- ${T.manifestos}: ${r.manifestos.join(', ') || T.nenhum}`,
+    `- ${T.guias}: ${r.orientacao.join(', ') || T.nenhum}`,
+    `- ${T.testes}: ${r.testes_provaveis.map((t) => '`' + t.join(' ') + '`').join(', ') || T.nenhumEncontrado}`,
     '',
-    r.readme ? '## Início do README\n\n' + r.readme.split('\n').slice(0, 25).join('\n') : '',
+    r.readme ? T.readme + '\n\n' + r.readme.split('\n').slice(0, 25).join('\n') : '',
   ].join('\n');
 }
 

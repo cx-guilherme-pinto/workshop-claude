@@ -1,7 +1,7 @@
 ---
 name: task-report
-description: Fecha a tarefa. No Jira (MCP Atlassian, ou o Atlassian CLI se o MCP falhar) publica um comentário por subtarefa (agente, modelo, duração, custo), o registo de horas e um resumo total; no GitHub abre o PR com gh pr create e o mesmo resumo. Pede SEMPRE confirmação antes de qualquer escrita. No fim grava as memórias da tarefa.
-argument-hint: "[jira|github|ambos]"
+description: Closes the task. In Jira (Atlassian MCP, or the Atlassian CLI if the MCP fails) it publishes one comment per subtask (agent, model, duration, cost), the work log and a total summary; in GitHub it opens the PR with gh pr create and the same summary. It ALWAYS asks for confirmation before any write. At the end it saves the task's memories.
+argument-hint: "[jira|github|both]"
 model: sonnet
 disable-model-invocation: true
 allowed-tools:
@@ -15,37 +15,39 @@ allowed-tools:
   - Agent
 ---
 
-# /task-report — reportar e lembrar
+# /task-report — report and remember
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumento: `$ARGUMENTS` (destino; por defeito o da fonte da tarefa).
+**Language:** talk to the user in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output and the texts to publish exactly as they come. Never translate status markers.
 
-**Regra:** nada é escrito no Jira ou no GitHub sem um "sim" claro do utilizador **para essa escrita**. Se a resposta for ambígua, não publiques.
+Argument: `$ARGUMENTS` (destination: `jira`, `github` or `both`, `ambos` also works; by default, the source of the task).
 
-1. Corre `node "{{KIT_DIR}}/orquestrador/publicar-texto.mjs"`. Prepara, sem publicar, `.workshop/publicar.json`, `.workshop/pr-body.md` e os mesmos textos em ficheiros, em `.workshop/publicar/` (para o `acli`).
-2. Lê `.workshop/publicar.json` e mostra ao utilizador **exatamente** o que vai ser publicado:
-   - os comentários, um por subtarefa, cada um com agente, modelo, duração e custo;
-   - o resumo total;
-   - o registo de horas (`tempo_jira`);
-   - o título do PR.
-3. **Jira** (fonte `jira`, ou destino `jira`/`ambos`):
-   - Pergunta: "Publico N comentários, o resumo e um registo de <tempo> na issue <alvo>? (sim/não)".
-   - Com sim:
-     - um comentário por subtarefa com `addOrEditJiraIssueComment`, usando o `cloudId` de `.workshop/tarefa.json`; se a subtarefa tiver `alvo` próprio, o comentário vai para essa subtarefa do Jira;
-     - um comentário com o resumo;
-     - o registo de horas com `addOrEditJiraIssueWorklog` (`timeSpent` = `tempo_jira`). Se esta ferramenta não aparecer diretamente, usa a ferramenta `discover` do servidor atlassian para a encontrar e depois `executeWrite`.
-   - **Reserva: Atlassian CLI (`acli`).** Usa-o se o `tarefa.json` tiver `"via":"acli"`, ou se as ferramentas `mcp__atlassian__*` não existirem ou falharem. O "sim" que já recebeste vale para estas escritas, e o Claude Code pede ainda aprovação a cada comando:
-     - confirma o login com `acli auth status` (ou `acli jira auth status`). Sem login, para e diz para correr `acli auth login` num terminal;
-     - cada comentário: `acli jira workitem comment create --key <alvo> --body-file <ficheiro>`, com o `alvo` e o `ficheiro` de cada entrada de `comentarios` em `publicar.json`;
-     - o resumo: `acli jira workitem comment create --key <alvo> --body-file .workshop/publicar/resumo.txt`;
-     - o registo de horas: o `acli` não regista horas. Diz: "Regista <tempo_jira> à mão em *Log work*; `acli jira workitem view <alvo> --web` abre a issue no browser.";
-     - se o MCP falhou a meio, publica no `acli` só o que ainda não foi publicado (não dupliques comentários);
-     - corre um comando de cada vez e para no primeiro erro, mostrando-o.
-   - Mostra o que foi publicado, com links.
-4. **GitHub** (fonte `github`, ou destino `github`/`ambos`):
-   - Verifica o branch com `git rev-parse --abbrev-ref HEAD`. Se estiver em `main`/`master`, propõe criar um branch e espera pela resposta.
-   - Pergunta: "Faço push do branch <b> e abro o PR '<título>'? (sim/não)".
-   - Com sim, corre num terminal, pedindo aprovação a cada comando: `git push -u origin <b>` e `gh pr create --title "<título>" --body-file .workshop/pr-body.md`. Mostra o URL do PR.
-5. **Memória.** Lança **um** subagente `memoria-extrator` com o prompt "Lê .workshop/memoria-resumo.md. Projeto: <nome do repositório>." e mostra a lista do que foi gravado.
-6. Termina com um resumo de uma linha: o que foi publicado, onde e quanto custou a tarefa.
+**Rule:** nothing is written to Jira or GitHub without a clear yes from the user **for that write**. If the answer is ambiguous, do not publish.
+
+1. Run `node "{{KIT_DIR}}/orquestrador/publicar-texto.mjs"`. It prepares, without publishing, `.workshop/publicar.json`, `.workshop/pr-body.md` and the same texts as files in `.workshop/publicar/` (for `acli`).
+2. Read `.workshop/publicar.json` and show the user **exactly** what will be published:
+   - the comments, one per subtask, each with agent, model, duration and cost;
+   - the total summary;
+   - the work log (`tempo_jira`);
+   - the PR title.
+3. **Jira** (source `jira`, or destination `jira`/`both`):
+   - Ask: "Publish N comments, the summary and a work log of <time> on issue <target>? (yes/no)".
+   - With yes:
+     - one comment per subtask with `addOrEditJiraIssueComment`, using the `cloudId` from `.workshop/tarefa.json`; if the subtask has its own `alvo`, the comment goes to that Jira subtask;
+     - one comment with the summary;
+     - the work log with `addOrEditJiraIssueWorklog` (`timeSpent` = `tempo_jira`). If this tool does not appear directly, use the atlassian server's `discover` tool to find it and then `executeWrite`.
+   - **Fallback: Atlassian CLI (`acli`).** Use it if `tarefa.json` has `"via":"acli"`, or if the `mcp__atlassian__*` tools do not exist or fail. The yes you already received covers these writes, and Claude Code still asks for approval for each command:
+     - confirm the login with `acli auth status` (or `acli jira auth status`). Without a login, stop and tell the user to run `acli auth login` in a terminal;
+     - each comment: `acli jira workitem comment create --key <alvo> --body-file <ficheiro>`, with the `alvo` and the `ficheiro` of each entry of `comentarios` in `publicar.json`;
+     - the summary: `acli jira workitem comment create --key <alvo> --body-file .workshop/publicar/resumo.txt`;
+     - the work log: `acli` does not log time. Say: "Log <tempo_jira> by hand in *Log work*; `acli jira workitem view <alvo> --web` opens the issue in the browser.";
+     - if the MCP failed halfway, publish with `acli` only what has not been published yet (do not duplicate comments);
+     - run one command at a time and stop at the first error, showing it.
+   - Show what was published, with links.
+4. **GitHub** (source `github`, or destination `github`/`both`):
+   - Check the branch with `git rev-parse --abbrev-ref HEAD`. If it is `main`/`master`, propose creating a branch and wait for the answer.
+   - Ask: "Push branch <b> and open PR '<title>'? (yes/no)".
+   - With yes, run in a terminal, asking for approval for each command: `git push -u origin <b>` and `gh pr create --title "<title>" --body-file .workshop/pr-body.md`. Show the PR URL.
+5. **Memory.** Launch **one** `memoria-extrator` subagent with the prompt "Read .workshop/memoria-resumo.md. Project: <repository name>. Language: <the user's language>." and show the list of what was saved.
+6. End with a one-line summary: what was published, where, and how much the task cost.

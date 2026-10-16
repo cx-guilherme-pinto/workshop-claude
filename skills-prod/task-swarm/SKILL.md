@@ -1,6 +1,6 @@
 ---
 name: task-swarm
-description: Executa o plano aprovado (.workshop/plan.json) com subagentes em paralelo, por ondas, respeitando as dependências. Nunca põe no mesmo lote duas tarefas que mexam nos mesmos ficheiros (ou isola-as em git worktrees). Pode ser parado e retomado.
+description: Runs the approved plan (.workshop/plan.json) with subagents in parallel, in waves, following the dependencies. It never puts two tasks that touch the same files in the same batch (or it isolates them in git worktrees). It can be stopped and resumed.
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -9,28 +9,30 @@ allowed-tools:
   - Agent
 ---
 
-# /task-swarm — executar o enxame
+# /task-swarm — run the swarm
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
+**Language:** talk to the user in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status markers (`ESTADO: …`, `ERRO: …`).
 
-Quem decide o grafo e os lotes é o script. O teu trabalho é lançar exatamente o que ele pede.
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
 
-**Ciclo** (repete até aparecer `ESTADO: FIM` ou `ESTADO: BLOQUEADO`):
+The script decides the graph and the batches. Your job is to launch exactly what it asks for.
 
-1. Corre `node "{{KIT_DIR}}/orquestrador/next-wave.mjs" --plano .workshop/plan.json`. Se aparecer `ERRO: Plano nao encontrado`, diz para correr `/task-plan` e para.
-2. Mostra a tabela "Resultado do lote anterior" (se existir) e a linha `Progresso`.
-3. Se aparecer `ESTADO: LOTE`, lê o JSON entre `<<<CHAMADAS` e `CHAMADAS>>>`. Numa **única mensagem**, faz uma chamada à ferramenta `Agent` por cada objeto, com `subagent_type`, `description`, `prompt` e, se existir, `isolation`, **exatamente** como estão.
-4. Quando todos responderem, volta ao passo 1. Não resumas as respostas deles.
+**Loop** (repeat until `ESTADO: FIM` or `ESTADO: BLOQUEADO` appears):
 
-**Se aparecer `ESTADO: BLOQUEADO`**, mostra que tarefas falharam (a tabela tem o excerto do teste) e sugere:
-- corrigir à mão, ou
-- `/loop 3m corre os testes do projeto e, se houver uma falha, lança o ws-implementer para a primeira; para quando estiver tudo verde`.
+1. Run `node "{{KIT_DIR}}/orquestrador/next-wave.mjs" --plano .workshop/plan.json`. If `ERRO: Plano nao encontrado` appears, tell the user to run `/task-plan` and stop.
+2. Show the table "Previous batch result" (`## Resultado do lote anterior` in Portuguese), if it exists, and the `Progress:` line (`Progresso:` in Portuguese).
+3. If `ESTADO: LOTE` appears, read the JSON between `<<<CHAMADAS` and `CHAMADAS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description`, `prompt` and, if present, `isolation`, **exactly** as they are.
+4. When all of them have answered, go back to step 1. Do not summarise their answers.
 
-**No fim** mostra a última tabela e sugere `/task-gate`.
+**If `ESTADO: BLOQUEADO` appears**, show which tasks failed (the table has the test excerpt) and suggest:
+- fixing it by hand, or
+- `/loop 3m run the project's tests and, if there is a failure, launch the ws-implementer for the first one; stop when everything is green`.
 
-Dicas para o utilizador:
-- O estado fica em `.workshop/`. Se parares (Esc), voltar a correr `/task-swarm` retoma onde ficou.
-- Para ver o enxame ao vivo noutro terminal: `node "{{KIT_DIR}}/orquestrador/painel.mjs"`.
-- `/btw <pergunta>` faz uma pergunta sem interromper o enxame.
+**At the end**, show the last table and suggest `/task-gate`.
+
+Tips for the user:
+- The state is kept in `.workshop/`. If you stop (Esc), running `/task-swarm` again resumes where it left off.
+- To watch the swarm live in another terminal: `node "{{KIT_DIR}}/orquestrador/painel.mjs"`.
+- `/btw <question>` asks a question without interrupting the swarm.

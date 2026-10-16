@@ -10,11 +10,14 @@
 #   bash <(curl -fsSL <url>/setup-mac.sh) --check           alternativa
 #   bash ~/.workshop-claude/setup-mac.sh --check            depois da primeira vez
 #
-# Opcoes: --check  --doctor  --desinstalar  --sem-desktop  --sim  --substituir-statusline  --ajuda
+# Opcoes: --check  --doctor  --uninstall  --no-desktop  --yes  --replace-statusline  --help
+#   (as antigas --desinstalar --sem-desktop --sim --substituir-statusline --ajuda continuam a funcionar)
 #
 # Todo o codigo esta dentro de main(), chamado na ultima linha: um download incompleto nao executa nada.
 # As perguntas e os logins leem de /dev/tty, por isso "curl | bash" funciona.
-# Os textos (pt-PT) vem de setup/messages.pt.json (o mesmo catalogo de docs/TROUBLESHOOTING.md).
+# O setup fala so ingles (D-20): os textos vem de setup/messages.en.json (o mesmo catalogo de docs/en/TROUBLESHOOTING.md).
+# A lingua da maquina (WORKSHOP_LANG, AppleLanguages, LC_ALL, LC_MESSAGES, LANG) so configura o resto: a "language"
+# do Claude Code e a lingua dos textos do kit e dos projetos (pt ou en).
 
 # >>> WS-INJETADO >>>
 # Na fonte este bloco esta vazio. tools/build-release.sh injeta aqui os valores do repos.conf,
@@ -125,6 +128,42 @@ ws_conf_parse() {
   done
 }
 
+# Lingua da maquina (D-20): etiqueta como "pt-PT", "he" ou "en". Mesmas regras que installer/lib/linguas.mjs;
+# casos partilhados em tools/test/lingua-cases.json.
+ws_lang_tag() { # texto -> etiqueta normalizada (vazio se nao houver informacao: '', C, POSIX)
+  local t=${1%%.*} base rest out p
+  t=${t%%@*}; t=${t//_/-}; t=$(ws_trim "$t")
+  case "$t" in ''|C|c|POSIX|posix) return 0 ;; esac
+  base=$(printf '%s' "${t%%-*}" | tr '[:upper:]' '[:lower:]'); [ "$base" = iw ] && base=he
+  out=$base
+  case "$t" in *-*) rest=${t#*-} ;; *) rest="" ;; esac
+  local IFS=-
+  for p in $rest; do
+    [ -n "$p" ] || continue
+    case ${#p} in
+      2) p=$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]') ;;
+      4) p="$(printf '%s' "${p:0:1}" | tr '[:lower:]' '[:upper:]')$(printf '%s' "${p:1}" | tr '[:upper:]' '[:lower:]')" ;;
+    esac
+    out="$out-$p"
+  done
+  printf '%s' "$out"
+}
+ws_lang_pick() { # WORKSHOP_LANG "defaults read -g AppleLanguages" LC_ALL LC_MESSAGES LANG -> etiqueta (en se nada servir)
+  local t c
+  t=$(ws_lang_tag "$1")
+  if [ -z "$t" ]; then
+    c=$(printf '%s\n' "$2" | sed -n 's/^[[:space:]]*"\{0,1\}\([A-Za-z][A-Za-z0-9_-]*\)"\{0,1\},\{0,1\}[[:space:]]*$/\1/p' | head -n 1)
+    t=$(ws_lang_tag "$c")
+  fi
+  for c in "$3" "$4" "$5"; do [ -n "$t" ] && break; t=$(ws_lang_tag "$c"); done
+  printf '%s' "${t:-en}"
+}
+ws_lang_kit() { case "$1" in pt|pt-*) printf pt ;; *) printf en ;; esac; }  # o kit so tem textos pt e en
+ws_lang_detect() {
+  WS_LANG=$(ws_lang_pick "${WORKSHOP_LANG:-}" "$(defaults read -g AppleLanguages 2>/dev/null </dev/null)" "${LC_ALL:-}" "${LC_MESSAGES:-}" "${LANG:-}")
+  WS_LANG_KIT=$(ws_lang_kit "$WS_LANG")
+}
+
 # ---------------------------------------------------------------- JS (node se houver, senao JXA)
 ws_js() { # codigo-js args...  (o codigo define o corpo de main(A) e devolve texto)
   local code=$1 f; shift
@@ -185,7 +224,7 @@ for(var id in mu){
   tot+=(it*p.input+ot*p.output+cw*p.cache_write_5m+cr*p.cache_read)/1e6;
 }
 if(unk||!pr){ line("usd",""); line("usd_texto","US$ ?"); }
-else { line("usd",tot); line("usd_texto","US$ "+tot.toFixed(tot<0.01?4:2).replace(".",",")); }
+else { line("usd",tot); line("usd_texto","US$ "+tot.toFixed(tot<0.01?4:2)); }
 var so=r.structured_output;
 if(!so&&typeof r.result==="string"){ try{ var mm=r.result.match(/\{[\s\S]*\}/); if(mm) so=JSON.parse(mm[0]); }catch(e){} }
 if(so&&typeof so==="object"){ line("causa", so.causa||""); var cs=so.comandos||[]; for(var i=0;i<cs.length;i++) line("cmd", cs[i]); }
@@ -225,12 +264,12 @@ ws_has_tty() { [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/nul
 ws_ask() {
   local q=$1 def=${2:-n} nosim=${3:-} ans hint
   if [ "$def" = s ]; then hint=$(ws_m sn); else hint=$(ws_m ns); fi
-  if [ "$WS_SIM" = 1 ] && [ "$nosim" != nunca-sim ]; then ws_say "  ? $q $hint s (--sim)"; return 0; fi
-  if [ "$WS_SIM" = 1 ]; then ws_say "  ? $q $hint n (--sim)"; return 1; fi
+  if [ "$WS_SIM" = 1 ] && [ "$nosim" != nunca-sim ]; then ws_say "  ? $q $hint y (--yes)"; return 0; fi
+  if [ "$WS_SIM" = 1 ]; then ws_say "  ? $q $hint n (--yes)"; return 1; fi
   if ! ws_has_tty; then ws_say "  ? $q $hint n · $(ws_m sem_tty)"; return 1; fi
   printf '  ? %s %s ' "$q" "$hint" > /dev/tty
   IFS= read -r ans < /dev/tty || ans=""
-  ws_log "pergunta: $q -> ${ans:-<enter>}"
+  ws_log "question: $q -> ${ans:-<enter>}"
   case "$ans" in
     [SsYy]*) return 0 ;;
     [Nn]*) return 1 ;;
@@ -244,13 +283,13 @@ ws_run() {
   ws_log "\$ $*"
   "$@" </dev/null >> "$WS_STEP_LOG" 2>&1
   local rc=$?
-  ws_log "  -> codigo $rc"
+  ws_log "  -> exit $rc"
   return $rc
 }
 
 ws_flush_step_log() {
   [ -s "$WS_STEP_LOG" ] || return 0
-  { printf -- '--- saida dos comandos (passo %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- fim ---\n'; } | ws_redact >> "$WS_LOG" 2>/dev/null || true
+  { printf -- '--- command output (step %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- end ---\n'; } | ws_redact >> "$WS_LOG" 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------- rede e ficheiros
@@ -304,11 +343,11 @@ ws_warn() { # codigo [detalhe]
   local n="SW_$WS_CUR" cur
   cur=${!n:-}
   printf -v "$n" '%s%s|%s\n' "$cur" "$1" "${2:-}"
-  ws_log "aviso $1 ${2:-}"
+  ws_log "warning $1 ${2:-}"
 }
 ws_fail() { # codigo [detalhe]
   printf -v "SF_$WS_CUR" '%s|%s' "$1" "${2:-}"
-  ws_log "falha $1 ${2:-}"
+  ws_log "failure $1 ${2:-}"
 }
 ws_detail() { printf -v "SD_$WS_CUR" '%s' "$*"; }
 ws_note() { local n="SN_$WS_CUR" cur; cur=${!n:-}; printf -v "$n" '%s%s\n' "$cur" "$*"; }
@@ -370,14 +409,14 @@ ws_step() { # numero deps...
   local title="M_passos_$n"; title=${!title}
   ws_say ""
   ws_say "$(ws_bold "$(ws_msg passo N="$n" TITULO="$title")")"
-  ws_log "=== passo $n: $title (modo $WS_MODE)"
+  ws_log "=== step $n: $title (mode $WS_MODE)"
   for d in "$@"; do
     case "$(ws_st "$d")" in falhou|naoexec|falta)
       ws_set ST "$n" naoexec; ws_detail "$(ws_msg dep_falhou N="$d")"; ws_print_result "$n"; return 0 ;;
     esac
   done
   if [ "$n" = 11 ] && [ "$WS_SEM_DESKTOP" = 1 ]; then
-    ws_set ST "$n" saltado; ws_detail "--sem-desktop"; ws_print_result "$n"; return 0
+    ws_set ST "$n" saltado; ws_detail "--no-desktop"; ws_print_result "$n"; return 0
   fi
   local rc
   if "ws_s${n}_detect"; then
@@ -451,7 +490,7 @@ ws_profile_update() {
     dirs="$dirs $d"
   fi
   block="# >>> workshop-claude >>>
-# Adicionado pelo setup do workshop. Remove-se com: bash ~/.workshop-claude/setup-mac.sh --desinstalar
+# Added by the workshop setup. Remove it with: bash ~/.workshop-claude/setup-mac.sh --uninstall
 for _ws_d in $dirs; do
   case \":\$PATH:\" in *\":\$_ws_d:\"*) ;; *) [ -d \"\$_ws_d\" ] && PATH=\"\$_ws_d:\$PATH\" ;; esac
 done
@@ -509,7 +548,7 @@ ws_kit_ensure() {
   if ws_dl "$url" "$tmpd/$name" auth; then
     sum=$(ws_sha256 "$tmpd/$name")
     if [ -n "$WS_INJ_KIT_SHA256" ] && [ "$sum" != "$WS_INJ_KIT_SHA256" ]; then
-      ws_log "SHA-256 do kit nao confere: $sum != $WS_INJ_KIT_SHA256"
+      ws_log "kit SHA-256 mismatch: $sum != $WS_INJ_KIT_SHA256"
       ws_warn E-KIT-02 "$name"
     elif tar -xzf "$tmpd/$name" -C "$tmpd/x" 2>>"$WS_STEP_LOG" && [ -d "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" ]; then
       rm -rf "$dest"; mkdir -p "$(dirname "$dest")"
@@ -520,7 +559,7 @@ ws_kit_ensure() {
   # Recurso: git clone da tag (o REPO_TOKEN, se existir, vai por variaveis de configuracao do git).
   command -v git >/dev/null 2>&1 && xcode_ok || return 1
   rm -rf "$tmpd/clone"
-  ws_log "recurso: git clone --depth 1 --branch $C_WORKSHOP_VERSION $C_WORKSHOP_REPO_URL"
+  ws_log "fallback: git clone --depth 1 --branch $C_WORKSHOP_VERSION $C_WORKSHOP_REPO_URL"
   if [ -n "${REPO_TOKEN:-}" ]; then
     GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $REPO_TOKEN" GIT_TERMINAL_PROMPT=0 \
       git clone -q --depth 1 --branch "$C_WORKSHOP_VERSION" "$C_WORKSHOP_REPO_URL" "$tmpd/clone" </dev/null >>"$WS_STEP_LOG" 2>&1
@@ -544,6 +583,7 @@ ws_s0_detect() {
   [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ] && extra=" (Rosetta)"
   WS_OS="macOS $ver $arch${extra:-}"
   ws_note "$(ws_msg s0_so SO="$WS_OS")"
+  ws_note "$(ws_msg s0_lingua LINGUA="${WS_LANG:-en}")"
   ws_ver_ge "$ver" 13 || ws_warn E-SO-04 "macOS $ver"
 
   for f in "/Library/Application Support/ClaudeCode/managed-settings.json" "/Library/Application Support/ClaudeCode/managed-settings.d" "/Library/Managed Preferences/com.anthropic.claudecode.plist"; do
@@ -562,7 +602,7 @@ ws_s0_detect() {
   ws_detect_proxy
   ws_detect_tls
   ws_check_network
-  ws_detail "$WS_OS · $(ws_msg s0_rede_ok OK="$WS_NET_OK" TOTAL="$WS_NET_TOTAL")"
+  ws_detail "$WS_OS · ${WS_LANG:-en} · $(ws_msg s0_rede_ok OK="$WS_NET_OK" TOTAL="$WS_NET_TOTAL")"
   return 0
 }
 ws_s0_install() { ws_s0_detect; }
@@ -612,7 +652,7 @@ ws_detect_tls() {
   fi
   issuer=$(printf '%s\n' "$v" | sed -n 's/^\*[[:space:]]*issuer:[[:space:]]*//p' | head -n 1)${issuer:+ $issuer}
   [ -n "${WS_FORCAR_EMISSOR:-}" ] && issuer=$WS_FORCAR_EMISSOR   # so para testes
-  [ -n "$issuer" ] || { ws_log "sem emissor (curl $rc)"; return 0; }
+  [ -n "$issuer" ] || { ws_log "no issuer (curl $rc)"; return 0; }
   WS_TLS_ISSUER=$issuer
   if ws_is_public_ca "$issuer"; then ws_note "$(ws_msg s0_tls_ok EMISSOR="$issuer")"; return 0; fi
   local pem="$WS_HOME/ca.pem" tmp="$WS_HOME/ca.pem.tmp" kc
@@ -656,7 +696,7 @@ ws_check_network() {
   for h in $hosts; do
     i=$((i + 1))
     read -r rc code _ < "$dir/$i.res" 2>/dev/null || { rc=99; code=000; }
-    ws_log "rede: $h -> curl $rc HTTP $code $(tr '\n' ' ' < "$dir/$i.err" 2>/dev/null)"
+    ws_log "network: $h -> curl $rc HTTP $code $(tr '\n' ' ' < "$dir/$i.err" 2>/dev/null)"
     if [ "$rc" = 0 ] && [ "$code" != 407 ]; then WS_NET_OK=$((WS_NET_OK + 1)); continue; fi
     fails="$fails ${h#https://}"; fails=${fails%/}
     case "$h" in *api.anthropic.com*) WS_NET_API_OK=0 ;; esac
@@ -700,7 +740,7 @@ ws_s1_install() {
   rm -rf "$WS_HOME/git" && mv "$WS_HOME/git.tmp" "$WS_HOME/git" || { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
   # O wrapper define as variaveis do git portatil so para o proprio git (nao mexe no ambiente).
   # O wrapper fica em <WS_HOME>/bin/git e encontra o git portatil em <WS_HOME>/git a partir de onde esta.
-  printf '%s\n' '#!/bin/sh' '# Git portatil do workshop (dugite-native, sem as Command Line Tools da Apple).' \
+  printf '%s\n' '#!/bin/sh' '# Workshop portable git (dugite-native, without the Apple Command Line Tools).' \
     'R="$(cd "$(dirname "$0")/.." && pwd)/git"' \
     'GIT_EXEC_PATH="$R/libexec/git-core" GIT_TEMPLATE_DIR="$R/share/git-core/templates" exec "$R/bin/git" "$@"' > "$WS_HOME/bin/git"
   chmod +x "$WS_HOME/bin/git" || { ws_fail E-PERM-01 "$WS_HOME/bin/git"; return 1; }
@@ -823,7 +863,7 @@ EOF
   ws_detail "$(ws_msg s4_ja VERSAO="$("$WS_NODE" -v </dev/null)" CAMINHO="${WS_NODE/#"$HOME"/~}")"
   ws_registar_flush
   m=$(ws_login_node_major)
-  ws_log "node num shell de login novo: ${m:-nenhum}"
+  ws_log "node in a new login shell: ${m:-none}"
   if { [ -z "$m" ] || ! [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null; } && [ "$WS_MODE" = install ]; then
     ws_profile_update
     m=$(ws_login_node_major)
@@ -999,24 +1039,29 @@ ws_s7_install() {
 # ================================================================= PASSO 8 - instalacao ao nivel do utilizador
 ws_iu() { # subcomando [extra]
   local sub=$1; shift
-  set -- --node "$WS_NODE" --kit-src "$KIT_SRC" "$@"
+  set -- --node "$WS_NODE" --kit-src "$KIT_SRC" --lingua-maquina "${WS_LANG:-en}" "$@"
   [ -n "${WS_CA_PEM:-}" ] && set -- "$@" --ca-pem "$WS_CA_PEM"
   [ -n "${WS_PROXY:-}" ] && set -- "$@" --https-proxy "$WS_PROXY"
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
 ws_s8_parse() { # le a saida TSV de install-user
-  local k v skills=0 agentes=0
+  local k v skills=0 agentes=0 lang="" nossa=0 kit=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       skills) skills=$v ;; agentes) agentes=$v ;;
+      language) lang=$v ;; language_nossa) nossa=$v ;; lingua_kit) kit=$v ;;
       aviso) [ "$v" = E-CFG-06 ] && ws_note "$(ws_m s8_statusline_mantida)"; ws_warn "$v" "statusLine" ;;
       erro) ws_fail "$v" "" ;;
-      falta) ws_log "em falta: $v" ;;
+      falta) ws_log "missing: $v" ;;
     esac
   done <<EOF
 $1
 EOF
   ws_detail "$(ws_msg s8_ja SKILLS="$skills" AGENTES="$agentes")"
+  kit=$(ws_m "lingua_${kit:-${WS_LANG_KIT:-en}}")
+  if [ -z "$lang" ]; then ws_note "$(ws_msg s8_lingua_nenhuma LINGUA="${WS_LANG:-en}" KIT="$kit")"
+  elif [ "$nossa" = 1 ]; then ws_note "$(ws_msg s8_lingua_nossa NOME="$lang" KIT="$kit")"
+  else ws_note "$(ws_msg s8_lingua_tua NOME="$lang" KIT="$kit")"; fi
 }
 ws_s8_detect() {
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
@@ -1080,13 +1125,13 @@ ws_s9_install() {
   mkdir -p "$WS_PROJ" || { ws_fail E-PERM-01 "$WS_PROJ"; return 1; }
   local demo="$WS_PROJ/demo-project"
   if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1 </dev/null; then
-    ws_run "$WS_NODE" "$KIT_SRC/installer/assemble-demo.mjs" --dest "$demo" --node "$WS_NODE" --force || { ws_fail E-DEMO-01 assemble-demo; return 1; }
+    ws_run "$WS_NODE" "$KIT_SRC/installer/assemble-demo.mjs" --dest "$demo" --node "$WS_NODE" --lingua "${WS_LANG_KIT:-en}" --force || { ws_fail E-DEMO-01 assemble-demo; return 1; }
     ws_registar projeto demo-project "$demo"
   else
-    ws_assemble assemble-demo.mjs "$demo" .arena-kit.json --node "$WS_NODE" || return 1
+    ws_assemble assemble-demo.mjs "$demo" .arena-kit.json --node "$WS_NODE" --lingua "${WS_LANG_KIT:-en}" || return 1
   fi
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
-    ws_assemble assemble-sandbox.mjs "$WS_PROJ/exemplo-projeto-real" .sandbox-kit.json || return 1
+    ws_assemble assemble-sandbox.mjs "$WS_PROJ/exemplo-projeto-real" .sandbox-kit.json --lingua "${WS_LANG_KIT:-en}" || return 1
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   ws_s9_tests
@@ -1247,7 +1292,7 @@ ws_s12_install() {
   local rc=$?; t1=$(date +%s)
   { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG"
   ws_parse_result "$out"
-  ws_log "teste final: rc=$rc erro=$WSR_ERRO custo=$WSR_USD_TEXTO"
+  ws_log "final test: rc=$rc error=$WSR_ERRO cost=$WSR_USD_TEXTO"
   if [ "$rc" = 0 ] && [ "$WSR_JSON" = 1 ] && [ "$WSR_ERRO" = 0 ]; then
     ws_detail "$(ws_msg s12_ok RESPOSTA="$(ws_trim "$WSR_RESPOSTA")" SEG="$((t1 - t0))" USD="$WSR_USD_TEXTO")"
     [ "$WSR_USD_TEXTO" = "US\$ ?" ] && ws_note "$(ws_m s12_custo_desconhecido)"
@@ -1292,18 +1337,18 @@ ws_helper_offer() {
   ws_say "  $(ws_m helper_a_pedir)"
   local p="$WS_TMP/helper-$n.txt" o="$WS_TMP/helper-$n.json" title="M_passos_$n"
   {
-    printf 'Es um assistente de suporte tecnico do setup de um workshop de Claude Code.\n'
-    printf 'Responde em portugues de Portugal, com frases curtas, para alguem sem experiencia.\n'
-    printf 'Diz a causa provavel em 1 a 3 frases e ate 4 comandos de terminal (macOS, bash/zsh) que a pessoa pode correr para corrigir.\n'
-    printf 'Nunca sugiras sudo, comandos destrutivos, nem pedir ou mostrar chaves de API. Se nao tiveres a certeza, nao sugiras comandos.\n\n'
-    printf 'Passo que falhou: %s (%s)\nCodigo: %s\n%s\n\n' "$n" "${!title}" "$code" "$(ws_versions_line)"
-    printf 'Excerto do log (sem segredos):\n'
+    printf 'You are a technical support assistant for the setup of a Claude Code workshop.\n'
+    printf 'Answer in plain English, with short sentences, for someone with no experience.\n'
+    printf 'Give the likely cause in 1 to 3 sentences and up to 4 terminal commands (macOS, bash/zsh) the person can run to fix it.\n'
+    printf 'Never suggest sudo or destructive commands, and never ask for or show API keys. If you are not sure, do not suggest commands.\n\n'
+    printf 'Failed step: %s (%s)\nCode: %s\n%s\n\n' "$n" "${!title}" "$code" "$(ws_versions_line)"
+    printf 'Log excerpt (no secrets):\n'
     tail -n 80 "$WS_STEP_LOG" | ws_redact
   } > "$p"
-  ws_log "ajudante: pedido de $(wc -c < "$p" | tr -d ' ') bytes"
+  ws_log "helper: request of $(wc -c < "$p" | tr -d ' ') bytes"
   if ! ws_helper_call "$p" "$o" "$WS_SCHEMA_HELPER"; then ws_say "  $(ws_m helper_falhou)"; return 1; fi
   ws_parse_result "$o"
-  ws_log "ajudante: custo $WSR_USD_TEXTO"
+  ws_log "helper: cost $WSR_USD_TEXTO"
   if [ -z "$WSR_CAUSA" ]; then ws_say "  $(ws_m helper_falhou)"; return 1; fi
   ws_say "  $(ws_bold "$(ws_m helper_causa)") $WSR_CAUSA"
   ws_say "  $(ws_dim "$(ws_msg helper_custo USD="$WSR_USD_TEXTO")")"
@@ -1315,7 +1360,7 @@ ws_helper_offer() {
     [ -n "$cmd" ] || continue
     ws_say "    \$ $cmd"
     if ws_ask "$(ws_m helper_correr)" n nunca-sim; then
-      ws_log "ajudante: corre $cmd"
+      ws_log "helper: runs $cmd"
       bash -c "$cmd" </dev/tty 2>&1 | tee -a "$WS_STEP_LOG"
       ran=1
     fi
@@ -1332,20 +1377,20 @@ ws_doctor() {
   if [ "$any" = 0 ]; then ws_say "  $(ws_m doctor_sem_falhas)"; return 0; fi
   if [ "${WS_AUTH_OK:-0}" != 1 ] || [ "${WS_NET_API_OK:-1}" = 0 ]; then ws_say "  $(ws_m doctor_sem_claude)"; return 0; fi
   {
-    printf 'Es um assistente de suporte do setup de um workshop de Claude Code (macOS). Responde em portugues de Portugal, frases curtas, para alguem sem experiencia.\n'
-    printf 'Faz um diagnostico completo: o que esta mal, porque, e os passos exatos (com comandos) por ordem. Nunca sugiras sudo nem mostrar chaves de API.\n\n%s\n\n' "$(ws_versions_line)"
+    printf 'You are a support assistant for the setup of a Claude Code workshop (macOS). Answer in plain English, short sentences, for someone with no experience.\n'
+    printf 'Make a full diagnosis: what is wrong, why, and the exact steps (with commands) in order. Never suggest sudo or showing API keys.\n\n%s\n\n' "$(ws_versions_line)"
     for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
       st=$(ws_st "$n"); title="M_passos_$n"; f="SF_$n"; w="SW_$n"
-      printf 'Passo %s (%s): %s %s %s\n' "$n" "${!title}" "$st" "${!f}" "$(printf '%s' "${!w}" | tr '\n' ' ')"
+      printf 'Step %s (%s): %s %s %s\n' "$n" "${!title}" "$st" "${!f}" "$(printf '%s' "${!w}" | tr '\n' ' ')"
     done
-    printf '\nExcerto do log:\n'; tail -n 120 "$WS_LOG" | ws_redact
+    printf '\nLog excerpt:\n'; tail -n 120 "$WS_LOG" | ws_redact
   } > "$p"
   if ws_helper_call "$p" "$o" ""; then
     ws_parse_result "$o"
     local res; res=$(ws_js 'try{return String(JSON.parse(readText(A[0])).result||"");}catch(e){return "";}' "$o")
     [ -n "$res" ] && ws_say "$res" || ws_say "  $(ws_m helper_falhou)"
     ws_say "  $(ws_dim "$(ws_msg doctor_custo USD="$WSR_USD_TEXTO")")"
-    ws_log "doctor: custo $WSR_USD_TEXTO"
+    ws_log "doctor: cost $WSR_USD_TEXTO"
   else
     ws_say "  $(ws_m helper_falhou)"
   fi
@@ -1424,23 +1469,26 @@ EOF
 # ================================================================= arranque
 ws_usage() {
   cat <<'__WS_USO__'
-Setup do workshop (macOS). Uso:
-  curl -fsSL <url>/setup-mac.sh | bash                 instala
-  curl -fsSL <url>/setup-mac.sh | bash -s -- --check   so verifica
-  bash ~/.workshop-claude/setup-mac.sh [opcoes]        depois da primeira vez
-Opcoes:
-  --check                  so verifica (2 a 3 minutos), nao instala nada
-  --doctor                 verifica e, se algo falhar, pede um diagnostico ao Claude
-  --desinstalar            desfaz o que o setup instalou (manifest.json)
-  --sem-desktop            nao instala o Claude Desktop
-  --sim                    responde sim as perguntas simples (testes)
-  --substituir-statusline  usa a statusline do workshop em vez da tua
+Workshop setup (macOS). Usage:
+  curl -fsSL <url>/setup-mac.sh | bash                 install
+  curl -fsSL <url>/setup-mac.sh | bash -s -- --check   check only
+  bash ~/.workshop-claude/setup-mac.sh [options]       after the first time
+Options:
+  --check                  check only (2 to 3 minutes), installs nothing
+  --doctor                 check and, if something fails, ask Claude for a diagnosis
+  --uninstall              undo what the setup installed (manifest.json)
+  --no-desktop             do not install Claude Desktop
+  --yes                    answer yes to simple questions (tests)
+  --replace-statusline     use the workshop statusline instead of yours
+  --help                   this help
+The setup speaks English. WORKSHOP_LANG=pt-PT (or en, hi, he...) overrides the machine language
+that configures Claude's answers and the workshop texts.
 __WS_USO__
 }
 
 ws_load_messages() {
   if [ -n "${M_ui_titulo:-}" ]; then return 0; fi
-  local f="$WS_DEV_ROOT/setup/messages.pt.json" code
+  local f="$WS_DEV_ROOT/setup/messages.en.json" code
   [ -f "$f" ] || return 1
   code=$(ws_js "$WS_JS_MSGS" "$f") || return 1
   eval "$code"
@@ -1450,7 +1498,7 @@ ws_save_self() { # guarda uma copia local do script (para "bash ~/.workshop-clau
   local dst="$WS_HOME/setup-mac.sh" src=${BASH_SOURCE[0]:-} sums url
   [ "$WS_MODE" = uninstall ] && return 0
   if [ "$WS_DEV" = 1 ]; then
-    printf '#!/usr/bin/env bash\n# Copia de desenvolvimento: chama o script do repositorio.\nexec bash "%s" "$@"\n' "$WS_DEV_ROOT/setup/setup-mac.sh" > "$dst.tmp" && mv -f "$dst.tmp" "$dst"
+    printf '#!/usr/bin/env bash\n# Development copy: runs the script in the repository.\nexec bash "%s" "$@"\n' "$WS_DEV_ROOT/setup/setup-mac.sh" > "$dst.tmp" && mv -f "$dst.tmp" "$dst"
     return 0
   fi
   if [ -n "$src" ] && [ -f "$src" ]; then
@@ -1469,14 +1517,14 @@ ws_lock() {
   local l="$WS_HOME/.lock" pid
   if mkdir "$l" 2>/dev/null; then echo $$ > "$l/pid"; return 0; fi
   pid=$(cat "$l/pid" 2>/dev/null)
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then printf 'O setup ja esta a correr (PID %s).\n' "$pid"; return 1; fi
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then printf 'The setup is already running (PID %s).\n' "$pid"; return 1; fi
   rm -rf "$l"; mkdir "$l" 2>/dev/null && echo $$ > "$l/pid"
 }
 
 ws_cleanup() { rm -rf "$WS_HOME/.lock" "${WS_TMP:-/nonexistent}" 2>/dev/null; }
 ws_interrupted() {
   printf '\n%s\n' "$(ws_m interrompido)" >&2
-  ws_log "interrompido"
+  ws_log "interrupted"
   ws_cleanup; exit 130
 }
 
@@ -1490,14 +1538,14 @@ ws_main() {
       --desinstalar|--uninstall) WS_MODE=uninstall ;;
       --sem-desktop|--no-desktop) WS_SEM_DESKTOP=1 ;;
       --sim|--yes|-y) WS_SIM=1 ;;
-      --substituir-statusline) WS_SUBST_SL=1 ;;
+      --substituir-statusline|--replace-statusline) WS_SUBST_SL=1 ;;
       --ajuda|--help|-h) ws_usage; return 0 ;;
-      *) printf 'Opcao desconhecida: %s\n' "$a" >&2; ws_usage >&2; return 2 ;;
+      *) printf 'Unknown option: %s\n' "$a" >&2; ws_usage >&2; return 2 ;;
     esac
   done
-  [ "$(uname -s)" = Darwin ] || { printf 'Este script e para macOS. No Windows usa o bootstrap-windows.ps1.\n' >&2; return 2; }
-  [ -n "${HOME:-}" ] && [ -d "$HOME" ] || { printf 'HOME invalida.\n' >&2; return 2; }
-  [ "$(id -u)" = 0 ] && { printf 'Nao corras o setup com sudo nem como root.\n' >&2; return 2; }
+  [ "$(uname -s)" = Darwin ] || { printf 'This script is for macOS. On Windows use bootstrap-windows.ps1.\n' >&2; return 2; }
+  [ -n "${HOME:-}" ] && [ -d "$HOME" ] || { printf 'Invalid HOME.\n' >&2; return 2; }
+  [ "$(id -u)" = 0 ] && { printf 'Do not run the setup with sudo or as root.\n' >&2; return 2; }
 
   WS_HOME="$HOME/.workshop-claude"; WS_LOG="$WS_HOME/setup.log"; WS_RESUMO="$WS_HOME/resumo.txt"
   CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
@@ -1505,7 +1553,7 @@ ws_main() {
   # shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
   WS_PROJ_SHOW='~/workshop-claude'
   WS_UA="workshop-claude-setup (curl; macOS)"
-  mkdir -p "$WS_HOME" || { printf 'Sem permissao para criar %s\n' "$WS_HOME" >&2; return 1; }
+  mkdir -p "$WS_HOME" || { printf 'No permission to create %s\n' "$WS_HOME" >&2; return 1; }
   WS_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ws-setup.XXXXXX") || return 1
   WS_STEP_LOG="$WS_TMP/inicio.log"
   if [ -t 1 ]; then WS_COLOR=1; else WS_COLOR=0; fi
@@ -1531,7 +1579,7 @@ $WS_INJ_CONF
 EOF
     WS_PRICING="$WS_TMP/pricing.json"; printf '%s\n' "$WS_INJ_PRICING" > "$WS_PRICING"
   else
-    printf 'Este script tem de vir da release (com os valores injetados) ou correr dentro do repositorio.\n' >&2; return 2
+    printf 'This script must come from the release (with the injected values) or run inside the repository.\n' >&2; return 2
   fi
   ws_path_setup
   # valores derivados (D_*) para as mensagens
@@ -1546,14 +1594,15 @@ EOF
   D_UV_INSTALL_SH_URL_V=$(ws_expand "$C_UV_INSTALL_SH_URL" "" "" "" "" "$C_UV_VERSION" "" "")
   D_UV_INSTALL_PS1_URL_V=$(ws_expand "$C_UV_INSTALL_PS1_URL" "" "" "" "" "$C_UV_VERSION" "" "")
   D_PROJETOS=$WS_PROJ_SHOW; D_MANIFEST="$WS_HOME/manifest.json"; D_LOG=$WS_LOG; D_RESUMO=$WS_RESUMO; D_BACKUP="$WS_HOME/backup"
-  D_FLAG_SEM_DESKTOP=--sem-desktop; D_FLAG_STATUSLINE=--substituir-statusline
+  D_FLAG_SEM_DESKTOP=--no-desktop; D_FLAG_STATUSLINE=--replace-statusline
   local k n
   for k in $WS_CONF_KEYS; do n="C_$k"; printf -v "D_$k" '%s' "${!n}"; done
   WS_FILL_KEYS="$WS_CONF_KEYS REPO_HOST MEMORY_HOST SETUP_MAC_URL KIT_URL_MAC KIT_URL_WINDOWS ONE_LINER_MAC ONE_LINER_WINDOWS UV_INSTALL_SH_URL_V UV_INSTALL_PS1_URL_V PROJETOS MANIFEST LOG RESUMO BACKUP FLAG_SEM_DESKTOP FLAG_STATUSLINE"
 
-  ws_load_messages || { printf 'Nao consegui ler as mensagens (setup/messages.pt.json).\n' >&2; return 2; }
+  ws_load_messages || { printf 'Could not read the messages (setup/messages.en.json).\n' >&2; return 2; }
+  ws_lang_detect
 
-  { printf '\n'; printf '=%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; printf ' %s · modo %s · %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$WS_MODE" "$C_WORKSHOP_VERSION"; } >> "$WS_LOG"
+  { printf '\n'; printf '=%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; printf ' %s · mode %s · %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$WS_MODE" "$C_WORKSHOP_VERSION"; } >> "$WS_LOG"
 
   ws_say "$(ws_bold "$(ws_msg titulo)")"
   case "$WS_MODE" in

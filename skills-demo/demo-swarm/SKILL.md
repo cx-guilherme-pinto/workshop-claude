@@ -1,6 +1,6 @@
 ---
 name: demo-swarm
-description: Executa o enxame da Arena de Segurança em ondas paralelas, respeitando as dependências do plan.json. Cada lote mostra uma tabela com agente, modelo, tarefa, estado, tempo e custo.
+description: Runs the Security Arena swarm in parallel waves, following the dependencies in plan.json. Each batch shows a table with agent, model, task, state, time and cost.
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -9,29 +9,31 @@ allowed-tools:
   - Agent
 ---
 
-# /demo-swarm — executar o enxame
+# /demo-swarm — run the swarm
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas, porque é o modo do benchmark.
+**Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status markers (`ESTADO: …`, `ERRO: …`, `ENXAME OK`).
 
-Quem decide o grafo é o script, não tu. O teu trabalho é lançar exatamente o que ele pede.
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions, because it is the benchmark mode.
 
-**Ciclo** (repete até aparecer `ESTADO: FIM` ou `ESTADO: BLOQUEADO`):
+The script decides the graph, not you. Your job is to launch exactly what it asks for.
 
-1. Corre `node tools/workshop/orquestrador/next-wave.mjs`. Se aparecer `ERRO: Plano nao encontrado`, diz para correr `/demo-plan` e para.
-2. Mostra ao participante a tabela "Resultado do lote anterior" (se existir) e a linha `Progresso`, tal como vieram.
-3. Se aparecer `ESTADO: LOTE`, lê o JSON entre `<<<CHAMADAS` e `CHAMADAS>>>`. Numa **única mensagem**, faz uma chamada à ferramenta `Agent` por cada objeto, com `subagent_type`, `description` e `prompt` **exatamente** como estão.
-   - Não alteres os prompts.
-   - Não juntes nem separes chamadas.
-   - Não leias os ficheiros dos agentes.
-4. Quando todos os agentes do lote responderem, volta ao passo 1. Não resumas as respostas deles.
+**Loop** (repeat until `ESTADO: FIM` or `ESTADO: BLOQUEADO` appears):
 
-**No fim**, mostra a última tabela e a linha `ESTADO: FIM`. Sem `--auto`, sugere:
-- abrir `http://localhost:3000/estado` (com `node server.js`) para ver a grelha;
-- `/demo-review` para o gate final;
-- `/demo-cost` para o relatório de custo.
+1. Run `node tools/workshop/orquestrador/next-wave.mjs`. If `ERRO: Plano nao encontrado` appears, tell the participant to run `/demo-plan` and stop.
+2. Show the participant the table "Previous batch result" (`## Resultado do lote anterior` in Portuguese), if it exists, and the `Progress:` line (`Progresso:` in Portuguese), exactly as they came.
+3. If `ESTADO: LOTE` appears, read the JSON between `<<<CHAMADAS` and `CHAMADAS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description` and `prompt` **exactly** as they are.
+   - Do not change the prompts.
+   - Do not merge or split calls.
+   - Do not read the agents' files.
+4. When all agents in the batch have answered, go back to step 1. Do not summarise their answers.
 
-Com `--auto`, termina só com `ENXAME OK`.
+**At the end**, show the last table and the `ESTADO: FIM` line. Without `--auto`, suggest:
+- opening `http://localhost:3000/estado` (with `node server.js`) to see the grid;
+- `/demo-review` for the final gate;
+- `/demo-cost` for the cost report.
 
-Enquanto o enxame corre, o participante pode usar `/btw <pergunta>` sem interromper nada.
+With `--auto`, end only with `ENXAME OK`.
+
+While the swarm runs, the participant can use `/btw <question>` without interrupting anything.

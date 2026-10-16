@@ -1,5 +1,9 @@
 // Base partilhada pelos 4 modelos de cartao.
 // Regra de ouro: so textContent e atributos de uma lista permitida. Nunca HTML a partir de dados.
+// Os textos (botoes, rotulos, erros) vem de ../lib/textos.js, na lingua da Arena.
+import { T } from '../lib/textos.js';
+
+export const TEXTOS = T.cartao;
 
 const ATRIBUTOS_PERMITIDOS = new Set([
   'class', 'id', 'role', 'type', 'name', 'value', 'tabindex', 'for', 'placeholder', 'title',
@@ -30,7 +34,7 @@ export function h(doc, tag, props = {}, ...filhos) {
 
 function definirAtributo(el, nome, valor) {
   const ok = ATRIBUTOS_PERMITIDOS.has(nome) || /^aria-[a-z]+$/.test(nome) || /^data-[a-z][a-z0-9-]*$/.test(nome);
-  if (!ok) throw new Error(`atributo nao permitido: ${nome}`);
+  if (!ok) throw new Error(TEXTOS.atributoProibido(nome));
   el.setAttribute(nome, String(valor));
 }
 
@@ -49,9 +53,9 @@ const CAMPOS_OBRIGATORIOS = ['id', 'title', 'category', 'difficulty', 'prompt', 
 
 export function verificarDefinicao(def, template, extra = []) {
   for (const c of [...CAMPOS_OBRIGATORIOS, ...extra]) {
-    if (def[c] === undefined || def[c] === null || def[c] === '') throw new Error(`cartao ${def.id ?? '?'} (${template}): falta o campo "${c}"`);
+    if (def[c] === undefined || def[c] === null || def[c] === '') throw new Error(TEXTOS.faltaCampo(def.id ?? '?', template, c));
   }
-  if (!/^[a-z0-9-]+$/.test(def.id)) throw new Error(`id invalido: ${def.id}`);
+  if (!/^[a-z0-9-]+$/.test(def.id)) throw new Error(TEXTOS.idInvalido(def.id));
 }
 
 // Constroi o objeto do contrato (ver cards/CONTRACT.md).
@@ -94,7 +98,7 @@ export function cenario(doc, sc) {
 }
 
 export function botaoConfirmar(doc, aoConfirmar) {
-  return h(doc, 'button', { class: 'botao botao-principal', type: 'button', on: { click: aoConfirmar } }, 'Confirmar');
+  return h(doc, 'button', { class: 'botao botao-principal', type: 'button', on: { click: aoConfirmar } }, TEXTOS.confirmar);
 }
 
 export function bloquear(container) {

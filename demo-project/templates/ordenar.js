@@ -6,16 +6,16 @@
 //   items: [{ id: 'x', text: '...' }, ...],   // ordem em que aparecem (baralhada)
 //   answer: ['y', 'x', 'z'],                  // ordem certa
 // })
-import { h, criarCartao, verificarDefinicao, cabecalho, botaoConfirmar, bloquear } from './common.js';
+import { h, criarCartao, verificarDefinicao, cabecalho, botaoConfirmar, bloquear, TEXTOS } from './common.js';
 
 export function ordenar(def) {
   verificarDefinicao(def, 'ordenar', ['items', 'answer']);
   const ids = def.items.map((i) => i.id);
-  if (ids.length < 3) throw new Error(`${def.id}: ordenar precisa de pelo menos 3 itens`);
+  if (ids.length < 3) throw new Error(TEXTOS.poucosItens(def.id));
   if (def.answer.length !== ids.length || !def.answer.every((x) => ids.includes(x))) {
-    throw new Error(`${def.id}: answer tem de conter exatamente os ids dos itens`);
+    throw new Error(TEXTOS.idsDosItens(def.id));
   }
-  if (def.answer.every((x, i) => x === ids[i])) throw new Error(`${def.id}: os itens nao podem comecar ja na ordem certa`);
+  if (def.answer.every((x, i) => x === ids[i])) throw new Error(TEXTOS.jaOrdenados(def.id));
 
   return criarCartao('ordenar', def, {
     validate: (answer) => Array.isArray(answer) && answer.length === def.answer.length && answer.every((x, i) => x === def.answer[i]),
@@ -55,8 +55,8 @@ export function ordenar(def) {
             },
             h(doc, 'span', { class: 'ordenar-texto', text: porId.get(id).text }),
             h(doc, 'span', { class: 'ordenar-setas' },
-              h(doc, 'button', { class: 'seta', type: 'button', disabled: pos === 0, 'data-mover': 'cima', attrs: { 'aria-label': 'Subir' }, on: { click: () => mover(id, -1) } }, '↑'),
-              h(doc, 'button', { class: 'seta', type: 'button', disabled: pos === ordem.length - 1, 'data-mover': 'baixo', attrs: { 'aria-label': 'Descer' }, on: { click: () => mover(id, 1) } }, '↓'),
+              h(doc, 'button', { class: 'seta', type: 'button', disabled: pos === 0, 'data-mover': 'cima', attrs: { 'aria-label': TEXTOS.subir }, on: { click: () => mover(id, -1) } }, '↑'),
+              h(doc, 'button', { class: 'seta', type: 'button', disabled: pos === ordem.length - 1, 'data-mover': 'baixo', attrs: { 'aria-label': TEXTOS.descer }, on: { click: () => mover(id, 1) } }, '↓'),
             )),
           ),
         );

@@ -3,7 +3,7 @@
 //   ...
 //   # <<< WS-INJETADO <<<
 // O bloco da fonte e substituido por valores: o repos.conf efetivo, o SHA-256 do arquivo do kit,
-// o pricing.json e as mensagens. Nos .ps1 tudo vai em base64 (ASCII), lido como UTF-8.
+// o pricing.json e as mensagens (setup/messages.en.json). Nos .ps1 tudo vai em base64 (ASCII), lido como UTF-8.
 import { readFileSync as _read, writeFileSync as _write } from 'node:fs';
 import { join as _join, resolve as _resolve } from 'node:path';
 import { fileURLToPath as _f2p } from 'node:url';
@@ -104,7 +104,8 @@ if (ehPrincipal(import.meta.url)) {
   for (let i = 0; i < rest.length; i += 2) o[rest[i].replace(/^--/, '')] = rest[i + 1];
   const conf = loadConf({ root: o.raiz });
   const pricingText = _read(_join(o.raiz, 'pricing.json'), 'utf8');
-  const messages = JSON.parse(_read(_join(o.raiz, 'setup', 'messages.pt.json'), 'utf8'));
+  // O setup fala so ingles (D-20): injeta-se o catalogo em ingles.
+  const messages = JSON.parse(_read(_join(o.raiz, 'setup', 'messages.en.json'), 'utf8'));
   const src = _read(o.entrada, 'utf8').replace(/\r\n/g, '\n');
   let out;
   if (kind === 'mac') out = injectMac(src, { conf, kitSha256: o['kit-sha'], pricingText, messages });

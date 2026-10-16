@@ -1,5 +1,7 @@
 # FAQ — dúvidas frequentes
 
+**Português** · [English](en/FAQ.md)
+
 Respostas curtas às perguntas mais prováveis no workshop. Para erros de instalação com código (`E-NET-01`, `E-PERM-01`…), vê o `TROUBLESHOOTING.md`.
 
 ## Instalação
@@ -8,7 +10,7 @@ Respostas curtas às perguntas mais prováveis no workshop. Para erros de instal
 O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): ele diz qual pasta não tem permissão e o comando para corrigir. Num portátil da empresa, uma pasta bloqueada por política (AppLocker, antivírus) é um caso para a tua equipa de TI.
 
 **Como sei se está tudo pronto?**
-Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Está tudo pronto para o workshop" ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
+Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
 
 **Posso correr o script duas vezes?**
 Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
@@ -44,15 +46,15 @@ Ela precisa do WebView2 da Microsoft. O setup instala-o se faltar. Se mesmo assi
 **Porque é que o `/usage` mostra um valor mais alto do que a statusline?**
 Algumas versões do Claude Code ainda não conhecem os preços dos modelos mais recentes (por exemplo, o Haiku 5.5) e estimam-nos por cima. A statusline e o `/demo-cost` usam os tokens reais e a tabela de preços publicada (`pricing.json`). Quem manda é sempre a Console.
 
-**O enxame pára se eu passar dos US$ 10?**
+**O swarm pára se eu passar dos US$ 10?**
 Não. O workshop nunca interrompe uma sessão por custo: só mostra um aviso. O desenho foi medido para ficar perto dos US$ 5 (ver `benchmark/REPORT.md`).
 
 **Porque é que o orquestrador usa Sonnet e não Opus?**
 Com conta Console, o modelo por defeito é o Opus. O projeto demo fixa Sonnet na sessão principal e põe o Opus só onde vale a pena: planear e rever. O grosso do trabalho vai para o Haiku, cerca de 20 vezes mais barato.
 
-## Durante o enxame
+## Durante o swarm
 
-**Como paro o enxame?**
+**Como paro o swarm?**
 Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lançados mais. O estado fica guardado em `.workshop/`, por isso voltar a correr `/demo-swarm` (ou `/task-swarm`) retoma onde parou.
 
 **Posso fazer uma pergunta sem interromper?**
@@ -66,10 +68,21 @@ Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
 O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/check-integracao.mjs e corrige o primeiro teste vermelho com o implementer; para quando estiver tudo verde`.
 
 **Apareceu "Do you trust the files in this folder?".**
-É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o enxame pára a pedir autorizações.
+É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm pára a pedir autorizações.
 
 **Quero recomeçar a Arena do zero.**
 `/demo-reset`. O histórico de custos fica guardado em `.workshop/historico/`.
+
+## Língua
+
+**Porque é que o setup está em inglês?**
+O setup fala só inglês, em todas as máquinas, e as opções também: `--uninstall`, `--no-desktop`, `--yes` e `--replace-statusline` (Windows: `-Uninstall`, `-NoDesktop`, `-Yes` e `-ReplaceStatusline`). As antigas em português (`--desinstalar`, `-SemDesktop`…) continuam a funcionar. Os códigos de erro são os mesmos, e o [TROUBLESHOOTING.md](TROUBLESHOOTING.md) explica-os em português.
+
+**Em que língua me responde o Claude?**
+Na tua. As skills e os agentes estão escritos em inglês, mas respondem na língua de quem os usa. O setup grava a definição `language` do Claude Code com a língua da máquina (português de Portugal ou do Brasil, inglês, hindi ou hebraico), só se ainda não tiveres uma. Se já tinhas, fica a tua.
+
+**E a Arena, o orquestrador e a statusline?**
+Seguem a língua da máquina: português numa máquina em português, inglês em todas as outras (incluindo hindi e hebraico). Para forçar uma delas nos textos do kit, define `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` antes de abrir o Claude Code.
 
 ## Funcionalidades
 

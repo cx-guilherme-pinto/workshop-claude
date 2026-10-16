@@ -1,6 +1,6 @@
 ---
 name: demo-cost
-description: Relatório final de custo e tempo do enxame da Arena, por agente, modelo e onda (dados reais medidos pelos hooks). No fim grava na app de memória as lições, o que fazer, o que não fazer e o histórico da sessão.
+description: Final cost and time report of the Arena swarm, by agent, model and wave (real data measured by the hooks). At the end it saves to the memory app the lessons, what to do, what not to do and the session history.
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -10,24 +10,26 @@ allowed-tools:
   - Agent
 ---
 
-# /demo-cost — quanto custou e quanto demorou
+# /demo-cost — how much it cost and how long it took
 
-**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+**Commands:** run each command exactly as written, on its own. Do not add `;`, `&&`, `|`, `echo` or `ls`, because the permissions only accept the command as it is. The scripts already show the result and the state.
 
-Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
+**Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status marker `CUSTO OK`.
 
-1. Corre `node tools/workshop/orquestrador/report.mjs`. O script escreve `.workshop/relatorio.md` e `.workshop/memoria-resumo.md`.
-2. Mostra ao participante, sem reescrever os números:
-   - a linha de resultado, a duração e o custo total (com o alvo de US$ 5 e o teto de US$ 10);
-   - as tabelas "Por modelo" e "Por onda";
-   - a tabela "Por agente", inteira se tiver até 20 linhas, senão só as 10 mais caras.
-3. Em 2 ou 3 frases, explica o que os números mostram: quanto pesou cada modelo, o custo de um agente Haiku comparado com o orquestrador, e onde se podia poupar.
-   Nota: o `/usage` do Claude Code pode mostrar um valor mais alto, porque algumas versões ainda não conhecem os preços dos modelos mais recentes. O número deste relatório usa os tokens reais e a tabela de preços publicada. A fatura oficial é a da Console.
-4. **Memória.** Lança **um** subagente `memoria-extrator` com o prompt:
-   > Lê .workshop/memoria-resumo.md. Projeto: arena-de-seguranca. Extrai e grava as memórias desta sessão do workshop.
-   Depois mostra a lista que ele devolver: tipo e título de cada memória gravada. Se ele disser que a app de memória não está instalada, diz isso numa linha e continua.
-5. Sem `--auto`, termina com:
-   - "Abre a app **Memória** para ver o teu primeiro grafo."
-   - "Para jogar: `node server.js` e abre http://localhost:3000."
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
 
-Com `--auto`, termina só com `CUSTO OK`.
+1. Run `node tools/workshop/orquestrador/report.mjs`. The script writes `.workshop/relatorio.md` and `.workshop/memoria-resumo.md`.
+2. Show the participant, without rewriting the numbers:
+   - the result line, the duration and the total cost (with the US$ 5 target and the US$ 10 ceiling);
+   - the tables "By model" and "By wave" (`## Por modelo` and `## Por onda` in Portuguese);
+   - the table "By agent" (`## Por agente` in Portuguese), in full if it has up to 20 rows, otherwise only the 10 most expensive.
+3. In 2 or 3 sentences, explain what the numbers show: how much each model weighed, the cost of a Haiku agent compared with the orchestrator, and where money could be saved.
+   Note: Claude Code's `/usage` may show a higher value, because some versions do not know the prices of the newest models yet. The number in this report uses the real tokens and the published price table. The official bill is the one in the Console.
+4. **Memory.** Launch **one** `memoria-extrator` subagent with the prompt:
+   > Read .workshop/memoria-resumo.md. Project: arena-de-seguranca. Language: <the participant's language>. Extract and save the memories of this workshop session.
+   Then show the list it returns: type and title of each saved memory. If it says the memory app is not installed, say so in one line and continue.
+5. Without `--auto`, end with:
+   - "Open the **Memória** app to see your first graph."
+   - "To play: `node server.js` and open http://localhost:3000."
+
+With `--auto`, end only with `CUSTO OK`.

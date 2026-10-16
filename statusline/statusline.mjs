@@ -2,13 +2,20 @@
 // Statusline do workshop: modelo · custo da sessao · custo do projeto/enxame · duracao · progresso.
 // O custo e calculado com o pricing.json do kit a partir do transcript (precos de lista publicados),
 // e nao com o total_cost_usd do Claude Code, que pode estar desatualizado para modelos recentes.
-// Sem dependencias; igual em Mac e Windows.
+// Sem dependencias; igual em Mac e Windows. As palavras saem na lingua do kit (pt ou en).
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { loadPricing } from '../hooks/lib/cost.mjs';
 import { summarize, readJsonl } from '../hooks/lib/transcript.mjs';
+import { lingua, textos } from '../hooks/lib/lingua.mjs';
+
+const L = lingua();
+const T = textos({
+  pt: { sessao: 'sessão', projeto: 'projeto', de: 'de', teto: 'acima do teto', alvo: 'acima do alvo', enxame: 'swarm' },
+  en: { sessao: 'session', projeto: 'project', de: 'of', teto: 'over the cap', alvo: 'over the target', enxame: 'swarm' },
+}, L);
 
 const chunks = [];
 for await (const c of process.stdin) chunks.push(c);
@@ -19,7 +26,7 @@ try {
   /* sem dados */
 }
 
-const usd = (v) => (v === null || v === undefined ? 'US$ ?' : 'US$ ' + v.toFixed(2).replace('.', ','));
+const usd = (v) => (v === null || v === undefined ? 'US$ ?' : 'US$ ' + (L === 'pt' ? v.toFixed(2).replace('.', ',') : v.toFixed(2)));
 const dur = (ms) => {
   const m = Math.floor((ms || 0) / 60000);
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
@@ -55,7 +62,7 @@ function custoSessao(tp) {
 
 const modelo = s.model?.display_name || s.model?.id || '?';
 const sessao = custoSessao(s.transcript_path);
-const partes = [modelo, `sessão ${usd(sessao)}`];
+const partes = [modelo, `${T.sessao} ${usd(sessao)}`];
 
 const proj = s.workspace?.project_dir || s.cwd || process.cwd();
 const ws = join(proj, '.workshop');
@@ -77,8 +84,8 @@ if (existsSync(ws)) {
   if (projeto !== null) {
     const alvo = pricing?.orcamento?.alvo_usd ?? 5;
     const teto = pricing?.orcamento?.teto_usd ?? 10;
-    const aviso = projeto >= teto ? ' ⚠ acima do teto' : projeto >= alvo ? ' ⚠ acima do alvo' : '';
-    partes.push(`projeto ${usd(projeto)} de ${usd(alvo)}${aviso}`);
+    const aviso = projeto >= teto ? ` ⚠ ${T.teto}` : projeto >= alvo ? ` ⚠ ${T.alvo}` : '';
+    partes.push(`${T.projeto} ${usd(projeto)} ${T.de} ${usd(alvo)}${aviso}`);
   }
   try {
     const dir = join(ws, 'status');
@@ -94,7 +101,7 @@ if (existsSync(ws)) {
         });
       if (est.length) {
         const n = (e) => est.filter((x) => e.includes(x)).length;
-        partes.push(`enxame ${n(['verde'])}✓ ${n(['em_curso'])}… ${n(['vermelho', 'falhou'])}✗`);
+        partes.push(`${T.enxame} ${n(['verde'])}✓ ${n(['em_curso'])}… ${n(['vermelho', 'falhou'])}✗`);
       }
     }
   } catch {

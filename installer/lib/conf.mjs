@@ -90,13 +90,13 @@ export function derived(conf) {
     CHECK_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Check',
     DOCTOR_MAC: 'bash ~/.workshop-claude/setup-mac.sh --doctor',
     DOCTOR_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Doctor',
-    UNINSTALL_MAC: 'bash ~/.workshop-claude/setup-mac.sh --desinstalar',
-    UNINSTALL_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Desinstalar',
+    UNINSTALL_MAC: 'bash ~/.workshop-claude/setup-mac.sh --uninstall',
+    UNINSTALL_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Uninstall',
     UV_INSTALL_SH_URL_V: expand(conf.UV_INSTALL_SH_URL || '', { version: conf.UV_VERSION }),
     UV_INSTALL_PS1_URL_V: expand(conf.UV_INSTALL_PS1_URL || '', { version: conf.UV_VERSION }),
     PROJETOS: '~/workshop-claude',
-    FLAG_SEM_DESKTOP: '--sem-desktop / -SemDesktop',
-    FLAG_STATUSLINE: '--substituir-statusline / -SubstituirStatusline',
+    FLAG_SEM_DESKTOP: '--no-desktop / -NoDesktop',
+    FLAG_STATUSLINE: '--replace-statusline / -ReplaceStatusline',
   };
 }
 

@@ -17,7 +17,7 @@
     "tempo_check": "Modo verificação: não instalo nada, só verifico. Demora 2 a 3 minutos.",
     "modo_doctor": "Modo diagnóstico: verifico tudo e, se algo falhar, peço ao Claude uma explicação.",
     "modo_desinstalar": "Modo desinstalar: desfaço o que este setup instalou, com base em {MANIFEST}.",
-    "modo_sim": "Modo --sim: respondo «sim» às perguntas simples. Logins e comandos sugeridos não correm sozinhos.",
+    "modo_sim": "Modo --yes: respondo «sim» às perguntas simples. Logins e comandos sugeridos não correm sozinhos.",
     "log_em": "Log completo (sem segredos): {LOG}",
     "passo": "Passo {N}/12 · {TITULO}",
     "estado_feito": "Feito",
@@ -55,7 +55,7 @@
     "helper_causa": "Causa provável:",
     "helper_comandos": "Comandos sugeridos. Corro cada um só se disseres que sim:",
     "helper_correr": "Corro este comando?",
-    "helper_sim": "Modo --sim: não corro comandos sugeridos sem confirmação tua.",
+    "helper_sim": "Modo --yes: não corro comandos sugeridos sem confirmação tua.",
     "helper_sem_comandos": "O Claude não sugeriu comandos.",
     "helper_custo": "Custo medido desta análise: {USD}.",
     "helper_falhou": "Não consegui a análise do Claude. Mostro a ajuda pré-escrita.",
@@ -77,6 +77,7 @@
     "desinst_fim": "Desinstalação concluída. Ficaram o git, o Claude Code, o Node, o uv, o gh e os backups em {BACKUP}.",
     "desinst_sem_manifest": "Não encontrei {MANIFEST}. Não há nada do workshop para desfazer.",
     "s0_so": "Sistema: {SO}",
+    "s0_lingua": "Língua da máquina: {LINGUA}",
     "s0_proxy_sistema": "Proxy do sistema: {PROXY}",
     "s0_proxy_pac": "Proxy automático (PAC): {PAC}",
     "s0_sem_proxy": "Sem proxy.",
@@ -92,7 +93,7 @@
     "s3_pergunta_login": "Fazer agora o login na Console? Abre o browser.",
     "s3_pergunta_trocar": "Tens login com uma assinatura claude.ai. O workshop usa a Console (paga por uso). Trocar para a Console?",
     "s3_manter": "Mantive o login atual (assinatura claude.ai).",
-    "s3_login_sim": "Modo --sim: não faço login interativo.",
+    "s3_login_sim": "Modo --yes: não faço login interativo.",
     "s4_ja": "Node {VERSAO} em {CAMINHO}",
     "s5_ja": "uv {VERSAO}",
     "s6_ja": "gh {VERSAO}",
@@ -105,6 +106,9 @@
     "s7_acli_login": "Reserva do Jira: se o MCP falhar, corre acli auth login num terminal (abre o browser).",
     "s8_ja": "{SKILLS} skills, {AGENTES} agentes, hooks e statusline",
     "s8_statusline_mantida": "Já tinhas uma statusline. Mantive a tua. Para usar a do workshop, corre o setup com {FLAG_STATUSLINE}.",
+    "s8_lingua_nossa": "O Claude responde em {NOME} (definição \"language\" do Claude Code). Textos do workshop: {KIT}.",
+    "s8_lingua_tua": "Já tinhas uma definição \"language\" ({NOME}): mantive-a. Textos do workshop: {KIT}.",
+    "s8_lingua_nenhuma": "Sem definição \"language\" para {LINGUA}: o Claude responde na língua em que escreves. Textos do workshop: {KIT}.",
     "s9_ja": "{PROJETOS}",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
@@ -117,7 +121,9 @@
     "s12_ok": "Resposta «{RESPOSTA}» em {SEG} s · custo {USD}",
     "s12_custo_desconhecido": "modelo sem preço no pricing.json",
     "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados.",
-    "s1_portatil": "git {VERSAO} (portátil do workshop, sem as ferramentas da Apple)"
+    "s1_portatil": "git {VERSAO} (portátil do workshop, sem as ferramentas da Apple)",
+    "lingua_pt": "português",
+    "lingua_en": "inglês"
   },
   "passos": {
     "0": "Deteção do ambiente",
@@ -407,13 +413,13 @@
       "causa": "O teu Claude Code já mostra uma statusline tua. O setup manteve-a e não instalou a do workshop, que mostra o custo.",
       "fazer": [
         "Podes continuar: o custo também aparece no /demo-cost.",
-        "Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --desinstalar."
+        "Para usar a statusline do workshop, volta a correr o setup com a opção abaixo. A tua fica no backup e volta com --uninstall."
       ],
       "mac": [
-        "bash ~/.workshop-claude/setup-mac.sh --substituir-statusline"
+        "bash ~/.workshop-claude/setup-mac.sh --replace-statusline"
       ],
       "windows": [
-        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME\\.workshop-claude\\setup-windows.ps1\" -SubstituirStatusline"
+        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
       ]
     },
     "E-CFG-07": {
