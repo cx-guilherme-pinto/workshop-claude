@@ -1155,16 +1155,19 @@ ws_s10_detect() {
   return 0
 }
 # Corre "memoria selftest" e mostra o Python gerido pelo uv ("Memória 0.1.0 · Python 3.12.13 · Darwin arm64").
+# Desde a v0.3.0 o texto do selftest segue a lingua da app (pt, en, hi, he): pede-se em ingles (MEMORIA_LANG=en,
+# como o resto do setup) e o resultado vem do codigo de saida. So a etiqueta [OK] e igual em todas as linguas;
+# qualquer outra etiqueta ([FALHOU], [FAIL]...) e um motivo de falha.
 ws_memoria_selftest() {
   local out rc py fails
-  out=$("$1" selftest 2>&1 </dev/null); rc=$?
+  out=$(MEMORIA_LANG=en "$1" selftest 2>&1 </dev/null); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   py=$(printf '%s\n' "$out" | sed -nE 's/.*Python ([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p' | head -n 1)
-  if [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -Eq '^[[:space:]]*\[OK\].*FTS5'; then
+  if [ "$rc" = 0 ]; then
     ws_detail "$(ws_msg s10_ok VERSAO="$2" PY="${py:-?}")"; return 0
   fi
   ws_detail "$(ws_msg s10_ja VERSAO="$2")"
-  fails=$(printf '%s\n' "$out" | sed -nE 's/^[[:space:]]*\[FALHOU\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
+  fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[OK\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
   ws_warn E-MEM-05 "${fails:-memoria selftest ($rc)}"
   return 1
 }

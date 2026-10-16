@@ -397,12 +397,13 @@ function Get-WsUvPythonBlockers {
 
 function Read-WsSelftest {
   # Primeira linha do "memoria selftest": "Memoria 0.1.0 . Python 3.12.13 . Windows AMD64". Devolve @{ Python; Fts5; Falhas }.
+  # Desde a v0.3.0 o texto segue a lingua da app: so a etiqueta [OK] e igual em todas; qualquer outra e uma falha.
   param([string]$Text)
   $py = ''
   $m = [regex]::Match([string]$Text, 'Python ([0-9]+\.[0-9]+(\.[0-9]+)?)')
   if ($m.Success) { $py = $m.Groups[1].Value }
   $fts = [bool]([regex]::IsMatch([string]$Text, '(?m)^\s*\[OK\].*FTS5'))
-  $falhas = @([regex]::Matches([string]$Text, '(?m)^\s*\[FALHOU\]\s*(.+)$') | ForEach-Object { $_.Groups[1].Value.Trim() })
+  $falhas = @([regex]::Matches([string]$Text, '(?m)^\s*\[(?!OK\])[^\]\r\n]+\]\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value.Trim() })
   return @{ Python = $py; Fts5 = $fts; Falhas = $falhas }
 }
 
@@ -1530,11 +1531,12 @@ function Get-WsShortcutPath {
 $script:UvBlockEnv = @('UV_PYTHON_DOWNLOADS', 'UV_NO_MANAGED_PYTHON', 'UV_PYTHON_PREFERENCE', 'UV_PYTHON')
 
 function Invoke-WsMemoriaSelftest {
-  # Corre "memoria selftest" e mostra o Python gerido pelo uv. Falha -> aviso E-MEM-05.
+  # Corre "memoria selftest" (em ingles, como o resto do setup) e mostra o Python gerido pelo uv.
+  # O resultado vem do codigo de saida (contrato da app desde a v0.3.0). Falha -> aviso E-MEM-05.
   param([string]$Exe, [string]$Ver)
-  $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1' }
+  $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1'; MEMORIA_LANG = 'en' }
   $st = Read-WsSelftest $r.StdOut
-  if ($r.ExitCode -eq 0 -and $st.Fts5) {
+  if ($r.ExitCode -eq 0) {
     Set-WsDetail (M 's10_ok' @{ VERSAO = $Ver; PY = $st.Python })
     return $true
   }
