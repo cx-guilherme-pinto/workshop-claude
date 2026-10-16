@@ -117,6 +117,15 @@ f1_kit() {
   if tm 600 bash "$KIT/setup/test/test-mac.sh" > "$LOGS/1-test-mac.log" 2>&1; then ok "setup/test/test-mac.sh" "$(tail -1 "$LOGS/1-test-mac.log")"
   else falha "setup/test/test-mac.sh" "$(tail -1 "$LOGS/1-test-mac.log") (ver logs/1-test-mac.log)"; fi
   if [ -f "$MEMREPO/pyproject.toml" ] && tem uv; then
+    # num clone acabado de fazer falta a UI (src/memoria/web_dist e gerada, nao vai no git) e o Chromium do Playwright
+    if [ ! -f "$MEMREPO/src/memoria/web_dist/index.html" ]; then
+      if (cd "$MEMREPO/web" && tm 900 npm ci && tm 900 npm run build) > "$LOGS/1-memoria-ui.log" 2>&1 &&
+         rm -rf "$MEMREPO/src/memoria/web_dist" && cp -R "$MEMREPO/web/dist" "$MEMREPO/src/memoria/web_dist"; then
+        ok "App Memoria (build da UI)" "web/dist copiado para src/memoria/web_dist"
+      else falha "App Memoria (build da UI)" "ver logs/1-memoria-ui.log"; fi
+    fi
+    (cd "$MEMREPO" && tm 900 uv run playwright install chromium) > "$LOGS/1-memoria-playwright.log" 2>&1 ||
+      aviso "App Memoria (Chromium do Playwright)" "nao instalou: os testes de browser vao falhar (ver logs/1-memoria-playwright.log)"
     if (cd "$MEMREPO" && tm 1200 uv run pytest -q) > "$LOGS/1-memoria-pytest.log" 2>&1; then ok "App Memoria (pytest)" "$(tail -1 "$LOGS/1-memoria-pytest.log")"
     else falha "App Memoria (pytest)" "$(tail -1 "$LOGS/1-memoria-pytest.log") (ver logs/1-memoria-pytest.log)"; fi
   else
