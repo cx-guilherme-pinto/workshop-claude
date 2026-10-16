@@ -1,6 +1,6 @@
 # Benchmark de custo e tempo
 
-Gerado em 2026-10-16 14:19 a partir de `benchmark/results.csv`. O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13).
+Gerado em 2026-10-16 14:48 a partir de `benchmark/results.csv`. O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13).
 
 ## Modo participante (10 execuções)
 
@@ -29,4 +29,24 @@ Critério de aceitação (todas com sucesso, ≤ 20 min, custo máximo ≤ US$ 1
 | 20261016-150803-participante-8 | 4,3 min | US$ 0,90 | US$ 0,0287 | US$ 0,55 | US$ 0,33 | 22 | 20 | 155/155 | aprovado_com_reservas | aprovado | 0 |
 | 20261016-151220-participante-9 | 3,5 min | US$ 1,07 | US$ 0,0267 | US$ 0,71 | US$ 0,34 | 22 | 20 | 155/155 | aprovado | aprovado | 0 |
 | 20261016-151550-participante-10 | 3,5 min | US$ 1,03 | US$ 0,0295 | US$ 0,68 | US$ 0,32 | 22 | 20 | 155/155 | aprovado_com_reservas | aprovado | 1 |
+
+## Modo apresentador (3 execuções)
+
+| métrica | mínimo | média | máximo | desvio padrão |
+|---|---|---|---|---|
+| custo total | US$ 2,53 | US$ 2,54 | US$ 2,55 | US$ 0,0152 |
+| custo Haiku | US$ 0,16 | US$ 0,17 | US$ 0,17 | US$ 0,0030 |
+| custo Sonnet | US$ 1,99 | US$ 1,99 | US$ 2,00 | US$ 0,0070 |
+| custo Opus | US$ 0,37 | US$ 0,38 | US$ 0,39 | US$ 0,0063 |
+| duração | 6,6 min | 7,1 min | 7,9 min | 0,7 min |
+| agentes | 107 | 107,0 | 107 | 0,0 |
+| custo segundo o Claude Code | US$ 10,00 | US$ 10,13 | US$ 10,28 | US$ 0,14 |
+
+Execuções com sucesso (testes verdes e sem erros): **3/3**.
+
+| execução | duração | custo | Haiku | Sonnet | Opus | agentes | verdes | testes | veredito | gate | negações |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 20261016-152044-apresentador-gravado | 6,6 min | US$ 2,53 | US$ 0,16 | US$ 1,99 | US$ 0,37 | 107 | 105 | 665/665 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-153209-apresentador-gravado | 6,9 min | US$ 2,55 | US$ 0,17 | US$ 1,99 | US$ 0,39 | 107 | 105 | 665/665 | aprovado_com_reservas | aprovado | 0 |
+| 20261016-154024-apresentador-1 | 7,9 min | US$ 2,55 | US$ 0,17 | US$ 2,00 | US$ 0,38 | 107 | 105 | 665/665 | aprovado_com_reservas | aprovado | 0 |
 

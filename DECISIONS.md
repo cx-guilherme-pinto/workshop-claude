@@ -164,6 +164,33 @@ Pedido do organizador: não assumir **nada** pré-instalado. O mínimo do mínim
 - **Testado (Mac arm64, 16 out. 2026):** num HOME vazio com acentos (`Maria João`, debaixo de `/var` → `/private/var`), sem `git`, sem Command Line Tools (`xcode-select` falso a falhar), sem Node, sem Claude Code e sem `gh`. O script instalou tudo: git portátil 2.53.0, Claude Code 2.1.292, Node 24.22.0, uv 0.13.1, gh 2.102.0, 7 skills, 6 agentes e os projetos (com commit inicial feito pelo git portátil), e a app de memória com Python 3.12. Os dois logins são interativos e não correm em `--sim`: estão no checklist manual (M6, W16).
 - **Bug encontrado e corrigido neste teste:** a deteção de "script principal" (`import.meta.url === argv[1]`) falhava em pastas com links simbólicos (`/var`, `/tmp`, iCloud) e os scripts saíam em silêncio. Passou a comparar caminhos reais (`ehPrincipal()`).
 
+## D-16 · Resultados do benchmark (16 out. 2026, Claude Code 2.1.285, Mac arm64)
+
+Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é calculado com os tokens reais e os preços publicados (`pricing.json`).
+
+| Modo | Execuções | Sucesso | Custo mín · média · máx | Duração mín · média · máx | Agentes |
+|---|---|---|---|---|---|
+| Participante (15 cartões + lib + 2 páginas + integração + revisão) | 10 | **10/10** | US$ 0,90 · **1,03** · 1,12 | 3,5 · **4,0** · 4,8 min | 22–23 |
+| Apresentador (100 cartões) | 3 | **3/3** | US$ 2,53 · **2,54** · 2,55 | 6,6 · **7,1** · 7,9 min | 107 |
+
+- **Critério de aceitação cumprido com folga:**
+  - todas as execuções terminaram com testes verdes e gate aprovado;
+  - o máximo ficou muito abaixo dos US$ 10 e dos 20 min;
+  - a média ficou abaixo dos US$ 5, também no modo apresentador.
+- **Onde vai o dinheiro (participante):**
+  - Sonnet US$ 0,68 em média: a sessão principal, as páginas e a integração;
+  - Opus US$ 0,32: o planner e o revisor;
+  - Haiku US$ 0,03, ou seja, 17 agentes a cerca de US$ 0,0017 por cartão.
+  A sessão principal fica com cerca de 50% do custo, o que confirma que o que custa é a coordenação, não o enxame.
+- **O `total_cost_usd` do Claude Code** daria cerca de 2,4× mais no participante e 4× mais no apresentador, porque esta versão não conhece o Haiku 5.5 (D-13).
+- **Margem:** como o custo real é cerca de 5× inferior ao alvo, não foi preciso otimizar mais. Ficou no desenho atual: o paralelismo de 8 protege as contas novas, e o planner e o revisor em Opus dão a qualidade do gate.
+- **Estimativa antes de executar:** os perfis de tokens de `orquestrador/perfis.json` foram calibrados com estas execuções (`benchmark/calibrar.mjs`), com uma margem de 15%. Resultado: US$ 1,00 estimado no participante e US$ 2,43 no apresentador.
+- **Ressalvas:**
+  - corrido numa assinatura Max e sem isolamento total, porque o token de benchmark ficou truncado; isso não afeta os tokens nem o preço;
+  - em modo não interativo, os subagentes correm em segundo plano;
+  - um participante em modo interativo e com uma conta nova (tier Evaluation) pode demorar mais.
+- **Gravação escolhida para o preview:** `20261016-153209-apresentador-gravado` (6,9 min, US$ 2,55, 105/105). É a mais representativa: a duração e o custo ficam na mediana das três. A primeira gravação foi descartada porque o tradutor do terminal marcava os lançamentos em segundo plano como falhas. O vídeo acelerado tem 92 s (4×). O replay e a Arena final estão em `presenter-replay/`.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.
