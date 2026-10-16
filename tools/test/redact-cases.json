@@ -1,0 +1,23 @@
+{
+  "nota": "Casos partilhados pelos testes do filtro de redacao em Node, bash e PowerShell. 'literais' simula o valor de REPO_TOKEN.",
+  "literais": ["s3cr3t-repo-token-value"],
+  "casos": [
+    { "in": "curl falhou com REPO_TOKEN=s3cr3t-repo-token-value", "out": "curl falhou com REPO_TOKEN=***" },
+    { "in": "o valor s3cr3t-repo-token-value apareceu solto", "out": "o valor *** apareceu solto" },
+    { "in": "chave sk-ant-api03-AbC_dEf-123456789 no texto", "out": "chave sk-ant-*** no texto" },
+    { "in": "token ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 e gho_abcdefghijklmnop", "out": "token ghp_*** e gho_***" },
+    { "in": "pat github_pat_11AAAAAAA0abcdefghij_klmnop", "out": "pat github_pat_***" },
+    { "in": "Authorization: token abc123def456", "out": "Authorization: ***" },
+    { "in": "> authorization: Bearer xyz.abc.def", "out": "> authorization: ***" },
+    { "in": "header \"Authorization: token abc\" enviado", "out": "header \"Authorization: ***\" enviado" },
+    { "in": "usar Bearer eyJhbGciOi.payload.sig agora", "out": "usar Bearer *** agora" },
+    { "in": "git clone https://utilizador:palavra@gitea.exemplo.pt/x/y.git", "out": "git clone https://***@gitea.exemplo.pt/x/y.git" },
+    { "in": "https://0123456789abcdef0123@github.com/o/r", "out": "https://***@github.com/o/r" },
+    { "in": "{\"access_token\": \"abcdef123\", \"ok\": true}", "out": "{\"access_token\": \"***\", \"ok\": true}" },
+    { "in": "password=hunter2&user=x", "out": "password=***&user=x" },
+    { "in": "API_KEY: zzzzzz", "out": "API_KEY: ***" },
+    { "in": "linha normal sem segredos: versao 2.1.292", "out": "linha normal sem segredos: versao 2.1.292" },
+    { "in": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt", "out": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt" },
+    { "in": "\"authMethod\": \"oauth_token\",", "out": "\"authMethod\": \"oauth_token\"," }
+  ]
+}

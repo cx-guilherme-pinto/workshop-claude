@@ -1,0 +1,138 @@
+// Testes do merge seguro do settings.json (installer/lib/settings.mjs).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  checkSettings,
+  command,
+  isOurs,
+  mergeSettings,
+  parseSettings,
+  SettingsError,
+  unmergeSettings,
+} from '../../installer/lib/settings.mjs';
+
+const HOME_MAC = '/Users/João Silva';
+const KIT_MAC = `${HOME_MAC}/.workshop-claude/kit`;
+const NODE_MAC = `${HOME_MAC}/.workshop-claude/node/bin/node`;
+const KIT_WIN = 'C:\\Users\\João Silva\\.workshop-claude\\kit';
+const NODE_WIN = 'C:\\Program Files\\nodejs\\node.exe';
+
+const alheio = () => ({
+  model: 'claude-sonnet-5-5',
+  statusLine: { type: 'command', command: 'echo minha-statusline' },
+  hooks: {
+    Stop: [{ hooks: [{ type: 'command', command: 'echo meu-hook' }] }],
+    PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: '/usr/local/bin/guarda' }] }],
+  },
+  env: { MEU_ENV: '1' },
+  enabledPlugins: { 'x@y': true },
+  permissions: { allow: ['Bash(ls)'] },
+});
+
+test('mantem chaves, hooks e statusLine alheios e acrescenta os hooks do workshop', () => {
+  const cur = alheio();
+  const { settings: s, warnings, record } = mergeSettings(cur, { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } });
+  assert.equal(s.model, 'claude-sonnet-5-5');
+  assert.deepEqual(s.enabledPlugins, { 'x@y': true });
+  assert.deepEqual(s.permissions, { allow: ['Bash(ls)'] });
+  assert.deepEqual(s.statusLine, cur.statusLine, 'statusLine alheia mantida');
+  assert.deepEqual(warnings, ['E-CFG-06']);
+  assert.equal(record.statusline_mantida, true);
+  assert.equal(s.hooks.Stop.length, 2, 'hook alheio + o nosso');
+  assert.equal(s.hooks.Stop[0].hooks[0].command, 'echo meu-hook');
+  assert.equal(s.hooks.PreToolUse[0].hooks[0].command, '/usr/local/bin/guarda');
+  assert.equal(s.hooks.SubagentStop[0].hooks[0].command, `"${NODE_MAC}" "${KIT_MAC}/hooks/subagent-stop.mjs"`);
+  assert.equal(s.hooks.Stop[1].hooks[0].command, `"${NODE_MAC}" "${KIT_MAC}/hooks/stop.mjs"`);
+  assert.equal(s.hooks.Stop[1].hooks[0].timeout, 30);
+  assert.equal(s.env.MEU_ENV, '1');
+  assert.equal(s.env.DISABLE_AUTOUPDATER, '1');
+  assert.deepEqual(cur, alheio(), 'o objeto original nao e alterado');
+});
+
+test('e idempotente: aplicar duas vezes da o mesmo resultado', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1', HTTPS_PROXY: 'http://proxy:8080', NO_PROXY: 'localhost,127.0.0.1' } };
+  const a = mergeSettings(alheio(), opts);
+  const b = mergeSettings(a.settings, opts, a.record);
+  assert.deepEqual(b.settings, a.settings);
+  assert.equal(b.changed, false);
+  assert.deepEqual(b.record.env_anterior, a.record.env_anterior, 'o valor anterior original mantem-se');
+});
+
+test('caminhos do Windows usam barras "/" e aspas (utilizador com espaco e acentos)', () => {
+  const { settings: s } = mergeSettings({}, { node: NODE_WIN, kitDir: KIT_WIN });
+  const cmd = s.hooks.SubagentStop[0].hooks[0].command;
+  assert.equal(cmd, '"C:/Program Files/nodejs/node.exe" "C:/Users/João Silva/.workshop-claude/kit/hooks/subagent-stop.mjs"');
+  assert.ok(!cmd.includes('\\'));
+  assert.equal(s.statusLine.command, '"C:/Program Files/nodejs/node.exe" "C:/Users/João Silva/.workshop-claude/kit/statusline/statusline.mjs"');
+  assert.ok(isOurs(cmd));
+});
+
+test('sem statusLine: instala a do workshop; com --substituir-statusline guarda a anterior', () => {
+  const a = mergeSettings({}, { node: NODE_MAC, kitDir: KIT_MAC });
+  assert.equal(a.record.statusline_nossa, true);
+  assert.ok(isOurs(a.settings.statusLine.command));
+  const b = mergeSettings(alheio(), { node: NODE_MAC, kitDir: KIT_MAC, substituirStatusline: true });
+  assert.ok(isOurs(b.settings.statusLine.command));
+  assert.deepEqual(b.record.statusline_anterior, alheio().statusLine);
+  assert.deepEqual(b.warnings, []);
+});
+
+test('atualiza o caminho do node sem duplicar os hooks', () => {
+  const a = mergeSettings(alheio(), { node: NODE_MAC, kitDir: KIT_MAC });
+  const b = mergeSettings(a.settings, { node: '/opt/homebrew/bin/node', kitDir: KIT_MAC }, a.record);
+  assert.equal(b.settings.hooks.SubagentStop.length, 1);
+  assert.equal(b.settings.hooks.Stop.length, 2);
+  assert.ok(b.settings.hooks.Stop[1].hooks[0].command.startsWith('"/opt/homebrew/bin/node"'));
+});
+
+test('stop.mjs e subagent-stop.mjs nao se confundem', () => {
+  const s = { hooks: { Stop: [{ hooks: [{ type: 'command', command: command(NODE_MAC, `${KIT_MAC}/hooks/subagent-stop.mjs`) }] }] } };
+  const r = mergeSettings(s, { node: NODE_MAC, kitDir: KIT_MAC });
+  assert.equal(r.settings.hooks.Stop[0].hooks.length, 1, 'o hook (estranho) do subagente no Stop fica');
+  assert.equal(r.settings.hooks.Stop.length, 2, 'e o stop.mjs e acrescentado');
+});
+
+test('unmerge repoe exatamente o original', () => {
+  const orig = alheio();
+  const env = { DISABLE_AUTOUPDATER: '1', NODE_EXTRA_CA_CERTS: '/x/ca.pem', NO_PROXY: 'localhost,127.0.0.1' };
+  const a = mergeSettings(orig, { node: NODE_MAC, kitDir: KIT_MAC, env, substituirStatusline: true });
+  assert.deepEqual(unmergeSettings(a.settings, a.record), orig);
+  const vazio = mergeSettings({}, { node: NODE_MAC, kitDir: KIT_MAC, env });
+  assert.deepEqual(unmergeSettings(vazio.settings, vazio.record), {});
+});
+
+test('unmerge mantem o que a pessoa mudou depois da instalacao', () => {
+  const a = mergeSettings(alheio(), { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } });
+  const depois = JSON.parse(JSON.stringify(a.settings));
+  depois.theme = 'dark';
+  depois.env.DISABLE_AUTOUPDATER = '0';
+  const r = unmergeSettings(depois, a.record);
+  assert.equal(r.theme, 'dark');
+  assert.equal(r.env.DISABLE_AUTOUPDATER, '0', 'valor alterado pela pessoa fica');
+  assert.ok(!JSON.stringify(r).includes('.workshop-claude/kit/'));
+});
+
+test('env com o mesmo valor antes do workshop nao e removida no unmerge', () => {
+  const orig = { env: { DISABLE_AUTOUPDATER: '1' } };
+  const a = mergeSettings(orig, { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } });
+  assert.deepEqual(unmergeSettings(a.settings, a.record), orig);
+});
+
+test('settings.json invalido ou com tipos errados da SettingsError (E-CFG-05)', () => {
+  assert.throws(() => parseSettings('{ "a": 1, }'), SettingsError);
+  assert.throws(() => parseSettings('[1,2]'), SettingsError);
+  assert.deepEqual(parseSettings(''), {});
+  assert.deepEqual(parseSettings('\uFEFF{"a":1}'), { a: 1 });
+  assert.throws(() => mergeSettings({ hooks: [] }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
+  assert.throws(() => mergeSettings({ hooks: { Stop: {} } }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
+  assert.throws(() => mergeSettings({ env: 'x' }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
+});
+
+test('checkSettings deteta o que falta e statusline alheia', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } };
+  assert.deepEqual(checkSettings({}, opts).faltam.sort(), ['env DISABLE_AUTOUPDATER', 'hook Stop', 'hook SubagentStop', 'statusLine']);
+  const a = mergeSettings(alheio(), opts);
+  const c = checkSettings(a.settings, opts);
+  assert.equal(c.ok, true);
+  assert.equal(c.statusline, 'alheia');
+});

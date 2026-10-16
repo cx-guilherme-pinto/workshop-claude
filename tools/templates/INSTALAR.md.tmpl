@@ -1,0 +1,54 @@
+# Instalar o kit do workshop
+
+Faz isto **antes** do workshop. Demora 10 a 20 minutos. Não precisas de admin.
+
+## 1. Antes de começar
+
+- Cria uma conta na [Console da Anthropic]({{CONSOLE_URL}}) e adiciona créditos em Billing. Recomendamos um limite de gasto bem acima de US$ 10: o workshop custa cerca de US$ 5.
+- **Mac:** abre o Terminal e corre `xcode-select --install`. Carrega em «Instalar» e espera que termine (5 a 15 minutos). Se disser que já está instalado, ótimo.
+- **Windows:** não precisas de preparar nada. Usa o PowerShell (de preferência no Windows Terminal).
+- Se estiveres numa rede da empresa com proxy, o setup deteta-o. Se algo falhar na rede, experimenta o hotspot do telemóvel.
+
+## 2. Correr o setup
+
+**macOS** (Terminal):
+
+```bash
+{{ONE_LINER_MAC}}
+```
+
+Alternativa: `{{ONE_LINER_MAC_ALT}}`
+
+**Windows** (PowerShell):
+
+```powershell
+{{ONE_LINER_WINDOWS}}
+```
+
+Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1]({{SETUP_WINDOWS_URL}}) e corre, na pasta onde o guardaste:
+
+```powershell
+{{ONE_LINER_WINDOWS_FALLBACK}}
+```
+
+O setup faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Feito · ⏭️ Já estava feito · ⚠️ Feito com aviso · ❌ Falhou. Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
+
+## 3. Confirmar
+
+No fim aparece «Está tudo pronto para o workshop» ou a lista do que falta. Para verificar outra vez, sem instalar nada:
+
+- macOS: `{{CHECK_MAC}}`
+- Windows: `{{CHECK_WINDOWS}}`
+
+Depois, fecha e volta a abrir o terminal (e o VS Code).
+
+## 4. Se algo falhar
+
+- Volta a correr o mesmo comando: os passos feitos são saltados.
+- Procura o código do erro em [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+- Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `{{DOCTOR_MAC}}` ou `{{DOCTOR_WINDOWS}}`.
+- Envia ao organizador o ficheiro `~/.workshop-claude/resumo.txt`. O `setup.log` também ajuda e já vem sem segredos.
+
+## Verificar antes de executar (opcional)
+
+Os SHA-256 de todos os ficheiros da release estão em {{SHA256SUMS_URL}}. Página da release: {{RELEASE_URL}}.

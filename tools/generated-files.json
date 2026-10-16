@@ -1,0 +1,9 @@
+{
+  "nota": "Ficheiros gerados por tools/render.mjs. O tools/check-repo.mjs aceita URLs nestes ficheiros.",
+  "ficheiros": [
+    "README.md",
+    "docs/INSTALAR.md",
+    "docs/PUBLICAR.md",
+    "docs/TROUBLESHOOTING.md"
+  ]
+}
