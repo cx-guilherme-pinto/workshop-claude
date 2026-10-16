@@ -280,6 +280,23 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - `presenter-replay/` e `benchmark/REPORT.md` continuam em português, porque são ferramentas e registos do organizador.
 - **Testes:** `tools/test/tools.test.mjs` verifica os 12 ficheiros gerados, as linhas de troca de língua e os links entre línguas. O `check-repo` aceita URLs só no `repos.conf` e nos ficheiros gerados.
 
+## D-22 · Slides no modelo da Checkmarx e revisão do conteúdo (16 out. 2026)
+
+- **Modelo:** o organizador pediu que a apresentação siga o modelo corporativo da Checkmarx (ficheiro "RnD All Hands - October 2026.odp"), sem o All Hands. Do modelo vieram:
+  - a paleta: roxo `#6b34fd`, escuro `#140920`, fundo `#fcf9fe`, cartões `#f4effe`, texto secundário `#4a405a` e laranja `#f25928` para destaques;
+  - as letras: Founders Grotesk Medium nos títulos e Arial no texto. O LibreOffice da revisão não tem a Founders Grotesk e troca-a por outra; no PowerPoint com a letra instalada, os títulos ficam como no modelo;
+  - os layouts: abertura escura com o X de linhas, separadores claros com a onda, conteúdo com a barra escura no rodapé (logótipo e número), "Faça agora" em lilás com etiqueta roxa e fecho escuro. Os fundos e os logótipos estão em `slides/modelo/`, gerados a partir das imagens do próprio modelo;
+  - as cores de estado da Arena (cinzento, amarelo, verde, vermelho) e as dos modelos (Haiku amarelo, Sonnet verde, Opus roxo) ficam onde têm significado.
+- **Conteúdo** (pedido do organizador, pt e en):
+  - saíram os slides "90 minutos", "Limites que respeitamos" e "Claude Desktop e telemóvel";
+  - entraram os slides "O que faz o /demo-plan" e "O que faz o /demo-swarm" (o resumo do SKILL.md, o que entra e sai, e como usar no teu projeto), "Hooks" e "Statusline" (o que são, para que servem no kit e como pedir ao Claude para criar o teu), e a secção "O swarm em ação" antes do vídeo;
+  - a fonte dos preços é a página da Anthropic, e os comandos de instalação levam o aviso "estão no Teams";
+  - o total continua nos 90 minutos.
+- **Vídeos:**
+  - **swarm:** a gravação original do `/estado` estava parada no estado final. O `tools/record/montar-preview.sh` refá-lo sem correr o swarm: a grelha vem do replay, fotograma a fotograma (`record-replay.mjs`), e o terminal do `terminal.cast`, os dois a 5× e alinhados pela hora real do evento "inicio". Fica com 83 s;
+  - **jogo:** o `tools/record/record-jogo.mjs` grava uma partida real, com um cartão de cada formato e as respostas tiradas do `specs/cards.json`. A versão inglesa monta os cartões a partir da especificação em inglês, e os 600 testes dos cartões passam;
+  - **proporção:** o `build.mjs` encaixa as imagens e os vídeos pela proporção real do ficheiro, sem esticar.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.

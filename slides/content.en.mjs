@@ -17,20 +17,11 @@ export const SLIDES = [
     seccao: 'Opening', tipo: 'colunas', min: 1.5,
     titulo: 'What you take home',
     colunas: [
-      { titulo: 'A swarm', texto: 'that builds a security game with 15 agents in parallel', cor: 'verde' },
-      { titulo: 'Your task', texto: 'a real one, from Jira or GitHub, broken down and running', cor: 'accent' },
-      { titulo: 'A memory', texto: 'a graph of what you learned, ready to use tomorrow', cor: 'amarelo' },
+      { titulo: 'A swarm', texto: 'that builds a security game with 15 agents in parallel' },
+      { titulo: 'Your task', texto: 'a real one, from Jira or GitHub, broken down and running' },
+      { titulo: 'A memory', texto: 'a graph of what you learned, ready to use tomorrow' },
     ],
     notas: 'Three concrete outcomes. Everything stays installed on each laptop and keeps working after today.',
-  },
-  {
-    seccao: 'Opening', tipo: 'agenda', min: 1,
-    titulo: '90 minutes',
-    blocos: [
-      ['0', 'Opening'], ['5', 'Check'], ['10', 'Concepts'], ['25', 'Preview'],
-      ['30', 'Project 1'], ['55', 'Memory'], ['60', 'Project 2'], ['85', 'Wrap-up'],
-    ],
-    notas: 'The clock is in the notes of each slide. Questions are at the end, with no time limit.',
   },
   {
     seccao: 'Opening', tipo: 'stats', min: 1.5,
@@ -48,24 +39,26 @@ export const SLIDES = [
   {
     seccao: 'Check', tipo: 'faca', min: 3,
     titulo: 'Check your installation',
+    aviso: "The commands are in Teams: copy them from there.",
     passos: ['Open a terminal', 'Run the command for your system', 'Wait for the summary table'],
     comandos: [
       { rotulo: 'Mac', cmd: '{{CHECK_MAC}}' },
       { rotulo: 'Windows', cmd: '{{CHECK_WIN}}' },
     ],
     esperado: '"Everything is ready for the workshop"',
-    notas: 'Everyone runs the check. It takes 2 to 3 minutes and installs nothing. Anyone who did not run the setup follows along with a neighbour and installs during the questions. The setup speaks English, but it detects the machine language and writes the Claude Code language setting (Portuguese, English, Hindi or Hebrew): the skills answer in that language. The Arena, the orchestrator tables and the docs come in Portuguese or English (any other language gets English).',
+    notas: 'Everyone runs the check. It takes 2 to 3 minutes and installs nothing. Anyone who did not run the setup follows along with a neighbour and installs during the questions. The setup speaks English, but it detects the machine language and writes the Claude Code language setting (Portuguese, English, Hindi or Hebrew): the skills answer in that language. The Arena, the orchestrator tables and the docs come in Portuguese or English (any other language gets English). Before this slide, post the commands in Teams so everyone can copy them.',
   },
   {
     seccao: 'Check', tipo: 'faca', min: 2,
     titulo: 'Did a step fail?',
+    aviso: "The commands are in Teams: copy them from there.",
     passos: ['Run doctor mode', 'Accept the analysis by Claude (under US$ 0.01)', 'Confirm the commands one by one'],
     comandos: [
       { rotulo: 'Mac', cmd: '{{DOCTOR_MAC}}' },
       { rotulo: 'Windows', cmd: '{{DOCTOR_WIN}}' },
     ],
     esperado: 'The failed step runs again and gets done',
-    notas: 'Claude reads only the log excerpt for that step, with no secrets, and suggests commands. It never runs anything without confirmation. If Claude is not installed yet, the pre-written message from TROUBLESHOOTING is shown.',
+    notas: 'Claude reads only the log excerpt for that step, with no secrets, and suggests commands. It never runs anything without confirmation. If Claude is not installed yet, the pre-written message from TROUBLESHOOTING is shown. Before this slide, post the commands in Teams so everyone can copy them.',
   },
 
   // ---------------- Concepts (10–25)
@@ -107,7 +100,7 @@ Answer in the participant's language.`,
       { nome: 'Sonnet', papel: 'integration and hard logic', cor: 'verde', preco: 'US$ 2 / 10' },
       { nome: 'Haiku', papel: 'the bulk of the swarm', cor: 'amarelo', preco: 'US$ 0.10 / 0.50' },
     ],
-    rodape: 'Price per million tokens: input / output. Source: pricing.json ({{PRICING_DATA}}).',
+    rodape: 'Price per million tokens: input / output. Source: {{PRICING_URL}} ({{PRICING_DATA}}).',
     notas: 'A subagent is a Claude instance with a clean context, its own tools and the model we choose. It is defined in a .claude/agents/<name>.md file. The /agents command no longer opens a wizard: you edit the file.',
   },
   {
@@ -148,32 +141,34 @@ Answer in the participant's language.`,
     passos: ['plan', 'swarm', 'review', 'cost', 'memory'],
     notas: 'It is the same cycle in both projects: plan with Opus, run as a swarm, a security gate, measure and save what was learned.',
   },
-  {
-    seccao: 'Concepts', tipo: 'stats', min: 1, saltar: true,
-    titulo: 'Limits we respect',
-    stats: [
-      { valor: '20', rotulo: 'subagents at the same time, at most, per session' },
-      { valor: '8', rotulo: 'in parallel by default today, for new accounts' },
-      { valor: '16', rotulo: 'in presenter mode (100 agents in batches)' },
-    ],
-    notas: 'Skip if running late. Claude Code refuses a 21st concurrent subagent. API rate limits are per organisation. That is why we work in batches.',
-  },
 
   // ---------------- Preview (25–30)
   {
-    seccao: 'Preview', tipo: 'video', min: 4,
+    "seccao": "Preview",
+    "tipo": "seccao",
+    "min": 0.5,
+    "titulo": "The swarm in action",
+    "subtitulo": "Before you run yours: the same cycle, recorded with 100 cards",
+    "notas": "Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 cards. Right after, each person does the same with 15."
+  },
+  {
+    seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 3,
     titulo: '100 agents building the Arena',
     media: 'media/enxame-acelerado.mp4',
     poster: 'media/estado-final.png',
     legenda: 'Real recorded run: {{APRES_DURACAO}} · {{APRES_CUSTO}} · {{APRES_AGENTES}} agents',
-    notas: 'Sped-up video of a real run in presenter mode. The time and cost on screen are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.',
+    notas: "Sped-up video of a real run with 100 cards. On the left, the /estado page: each square is a card, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.",
   },
   {
-    seccao: 'Preview', tipo: 'imagem', min: 1,
-    titulo: 'The result: a game to play',
-    media: 'media/arena.png',
-    legenda: 'Green: the test passed · red: it failed. What did not work is visible too.',
-    notas: 'Open the final Arena in the browser and play a card. It is a static app, with no risk. The game comes in Portuguese or English, depending on the machine language.',
+    "seccao": "Preview",
+    "tipo": "video",
+    "min": 1,
+    "titulo": "The result: a game to play",
+    "media": "media/arena-jogo.en.mp4",
+    "poster": "media/arena-jogo.en.png",
+    "objeto": "video-jogo",
+    "legenda": "The Arena the swarm built: security challenges in 4 formats, to play in the browser.",
+    "notas": "Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each card explains the why at the end. At the end of Project 1 everyone plays their own."
   },
 
   // ---------------- Project 1 (30–55)
@@ -189,6 +184,29 @@ Answer in the participant's language.`,
     notas: 'The tests already exist: each agent only has to turn its test green. That is what lets Haiku do the bulk of the work safely.',
   },
   {
+    "seccao": "Project 1",
+    "tipo": "anatomia",
+    "min": 1.5,
+    "titulo": "What /demo-plan does",
+    "rotulo": ".claude/skills/demo-plan/SKILL.md (summary)",
+    "codigo": "---\nname: demo-plan\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\n1. Look up lessons in the memory\n2. node tools/plan.mjs  → the graph\n3. The planner agent (Opus) reviews it\n4. Show the waves, the diagram and the cost",
+    "pontos": [
+      {
+        "titulo": "It is a skill",
+        "texto": "A Markdown file with steps. You type /demo-plan and Claude follows the recipe, the same way every time."
+      },
+      {
+        "titulo": "What goes in and out",
+        "texto": "In: TASKS.md, the Arena tasks. Out: plan.json and PLANO.md, the graph with the dependencies, the waves and the cost estimate."
+      },
+      {
+        "titulo": "In your project",
+        "texto": "/task-plan does the same for one of your Jira or GitHub issues."
+      }
+    ],
+    "notas": "Explain before running it. A skill is not magic: it is a Markdown recipe that Claude follows. Here it calls a script that builds the graph (always the same, from the tasks) and an Opus agent that only reviews it. The result is in files they can open and read."
+  },
+  {
     seccao: 'Project 1', tipo: 'faca', min: 3,
     titulo: 'Plan the swarm',
     passos: ['Go to the Arena folder', 'Open Claude Code and trust the folder', 'Run /demo-plan'],
@@ -200,6 +218,29 @@ Answer in the participant's language.`,
     seccao: 'Project 1', tipo: 'dag', min: 1.5,
     titulo: 'Your plan: 4 waves',
     notas: 'Show someone\'s plan on the projector. In wave 1, lib/hash and the cards start together; the cryptography ones join as soon as hash turns green.',
+  },
+  {
+    "seccao": "Project 1",
+    "tipo": "anatomia",
+    "min": 1.5,
+    "titulo": "What /demo-swarm does",
+    "rotulo": ".claude/skills/demo-swarm/SKILL.md (summary)",
+    "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepeat until ESTADO: FIM\n  1. next-wave.mjs → the next batch\n  2. Launch the batch agents, in parallel\n  3. Each agent does 1 card and runs its test\n  4. Show the table: agent, model, cost",
+    "pontos": [
+      {
+        "titulo": "The script decides",
+        "texto": "The graph says what can run now. Claude only launches the batch the script hands it: no improvising."
+      },
+      {
+        "titulo": "One agent, one task",
+        "texto": "Each agent starts with a clean context, gets one card and that card's test, and uses the right model: Haiku for the bulk."
+      },
+      {
+        "titulo": "In your project",
+        "texto": "/task-swarm does the same with the subtasks of your issue."
+      }
+    ],
+    "notas": "Explain before running it. The key point: a script picks what runs, not the model. That is why cost and time are predictable. If a card fails, the script retries it with the error message and, on the third attempt, with Sonnet."
   },
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,
@@ -221,21 +262,50 @@ Answer in the participant's language.`,
     notas: '/btw answers on the side. It is the right way to ask questions during a long run.',
   },
   {
-    seccao: 'Project 1', tipo: 'codigo', min: 2,
-    titulo: 'The statusline and the hook that feeds it',
-    intro: 'At the bottom: model · session · project against the target · time · swarm.',
-    codigo: `"hooks": {
-  "SubagentStop": [{ "hooks": [{
-    "type": "command",
-    "command": "node tools/workshop/hooks/subagent-stop.mjs"
-  }]}]
-},
-"statusLine": {
-  "type": "command",
-  "command": "node tools/workshop/statusline/statusline.mjs"
-}`,
-    depois: 'The Arena .claude/settings.json. The Claude Code /usage gives another estimate; /demo-cost uses the published prices.',
-    notas: 'Show the statusline changing as the agents finish. Explain why /usage can show more: versions that do not know the latest prices yet.',
+    "seccao": "Project 1",
+    "tipo": "anatomia",
+    "min": 1.5,
+    "titulo": "Hooks: Claude signals, a script reacts",
+    "rotulo": "Event → command, in .claude/settings.json",
+    "codigo": "SubagentStop      ← an agent finished\n  └─ node hooks/subagent-stop.mjs\n       reads the tokens that agent used\n       writes the cost to .workshop/usage.jsonl\n\nOther events: PreToolUse, PostToolUse,\nUserPromptSubmit, Stop, SessionStart",
+    "pontos": [
+      {
+        "titulo": "What it is",
+        "texto": "A command Claude Code runs on its own at the right moment: before or after a tool, when an agent finishes, at the end of the session."
+      },
+      {
+        "titulo": "What it is for",
+        "texto": "Measuring, checking, formatting or blocking, every time, without relying on the model to remember. Here it measures the cost of each agent."
+      },
+      {
+        "titulo": "Make your own",
+        "texto": "Ask Claude: \"Create a PostToolUse hook that runs prettier on every file you edit.\" It writes it into settings.json; you review and approve it in /hooks."
+      }
+    ],
+    "notas": "No code walkthrough. The idea: a hook is \"when X happens, run Y\", set up in settings.json. Claude writes hooks very well: just describe what you want. Show /hooks to see the active ones."
+  },
+  {
+    "seccao": "Project 1",
+    "tipo": "anatomia",
+    "min": 1,
+    "titulo": "Statusline: the status line is a script",
+    "rotulo": "The line under the input box",
+    "codigo": "Claude Code ── session JSON ──▶ statusline.mjs\nstatusline.mjs ──── one line ────▶ screen\n\nSonnet · session US$ 0.42 · project US$ 1.10 / 5\n· 3 min · swarm 12/15",
+    "pontos": [
+      {
+        "titulo": "What it is",
+        "texto": "A script that receives the session state (model, folder, cost) and returns one line of text."
+      },
+      {
+        "titulo": "In the kit",
+        "texto": "It reads what the hook recorded and shows the session and project cost, live, against the US$ 5 target."
+      },
+      {
+        "titulo": "Make your own",
+        "texto": "Type /statusline and say what you want to see, for example \"the git branch and the session cost\". Claude writes the script."
+      }
+    ],
+    "notas": "Show the statusline changing as the agents finish. The hook records, the statusline shows: together they give the live cost. Claude Code's /usage may show more, because some versions do not know the latest prices yet; /demo-cost uses the published prices."
   },
   {
     seccao: 'Project 1', tipo: 'faca', min: 3,
@@ -369,16 +439,6 @@ Answer in the participant's language.`,
     ],
     notas: 'Example comment: agent ws-worker-07 · Haiku · 5 s · US$ 0.004.',
   },
-  {
-    seccao: 'Project 2', tipo: 'colunas', min: 1, saltar: true,
-    titulo: 'Claude Desktop and mobile',
-    colunas: [
-      { titulo: 'Desktop', texto: 'for chatting, with a claude.ai account; the Code tab needs a subscription' },
-      { titulo: 'Mobile', texto: 'Remote Control needs a subscription and does not accept API keys' },
-      { titulo: 'Today', texto: 'everything in Claude Code, with your Console account' },
-    ],
-    notas: 'Skip if running late. With a subscription, the same session can continue on the phone and routines run in the cloud.',
-  },
 
   // ---------------- Closing (85–90)
   {
@@ -396,10 +456,11 @@ Answer in the participant's language.`,
   {
     seccao: 'Closing', tipo: 'codigo', min: 1.5,
     titulo: 'Where everything is',
+    aviso: "The commands are in Teams: copy them from there.",
     intro: 'Install on another machine:',
     codigo: '{{ONE_LINER_MAC}}\n\n{{ONE_LINER_WIN}}',
     depois: 'Repository: {{WORKSHOP_REPO}} · version {{WORKSHOP_VERSION}} · update the memory: memoria update',
-    notas: 'The commands are generated from repos.conf: they are always right for the published version.',
+    notas: 'The commands are generated from repos.conf: they are always right for the published version. Before this slide, post the commands in Teams so everyone can copy them.',
   },
   {
     seccao: 'Closing', tipo: 'lista', min: 1,
@@ -411,5 +472,5 @@ Answer in the participant's language.`,
     ],
     notas: 'Three concrete actions.',
   },
-  { seccao: 'Closing', tipo: 'titulo', min: 0.5, titulo: 'Questions', subtitulo: 'No time limit', notas: 'Questions can go past 90 minutes. Anyone who did not run the setup installs now.' },
+  { seccao: 'Closing', tipo: 'titulo', fecho: true, min: 0.5, titulo: 'Questions', subtitulo: 'No time limit', notas: 'Questions can go past 90 minutes. Anyone who did not run the setup installs now.' },
 ];

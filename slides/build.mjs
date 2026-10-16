@@ -6,6 +6,7 @@
 // Ferramenta do organizador. Os comandos e URLs vem SEMPRE do repos.conf (installer/lib/conf.mjs).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import pptxgen from 'pptxgenjs';
 import { loadConf, derived } from '../installer/lib/conf.mjs';
@@ -65,14 +66,15 @@ const TEXTOS = {
   },
 };
 
-// ---------- Paleta (DESIGN.md) ----------
+// ---------- Paleta e letras: o modelo de apresentacao da Checkmarx (slides/modelo/) ----------
+// As cores de estado (cinza, amarelo, verde, vermelho) sao as da grelha da Arena e ficam como estao.
 const COR = {
-  bg: 'F2F2EF', surface: 'E6E6E1', surface2: 'D9DAD3', ink: '121614', muted: '545C57',
-  accent: '1A4BE0', accentInk: 'FFFFFF',
-  escuro: '0F1311', escuroSurface: '1A201D', escuroInk: 'E8EDE9', escuroMuted: '9BA59F',
+  bg: 'FCF9FE', surface: 'F4EFFE', surface2: 'EBDDFA', ink: '140920', muted: '4A405A',
+  accent: '6B34FD', accentInk: 'FFFFFF', roxo2: '8F23D7', laranja: 'F25928', lilas: '93A7FF',
+  escuro: '140920', escuroSurface: '231338', escuroInk: 'FCF9FE', escuroMuted: 'B9AEDB',
   cinza: 'C4C7C1', amarelo: 'F1C232', verde: '1E9E57', vermelho: 'D2463F',
 };
-const FONTE_TITULO = 'Bricolage Grotesque';
+const FONTE_TITULO = 'Founders Grotesk Medium';
 const FONTE_TEXTO = 'Arial';
 const FONTE_CODIGO = 'Courier New';
 const W = 13.333;
@@ -100,6 +102,7 @@ function valores() {
     WORKSHOP_REPO: d.WORKSHOP_REPO_URL.replace(/\.git$/, ''),
     WORKSHOP_VERSION: d.WORKSHOP_VERSION,
     PRICING_DATA: pricing.consultado_em,
+    PRICING_URL: String(pricing.fonte || '').replace(/^https?:\/\//, ''),
     BENCH_N: '10', BENCH_MEDIA: T.porMedir, BENCH_MAX: T.porMedir,
     CUSTO_CARTAO: dec('US$ 0.003'), PESO_ORQ: T.pesoOrq, ESTIMATIVA: 'US$ 2',
     APRES_DURACAO: T.porGravar, APRES_CUSTO: T.porMedir, APRES_AGENTES: '100',
@@ -132,38 +135,59 @@ function novaApresentacao() {
   p.author = 'Workshop Claude';
   p.theme = { headFontFace: FONTE_TITULO, bodyFontFace: FONTE_TEXTO };
 
+  const MOD = (n) => join(AQUI, 'modelo', n);
+  // Rodape do modelo: barra escura com o logotipo branco e o numero do slide.
+  const rodape = [
+    { rect: { x: 0, y: 6.915, w: W, h: 0.585, fill: { color: COR.escuro }, line: { color: COR.escuro, width: 0 } } },
+    { image: { x: 0.517, y: 7.171, w: 0.821, h: 0.103, path: MOD('logo-branco.png') } },
+  ];
+  const numero = { x: W - 3.5, y: 7.07, w: 3.0, h: 0.28, fontFace: FONTE_TEXTO, fontSize: 9, color: COR.escuroInk, align: 'right' };
   p.defineSlideMaster({
     title: 'TITULO',
-    background: { color: COR.escuro },
+    background: { path: MOD('fundo-titulo.png') },
     objects: [
-      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.0, w: 8.6, h: 2.1, fontFace: FONTE_TITULO, fontSize: 52, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
-      { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.35, w: 8.6, h: 1.0, fontFace: FONTE_TEXTO, fontSize: 22, color: COR.escuroMuted, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+      { image: { x: 0.673, y: 0.669, w: 2.31, h: 0.289, path: MOD('logo-branco.png') } },
+      ...rodape,
+      { placeholder: { options: { name: 'title', type: 'title', x: 0.673, y: 1.45, w: 9.6, h: 2.2, fontFace: FONTE_TITULO, fontSize: 48, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
+      { placeholder: { options: { name: 'body', type: 'body', x: 0.673, y: 3.8, w: 9.6, h: 1.2, fontFace: FONTE_TITULO, fontSize: 26, color: COR.laranja, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+    ],
+    slideNumber: numero,
+  });
+  p.defineSlideMaster({
+    title: 'FECHO',
+    background: { path: MOD('fundo-fecho.png') },
+    objects: [
+      { image: { x: W / 2 - 1.25, y: 5.55, w: 2.5, h: 0.3125, path: MOD('logo-branco.png') } },
+      { placeholder: { options: { name: 'title', type: 'title', x: 1, y: 2.2, w: W - 2, h: 1.6, fontFace: FONTE_TITULO, fontSize: 60, color: COR.escuroInk, valign: 'bottom', align: 'center', margin: 0 }, text: '' } },
+      { placeholder: { options: { name: 'body', type: 'body', x: 1, y: 3.9, w: W - 2, h: 0.9, fontFace: FONTE_TITULO, fontSize: 28, color: COR.laranja, valign: 'top', align: 'center', margin: 0 }, text: '' } },
     ],
   });
   p.defineSlideMaster({
     title: 'SECCAO',
-    background: { color: COR.escuro },
+    background: { path: MOD('fundo-seccao.png') },
     objects: [
-      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 2.5, w: 12, h: 1.5, fontFace: FONTE_TITULO, fontSize: 60, bold: true, color: COR.escuroInk, valign: 'bottom', align: 'left', margin: 0 }, text: '' } },
-      { placeholder: { options: { name: 'body', type: 'body', x: M, y: 4.2, w: 12, h: 0.8, fontFace: FONTE_TEXTO, fontSize: 24, color: COR.escuroMuted, align: 'left', margin: 0 }, text: '' } },
+      { image: { x: 0.783, y: 0.669, w: 2.31, h: 0.289, path: MOD('logo-roxo.png') } },
+      { placeholder: { options: { name: 'title', type: 'title', x: 0.783, y: 1.15, w: 8.2, h: 1.7, fontFace: FONTE_TITULO, fontSize: 46, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+      { placeholder: { options: { name: 'body', type: 'body', x: 0.783, y: 2.95, w: 6.4, h: 1.2, fontFace: FONTE_TEXTO, fontSize: 20, color: COR.muted, valign: 'top', align: 'left', margin: 0 }, text: '' } },
     ],
   });
   p.defineSlideMaster({
     title: 'CONTEUDO',
     background: { color: COR.bg },
     objects: [
-      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.45, w: W - 2 * M, h: 1.0, fontFace: FONTE_TITULO, fontSize: 36, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
-      { text: { text: T.titulo, options: { x: M, y: H - 0.5, w: 6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, margin: 0 } } },
+      ...rodape,
+      { placeholder: { options: { name: 'title', type: 'title', x: 0.673, y: 0.45, w: W - 1.35, h: 0.95, fontFace: FONTE_TITULO, fontSize: 32, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
     ],
-    slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.muted, align: 'right' },
+    slideNumber: numero,
   });
   p.defineSlideMaster({
     title: 'FACA',
-    background: { color: COR.amarelo },
+    background: { color: COR.surface },
     objects: [
-      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.95, w: W - 2 * M, h: 0.95, fontFace: FONTE_TITULO, fontSize: 38, bold: true, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
+      ...rodape,
+      { placeholder: { options: { name: 'title', type: 'title', x: M, y: 0.98, w: W - 2 * M, h: 0.95, fontFace: FONTE_TITULO, fontSize: 34, color: COR.ink, valign: 'top', align: 'left', margin: 0 }, text: '' } },
     ],
-    slideNumber: { x: W - M - 0.6, y: H - 0.5, w: 0.6, h: 0.3, fontFace: FONTE_TEXTO, fontSize: 10, color: COR.ink, align: 'right' },
+    slideNumber: numero,
   });
   return p;
 }
@@ -171,7 +195,7 @@ function novaApresentacao() {
 // ---------- Pecas ----------
 const quadrado = (s, x, y, lado, cor, nome) => s.addShape(pres.shapes.RECTANGLE, { x, y, w: lado, h: lado, fill: { color: cor }, line: { color: cor, width: 0 }, objectName: nome || 'quadrado' });
 const texto = (s, t, o) => s.addText(t, { isTextBox: true, margin: 0, fontFace: FONTE_TEXTO, color: COR.ink, valign: 'top', ...o });
-const corDe = (n) => ({ verde: COR.verde, amarelo: COR.amarelo, vermelho: COR.vermelho, cinza: COR.cinza, accent: COR.accent })[n] || COR.ink;
+const corDe = (n) => ({ verde: COR.verde, amarelo: COR.amarelo, vermelho: COR.vermelho, cinza: COR.cinza, accent: COR.accent, roxo2: COR.roxo2, laranja: COR.laranja })[n] || COR.ink;
 
 // Motivo: grelha de quadrados de estado, como o /estado.
 function grelhaEstado(s, x, y, cols, rows, lado, gap, padrao) {
@@ -191,22 +215,45 @@ function fonteCodigo(codigo, w) {
   // ~0.0083" por caracter a 1pt em Courier New; deixa partir linhas muito longas (soft wrap).
   return Math.max(14, Math.min(20, Math.floor((w - 0.5) / (Math.min(longo, 70) * 0.0083))));
 }
+// Linhas que um texto ocupa com porLinha caracteres: as linhas longas partem nos espacos, o que gasta mais uma.
+const partidas = (codigo, porLinha) => codigo.split('\n').reduce((n, l) => n + (l.length <= porLinha ? 1 : Math.ceil(l.length / porLinha) + 1), 0);
 function alturaCodigo(codigo, w, rotulo) {
   const fs = fonteCodigo(codigo, w);
   const porLinha = Math.floor((w - 0.5) / (fs * 0.0083));
-  const linhas = codigo.split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / porLinha)), 0);
-  return 0.4 + (rotulo ? 0.38 : 0) + linhas * fs * 0.0185;
+  return 0.4 + (rotulo ? 0.38 : 0) + partidas(codigo, porLinha) * fs * 0.0185;
 }
 function blocoCodigo(s, x, y, w, h, codigo, rotulo) {
   s.addShape(pres.shapes.RECTANGLE, { x, y, w, h, fill: { color: COR.ink }, line: { color: COR.ink, width: 0 }, objectName: 'codigo-fundo' });
   let yy = y + 0.2;
   if (rotulo) {
-    texto(s, rotulo, { x: x + 0.25, y: yy, w: w - 0.5, h: 0.3, fontSize: 13, bold: true, color: COR.amarelo, objectName: 'codigo-rotulo' });
+    texto(s, rotulo, { x: x + 0.25, y: yy, w: w - 0.5, h: 0.3, fontSize: 13, bold: true, color: COR.lilas, objectName: 'codigo-rotulo' });
     yy += 0.38;
   }
   const disponivel = Math.max(0.3, h - (yy - y) - 0.15);
-  const pelaAltura = Math.floor(disponivel / (linhasCodigo(codigo) * 0.0185));
-  texto(s, codigo, { x: x + 0.25, y: yy, w: w - 0.5, h: disponivel, fontFace: FONTE_CODIGO, fontSize: Math.max(11, Math.min(fonteCodigo(codigo, w), pelaAltura)), color: COR.escuroInk, objectName: 'codigo', paraSpaceAfter: 0 });
+  // Maior letra (ate 20) em que as linhas, ja partidas pela largura, cabem na altura.
+  const cabe = (fs) => partidas(codigo, Math.floor((w - 0.5) / (fs * 0.0083))) * fs * 0.0185 <= disponivel;
+  let fs = Math.min(20, fonteCodigo(codigo, w));
+  while (fs > 10 && !cabe(fs)) fs--;
+  texto(s, codigo, { x: x + 0.25, y: yy, w: w - 0.5, h: disponivel, fontFace: FONTE_CODIGO, fontSize: fs, color: COR.escuroInk, objectName: 'codigo', paraSpaceAfter: 0 });
+}
+
+// Dimensoes reais de uma imagem PNG ou de um video (ffprobe), para encaixar sem esticar.
+function dimensoes(p) {
+  try {
+    if (/\.png$/i.test(p)) { const b = readFileSync(p); return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }; }
+    const o = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', p], { encoding: 'utf8' }).trim();
+    const [w, h] = o.split(',').map(Number);
+    if (w > 0 && h > 0) return { w, h };
+  } catch { /* sem ffprobe: 16:9 */ }
+  return { w: 16, h: 9 };
+}
+// Maior retangulo com a proporcao do ficheiro que cabe na caixa, centrado.
+function encaixar(box, d) {
+  const r = d.w / d.h;
+  let w = box.w;
+  let h = w / r;
+  if (h > box.h) { h = box.h; w = h * r; }
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
 }
 
 // ---------- Renderizadores por tipo ----------
@@ -214,12 +261,10 @@ const R = {
   titulo(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     if (d.subtitulo) s.addText(d.subtitulo, { placeholder: 'body' });
-    grelhaEstado(s, 9.9, 1.6, 5, 9, 0.42, 0.12);
   },
   seccao(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     if (d.subtitulo) s.addText(d.subtitulo, { placeholder: 'body' });
-    grelhaEstado(s, M, 1.4, 15, 1, 0.42, 0.12, [COR.verde]);
   },
   colunas(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -229,7 +274,7 @@ const R = {
     d.colunas.forEach((c, i) => {
       const x = M + i * (w + gap);
       s.addShape(pres.shapes.RECTANGLE, { x, y: 1.85, w, h: 3.9, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: `coluna-${i}` });
-      quadrado(s, x + 0.35, 2.2, 0.42, corDe(c.cor || ['verde', 'accent', 'amarelo'][i % 3]), `marca-${i}`);
+      quadrado(s, x + 0.35, 2.2, 0.42, corDe(c.cor || ['accent', 'roxo2', 'laranja'][i % 3]), `marca-${i}`);
       texto(s, sub(c.titulo), { x: x + 0.35, y: 2.95, w: w - 0.7, h: 1.0, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `coluna-titulo-${i}` });
       texto(s, sub(c.texto), { x: x + 0.35, y: 4.0, w: w - 0.7, h: 1.6, fontSize: 20, color: COR.ink, objectName: `coluna-texto-${i}` });
     });
@@ -252,7 +297,7 @@ const R = {
     s.addText(d.titulo, { placeholder: 'title' });
     texto(s, sub(d.intro), { x: M, y: 1.6, w: W - 2 * M, h: 0.6, fontSize: 20, objectName: 'intro' });
     const cod = sub(d.codigo);
-    blocoCodigo(s, M, 2.35, W - 2 * M, Math.min(3.75, alturaCodigo(cod, W - 2 * M)), cod);
+    blocoCodigo(s, M, 2.35, W - 2 * M, Math.min(3.8, alturaCodigo(cod, W - 2 * M)), cod);
     if (d.depois) texto(s, sub(d.depois), { x: M, y: 6.3, w: W - 2 * M, h: 0.55, fontSize: 15, color: COR.muted, objectName: 'depois' });
   },
   modelos(s, d) {
@@ -314,7 +359,7 @@ const R = {
       const x = M + i * (w + gap);
       const escuro = i === n - 1;
       s.addShape(pres.shapes.RECTANGLE, { x, y: 2.6, w, h: 2.0, fill: { color: escuro ? COR.ink : COR.surface }, line: { color: escuro ? COR.ink : COR.surface, width: 0 }, objectName: `passo-${i}` });
-      quadrado(s, x + 0.25, 2.85, 0.3, [COR.cinza, COR.amarelo, COR.verde, COR.verde, COR.accent][i % 5], `passo-marca-${i}`);
+      quadrado(s, x + 0.25, 2.85, 0.3, [COR.accent, COR.roxo2, COR.laranja, COR.accent, COR.roxo2][i % 5], `passo-marca-${i}`);
       texto(s, p, { x: x + 0.25, y: 3.35, w: w - 0.5, h: 1.1, fontFace: FONTE_TITULO, fontSize: n > 4 ? 16 : 20, bold: true, color: escuro ? COR.escuroInk : COR.ink, objectName: `passo-texto-${i}` });
       if (i < n - 1) s.addShape(pres.shapes.LINE, { x: x + w + 0.05, y: 3.6, w: gap - 0.1, h: 0, line: { color: COR.ink, width: 2.5, endArrowType: 'triangle' }, objectName: `fluxo-seta-${i}` });
     });
@@ -337,7 +382,8 @@ const R = {
     texto(s, T.agendaFim, { x: W - M - 4.5, y: 6.2, w: 4.5, h: 0.4, fontSize: 14, color: COR.muted, align: 'right', objectName: 'agenda-fim' });
   },
   faca(s, d) {
-    texto(s, T.faca(d.min), { x: M, y: 0.45, w: 6, h: 0.45, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: 'faca-rotulo' });
+    s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.42, w: 3.1, h: 0.42, fill: { color: COR.accent }, line: { color: COR.accent, width: 0 }, objectName: 'faca-etiqueta' });
+    texto(s, T.faca(d.min), { x: M + 0.15, y: 0.42, w: 2.8, h: 0.42, fontFace: FONTE_TITULO, fontSize: 16, color: COR.accentInk, valign: 'middle', objectName: 'faca-rotulo' });
     s.addText(d.titulo, { placeholder: 'title' });
     texto(s, d.passos.map((p, i) => ({ text: p, options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: 2.1, w: 4.4, h: 3.6, fontSize: 20, paraSpaceAfter: 12, objectName: 'faca-passos' });
     const xc = M + 4.8;
@@ -349,7 +395,7 @@ const R = {
       blocoCodigo(s, xc, yc, wc, h, cmd, c.rotulo);
       yc += h + 0.25;
     }
-    quadrado(s, M, 6.18, 0.32, COR.verde, 'esperado-marca');
+    quadrado(s, M, 6.18, 0.32, COR.accent, 'esperado-marca');
     texto(s, [{ text: T.esperado, options: { bold: true } }, { text: sub(d.esperado) }], { x: M + 0.5, y: 6.12, w: W - 2 * M - 1.4, h: 0.6, fontSize: 18, objectName: 'faca-esperado' });
   },
   video(s, d) {
@@ -358,7 +404,7 @@ const R = {
     const box = { x: M, y: 1.6, w: W - 2 * M, h: 4.75 };
     if (existsSync(p)) {
       const poster = d.poster && existsSync(join(AQUI, d.poster)) ? 'data:image/png;base64,' + readFileSync(join(AQUI, d.poster)).toString('base64') : undefined;
-      s.addMedia({ type: 'video', path: p, ...box, ...(poster ? { cover: poster } : {}), objectName: 'video-enxame' });
+      s.addMedia({ type: 'video', path: p, ...encaixar(box, dimensoes(p)), ...(poster ? { cover: poster } : {}), objectName: d.objeto || 'video' });
     } else {
       s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.escuro }, line: { color: COR.escuro, width: 0 }, objectName: 'video-falta' });
       grelhaEstado(s, M + 0.5, 2.1, 20, 5, 0.42, 0.12);
@@ -370,18 +416,37 @@ const R = {
     s.addText(d.titulo, { placeholder: 'title' });
     const p = join(AQUI, d.media);
     const box = { x: M, y: 1.6, w: W - 2 * M, h: 4.75 };
-    if (existsSync(p)) s.addImage({ path: p, ...box, sizing: { type: 'contain', w: box.w, h: box.h }, objectName: 'imagem', altText: d.legenda });
+    if (existsSync(p)) s.addImage({ path: p, ...encaixar(box, dimensoes(p)), objectName: 'imagem', altText: d.legenda });
     else {
       s.addShape(pres.shapes.RECTANGLE, { ...box, fill: { color: COR.surface }, line: { color: COR.surface, width: 0 }, objectName: 'imagem-falta' });
       texto(s, T.imagemFalta(d.media), { x: M + 0.4, y: 3.7, w: 10, h: 0.5, fontSize: 16, color: COR.muted, objectName: 'imagem-aviso' });
     }
     texto(s, sub(d.legenda), { x: M, y: 6.5, w: W - 2 * M, h: 0.4, fontSize: 15, color: COR.muted, objectName: 'legenda' });
   },
+  // "O que esta la dentro": um resumo do ficheiro a esquerda e 2 ou 3 pontos simples a direita.
+  anatomia(s, d) {
+    s.addText(d.titulo, { placeholder: 'title' });
+    const wc = 6.3;
+    const cod = sub(d.codigo);
+    const hc = Math.min(4.75, Math.max(2.4, alturaCodigo(cod, wc, d.rotulo)));
+    blocoCodigo(s, M, 1.65, wc, hc, cod, d.rotulo);
+    const xp = M + wc + 0.5;
+    const wp = W - M - xp;
+    const n = d.pontos.length;
+    const alto = 4.75 / n;
+    d.pontos.forEach((p, i) => {
+      const y = 1.65 + i * alto;
+      quadrado(s, xp, y + 0.07, 0.3, corDe(p.cor || ['accent', 'roxo2', 'laranja'][i % 3]), `anatomia-marca-${i}`);
+      texto(s, sub(p.titulo), { x: xp + 0.5, y, w: wp - 0.5, h: 0.45, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: `anatomia-titulo-${i}` });
+      texto(s, sub(p.texto), { x: xp + 0.5, y: y + 0.45, w: wp - 0.5, h: alto - 0.55, fontSize: 15, color: COR.ink, objectName: `anatomia-texto-${i}`, fit: 'shrink' });
+    });
+    if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.45, w: W - 2 * M, h: 0.4, fontSize: 14, color: COR.muted, objectName: 'rodape' });
+  },
   lista(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     d.itens.forEach((it, i) => {
       const y = 1.85 + i * 0.92;
-      quadrado(s, M, y + 0.1, 0.34, COR.verde, `lista-marca-${i}`);
+      quadrado(s, M, y + 0.1, 0.34, COR.accent, `lista-marca-${i}`);
       texto(s, sub(it), { x: M + 0.6, y, w: W - 2 * M - 0.6, h: 0.8, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `lista-item-${i}` });
     });
   },
@@ -407,8 +472,14 @@ async function construir(lingua) {
       pres.addSection({ title: d.seccao });
       seccaoAtual = d.seccao;
     }
-    const s = pres.addSlide({ masterName: LAYOUT[d.tipo] || 'CONTEUDO', sectionTitle: d.seccao });
+    const s = pres.addSlide({ masterName: d.fecho ? 'FECHO' : LAYOUT[d.tipo] || 'CONTEUDO', sectionTitle: d.seccao });
     (R[d.tipo] || R.lista)(s, d);
+    if (d.aviso) {
+      // Etiqueta amarela no canto superior direito (ex.: "os comandos estao no Teams").
+      const wa = Math.min(6.8, 0.45 + sub(d.aviso).length * 0.125); // largura pelo texto (o ingles e mais comprido)
+      s.addShape(pres.shapes.RECTANGLE, { x: W - M - wa, y: 0.42, w: wa, h: 0.5, fill: { color: COR.laranja }, line: { color: COR.laranja, width: 0 }, objectName: 'aviso-fundo' });
+      texto(s, sub(d.aviso), { x: W - M - wa + 0.18, y: 0.42, w: wa - 0.36, h: 0.5, fontSize: 15, bold: true, color: COR.accentInk, valign: 'middle', objectName: 'aviso' });
+    }
     const ini = relogio;
     relogio += d.min;
     const cab = `[${mmss(ini)} → ${mmss(relogio)}] ${d.min} min${d.saltar ? ` · ${T.saltar}` : ''} · ${T.estarAqui(Math.round(ini))}`;
