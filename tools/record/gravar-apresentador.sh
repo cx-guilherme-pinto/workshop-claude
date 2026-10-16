@@ -31,7 +31,7 @@ main() {
 
   # A sessao completa, gravada no terminal (asciinema) com o tradutor do stream-json.
   local T0; T0="$(date +%s)"
-  ARENA_MAX_PARALELO="$MAX" asciinema rec --overwrite --cols 110 --rows 34 -c "bash '$REC/sessao.sh' '$ARENA' '$OUT'" "$OUT/terminal.cast"
+  ARENA_MAX_PARALELO="$MAX" asciinema rec --overwrite --window-size 110x34 -c "bash '$REC/sessao.sh' '$ARENA' '$OUT'" "$OUT/terminal.cast"
   local T1; T1="$(date +%s)"
   wait $REC_PID || true
 
