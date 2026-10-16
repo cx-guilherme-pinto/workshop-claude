@@ -191,6 +191,28 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - um participante em modo interativo e com uma conta nova (tier Evaluation) pode demorar mais.
 - **Gravação escolhida para o preview:** `20261016-153209-apresentador-gravado` (6,9 min, US$ 2,55, 105/105). É a mais representativa: a duração e o custo ficam na mediana das três. A primeira gravação foi descartada porque o tradutor do terminal marcava os lançamentos em segundo plano como falhas. O vídeo acelerado tem 92 s (4×). O replay e a Arena final estão em `presenter-replay/`.
 
+## D-17 · macOS: sem assinatura de código, porque a instalação é por `curl`
+
+- **Validado (16 out. 2026, macOS 26.6.2 arm64):**
+  - um ZIP descarregado com `curl` e a app **sem assinatura** extraída dele ficam **sem** `com.apple.quarantine`;
+  - `open` lança essa app **sem pedir aprovação**;
+  - a mesma app com quarentena (como se viesse do Safari) é rejeitada pelo Gatekeeper (`spctl`: `rejected source=no usable signature`);
+  - os binários que o setup instala (Claude Code, Node, gh, git portátil, uv) e o `Memória.app` criado localmente ficam todos sem quarentena.
+- **Decisão:** não se assina nem se notariza por defeito. Os participantes instalam tudo com o script. Só um download manual pelo browser, AirDrop ou Mail exigiria aprovação em Definições → Privacidade e Segurança, e é isso que a documentação desaconselha.
+- **Plano B:** o organizador tem conta Apple Developer. Se uma frota corporativa tiver um EDR (Santa, por exemplo) que só aceite binários assinados, há um script opcional para o organizador assinar e notarizar ele próprio (Developer ID + `notarytool` + `stapler`), sem guardar credenciais no repositório.
+
+## D-18 · Projeto 2 testado de ponta a ponta (projeto de treino, EX-3)
+
+`benchmark/run-projeto2.sh EX-3` corre `/task-intake issues/EX-3.json` → `/task-plan --auto` → `/task-swarm --auto` → `/task-gate --auto` → `/memoria`, com as skills e os agentes `ws-*` instalados ao nível do projeto (nunca em `~/.claude`).
+
+- **Resultado:** 233 s ao todo.
+  - O planner fez 2 tarefas Haiku + 1 Sonnet, e o validador juntou a integração e a revisão.
+  - O enxame ficou 4/4 verde em 1 min 49 s, e os testes do projeto passaram de 6 para 13.
+  - O gate saiu **aprovado**. O revisor apontou um problema anterior à tarefa (autenticação só por cabeçalho) e sugeriu um ticket novo.
+  - Custo de **US$ 0,60**, com a estimativa do plano em US$ 0,52, e zero negações de permissão.
+- **Memória:** as memórias ficaram com `tarefa: EX-3`, `epico: EX-100` e etiquetas, e `memoria procurar EX-100` encontra-as.
+- **Não testado aqui:** o `/task-report` a publicar no Jira ou no GitHub. Precisa de um Jira e de um repositório reais e pede confirmação a cada escrita. O texto que publicaria é gerado e verificado por `orquestrador/publicar-texto.mjs`.
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.
