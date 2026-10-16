@@ -10,11 +10,12 @@ export function readUsage(wsDir) {
 
 export function totals(records) {
   const lastMain = new Map();
-  const subs = [];
+  const subsPorAgente = new Map();
   for (const r of records) {
     if (r.tipo === 'principal') lastMain.set(r.sessao, r);
-    else if (r.tipo === 'subagente') subs.push(r);
+    else if (r.tipo === 'subagente') subsPorAgente.set(r.agent_id || `${r.ts}-${r.tarefa}`, r);
   }
+  const subs = [...subsPorAgente.values()];
   const porModelo = {};
   const add = (model, usd) => {
     const k = model || '?';

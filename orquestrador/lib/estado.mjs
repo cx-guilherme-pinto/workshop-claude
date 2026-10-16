@@ -94,8 +94,19 @@ export function todosEstados(c, plano) {
 }
 
 // Fotografia completa para o painel, o /estado e os relatorios.
+// Um registo por subagente (ultimo por agent_id) e por sessao principal (ultimo por sessao).
+export function usageUnico(registos) {
+  const subs = new Map();
+  const out = [];
+  for (const r of registos) {
+    if (r.tipo === 'subagente') subs.set(r.agent_id || `${r.ts}-${r.tarefa}`, r);
+    else out.push(r);
+  }
+  return [...out, ...subs.values()];
+}
+
 export function fotografia(c, plano) {
-  const usage = lerJsonl(c.usage);
+  const usage = usageUnico(lerJsonl(c.usage));
   const porTarefa = new Map();
   let custoPrincipal = new Map();
   for (const r of usage) {

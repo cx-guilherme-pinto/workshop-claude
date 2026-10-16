@@ -63,11 +63,12 @@ if (existsSync(ws)) {
   let projeto = null;
   try {
     const last = new Map();
-    let subs = 0;
+    const porAgente = new Map();
     for (const r of readJsonl(join(ws, 'usage.jsonl'))) {
       if (r.tipo === 'principal') last.set(r.sessao, r.custo_usd || 0);
-      else if (r.tipo === 'subagente') subs += r.custo_usd || 0;
+      else if (r.tipo === 'subagente') porAgente.set(r.agent_id || r.ts, r.custo_usd || 0);
     }
+    const subs = [...porAgente.values()].reduce((a, b) => a + b, 0);
     if (s.session_id && typeof sessao === 'number') last.set(s.session_id, sessao);
     projeto = [...last.values()].reduce((a, b) => a + b, 0) + subs;
   } catch {

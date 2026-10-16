@@ -1,0 +1,15 @@
+{
+  "id": "EX-2",
+  "fonte": "local",
+  "url": "issues/EX-2.json",
+  "titulo": "Pesquisa de livros por título ou autor, com paginação",
+  "descricao": "Os leitores precisam de procurar livros. Queremos GET /livros?q=<texto>&pagina=<n>&porPagina=<n>, que procura no título e no autor, ignora maiúsculas e acentos, e devolve resultados paginados.",
+  "criterios": [
+    "nova função pesquisarLivros(q, { pagina, porPagina }) em src/pesquisa.js",
+    "a pesquisa ignora maiúsculas/minúsculas e acentos ('eca' encontra 'Eça de Queirós')",
+    "paginação: pagina começa em 1, porPagina por defeito 10 e máximo 50; devolve { total, pagina, porPagina, resultados }",
+    "GET /livros sem q continua a devolver a lista completa (compatibilidade)",
+    "valores de pagina/porPagina inválidos devolvem 400",
+    "testes para pesquisa, acentos, paginação e erros"
+  ]
+}

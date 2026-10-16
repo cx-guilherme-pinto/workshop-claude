@@ -82,7 +82,15 @@ export async function proximaOnda({ projeto, plano: caminhoPlano, max }) {
     return prox >= maxTent && escalar && t.grupo_tipo === 'cartao' ? Math.max(t.onda, 3) : t.onda;
   };
   prontas.sort((a, b) => ondaDe(a) - ondaDe(b) || a.id.localeCompare(b.id));
-  const lote = prontas.slice(0, maxParalelo(plano, max));
+  // Nunca duas tarefas com ficheiros em comum no mesmo lote (evita conflitos sem worktrees).
+  const lote = [];
+  const limite = maxParalelo(plano, max);
+  const sobrepoe = (a, b) => (a || []).some((x) => (b || []).some((y) => x === y || x.startsWith(y.endsWith('/') ? y : y + '/') || y.startsWith(x.endsWith('/') ? x : x + '/')));
+  for (const t of prontas) {
+    if (lote.length >= limite) break;
+    if (!cfg.worktrees && lote.some((o) => sobrepoe(o.ficheiros, t.ficheiros))) continue;
+    lote.push(t);
+  }
 
   // 3. Preparar chamadas e marcar "em curso".
   const chamadas = [];
@@ -96,7 +104,9 @@ export async function proximaOnda({ projeto, plano: caminhoPlano, max }) {
     if (t.preparar) spawnSync(t.preparar[0] === 'node' ? process.execPath : t.preparar[0], t.preparar.slice(1), { cwd: projeto, stdio: 'ignore', shell: t.preparar[0] !== 'node' });
     const modelo = plano.agentes?.[tipo]?.modelo || null;
     gravarEstado(c, { ...st, tarefa: t.id, estado: 'em_curso', tentativa, agente, agent_type: tipo, modelo, onda: ondaDe(t), lote: run.lote, inicio: new Date().toISOString(), fim: null });
-    chamadas.push({ subagent_type: tipo, description: `${agente} · ${t.id}`, prompt: prompt(t, st, agente, tentativa, plano) });
+    const chamada = { subagent_type: tipo, description: `${agente} · ${t.id}`, prompt: prompt(t, st, agente, tentativa, plano) };
+    if (cfg.worktrees && !['integracao', 'revisao'].includes(t.grupo_tipo)) chamada.isolation = 'worktree';
+    chamadas.push(chamada);
   }
 
   const f = fotografia(c, plano);
@@ -120,7 +130,7 @@ function imprimir({ f, loteAnterior, lote, chamadas, pendentes, run }) {
     const ondas = [...new Set(lote.map((t) => t.onda))].join(', ');
     out.push(`ESTADO: LOTE ${run.lote} · onda ${ondas} · ${chamadas.length} agente(s)`, '');
     out.push('| agente | tarefa | tipo |', '|---|---|---|', ...chamadas.map((ch) => `| ${ch.description.split(' · ')[0]} | ${ch.description.split(' · ')[1]} | ${ch.subagent_type} |`), '');
-    out.push('Lança AGORA estas chamadas, todas na MESMA mensagem, cada uma com a ferramenta Agent e os campos exatamente como estão:', '');
+    out.push('Lança AGORA estas chamadas, todas na MESMA mensagem, cada uma com a ferramenta Agent e os campos exatamente como estão (subagent_type, description, prompt e, se existir, isolation):', '');
     out.push('<<<CHAMADAS', JSON.stringify(chamadas, null, 2), 'CHAMADAS>>>');
   } else if (pendentes > 0) {
     out.push('ESTADO: BLOQUEADO — há tarefas por terminar mas nenhuma está pronta (dependências falhadas?).');

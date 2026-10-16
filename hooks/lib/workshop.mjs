@@ -1,6 +1,7 @@
 // Utilitarios partilhados pelos hooks: ler stdin, localizar .workshop/, escrever eventos.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export async function readStdinJson() {
   const chunks = [];
@@ -13,10 +14,21 @@ export function projectDir(input) {
   return process.env.CLAUDE_PROJECT_DIR || input?.cwd || process.cwd();
 }
 
+const HERE = dirname(fileURLToPath(import.meta.url));
+
 // So atua em projetos com a pasta .workshop/ (criada pelas skills do workshop).
+// Se o projeto tiver a sua propria copia dos hooks (Arena: tools/workshop/hooks), a copia de
+// utilizador nao faz nada, para o custo nao ser contado duas vezes.
 export function workshopDir(input) {
-  const d = join(projectDir(input), '.workshop');
-  return existsSync(d) ? d : null;
+  const proj = projectDir(input);
+  const d = join(proj, '.workshop');
+  if (!existsSync(d)) return null;
+  const propria = resolve(proj, 'tools', 'workshop', 'hooks');
+  if (existsSync(propria)) {
+    const real = (p) => realpathSync(p).toLowerCase();
+    if (!real(resolve(HERE, '..')).startsWith(real(propria))) return null;
+  }
+  return d;
 }
 
 export function appendJsonl(file, obj) {
