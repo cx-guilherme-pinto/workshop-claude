@@ -111,6 +111,9 @@ O MCP remoto do GitHub exige um PAT por pessoa, e a documentação de custos rec
 - O pywebview cai silenciosamente no IE11 quando o WebView2 falta. Por isso, a app deteta o WebView2 pelo registo e, se faltar, abre a mesma UI no browser em 127.0.0.1.
 - Embeddings **desligados**: o fastembed traz cerca de 45 MB, e o onnxruntime deixou de publicar wheels para Mac Intel. A pesquisa usa SQLite FTS5.
 - Executáveis não assinados (PyInstaller) estão excluídos, por causa do Gatekeeper.
+- **Release v0.1.0 publicada** (16 out. 2026) no repositório `claude-memory-app`: wheel `memoria-0.1.0-py3-none-any.whl` (SHA-256 `2f8f9b07…a569fc`), `constraints.txt`, `SHA256SUMS`, `install.sh`, `install.ps1`. 116 testes verdes; `memoria selftest --gui` passa no Mac (arm64). O Windows só foi verificado estaticamente.
+- **`cryptography` fixado em 46.0.3** (dependência indireta do `mcp`, não usada pelo servidor). A versão 49+ não tem wheel para Mac Intel e a 46.0.4+ não tem para Windows ARM; sem esta fixação, essas máquinas tentariam compilar com Rust e falhariam. Mantemos a 46.0.3 porque o setup também deteta Windows ARM.
+- Comandos: `memoria` e `memoria-gui` (no Windows, sem janela de consola; é o que o atalho abre). Instalação com `uv tool install --managed-python`, que garante FTS5.
 
 ## D-13 · Resultados dos spikes (fase 1, Claude Code 2.1.285)
 

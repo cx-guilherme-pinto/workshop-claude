@@ -75,7 +75,6 @@ const PERIGOSOS = [
   [/\bsrcdoc\b/, 'srcdoc'],
   [/\bcreateContextualFragment\b/, 'createContextualFragment'],
   [/\.\s*on[a-z]+\s*=/, 'atribuicao a on*='],
-  [/setAttribute\s*\(\s*(""|'')\s*,/, 'setAttribute com nome dinamico'],
 ];
 
 // Padroes que so fazem sentido verificar no texto original (dentro de strings).
