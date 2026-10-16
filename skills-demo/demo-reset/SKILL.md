@@ -10,6 +10,8 @@ allowed-tools:
 
 # /demo-reset — recomeçar
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`.
 
 1. Sem `--auto`, pergunta primeiro: "Isto apaga os cartões construídos e o plano atual. O histórico de custos fica em `.workshop/historico/`. Continuo?" Espera por um sim claro.

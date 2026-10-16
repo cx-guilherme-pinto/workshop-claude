@@ -8,8 +8,17 @@ ARENA="$1"; OUT="$2"
 REC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NODE="$(command -v node)"
 SID="$(uuidgen | tr 'A-Z' 'a-z')"
-FLAGS=(--output-format stream-json --verbose --permission-mode acceptEdits --setting-sources project,local --strict-mcp-config
-  --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" Read Edit Write Glob Grep)
+KIT="$(cd "$REC/../.." && pwd)"
+MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
+mkdir -p "$OUT/memoria"
+if [ -x "$MEMBIN" ]; then
+  "$NODE" -e 'const [f,b,h]=process.argv.slice(1);require("fs").writeFileSync(f,JSON.stringify({mcpServers:{memoria:{type:"stdio",command:b,args:["mcp"],env:{MEMORIA_HOME:h}}}}))' "$OUT/mcp.json" "$MEMBIN" "$OUT/memoria"
+else
+  echo '{"mcpServers":{}}' > "$OUT/mcp.json"
+fi
+FLAGS=(--output-format stream-json --verbose --permission-mode acceptEdits --setting-sources project,local --strict-mcp-config --mcp-config "$OUT/mcp.json"
+  --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" Read Edit Write Glob Grep
+  "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")
 cd "$ARENA" || exit 1
 passo() {
   local n="$1" nome="$2" prompt="$3"; shift 3

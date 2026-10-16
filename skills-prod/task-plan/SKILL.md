@@ -13,6 +13,8 @@ allowed-tools:
 
 # /task-plan — decompor, estimar, aprovar
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`. Com `--auto` não pedes aprovação.
 
 1. Confirma que existe `.workshop/tarefa.md`. Se não existir, diz para correr primeiro `/task-intake <id>`.

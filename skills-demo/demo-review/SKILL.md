@@ -13,6 +13,8 @@ allowed-tools:
 
 # /demo-review — gate final
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
 
 1. Corre `node tools/workshop/orquestrador/gate.mjs --teste "node tools/check-integracao.mjs" --base arena-inicial --ignorar cards/`. A pasta `cards/` fica fora da procura genérica de segredos e de código perigoso: os desafios mostram código inseguro de propósito, como texto. Cada `card.js` já tem a sua verificação estática própria, que ignora as strings e corre nos testes. O script não faz perguntas e verifica:

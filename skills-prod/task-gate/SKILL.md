@@ -12,6 +12,8 @@ allowed-tools:
 
 # /task-gate — está pronto para produção?
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`.
 
 1. Lê `.workshop/plan.json` (campo `config.teste_global`) e `.workshop/base.json` (campo `base`). Se não houver `teste_global`, corre `node "{{KIT_DIR}}/orquestrador/explorar.mjs"` e usa o primeiro comando de teste provável. Se não houver nenhum, pergunta ao utilizador qual é o comando (sem `--auto`).

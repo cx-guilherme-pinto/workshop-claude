@@ -15,6 +15,8 @@ allowed-tools:
 
 # /task-report — reportar e lembrar
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumento: `$ARGUMENTS` (destino; por defeito o da fonte da tarefa).
 
 **Regra:** nada é escrito no Jira ou no GitHub sem um "sim" claro do utilizador **para essa escrita**. Se a resposta for ambígua, não publiques.

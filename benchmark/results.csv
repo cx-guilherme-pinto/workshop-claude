@@ -1,0 +1,11 @@
+id,modo,isolado,duracao_s,custo_total,custo_haiku,custo_sonnet,custo_opus,agentes,verdes,falhadas,testes_pass,testes_fail,testes_ok,veredito,gate,claude_total_cost_usd,negacoes,erros
+20261016-143850-participante-1,participante,0,216,1.0478,0.0255,0.6946,0.3278,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.3931,0,0
+20261016-144228-participante-2,participante,0,288,1.1222,0.0313,0.7557,0.3352,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.6782,1,0
+20261016-144716-participante-3,participante,0,257,1.0242,0.0274,0.6909,0.3060,22,20,0,155,0,sim,aprovado,aprovado,2.3847,0,0
+20261016-145135-participante-4,participante,0,263,0.9830,0.0312,0.6428,0.3090,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.4870,0,0
+20261016-145559-participante-5,participante,0,228,1.0647,0.0301,0.7182,0.3164,23,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.5571,1,0
+20261016-145947-participante-6,participante,0,287,1.0104,0.0300,0.6679,0.3126,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.4970,1,0
+20261016-150436-participante-7,participante,0,207,1.0056,0.0289,0.6561,0.3206,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.4041,0,0
+20261016-150803-participante-8,participante,0,256,0.9037,0.0287,0.5479,0.3271,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.2371,0,0
+20261016-151220-participante-9,participante,0,209,1.0748,0.0267,0.7120,0.3361,22,20,0,155,0,sim,aprovado,aprovado,2.3946,0,0
+20261016-151550-participante-10,participante,0,213,1.0323,0.0295,0.6817,0.3211,22,20,0,155,0,sim,aprovado_com_reservas,aprovado,2.4526,1,0

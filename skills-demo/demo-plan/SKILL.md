@@ -13,6 +13,8 @@ allowed-tools:
 
 # /demo-plan — planear o enxame
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas, porque é o modo do benchmark. Por defeito o modo é `participante`.
 
 Faz estes passos por ordem, sem explorar o projeto além do que é pedido:

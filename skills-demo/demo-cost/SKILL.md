@@ -12,6 +12,8 @@ allowed-tools:
 
 # /demo-cost — quanto custou e quanto demorou
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
 
 1. Corre `node tools/workshop/orquestrador/report.mjs`. O script escreve `.workshop/relatorio.md` e `.workshop/memoria-resumo.md`.

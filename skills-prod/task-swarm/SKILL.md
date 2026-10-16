@@ -11,6 +11,8 @@ allowed-tools:
 
 # /task-swarm — executar o enxame
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS`. Com `--auto` não fazes perguntas.
 
 Quem decide o grafo e os lotes é o script. O teu trabalho é lançar exatamente o que ele pede.

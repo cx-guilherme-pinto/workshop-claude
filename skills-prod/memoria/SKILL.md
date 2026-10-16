@@ -11,6 +11,8 @@ allowed-tools:
 
 # /memoria — guardar o que se aprendeu
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumentos: `$ARGUMENTS` (opcional: uma nota livre do utilizador a guardar também).
 
 1. Descobre o projeto: é o nome da pasta atual. Se existir `.workshop/plan.json` ou `plan.json` com o campo `projeto`, usa esse.

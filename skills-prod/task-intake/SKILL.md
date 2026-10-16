@@ -21,6 +21,8 @@ allowed-tools:
 
 # /task-intake — perceber a tarefa antes de planear
 
+**Comandos:** corre cada comando exatamente como está escrito, sozinho. Não lhe juntes `;`, `&&`, `|`, `echo` nem `ls`, porque as permissões só aceitam o comando tal como está. Os scripts já mostram o resultado e o estado.
+
 Argumento: `$ARGUMENTS`. Esta skill **só lê**: não escreve nada no Jira nem no GitHub.
 
 1. **Preparar.** Corre `node "{{KIT_DIR}}/orquestrador/init-workshop.mjs"`. Se disser que não é um repositório git, para e explica que o Claude Code tem de ser aberto na raiz do projeto.
