@@ -19,7 +19,7 @@ Hoje o kit aponta para **https://gitea.guilhermepinto.pt/guilherme/workshop-clau
 
 2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (README, `docs/INSTALAR.md`, `docs/TROUBLESHOOTING.md`, este ficheiro) e o build dos slides, que leem o `repos.conf` diretamente.
 
-3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.3` e app `v0.2.1`:
+3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-dev.3` e app `v0.2.3`:
 
    ```bash
    tools/build-release.sh v1.0.0-dev.3
