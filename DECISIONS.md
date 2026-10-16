@@ -255,7 +255,38 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - **Opções do setup em inglês:** `--uninstall`, `--no-desktop`, `--yes` e `--replace-statusline` no Mac; `-Uninstall`, `-NoDesktop`, `-Yes` e `-ReplaceStatusline` no Windows. As portuguesas continuam a funcionar como sinónimos. No setup, os custos usam ponto decimal (`US$ 0.0003`); nos textos pt do kit fica a vírgula.
   - **Catálogos:** o setup mostra `setup/messages.en.json`, que é o injetado na release. `setup/messages.pt.json` gera `docs/TROUBLESHOOTING.md` e o en gera `docs/en/TROUBLESHOOTING.md`. O `check-repo` exige nos dois as mesmas chaves, listas e marcadores `{NOME}`.
   - **Docs em inglês:** `README.en.md` e `docs/en/` (INSTALL, TROUBLESHOOTING, FAQ, ORGANIZER, PUBLISHING, REPORT e MANUAL-TESTS). Os slides em inglês são `slides/workshop.en.pptx` e `slides/speaker-notes.en.md` (`node build.mjs --lingua en`).
-- **Benchmark:** a Arena do benchmark e o projeto de treino continuam em pt por defeito; `BENCH_LINGUA=en` mede-os em inglês. **Medido com as skills em inglês (16 out. 2026, 6 execuções, `--n 3 --sem-isolamento`):** com a Arena em pt, 3/3, US$ 0,97 a 1,03 e 4,3 a 4,5 min; com a Arena em en, 3/3, US$ 0,94 a 1,05 e 4,0 a 4,2 min. Tudo verde (20/20 cartões, 167/167 testes, gate aprovado), tal como com as skills em pt (D-16: US$ 1,03 e 4,0 min de média). Numa execução houve 3 negações de permissão: o integrator tentou encadear comandos (`|`, `;`, `cd`, `rm`) e a regra das permissões bloqueou-os, sem mudar o resultado. Detalhe em `benchmark/REPORT.md`.
+- **Benchmark:** a Arena do benchmark e o projeto de treino continuam em pt por defeito; `BENCH_LINGUA=en` mede-os em inglês. As medições da D-16 e da D-18 foram feitas com as skills em português.
+- **Benchmark com as skills em inglês (16 out. 2026, Claude Code 2.1.285, Mac arm64):** o custo e o tempo ficaram iguais aos da D-16 e da D-18, dentro da variação entre execuções.
+
+| Medição | Execuções | Custo mín · média · máx | Duração mín · média · máx |
+|---|---|---|---|
+| Arena pt, skills pt (D-16) | 10 | US$ 0,90 · **1,03** · 1,12 | 3,5 · **4,0** · 4,8 min |
+| Arena pt, skills en | 3 | US$ 0,97 · **1,01** · 1,03 | 4,3 · **4,4** · 4,5 min |
+| Arena en, skills en | 3 | US$ 0,94 · **1,00** · 1,05 | 4,0 · **4,1** · 4,2 min |
+| Projeto 2 EX-3 pt, skills pt (D-18) | 1 | US$ 0,60 (estimativa 0,52) | 233 s (enxame 1 min 49 s) |
+| Projeto 2 EX-3 pt, skills en | 1 | US$ 0,64 (estimativa 0,52) | 220 s (enxame 1 min 12 s) |
+| Projeto 2 EX-3 en, skills en | 1 | US$ 0,59 (estimativa 0,52) | 194 s (enxame 1 min 14 s) |
+
+  - **Arena** (`run-benchmark.sh --n 3`, modo participante, por defeito e com `BENCH_LINGUA=en`):
+    - as 6 execuções acabaram com `PLANO OK`, `ENXAME OK`, `GATE: APROVADO` e `CUSTO OK`, com 20 verdes, 167/167 testes, 22 agentes e zero erros. A Arena tem agora 167 testes (eram 155 na D-16);
+    - média por modelo: Sonnet US$ 0,66 (pt) e 0,65 (en), Opus 0,32 e 0,33, Haiku 0,03 nas duas. Na D-16 era 0,68, 0,32 e 0,03.
+  - **Projeto 2** (`run-projeto2.sh EX-3`, em pt e com `BENCH_LINGUA=en`): o plano tem a mesma forma da D-18 nas duas línguas (2 tarefas Haiku, integração e revisão). Em ambas:
+    - o enxame ficou 4/4 verde e os testes passaram de 6 para 13;
+    - o gate saiu `GATE: APROVADO`, com zero negações de permissão;
+    - as memórias ficaram com `tarefa: EX-3` e `epico: EX-100` (3 em pt, 4 em en).
+  - **Leitura:**
+    - a maior diferença é a duração da Arena em pt (+9 %), e fica dentro do mínimo e do máximo da D-16 (desvio padrão de 32 s);
+    - o custo médio desceu 2 %;
+    - a estimativa de `orquestrador/perfis.json` (US$ 1,00 no participante) continua certa, por isso não se recalibrou.
+  - **Sem isolamento, como na D-16:** o token `workshop-benchmark-oauth` do Keychain continua truncado (79 caracteres, 401). Por isso a Arena correu com `--sem-isolamento`. O Projeto 2 não usa o token.
+  - **`results.csv` e `REPORT.md`:** as 6 execuções da Arena entraram no modo participante, junto com as 10 da D-16 (16 execuções, US$ 1,02 e 4,1 min de média). O CSV não tem coluna de língua: as execuções das 17:36 às 17:45 são da Arena em pt e as das 17:50 às 17:58 da Arena em en. O Projeto 2 não escreve no CSV.
+  - **Observações, que não bloqueiam:**
+    - **Integrator com o Bash negado.** Em 5 das 6 execuções, o integrator correu comandos encadeados, como `node tools/check-integracao.mjs 2>&1 | tail …; echo …`. Como não é só `node tools/*`, o modo `-p` negou-os, e em 4 delas o `.workshop/integracao.md` não foi escrito. O hook do orquestrador correu a suite (167/167) e marcou a integração verde, e o reviewer confirmou-a. Na D-16, o `integracao.md` faltou em 2 de 10 execuções, pela mesma razão. Numa sessão interativa, aparece um pedido de permissão. O `results.csv` só conta as 3 negações que o `claude -p` reporta (uma execução);
+    - **Língua das respostas.** O benchmark corre sem a definição `language`, e assim as skills misturaram línguas:
+      - em 2 das 3 execuções da Arena en, parte do texto veio em pt (a causa não foi apurada);
+      - no Projeto 2 pt, as frases de fecho vieram em inglês ("Next step: `/task-plan`.", "Ready for production.").
+
+      Os marcadores não mudaram. O setup grava o `language` (ver acima), mas esse caso não foi medido aqui.
 - **Fica de fora:**
   - textos do kit em hindi e em hebraico. Nessas máquinas as skills respondem na língua da pessoa, mas as tabelas, a Arena e as docs ficam em inglês;
   - `presenter-replay/`, que é uma gravação, continua em pt;
