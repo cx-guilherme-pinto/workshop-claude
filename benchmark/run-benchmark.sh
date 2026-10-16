@@ -27,7 +27,7 @@ main() {
   [ -z "$MAX" ] && { [ "$MODO" = apresentador ] && MAX=16 || MAX=8; }
   local NODE; NODE="$(command -v node)"
   local RUNS="$KIT/benchmark/runs"; mkdir -p "$RUNS"
-  # BENCH_CSV / BENCH_REPORT: escrever noutro sitio (tools/testar-maquina.sh nao mexe nos resultados do repositorio)
+  # BENCH_CSV / BENCH_REPORT: escrever noutro sitio (tools/test-machine.sh nao mexe nos resultados do repositorio)
   local CSV="${BENCH_CSV:-$KIT/benchmark/results.csv}" REPORT="${BENCH_REPORT:-$KIT/benchmark/REPORT.md}"
 
   local TOKEN=""

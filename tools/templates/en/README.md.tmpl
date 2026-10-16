@@ -1,6 +1,6 @@
 # Workshop "Agent Orchestration with Claude"
 
-[Português](README.md) · **English**
+**English** · [Português](README.pt.md) · [हिन्दी](README.hi.md) · [עברית](README.he.md)
 
 Workshop kit: the one-command setup, the skills and agents, the cost hooks, the statusline, the orchestrator and the hands-on projects (the Security Arena and the practice project). Kit version: **{{WORKSHOP_VERSION}}**.
 
@@ -20,7 +20,7 @@ You need an account on the [Anthropic Console]({{CONSOLE_URL}}) with credits. Yo
 {{ONE_LINER_WINDOWS}}
 ```
 
-The setup takes 10 to 20 minutes. If it stops halfway, run the same command again: finished steps are skipped. Full guide, with the pre-work: [docs/en/INSTALL.md](docs/en/INSTALL.md).
+The setup takes 10 to 20 minutes. If it stops halfway, run the same command again: finished steps are skipped. Full guide, with the pre-work: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Check (on the workshop day)
 
@@ -32,7 +32,7 @@ The setup takes 10 to 20 minutes. If it stops halfway, run the same command agai
 
 With no previous install, the check also runs directly: `{{CHECK_MAC_FIRST}}` (macOS) or `{{CHECK_WINDOWS_FIRST}}` (Windows).
 
-Something failed? Every error has a code. See [docs/en/TROUBLESHOOTING.md](docs/en/TROUBLESHOOTING.md).
+Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ## What the setup does
 
@@ -66,14 +66,14 @@ Everything installed is recorded in `~/.workshop-claude/manifest.json`. `setting
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents (in English; they answer in the user's language) |
 | `demo-project/`, `exemplo-projeto-real/` | Hands-on projects |
 | `tools/` | `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` and the tests |
-| `docs/` | Install, troubleshooting, publishing; English versions in `docs/en/` |
+| `docs/` | Guides in English: install, troubleshooting, FAQ, publishing, organizer. Portuguese in `docs/pt/`; the install guide also in `docs/hi/` and `docs/he/` |
 
 ## For the organizer
 
-- All URLs and versions are in `repos.conf`. This README is generated: edit `tools/templates/en/README.md.tmpl` (and `tools/templates/README.md.tmpl`, for the Portuguese `README.md`) and run `node tools/render.mjs`.
+- All URLs and versions are in `repos.conf`. This README is generated: edit the templates in `tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) and run `node tools/render.mjs`.
 - Release: `tools/build-release.sh {{WORKSHOP_VERSION}}` (creates `dist/{{WORKSHOP_VERSION}}/`) and `tools/publish-release.sh {{WORKSHOP_VERSION}}` (creates the release at {{RELEASE_URL}}).
 - Check the repository: `node tools/check-repo.mjs`. Tests: `node --test tools/test/` and `bash setup/test/test-mac.sh`.
-- Move to the public repositories: [docs/en/PUBLISHING.md](docs/en/PUBLISHING.md).
+- Move to the public repositories: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 - Decisions and sources (in Portuguese): [DECISIONS.md](DECISIONS.md).
 
 If you want to verify before running, the SHA-256 checksums are at {{SHA256SUMS_URL}}.

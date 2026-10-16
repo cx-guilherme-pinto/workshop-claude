@@ -1,6 +1,6 @@
 # Final report — workshop kit "Agent Orchestration with Claude"
 
-[Português](../RELATORIO.md) · **English**
+**English** · [Português](pt/REPORT.md)
 
 Date: 16 Oct 2026. Development releases on Gitea:
 - `workshop-claude` **v1.0.0-dev.3** (prerelease): setup-mac.sh, bootstrap-windows.ps1, setup-windows.ps1, the kit as .tar.gz and .zip (0.9 MB) and SHA256SUMS;
@@ -12,7 +12,7 @@ Date: 16 Oct 2026. Development releases on Gitea:
 |---|---|---|
 | One-command setup, Mac and Windows | Installs and configures everything from scratch, without admin rights: git (portable on a Mac without Command Line Tools), Claude Code, Claude login, Node, uv + Python, gh, GitHub login (required), Jira MCP and the Atlassian CLI as backup, skills, agents, hooks, statusline, projects, memory app and Desktop (optional). Has `--check`, `--doctor` (with the Claude helper), `--uninstall` and resume | `setup/`, `installer/` |
 | Languages (D-20) | The setup speaks English only (English options; the Portuguese ones still work) and writes Claude Code's `language` setting from the machine language, if it does not exist. Skills and agents in English, answering in the participant's language. Arena, orchestrator and statusline in Portuguese or English, depending on the machine (`WORKSHOP_LANG` forces it). Docs in Portuguese and English | `setup/messages.en.json`, `docs/en/`, `README.en.md` |
-| URLs in a single file | `repos.conf`; README and docs generated; `tools/switch-repos` and `docs/en/PUBLISHING.md` to move to the public repositories | `repos.conf`, `tools/` |
+| URLs in a single file | `repos.conf`; README and docs generated; `tools/switch-repos` and `docs/PUBLISHING.md` to move to the public repositories | `repos.conf`, `tools/` |
 | Security Arena (Project 1) | 100 specified cards in 10 categories (15 in participant mode), 4 models, pre-written tests, server with CSP, gallery, live and replay `/estado`, and reference solutions outside the kit | `demo-project/`, `dev/solutions/` |
 | Deterministic orchestrator | `next-wave` (waves, dependencies, no shared files in the same batch, retries escalating to Sonnet), `grade`, `gate`, `digest`, `report`, `painel`, `validate-plan`, calibrated estimate | `orquestrador/` |
 | Cost measurement | `SubagentStop`/`Stop` hooks that read the real tokens from the transcripts × `pricing.json`; statusline; informative warning at US$ 5 and at US$ 10 | `hooks/`, `statusline/`, `pricing.json` |
@@ -22,7 +22,7 @@ Date: 16 Oct 2026. Development releases on Gitea:
 | Design skill | MIT fork inside the repo (commit `2b44c81`), without the network script | `skills-shared/design-taste-frontend/` |
 | Presentation | 45 slides for 90 min, with notes, running clock, "Do it now" slides, the real video of the 100 agents and screenshots | `slides/workshop.pptx`, `slides/speaker-notes.md` |
 | Swarm preview | Sped-up video (92 s), GIF and the recorded Arena for replay without the API | `slides/media/`, `presenter-replay/` |
-| Documentation | FAQ, TROUBLESHOOTING (error catalog), INSTALL, ORGANIZER, PUBLISHING, MANUAL-TESTS, DECISIONS (D-01 to D-18); the docs also in Portuguese | `docs/`, `docs/en/`, `DECISIONS.md` |
+| Documentation | FAQ, TROUBLESHOOTING (error catalog), INSTALL, ORGANIZER, PUBLISHING, MANUAL-TESTS, DECISIONS (D-01 to D-21); English first, the docs also in Portuguese, and the README and install guide in Hindi and Hebrew | `docs/`, `docs/pt/`, `docs/hi/`, `docs/he/`, `DECISIONS.md` |
 
 ## Measured costs
 
@@ -60,4 +60,4 @@ Real tokens × published prices (`pricing.json`). Details in `benchmark/REPORT.m
 
 1. Run the manual tests M5 to M7 (Mac) and W1 to W17 (Windows), and record the results in `DECISIONS.md`.
 2. One timed interactive session of Project 1 on a new Console account.
-3. When there are public repositories: follow `docs/en/PUBLISHING.md` (update `repos.conf`, regenerate, create the releases and run `--check`).
+3. When there are public repositories: follow `docs/PUBLISHING.md` (update `repos.conf`, regenerate, create the releases and run `--check`).

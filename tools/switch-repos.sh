@@ -10,7 +10,7 @@
 #   tools/switch-repos.sh --workshop-url https://github.com/dono/workshop-claude.git \
 #     --memory-url https://github.com/dono/claude-memory-app.git \
 #     --raw-pattern 'https://raw.githubusercontent.com/{owner}/{name}/{version}/{path}' --provider github
-# Ver docs/PUBLICAR.md (checklist de 5 passos).
+# Ver docs/PUBLISHING.md (checklist de 5 passos).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
 CONF="$ROOT/repos.conf"
@@ -54,4 +54,4 @@ set_key RELEASE_DOWNLOAD_URL "$REL"
 set_key RELEASE_PROVIDER "$PROV"
 
 if [ "$RENDER" = 1 ]; then node "$ROOT/tools/render.mjs"; fi
-echo "Feito. Proximos passos: docs/PUBLICAR.md (releases, --check e node tools/check-repo.mjs)."
+echo "Feito. Proximos passos: docs/PUBLISHING.md (releases, --check e node tools/check-repo.mjs)."

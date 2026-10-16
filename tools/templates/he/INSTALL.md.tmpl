@@ -1,0 +1,58 @@
+# התקנת ערכת הסדנה
+
+[English](../INSTALL.md) · [Português](../pt/INSTALL.md) · [हिन्दी](../hi/INSTALL.md) · **עברית**
+
+את זה עושים **לפני** הסדנה. זה לוקח 10 עד 20 דקות, ולא צריך הרשאות admin.
+
+## 1. לפני שמתחילים
+
+- פתחו חשבון ב-[Anthropic Console]({{CONSOLE_URL}}) והוסיפו קרדיטים ב-Billing. מומלץ להגדיר spend limit גבוה בהרבה מ-10 דולר: הסדנה עולה בערך 5 דולר.
+- **ב-Mac:** פתחו את Terminal והריצו `xcode-select --install`. לחצו על "Install" וחכו שזה יסתיים (5 עד 15 דקות). אם כתוב שזה כבר מותקן, מצוין.
+- **ב-Windows:** אין מה להכין. עבדו עם PowerShell (עדיף בתוך Windows Terminal).
+- אם אתם ברשת של חברה עם proxy, ה-setup מזהה אותו לבד. אם משהו נכשל ברשת, נסו לעבור ל-hotspot מהטלפון.
+
+## 2. הרצת ה-setup
+
+**ב-macOS** (Terminal):
+
+```bash
+{{ONE_LINER_MAC}}
+```
+
+חלופה: `{{ONE_LINER_MAC_ALT}}`
+
+**ב-Windows** (PowerShell):
+
+```powershell
+{{ONE_LINER_WINDOWS}}
+```
+
+אם PowerShell חוסם את הפקודה שלמעלה, הורידו את [setup-windows.ps1]({{SETUP_WINDOWS_URL}}) והריצו את הפקודה הבאה בתיקייה שבה שמרתם אותו:
+
+```powershell
+{{ONE_LINER_WINDOWS_FALLBACK}}
+```
+
+ה-setup מדבר אנגלית בכל מחשב, כך שכל ההודעות שתראו יהיו באנגלית. הוא שואל כמה שאלות (למשל ה-login ל-Console, שפותח את הדפדפן). כל שלב מסתיים באחד מארבעה מצבים: ✅ Done (בוצע) · ⏭️ Already done (כבר בוצע קודם) · ⚠️ Done with warning (בוצע, עם אזהרה) · ❌ Failed (נכשל). כשמשהו נכשל, ה-setup מסביר למה ומה לעשות, עם הפקודה המדויקת.
+
+ה-setup גם מזהה את שפת המחשב. אם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills כתובים באנגלית, אבל עונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר.
+
+## 3. אימות
+
+בסוף תראו "Everything is ready for the workshop." (הכול מוכן לסדנה) או רשימה של מה שחסר. כדי לבדוק שוב, בלי להתקין כלום:
+
+- ב-macOS: `{{CHECK_MAC}}`
+- ב-Windows: `{{CHECK_WINDOWS}}`
+
+אחר כך סגרו ופתחו מחדש את ה-terminal (ואת VS Code).
+
+## 4. אם משהו נכשל
+
+- הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים.
+- חפשו את קוד השגיאה ב-[TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (באנגלית). לשאלות נפוצות יש גם [FAQ.md](../FAQ.md) (באנגלית).
+- אבחון בעזרת Claude (עולה פחות מסנט): `{{DOCTOR_MAC}}` או `{{DOCTOR_WINDOWS}}`.
+- שלחו למארגנים את הקובץ `~/.workshop-claude/resumo.txt`. גם `setup.log` עוזר, והוא כבר מגיע בלי secrets.
+
+## אימות לפני הרצה (אופציונלי)
+
+ה-checksums של SHA-256 לכל קובץ ב-release נמצאים בכתובת {{SHA256SUMS_URL}}. דף ה-release: {{RELEASE_URL}}.

@@ -7,7 +7,7 @@
   tools/switch-repos.ps1 -WorkshopUrl https://github.com/dono/workshop-claude.git `
     -MemoryUrl https://github.com/dono/claude-memory-app.git `
     -RawPattern 'https://raw.githubusercontent.com/{owner}/{name}/{version}/{path}' -Provider github
-  Ver docs/PUBLICAR.md (checklist de 5 passos).
+  Ver docs/PUBLISHING.md (checklist de 5 passos).
 #>
 [CmdletBinding()]
 param(
@@ -54,4 +54,4 @@ if (-not $SemRender) {
   & node (Join-Path $root 'tools/render.mjs')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
-Write-Host 'Feito. Proximos passos: docs/PUBLICAR.md (releases, -Check e node tools/check-repo.mjs).'
+Write-Host 'Feito. Proximos passos: docs/PUBLISHING.md (releases, -Check e node tools/check-repo.mjs).'

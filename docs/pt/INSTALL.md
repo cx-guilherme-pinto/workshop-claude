@@ -1,12 +1,14 @@
+<!-- GERADO por tools/render.mjs a partir de tools/templates/pt/INSTALL.md.tmpl e do repos.conf. Não editar à mão: edita o template. -->
+
 # Instalar o kit do workshop
 
-**Português** · [English](en/INSTALL.md)
+[English](../INSTALL.md) · **Português** · [हिन्दी](../hi/INSTALL.md) · [עברית](../he/INSTALL.md)
 
 Faz isto **antes** do workshop. Demora 10 a 20 minutos. Não precisas de admin.
 
 ## 1. Antes de começar
 
-- Cria uma conta na [Console da Anthropic]({{CONSOLE_URL}}) e adiciona créditos em Billing. Recomendamos um limite de gasto bem acima de US$ 10: o workshop custa cerca de US$ 5.
+- Cria uma conta na [Console da Anthropic](https://platform.claude.com) e adiciona créditos em Billing. Recomendamos um limite de gasto bem acima de US$ 10: o workshop custa cerca de US$ 5.
 - **Mac:** abre o Terminal e corre `xcode-select --install`. Carrega em «Instalar» e espera que termine (5 a 15 minutos). Se disser que já está instalado, ótimo.
 - **Windows:** não precisas de preparar nada. Usa o PowerShell (de preferência no Windows Terminal).
 - Se estiveres numa rede da empresa com proxy, o setup deteta-o. Se algo falhar na rede, experimenta o hotspot do telemóvel.
@@ -16,21 +18,21 @@ Faz isto **antes** do workshop. Demora 10 a 20 minutos. Não precisas de admin.
 **macOS** (Terminal):
 
 ```bash
-{{ONE_LINER_MAC}}
+curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh | bash
 ```
 
-Alternativa: `{{ONE_LINER_MAC_ALT}}`
+Alternativa: `bash <(curl -fsSL https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-mac.sh)`
 
 **Windows** (PowerShell):
 
 ```powershell
-{{ONE_LINER_WINDOWS}}
+irm https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/bootstrap-windows.ps1 | iex
 ```
 
-Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1]({{SETUP_WINDOWS_URL}}) e corre, na pasta onde o guardaste:
+Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1](https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/setup-windows.ps1) e corre, na pasta onde o guardaste:
 
 ```powershell
-{{ONE_LINER_WINDOWS_FALLBACK}}
+powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
 ```
 
 O setup fala inglês, em todas as máquinas. Faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Done (feito) · ⏭️ Already done (já estava feito) · ⚠️ Done with warning (feito com aviso) · ❌ Failed (falhou). Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
@@ -41,8 +43,8 @@ O setup também deteta a língua da máquina. Se ainda não tiveres a definiçã
 
 No fim aparece «Everything is ready for the workshop.» (está tudo pronto) ou a lista do que falta. Para verificar outra vez, sem instalar nada:
 
-- macOS: `{{CHECK_MAC}}`
-- Windows: `{{CHECK_WINDOWS}}`
+- macOS: `bash ~/.workshop-claude/setup-mac.sh --check`
+- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check`
 
 Depois, fecha e volta a abrir o terminal (e o VS Code).
 
@@ -50,9 +52,9 @@ Depois, fecha e volta a abrir o terminal (e o VS Code).
 
 - Volta a correr o mesmo comando: os passos feitos são saltados.
 - Procura o código do erro em [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
-- Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `{{DOCTOR_MAC}}` ou `{{DOCTOR_WINDOWS}}`.
+- Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `bash ~/.workshop-claude/setup-mac.sh --doctor` ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
 - Envia ao organizador o ficheiro `~/.workshop-claude/resumo.txt`. O `setup.log` também ajuda e já vem sem segredos.
 
 ## Verificar antes de executar (opcional)
 
-Os SHA-256 de todos os ficheiros da release estão em {{SHA256SUMS_URL}}. Página da release: {{RELEASE_URL}}.
+Os SHA-256 de todos os ficheiros da release estão em https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/download/v1.0.0-dev.3/SHA256SUMS. Página da release: https://gitea.guilhermepinto.pt/guilherme/workshop-claude/releases/tag/v1.0.0-dev.3.

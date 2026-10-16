@@ -1,10 +1,10 @@
 # Guia do organizador
 
-**Português** · [English](en/ORGANIZER.md)
+[English](../ORGANIZER.md) · **Português**
 
 ## Antes do dia (pelo menos 3 dias antes)
 
-1. **Enviar o comando de instalação** (o do `README.md`, gerado a partir do `repos.conf`), com um prazo: "corre até <data>; no dia só vamos verificar".
+1. **Enviar o comando de instalação** (o do `README.pt.md` ou, em inglês, do `README.md`, gerados a partir do `repos.conf`), com um prazo: "corre até <data>; no dia só vamos verificar".
 2. **Pedir a cada pessoa** que:
    - tenha uma **conta Console** própria, com créditos;
    - defina um **limite de gasto mensal bem acima de US$ 10** (por exemplo, US$ 25), só como proteção contra abusos. Nunca abaixo, porque um limite atingido corta a sessão a meio;
@@ -22,7 +22,7 @@
    - `mcp.atlassian.com`, `*.atlassian.net`, `acli.atlassian.com` (download do Atlassian CLI);
    - `github.com`, `api.github.com`;
    - para quem ainda não instalou: `nodejs.org`, `astral.sh`, `releases.astral.sh`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`.
-6. **Língua.** O setup fala só inglês. As skills estão em inglês e respondem na língua de cada pessoa (o setup grava a definição `language` do Claude Code, se ainda não existir). A Arena, o orquestrador e a statusline ficam em português nas máquinas em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas. A documentação existe em português e em inglês (`README.en.md`, `docs/en/`): envia a versão certa a cada grupo.
+6. **Língua.** O setup fala só inglês. As skills estão em inglês e respondem na língua de cada pessoa (o setup grava a definição `language` do Claude Code, se ainda não existir). A Arena, o orquestrador e a statusline ficam em português nas máquinas em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas. A documentação está primeiro em inglês (`README.md`, `docs/`), com versões em português (`README.pt.md`, `docs/pt/`); o README e o guia de instalação também em hindi e hebraico (`README.hi.md`, `README.he.md`, `docs/hi/`, `docs/he/`): envia a versão certa a cada grupo.
 
 ## Acompanhar o gasto dos participantes
 

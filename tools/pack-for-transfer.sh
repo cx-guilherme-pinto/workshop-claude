@@ -8,7 +8,7 @@
 #
 # Result: dist/transfer/workshop-claude-package-<date>.zip with workshop-claude.bundle,
 # claude-memory-app.bundle, SHA256SUMS, README.md (en) and LEIA-ME.md (pt): the steps on the other machine.
-# Guide: docs/MACHINE-TEST.md
+# Guide: docs/TEST-MACHINE.md
 set -uo pipefail
 
 main() {
@@ -87,7 +87,7 @@ cd workshop-claude
 bash tools/test-machine.sh --install --jira ABC-123 --confluence 123456
 \`\`\`
 
-The full guide is \`docs/MACHINE-TEST.md\`. The report goes to \`~/workshop-test/<date>/report.md\`.
+The full guide is \`docs/TEST-MACHINE.md\`. The report goes to \`~/workshop-test/<date>/report.md\`.
 
 ## 3. Publish to the corporate GitHub, with the history
 
@@ -142,7 +142,7 @@ cd workshop-claude
 bash tools/test-machine.sh --install --jira ABC-123 --confluence 123456
 \`\`\`
 
-O guia completo está em \`docs/pt/TESTAR-MAQUINA.md\`. O relatório fica em \`~/workshop-test/<data>/report.md\`.
+O guia completo está em \`docs/pt/TEST-MACHINE.md\`. O relatório fica em \`~/workshop-test/<data>/report.md\`.
 
 ## 3. Publicar no GitHub corporativo, com o histórico
 

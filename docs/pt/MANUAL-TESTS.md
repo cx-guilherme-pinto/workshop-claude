@@ -1,6 +1,6 @@
 # Testes manuais (o que a automação não cobre)
 
-**Português** · [English](en/MANUAL-TESTS.md)
+[English](../MANUAL-TESTS.md) · **Português**
 
 Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada um, regista em `DECISIONS.md` a data, a máquina e o resultado.
 

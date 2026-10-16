@@ -1,6 +1,6 @@
 # Manual tests (what automation does not cover)
 
-[Português](../TESTES-MANUAIS.md) · **English**
+**English** · [Português](pt/MANUAL-TESTS.md)
 
 These tests must be done on a real machine before publishing. For each one, record the date, the machine and the result in `DECISIONS.md`.
 

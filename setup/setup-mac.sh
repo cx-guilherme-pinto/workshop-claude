@@ -15,7 +15,7 @@
 #
 # Todo o codigo esta dentro de main(), chamado na ultima linha: um download incompleto nao executa nada.
 # As perguntas e os logins leem de /dev/tty, por isso "curl | bash" funciona.
-# O setup fala so ingles (D-20): os textos vem de setup/messages.en.json (o mesmo catalogo de docs/en/TROUBLESHOOTING.md).
+# O setup fala so ingles (D-20): os textos vem de setup/messages.en.json (o mesmo catalogo de docs/TROUBLESHOOTING.md).
 # A lingua da maquina (WORKSHOP_LANG, AppleLanguages, LC_ALL, LC_MESSAGES, LANG) so configura o resto: a "language"
 # do Claude Code e a lingua dos textos do kit e dos projetos (pt ou en).
 

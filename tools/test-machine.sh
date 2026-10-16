@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/test-machine.sh - full test battery on a machine that has everything (macOS):
 # Jira, Confluence, the corporate GitHub and the presenter's Claude account.
-# Guide: docs/MACHINE-TEST.md
+# Guide: docs/TEST-MACHINE.md
 #
 #   bash tools/test-machine.sh [options]
 #
