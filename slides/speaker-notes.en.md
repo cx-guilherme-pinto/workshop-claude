@@ -22,9 +22,9 @@ Running clock: "you should be here at X min". Slides marked **CAN SKIP** can be 
 | 16 | 1 | 24:30 | Preview | What we will build: the Security Arena |  |
 | 17 | 0.5 | 25:30 | Preview | The swarm in action |  |
 | 18 | 2.5 | 26:00 | Preview | 100 agents building the Arena |  |
-| 19 | 1 | 28:30 | Preview | The result: a game to play |  |
+| 19 | 1 | 28:30 | Preview | The result: the game, ready to use |  |
 | 20 | 0.5 | 29:30 | Project 1 | Project 1 |  |
-| 21 | 1 | 30:00 | Project 1 | What is ready and what is missing |  |
+| 21 | 1 | 30:00 | Project 1 | What we will do in this project today |  |
 | 22 | 1.5 | 31:00 | Project 1 | What /demo-plan does |  |
 | 23 | 3 | 32:30 | Project 1 | Plan the swarm |  |
 | 24 | 1.5 | 35:30 | Project 1 | Your plan: 4 waves |  |
@@ -126,7 +126,7 @@ A cheap swarm is many small agents with clear instructions. What costs money is 
 
 [18:30 → 20:30] 2 min · you should be here at 19 min
 
-The plan is a dependency graph. We run it in waves: everything that is ready runs in parallel. The three cryptography cards wait for lib/hash, a real dependency inside wave 1.
+The plan is a dependency graph. We run it in waves: everything that is ready runs in parallel. The three cryptography tasks wait for lib-hash, a real dependency inside wave 1.
 
 ### 13. A script decides the graph
 
@@ -150,33 +150,33 @@ It is the same cycle in both projects: plan with Opus, run as a swarm, a securit
 
 [24:30 → 25:30] 1 min · you should be here at 25 min
 
-Before the video, say what is going to be built. The Arena is a security mini-game: each card is a small challenge (find the line that exposes a secret, pick the real website, order the parts of a URL, type an answer). The app shell and the tests already exist; the agents write the cards. Explain the colours now, because they show up everywhere: each square is a card, grey while it waits, yellow while an agent works on it, green when its test passes, red when it fails.
+Before the video, say what is going to be built. The Arena is a security mini-game: each task builds a small challenge (find the line that exposes a secret, pick the real website, order the parts of a URL, type an answer). The app shell and the tests already exist; the agents write the challenges, one task each. Explain the colours now, because they show up everywhere: each square is a task, grey while it waits, yellow while an agent works on it, green when its test passes, red when it fails.
 
 ### 17. The swarm in action
 
 [25:30 → 26:00] 0.5 min · you should be here at 26 min
 
-Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 cards. Right after, each person does the same with 15.
+Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 tasks. Right after, each person does the same with 15.
 
 ### 18. 100 agents building the Arena
 
 [26:00 → 28:30] 2.5 min · you should be here at 26 min
 
-Sped-up video of a real run with 100 cards. On the left, the /estado page: each square is a card, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.
+Sped-up video of a real run with 100 tasks. On the left, the /estado page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.
 
-### 19. The result: a game to play
+### 19. The result: the game, ready to use
 
 [28:30 → 29:30] 1 min · you should be here at 29 min
 
-Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each card explains the why at the end. At the end of Project 1 everyone plays their own.
+Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each challenge explains the why at the end. At the end of Project 1 everyone plays their own.
 
 ### 20. Project 1
 
 [29:30 → 30:00] 0.5 min · you should be here at 30 min
 
-25 minutes of hands-on. In the benchmark, the 15-card swarm took 2 to 3 minutes (the full session, 3.5 to 5); in interactive mode and with new accounts it can take longer. We use that time to look at features.
+25 minutes of hands-on. In the benchmark, the 15-task swarm took 2 to 3 minutes (the full session, 3.5 to 5); in interactive mode and with new accounts it can take longer. We use that time to look at features.
 
-### 21. What is ready and what is missing
+### 21. What we will do in this project today
 
 [30:00 → 31:00] 1 min · you should be here at 30 min
 
@@ -192,19 +192,19 @@ Explain before running it. A skill is not magic: it is a Markdown recipe that Cl
 
 [32:30 → 35:30] 3 min · you should be here at 33 min
 
-The trust dialog matters: without it, the project permissions stay off. /demo-plan checks the memory, builds the graph and asks the planner (Opus) to review it.
+The trust dialog matters: without it, the project permissions stay off. In recent Claude Code versions, because the Arena pre-approves permissions, the preselected option is "No, exit": pressing Enter quits. Show the down arrow. /demo-plan checks the memory, builds the graph and asks the planner (Opus) to review it.
 
 ### 24. Your plan: 4 waves
 
 [35:30 → 37:00] 1.5 min · you should be here at 36 min
 
-Show someone's plan on the projector. In wave 1, lib/hash and the cards start together; the cryptography ones join as soon as hash turns green.
+Show someone's plan on the projector. In wave 1, lib-hash and the challenge tasks start together; the cryptography ones join as soon as hash turns green.
 
 ### 25. What /demo-swarm does
 
 [37:00 → 38:30] 1.5 min · you should be here at 37 min
 
-Explain before running it. The key point: a script picks what runs, not the model. That is why cost and time are predictable. If a card fails, the script retries it with the error message and, on the third attempt, with Sonnet.
+Explain before running it. The key point: a script picks what runs, not the model. That is why cost and time are predictable. If a task fails, the script retries it with the error message and, on the third attempt, with Sonnet.
 
 ### 26. Release the swarm
 

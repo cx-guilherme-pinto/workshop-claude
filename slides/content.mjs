@@ -128,14 +128,14 @@ Answer in the participant's language.`,
   },
   {
     seccao: 'Conceitos', tipo: 'dag', min: 2,
-    titulo: 'Tarefa → grafo → ondas',
-    notas: 'O plano é um grafo de dependências. Executamos por ondas: tudo o que está pronto corre em paralelo. Os três cartões de criptografia esperam pelo lib/hash, uma dependência real dentro da onda 1.',
+    titulo: 'Tarefa → grafo → waves',
+    notas: 'O plano é um grafo de dependências. Executamos por waves: tudo o que está pronto corre em paralelo. As três tarefas de criptografia esperam pelo lib-hash, uma dependência real dentro da wave 1.',
   },
   {
     seccao: 'Conceitos', tipo: 'colunas', min: 1.5,
     titulo: 'Quem decide o grafo é um script',
     colunas: [
-      { icone: 'route', titulo: 'next-wave.mjs', texto: 'lê o plano e o estado e devolve o próximo lote de chamadas (uma onda pode ter vários)' },
+      { icone: 'route', titulo: 'next-wave.mjs', texto: 'lê o plano e o estado e devolve o próximo lote de chamadas (uma wave pode ter vários)' },
       { icone: 'bot', titulo: 'O modelo', texto: 'lança exatamente essas chamadas, todas na mesma mensagem' },
       { icone: 'list-checks', titulo: 'grade.mjs', texto: 'corre o teste de cada tarefa e decide: verde ou vermelho' },
     ],
@@ -171,22 +171,22 @@ Answer in the participant's language.`,
     seccao: 'Preview', tipo: 'apresenta', min: 1,
     titulo: 'O que vamos construir: a Arena de Segurança',
     media: 'media/arena-cartao.png',
-    legendaImagem: 'Um cartão: clica na linha que expõe o segredo e confirma.',
+    legendaImagem: 'Um desafio do jogo: clica na linha que expõe o segredo e confirma.',
     pontos: [
       { icone: 'gamepad-2', titulo: 'Um mini-jogo, pronto a jogar', texto: 'Desafios curtos de segurança, no browser, em 10 categorias: passwords, phishing, web, redes, criptografia e mais.' },
-      { icone: 'layers', titulo: 'Cada cartão é um desafio', texto: 'Em 4 formatos: apontar a linha insegura, escolher a resposta, ordenar os passos ou escrever a resposta.' },
-      { icone: 'bot', titulo: 'Um agente por cartão', texto: 'Cada agente faz um cartão e o teste desse cartão diz se ficou certo. No vídeo: 100 cartões. No teu portátil: 15.' },
+      { icone: 'layers', titulo: 'Cada tarefa cria um desafio', texto: 'Em 4 formatos: apontar a linha insegura, escolher a resposta, ordenar os passos ou escrever a resposta.' },
+      { icone: 'bot', titulo: 'Um agente por tarefa', texto: 'Cada agente faz uma tarefa e o teste dessa tarefa diz se ficou certa. No vídeo: 100 tarefas. No teu portátil: 15.' },
     ],
     estados: true,
-    notas: 'Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada cartão é um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os cartões. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é um cartão, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.',
+    notas: 'Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada tarefa cria um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os desafios, uma tarefa cada. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é uma tarefa, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.',
   },
   {
     "seccao": "Preview",
     "tipo": "seccao",
     "min": 0.5,
     "titulo": "O swarm em ação",
-    "subtitulo": "A Arena com 100 cartões, feita por agentes em paralelo. Depois fazes a tua, com 15.",
-    "notas": "Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 cartões. Logo a seguir cada pessoa faz o mesmo com 15."
+    "subtitulo": "A Arena com 100 tarefas, feita por agentes em paralelo. Depois fazes a tua, com 15.",
+    "notas": "Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa faz o mesmo com 15."
   },
   {
     seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 2.5, estados: true,
@@ -194,28 +194,28 @@ Answer in the participant's language.`,
     media: 'media/enxame-acelerado.mp4',
     poster: 'media/estado-final.png',
     legenda: 'Sessão real gravada (plan, swarm, review e cost): {{APRES_DURACAO}} · {{APRES_CUSTO}} · {{APRES_AGENTES}} agentes',
-    notas: "Vídeo acelerado de uma execução real com 100 cartões. À esquerda, a página /estado: cada quadrado é um cartão, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /estado?replay=gravacao na Arena gravada.",
+    notas: "Vídeo acelerado de uma execução real com 100 tarefas. À esquerda, a página /estado: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /estado?replay=gravacao na Arena gravada.",
   },
   {
     "seccao": "Preview",
     "tipo": "video",
     "min": 1,
-    "titulo": "O resultado: um jogo para jogar",
+    "titulo": "O resultado: o jogo pronto para usar",
     "media": "media/arena-jogo.mp4",
     "poster": "media/arena-jogo.png",
     "objeto": "video-jogo",
     "legenda": "A Arena que o swarm construiu: desafios de segurança em 4 formatos, para jogar no browser.",
-    "notas": "Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada cartão explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua."
+    "notas": "Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada desafio explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua."
   },
 
   // ---------------- Projeto 1 (29.5–57.5)
-  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
+  { seccao: 'Projeto 1', tipo: 'seccao', min: 0.5, titulo: 'Projeto 1', subtitulo: 'A Arena de Segurança', notas: '25 minutos de hands-on. No benchmark, o swarm de 15 tarefas demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.' },
   {
     seccao: 'Projeto 1', tipo: 'colunas', min: 1,
-    titulo: 'O que já está pronto e o que falta',
+    titulo: 'O que vamos fazer neste projeto hoje',
     colunas: [
-      { titulo: 'Pronto', texto: 'a casca da app, 4 formatos de cartão e um teste para cada cartão', cor: 'verde' },
-      { titulo: 'Por fazer', texto: '15 cartões, o lib-hash e duas páginas', cor: 'cinza' },
+      { titulo: 'Pronto', texto: 'a casca da app, 4 formatos de desafio e um teste para cada tarefa', cor: 'verde' },
+      { titulo: 'Por fazer', texto: '15 desafios, o lib-hash e duas páginas: uma tarefa cada', cor: 'cinza' },
       { titulo: 'Quem faz', texto: 'o teu swarm: Haiku, Sonnet e Opus', cor: 'amarelo' },
     ],
     notas: 'Os testes já existem: cada agente só tem de pôr o seu teste verde. É isto que deixa o Haiku fazer o grosso do trabalho com segurança.',
@@ -226,7 +226,7 @@ Answer in the participant's language.`,
     "min": 1.5,
     "titulo": "O que faz o /demo-plan",
     "rotulo": ".claude/skills/demo-plan/SKILL.md (resumo)",
-    "codigo": "---\nname: demo-plan\nmodel: sonnet\nallowed-tools: Read, Agent,\n  node tools/*, memoria_procurar\n---\n1. Procura lições na memória\n2. node tools/plan.mjs  → o grafo\n3. O agente planner (Opus) revê o plano\n4. Mostra as ondas, o diagrama e o custo",
+    "codigo": "---\nname: demo-plan\nmodel: sonnet\nallowed-tools: Read, Agent,\n  node tools/*, memoria_procurar\n---\n1. Procura lições na memória\n2. node tools/plan.mjs  → o grafo\n3. O agente planner (Opus) revê o plano\n4. Mostra as waves, o diagrama e o custo",
     "pontos": [
       {
         "icone": "scroll-text",
@@ -236,7 +236,7 @@ Answer in the participant's language.`,
       {
         "icone": "workflow",
         "titulo": "O que entra e o que sai",
-        "texto": "Entram as especificações da Arena (resumidas no TASKS.md). Saem o plan.json e o PLANO.md: o grafo com as dependências, as ondas e a estimativa de custo."
+        "texto": "Entram as especificações da Arena (resumidas no TASKS.md). Saem o plan.json e o PLANO.md: o grafo com as dependências, as waves e a estimativa de custo."
       },
       {
         "icone": "folder-git-2",
@@ -249,15 +249,15 @@ Answer in the participant's language.`,
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 3,
     titulo: 'Planeia o swarm',
-    passos: ['Entra na pasta da Arena', 'Abre o Claude Code e confia na pasta', 'Corre /demo-plan'],
+    passos: ['Entra na pasta da Arena', 'Abre o Claude Code e escolhe "Yes, I trust this folder" (↓ e Enter: a opção já selecionada é sair)', 'Corre /demo-plan'],
     comandos: [{ rotulo: 'Terminal 1', cmd: 'cd ~/workshop-claude/demo-project\nclaude\n/demo-plan' }],
-    esperado: 'Um diagrama Mermaid, 4 ondas e uma estimativa perto de {{ESTIMATIVA}}',
-    notas: 'O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever.',
+    esperado: 'Um diagrama Mermaid, 4 waves e uma estimativa perto de {{ESTIMATIVA}}',
+    notas: 'O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. Nas versões recentes do Claude Code, como a Arena pré-aprova permissões, a opção já selecionada é "No, exit": quem carregar Enter sai. Mostrar a seta para baixo. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever.',
   },
   {
     seccao: 'Projeto 1', tipo: 'dag', min: 1.5,
-    titulo: 'O teu plano: 4 ondas',
-    notas: 'Mostrar o plano de alguém no projetor. Na onda 1, o lib/hash e os cartões arrancam juntos; os de criptografia entram assim que o hash fica verde.',
+    titulo: 'O teu plano: 4 waves',
+    notas: 'Mostrar o plano de alguém no projetor. Na wave 1, o lib-hash e as tarefas dos desafios arrancam juntos; os de criptografia entram assim que o hash fica verde.',
   },
   {
     "seccao": "Projeto 1",
@@ -265,7 +265,7 @@ Answer in the participant's language.`,
     "min": 1.5,
     "titulo": "O que faz o /demo-swarm",
     "rotulo": ".claude/skills/demo-swarm/SKILL.md (resumo)",
-    "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepete até ESTADO: FIM\n  1. next-wave.mjs → o próximo lote\n  2. Lança os agentes do lote, em paralelo\n  3. Cada agente faz 1 cartão e corre o teste\n  4. Mostra a tabela: agente, modelo, custo",
+    "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepete até ESTADO: FIM\n  1. next-wave.mjs → o próximo lote\n  2. Lança os agentes do lote, em paralelo\n  3. Cada agente faz 1 tarefa e corre o teste\n  4. Mostra a tabela: agente, modelo, custo",
     "pontos": [
       {
         "icone": "route",
@@ -275,7 +275,7 @@ Answer in the participant's language.`,
       {
         "icone": "bot",
         "titulo": "Um agente, uma tarefa",
-        "texto": "Cada agente começa com o contexto limpo, tem um cartão e o teste desse cartão, e usa o modelo certo: Haiku para o grosso do trabalho."
+        "texto": "Cada agente começa com o contexto limpo, tem uma tarefa e o teste dessa tarefa, e usa o modelo certo: Haiku para o grosso do trabalho."
       },
       {
         "icone": "folder-git-2",
@@ -283,7 +283,7 @@ Answer in the participant's language.`,
         "texto": "O /task-swarm faz o mesmo com as subtarefas da tua issue."
       }
     ],
-    "notas": "Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Por isso o custo e o tempo são previsíveis. Se um cartão falhar, o script repete-o com a mensagem de erro e, à terceira, com Sonnet."
+    "notas": "Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Por isso o custo e o tempo são previsíveis. Se uma tarefa falhar, o script repete-o com a mensagem de erro e, à terceira, com Sonnet."
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
@@ -300,7 +300,7 @@ Answer in the participant's language.`,
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
     titulo: 'Pergunta sem interromper',
     passos: ['Volta ao Terminal 1 sem parar o swarm', 'Escreve /btw e a tua pergunta'],
-    comandos: [{ rotulo: 'Terminal 1', cmd: '/btw porque é que o cartão cr-01 espera pelo lib-hash?' }],
+    comandos: [{ rotulo: 'Terminal 1', cmd: '/btw porque é que a tarefa cr-01 espera pelo lib-hash?' }],
     esperado: 'Uma resposta à parte: fica fora da conversa e o swarm continua',
     notas: 'O /btw responde ao lado. É a forma certa de tirar dúvidas durante uma execução longa.',
   },
@@ -382,7 +382,7 @@ Answer in the participant's language.`,
     titulo: 'Até ficar tudo verde',
     aviso: "O comando está no Teams: copia-o de lá.",
     passos: ['No fim, procura quadrados vermelhos', 'Se houver, deixa um /loop corrigi-los'],
-    comandos: [{ rotulo: 'Terminal 1', cmd: '/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige o primeiro cartão vermelho com o agente implementer; termina quando estiver tudo verde' }],
+    comandos: [{ rotulo: 'Terminal 1', cmd: '/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde' }],
     esperado: 'O loop termina sozinho quando a suite de testes fica verde',
     notas: 'O /loop repete um prompt a cada intervalo, com a sessão aberta. Esc cancela.',
   },
@@ -399,15 +399,15 @@ Answer in the participant's language.`,
     titulo: 'Quanto custou?',
     passos: ['Corre /demo-cost', 'Compara os agentes Haiku com a sessão principal'],
     comandos: [{ rotulo: 'Terminal 1', cmd: '/demo-cost' }],
-    esperado: 'Custo por agente, modelo e onda, perto de {{BENCH_MEDIA}}',
+    esperado: 'Custo por agente, modelo e wave, perto de {{BENCH_MEDIA}}',
     notas: 'O relatório usa tokens reais e preços publicados. No fim grava as lições na app de memória.',
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
     titulo: 'Joga o que o swarm construiu',
-    passos: ['Abre a galeria', 'Escolhe um cartão e joga', 'Carrega em "Correr testes"'],
+    passos: ['Abre a galeria', 'Escolhe um desafio e joga', 'Carrega em "Correr testes"'],
     comandos: [{ rotulo: 'Browser', cmd: 'http://localhost:3000' }],
-    esperado: 'Cartões verdes jogáveis; os vermelhos mostram porque falharam',
+    esperado: 'Os desafios das tarefas verdes jogam-se; os vermelhos mostram porque falharam',
     notas: 'Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadrado.',
   },
 

@@ -15,19 +15,19 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 9 | 2 | 12:30 | Conceitos | Uma skill é uma receita com nome |  |
 | 10 | 2 | 14:30 | Conceitos | Subagentes: contexto e modelo próprios |  |
 | 11 | 2 | 16:30 | Conceitos | A regra económica |  |
-| 12 | 2 | 18:30 | Conceitos | Tarefa → grafo → ondas |  |
+| 12 | 2 | 18:30 | Conceitos | Tarefa → grafo → waves |  |
 | 13 | 1,5 | 20:30 | Conceitos | Quem decide o grafo é um script |  |
 | 14 | 1,5 | 22:00 | Conceitos | Medir, não adivinhar |  |
 | 15 | 1 | 23:30 | Conceitos | O ciclo de cada tarefa |  |
 | 16 | 1 | 24:30 | Preview | O que vamos construir: a Arena de Segurança |  |
 | 17 | 0,5 | 25:30 | Preview | O swarm em ação |  |
 | 18 | 2,5 | 26:00 | Preview | 100 agentes a construir a Arena |  |
-| 19 | 1 | 28:30 | Preview | O resultado: um jogo para jogar |  |
+| 19 | 1 | 28:30 | Preview | O resultado: o jogo pronto para usar |  |
 | 20 | 0,5 | 29:30 | Projeto 1 | Projeto 1 |  |
-| 21 | 1 | 30:00 | Projeto 1 | O que já está pronto e o que falta |  |
+| 21 | 1 | 30:00 | Projeto 1 | O que vamos fazer neste projeto hoje |  |
 | 22 | 1,5 | 31:00 | Projeto 1 | O que faz o /demo-plan |  |
 | 23 | 3 | 32:30 | Projeto 1 | Planeia o swarm |  |
-| 24 | 1,5 | 35:30 | Projeto 1 | O teu plano: 4 ondas |  |
+| 24 | 1,5 | 35:30 | Projeto 1 | O teu plano: 4 waves |  |
 | 25 | 1,5 | 37:00 | Projeto 1 | O que faz o /demo-swarm |  |
 | 26 | 2 | 38:30 | Projeto 1 | Solta o swarm |  |
 | 27 | 2 | 40:30 | Projeto 1 | Pergunta sem interromper |  |
@@ -122,11 +122,11 @@ Um subagente é uma instância do Claude com contexto limpo, ferramentas própri
 
 O swarm barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.
 
-### 12. Tarefa → grafo → ondas
+### 12. Tarefa → grafo → waves
 
 [18:30 → 20:30] 2 min · deves estar aqui aos 19 min
 
-O plano é um grafo de dependências. Executamos por ondas: tudo o que está pronto corre em paralelo. Os três cartões de criptografia esperam pelo lib/hash, uma dependência real dentro da onda 1.
+O plano é um grafo de dependências. Executamos por waves: tudo o que está pronto corre em paralelo. As três tarefas de criptografia esperam pelo lib-hash, uma dependência real dentro da wave 1.
 
 ### 13. Quem decide o grafo é um script
 
@@ -150,33 +150,33 @@ Os hooks são comandos que o Claude Code corre em eventos. O nosso só mede: lê
 
 [24:30 → 25:30] 1 min · deves estar aqui aos 25 min
 
-Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada cartão é um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os cartões. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é um cartão, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.
+Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada tarefa cria um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os desafios, uma tarefa cada. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é uma tarefa, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.
 
 ### 17. O swarm em ação
 
 [25:30 → 26:00] 0,5 min · deves estar aqui aos 26 min
 
-Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 cartões. Logo a seguir cada pessoa faz o mesmo com 15.
+Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa faz o mesmo com 15.
 
 ### 18. 100 agentes a construir a Arena
 
 [26:00 → 28:30] 2,5 min · deves estar aqui aos 26 min
 
-Vídeo acelerado de uma execução real com 100 cartões. À esquerda, a página /estado: cada quadrado é um cartão, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /estado?replay=gravacao na Arena gravada.
+Vídeo acelerado de uma execução real com 100 tarefas. À esquerda, a página /estado: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /estado?replay=gravacao na Arena gravada.
 
-### 19. O resultado: um jogo para jogar
+### 19. O resultado: o jogo pronto para usar
 
 [28:30 → 29:30] 1 min · deves estar aqui aos 29 min
 
-Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada cartão explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua.
+Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada desafio explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua.
 
 ### 20. Projeto 1
 
 [29:30 → 30:00] 0,5 min · deves estar aqui aos 30 min
 
-25 minutos de hands-on. No benchmark, o swarm de 15 cartões demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
+25 minutos de hands-on. No benchmark, o swarm de 15 tarefas demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
 
-### 21. O que já está pronto e o que falta
+### 21. O que vamos fazer neste projeto hoje
 
 [30:00 → 31:00] 1 min · deves estar aqui aos 30 min
 
@@ -192,19 +192,19 @@ Explicar antes de correr. Uma skill não é magia: é uma receita em Markdown qu
 
 [32:30 → 35:30] 3 min · deves estar aqui aos 33 min
 
-O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever.
+O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. Nas versões recentes do Claude Code, como a Arena pré-aprova permissões, a opção já selecionada é "No, exit": quem carregar Enter sai. Mostrar a seta para baixo. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever.
 
-### 24. O teu plano: 4 ondas
+### 24. O teu plano: 4 waves
 
 [35:30 → 37:00] 1,5 min · deves estar aqui aos 36 min
 
-Mostrar o plano de alguém no projetor. Na onda 1, o lib/hash e os cartões arrancam juntos; os de criptografia entram assim que o hash fica verde.
+Mostrar o plano de alguém no projetor. Na wave 1, o lib-hash e as tarefas dos desafios arrancam juntos; os de criptografia entram assim que o hash fica verde.
 
 ### 25. O que faz o /demo-swarm
 
 [37:00 → 38:30] 1,5 min · deves estar aqui aos 37 min
 
-Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Por isso o custo e o tempo são previsíveis. Se um cartão falhar, o script repete-o com a mensagem de erro e, à terceira, com Sonnet.
+Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Por isso o custo e o tempo são previsíveis. Se uma tarefa falhar, o script repete-o com a mensagem de erro e, à terceira, com Sonnet.
 
 ### 26. Solta o swarm
 

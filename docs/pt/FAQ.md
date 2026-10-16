@@ -65,10 +65,10 @@ Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
 - Noutro terminal: `node tools/workshop/orquestrador/painel.mjs`.
 
 **Um cartão ficou vermelho. E agora?**
-O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige o primeiro cartão vermelho com o agente implementer; termina quando estiver tudo verde`.
+O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde`.
 
-**Apareceu "Do you trust the files in this folder?".**
-É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm pára a pedir autorizações.
+**Apareceu "Is this a project you created or one you trust?" (ou "Do you trust the files in this folder?").**
+É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm para a pedir autorizações. Atenção: como a Arena pré-aprova algumas permissões, as versões recentes do Claude Code abrem este diálogo com **No, exit** selecionado. Carrega na seta para baixo até **Yes, I trust this folder** e depois em Enter. Se o Claude Code fechar, corre `claude` outra vez na mesma pasta.
 
 **Quero recomeçar a Arena do zero.**
 `/demo-reset`. O histórico de custos fica guardado em `.workshop/historico/`.

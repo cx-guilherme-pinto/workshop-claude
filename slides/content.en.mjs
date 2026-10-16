@@ -129,7 +129,7 @@ Answer in the participant's language.`,
   {
     seccao: 'Concepts', tipo: 'dag', min: 2,
     titulo: 'Task → graph → waves',
-    notas: 'The plan is a dependency graph. We run it in waves: everything that is ready runs in parallel. The three cryptography cards wait for lib/hash, a real dependency inside wave 1.',
+    notas: 'The plan is a dependency graph. We run it in waves: everything that is ready runs in parallel. The three cryptography tasks wait for lib-hash, a real dependency inside wave 1.',
   },
   {
     seccao: 'Concepts', tipo: 'colunas', min: 1.5,
@@ -171,22 +171,22 @@ Answer in the participant's language.`,
     seccao: 'Preview', tipo: 'apresenta', min: 1,
     titulo: 'What we will build: the Security Arena',
     media: 'media/arena-cartao.en.png',
-    legendaImagem: 'One card: click the line that exposes the secret and confirm.',
+    legendaImagem: 'One challenge of the game: click the line that exposes the secret and confirm.',
     pontos: [
       { icone: 'gamepad-2', titulo: 'A mini-game, ready to play', texto: 'Short security challenges, in the browser, across 10 categories: passwords, phishing, web, networks, cryptography and more.' },
-      { icone: 'layers', titulo: 'Each card is a challenge', texto: 'In 4 formats: point at the insecure line, pick the answer, put the steps in order or type the answer.' },
-      { icone: 'bot', titulo: 'One agent per card', texto: 'Each agent builds one card, and that card\'s test says whether it is right. In the video: 100 cards. On your laptop: 15.' },
+      { icone: 'layers', titulo: 'Each task builds a challenge', texto: 'In 4 formats: point at the insecure line, pick the answer, put the steps in order or type the answer.' },
+      { icone: 'bot', titulo: 'One agent per task', texto: 'Each agent does one task, and that task\'s test says whether it is right. In the video: 100 tasks. On your laptop: 15.' },
     ],
     estados: true,
-    notas: 'Before the video, say what is going to be built. The Arena is a security mini-game: each card is a small challenge (find the line that exposes a secret, pick the real website, order the parts of a URL, type an answer). The app shell and the tests already exist; the agents write the cards. Explain the colours now, because they show up everywhere: each square is a card, grey while it waits, yellow while an agent works on it, green when its test passes, red when it fails.',
+    notas: 'Before the video, say what is going to be built. The Arena is a security mini-game: each task builds a small challenge (find the line that exposes a secret, pick the real website, order the parts of a URL, type an answer). The app shell and the tests already exist; the agents write the challenges, one task each. Explain the colours now, because they show up everywhere: each square is a task, grey while it waits, yellow while an agent works on it, green when its test passes, red when it fails.',
   },
   {
     "seccao": "Preview",
     "tipo": "seccao",
     "min": 0.5,
     "titulo": "The swarm in action",
-    "subtitulo": "The Arena with 100 cards, built by agents in parallel. Then you build yours, with 15.",
-    "notas": "Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 cards. Right after, each person does the same with 15."
+    "subtitulo": "The Arena with 100 tasks, built by agents in parallel. Then you build yours, with 15.",
+    "notas": "Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 tasks. Right after, each person does the same with 15."
   },
   {
     seccao: 'Preview', tipo: 'video', objeto: 'video-enxame', min: 2.5, estados: true,
@@ -194,28 +194,28 @@ Answer in the participant's language.`,
     media: 'media/enxame-acelerado.mp4',
     poster: 'media/estado-final.png',
     legenda: 'Real recorded session (plan, swarm, review and cost): {{APRES_DURACAO}} · {{APRES_CUSTO}} · {{APRES_AGENTES}} agents',
-    notas: "Sped-up video of a real run with 100 cards. On the left, the /estado page: each square is a card, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.",
+    notas: "Sped-up video of a real run with 100 tasks. On the left, the /estado page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.",
   },
   {
     "seccao": "Preview",
     "tipo": "video",
     "min": 1,
-    "titulo": "The result: a game to play",
+    "titulo": "The result: the game, ready to use",
     "media": "media/arena-jogo.en.mp4",
     "poster": "media/arena-jogo.en.png",
     "objeto": "video-jogo",
     "legenda": "The Arena the swarm built: security challenges in 4 formats, to play in the browser.",
-    "notas": "Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each card explains the why at the end. At the end of Project 1 everyone plays their own."
+    "notas": "Recording of someone playing the final Arena: point at the insecure line, pick the right answer, order the steps and type the answer. Each challenge explains the why at the end. At the end of Project 1 everyone plays their own."
   },
 
   // ---------------- Project 1 (29.5–57.5)
-  { seccao: 'Project 1', tipo: 'seccao', min: 0.5, titulo: 'Project 1', subtitulo: 'The Security Arena', notas: '25 minutes of hands-on. In the benchmark, the 15-card swarm took 2 to 3 minutes (the full session, 3.5 to 5); in interactive mode and with new accounts it can take longer. We use that time to look at features.' },
+  { seccao: 'Project 1', tipo: 'seccao', min: 0.5, titulo: 'Project 1', subtitulo: 'The Security Arena', notas: '25 minutes of hands-on. In the benchmark, the 15-task swarm took 2 to 3 minutes (the full session, 3.5 to 5); in interactive mode and with new accounts it can take longer. We use that time to look at features.' },
   {
     seccao: 'Project 1', tipo: 'colunas', min: 1,
-    titulo: 'What is ready and what is missing',
+    titulo: 'What we will do in this project today',
     colunas: [
-      { titulo: 'Ready', texto: 'the app shell, 4 card formats and one test for each card', cor: 'verde' },
-      { titulo: 'To do', texto: '15 cards, lib-hash and two pages', cor: 'cinza' },
+      { titulo: 'Ready', texto: 'the app shell, 4 challenge formats and one test for each task', cor: 'verde' },
+      { titulo: 'To do', texto: '15 challenges, lib-hash and two pages: one task each', cor: 'cinza' },
       { titulo: 'Who does it', texto: 'your swarm: Haiku, Sonnet and Opus', cor: 'amarelo' },
     ],
     notas: 'The tests already exist: each agent only has to turn its test green. That is what lets Haiku do the bulk of the work safely.',
@@ -249,15 +249,15 @@ Answer in the participant's language.`,
   {
     seccao: 'Project 1', tipo: 'faca', min: 3,
     titulo: 'Plan the swarm',
-    passos: ['Go to the Arena folder', 'Open Claude Code and trust the folder', 'Run /demo-plan'],
+    passos: ['Go to the Arena folder', 'Open Claude Code and pick "Yes, I trust this folder" (↓ then Enter: the preselected option exits)', 'Run /demo-plan'],
     comandos: [{ rotulo: 'Terminal 1', cmd: 'cd ~/workshop-claude/demo-project\nclaude\n/demo-plan' }],
     esperado: 'A Mermaid diagram, 4 waves and an estimate close to {{ESTIMATIVA}}',
-    notas: 'The trust dialog matters: without it, the project permissions stay off. /demo-plan checks the memory, builds the graph and asks the planner (Opus) to review it.',
+    notas: 'The trust dialog matters: without it, the project permissions stay off. In recent Claude Code versions, because the Arena pre-approves permissions, the preselected option is "No, exit": pressing Enter quits. Show the down arrow. /demo-plan checks the memory, builds the graph and asks the planner (Opus) to review it.',
   },
   {
     seccao: 'Project 1', tipo: 'dag', min: 1.5,
     titulo: 'Your plan: 4 waves',
-    notas: 'Show someone\'s plan on the projector. In wave 1, lib/hash and the cards start together; the cryptography ones join as soon as hash turns green.',
+    notas: 'Show someone\'s plan on the projector. In wave 1, lib-hash and the challenge tasks start together; the cryptography ones join as soon as hash turns green.',
   },
   {
     "seccao": "Project 1",
@@ -265,7 +265,7 @@ Answer in the participant's language.`,
     "min": 1.5,
     "titulo": "What /demo-swarm does",
     "rotulo": ".claude/skills/demo-swarm/SKILL.md (summary)",
-    "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepeat until ESTADO: FIM\n  1. next-wave.mjs → the next batch\n  2. Launch the batch agents, in parallel\n  3. Each agent does 1 card and runs its test\n  4. Show the table: agent, model, cost",
+    "codigo": "---\nname: demo-swarm\nmodel: sonnet\nallowed-tools: node tools/*, Agent\n---\nRepeat until ESTADO: FIM\n  1. next-wave.mjs → the next batch\n  2. Launch the batch agents, in parallel\n  3. Each agent does 1 task and runs its test\n  4. Show the table: agent, model, cost",
     "pontos": [
       {
         "icone": "route",
@@ -275,7 +275,7 @@ Answer in the participant's language.`,
       {
         "icone": "bot",
         "titulo": "One agent, one task",
-        "texto": "Each agent starts with a clean context, gets one card and that card's test, and uses the right model: Haiku for the bulk."
+        "texto": "Each agent starts with a clean context, gets one task and that task's test, and uses the right model: Haiku for the bulk."
       },
       {
         "icone": "folder-git-2",
@@ -283,7 +283,7 @@ Answer in the participant's language.`,
         "texto": "/task-swarm does the same with the subtasks of your issue."
       }
     ],
-    "notas": "Explain before running it. The key point: a script picks what runs, not the model. That is why cost and time are predictable. If a card fails, the script retries it with the error message and, on the third attempt, with Sonnet."
+    "notas": "Explain before running it. The key point: a script picks what runs, not the model. That is why cost and time are predictable. If a task fails, the script retries it with the error message and, on the third attempt, with Sonnet."
   },
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,
@@ -300,7 +300,7 @@ Answer in the participant's language.`,
     seccao: 'Project 1', tipo: 'faca', min: 2,
     titulo: 'Ask without interrupting',
     passos: ['Go back to Terminal 1; leave the swarm running', 'Type /btw and your question'],
-    comandos: [{ rotulo: 'Terminal 1', cmd: '/btw why does card cr-01 wait for lib-hash?' }],
+    comandos: [{ rotulo: 'Terminal 1', cmd: '/btw why does task cr-01 wait for lib-hash?' }],
     esperado: 'An answer that does not enter the conversation or stop the swarm',
     notas: '/btw answers on the side. It is the right way to ask questions during a long run.',
   },
@@ -382,7 +382,7 @@ Answer in the participant's language.`,
     titulo: 'Until everything is green',
     aviso: "The command is in Teams: copy it from there.",
     passos: ['At the end, look for red squares', 'If there are any, let /loop fix them'],
-    comandos: [{ rotulo: 'Terminal 1', cmd: '/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red card with the implementer agent; stop when everything is green' }],
+    comandos: [{ rotulo: 'Terminal 1', cmd: '/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red task with the implementer agent; stop when everything is green' }],
     esperado: 'The loop stops by itself when the suite is green',
     notas: '/loop repeats a prompt at each interval, while the session is open. Esc cancels.',
   },
@@ -405,9 +405,9 @@ Answer in the participant's language.`,
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,
     titulo: 'Play what the swarm built',
-    passos: ['Open the gallery', 'Pick a card and play', 'Click "Run tests"'],
+    passos: ['Open the gallery', 'Pick a challenge and play', 'Click "Run tests"'],
     comandos: [{ rotulo: 'Browser', cmd: 'http://localhost:3000' }],
-    esperado: 'Green cards you can play; the red ones show why they failed',
+    esperado: 'Challenges from green tasks are playable; the red ones show why they failed',
     notas: 'The tests also run in the browser. It is the same test that decided the colour of the square.',
   },
 

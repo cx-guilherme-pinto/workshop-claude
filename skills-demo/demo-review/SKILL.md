@@ -33,7 +33,7 @@ Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
    - XSS and CSP (A03/A05);
    - secrets (A02/A07);
    - dependencies (A06).
-4. If the verdict has problems, list them with severity, file and suggested fix. Do not fix anything on your own. Without `--auto`, suggest `/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red card with the implementer agent; stop when everything is green`.
+4. If the verdict has problems, list them with severity, file and suggested fix. Do not fix anything on your own. Without `--auto`, suggest `/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red task with the implementer agent; stop when everything is green`.
 5. End with `GATE: APROVADO` or `GATE: REPROVADO`, as the script said.
 
 A security game with security flaws would be the worst possible example. That is why this gate is mandatory before playing.

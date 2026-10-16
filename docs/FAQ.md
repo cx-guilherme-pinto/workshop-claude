@@ -65,10 +65,10 @@ Yes: `/btw <question>`. The answer does not go into the main conversation.
 - In another terminal: `node tools/workshop/orquestrador/painel.mjs`.
 
 **A card turned red. Now what?**
-The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red card with the implementer agent; stop when everything is green`.
+The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/workshop/orquestrador/grade.mjs --todos and fix the first red task with the implementer agent; stop when everything is green`.
 
-**I got "Do you trust the files in this folder?".**
-That is Claude Code asking if you trust the folder. In the Arena, answer yes: without it, the project permissions (`.claude/settings.json`) stay off and the swarm stops to ask for permission.
+**I got "Is this a project you created or one you trust?" (or "Do you trust the files in this folder?").**
+That is Claude Code asking if you trust the folder. In the Arena, answer yes: without it, the project permissions (`.claude/settings.json`) stay off and the swarm stops to ask for permission. Careful: because the Arena pre-approves some permissions, recent versions of Claude Code open this dialog with **No, exit** selected. Press the down arrow to pick **Yes, I trust this folder** and then Enter. If Claude Code closed, run `claude` again in the same folder.
 
 **I want to restart the Arena from scratch.**
 `/demo-reset`. The cost history is kept in `.workshop/historico/`.

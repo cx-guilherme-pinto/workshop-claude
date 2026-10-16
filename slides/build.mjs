@@ -22,13 +22,13 @@ const TEXTOS = {
     decimal: ',',
     porMedir: 'por medir', porGravar: 'por gravar', pesoOrq: 'a maior parte',
     ondas: [
-      ['Onda 1', 'lib-hash e 15 cartões'],
-      ['Onda 2', 'categorias e pontuação'],
-      ['Onda 3', 'integração e suite de testes'],
-      ['Onda 4', 'revisão e veredito'],
+      ['Wave 1', 'lib-hash e 15 tarefas'],
+      ['Wave 2', 'categorias e pontuação'],
+      ['Wave 3', 'integração e suite de testes'],
+      ['Wave 4', 'revisão e veredito'],
     ],
     cripto: 'os 3 de criptografia\nesperam pelo lib-hash',
-    estadosTitulo: 'Cada quadrado é um cartão:',
+    estadosTitulo: 'Cada quadrado é uma tarefa:',
     estadosTarefa: 'Cada quadrado é uma tarefa:',
     estados: [['cinza', 'à espera'], ['amarelo', 'agente a trabalhar'], ['verde', 'teste passou'], ['vermelho', 'teste falhou']],
     agendaFim: '90′ e depois perguntas, sem limite',
@@ -49,13 +49,13 @@ const TEXTOS = {
     decimal: '.',
     porMedir: 'to be measured', porGravar: 'to be recorded', pesoOrq: 'most',
     ondas: [
-      ['Wave 1', 'lib-hash and 15 cards'],
+      ['Wave 1', 'lib-hash and 15 tasks'],
       ['Wave 2', 'categories and scoring'],
       ['Wave 3', 'integration and test suite'],
       ['Wave 4', 'review and verdict'],
     ],
-    cripto: 'the 3 crypto cards\nwait for lib-hash',
-    estadosTitulo: 'Each square is a card:',
+    cripto: 'the 3 crypto tasks\nwait for lib-hash',
+    estadosTitulo: 'Each square is a task:',
     estadosTarefa: 'Each square is a task:',
     estados: [['cinza', 'waiting'], ['amarelo', 'agent working'], ['verde', 'test passed'], ['vermelho', 'test failed']],
     agendaFim: '90′, then questions, no time limit',
@@ -75,7 +75,7 @@ const TEXTOS = {
 // ---------- Paleta e letras: o modelo de apresentacao da Checkmarx (slides/modelo/) ----------
 // Fundo lilas em todos os slides de conteudo; os blocos por cima sao brancos.
 // As cores de estado (cinza, amarelo, verde, vermelho) sao as da grelha da Arena e so aparecem em QUADRADOS,
-// sempre com legenda: um quadrado e um cartao. O que e so decoracao e um icone ou um numero num circulo roxo.
+// sempre com legenda: um quadrado e uma tarefa. O que e so decoracao e um icone ou um numero num circulo roxo.
 const COR = {
   bg: 'F4EFFE', surface: 'FFFFFF', surface2: 'EBDDFA', ink: '140920', muted: '4A405A',
   accent: '6B34FD', accentInk: 'FFFFFF', roxo2: '8F23D7', laranja: 'F25928', lilas: '93A7FF',
@@ -240,7 +240,7 @@ function marca(s, item, i, x, y, d, obj) {
   else if (item.cor) quadrado(s, x, y, d, corDe(item.cor), obj);
   else numero(s, i + 1, x, y, d, COR.accent, obj);
 }
-// Legenda das cores de estado ("Cada quadrado e um cartao: ..."). Devolve a largura usada.
+// Legenda das cores de estado ("Cada quadrado e uma tarefa: ..."). Devolve a largura usada.
 function legendaEstado(s, x, y, { titulo = true, tituloTexto = T.estadosTitulo, alinhar = 'esquerda', largura = W - 2 * M, fs = 13, escuro = false } = {}) {
   const cores = escuro ? COR_ESCURO : COR;
   const tinta = escuro ? COR.escuroInk : COR.ink;
@@ -377,7 +377,7 @@ const R = {
     });
     if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.2, w: W - 2 * M, h: 0.5, fontSize: 14, color: COR.muted, objectName: 'rodape' });
   },
-  // As 4 ondas do plano. Os quadrados sao cartoes (cor = estado, com legenda); o icone ao lado do nome e o modelo.
+  // As 4 ondas do plano. Os quadrados sao tarefas (cor = estado, com legenda); o icone ao lado do nome e o modelo.
   dag(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
     const ondas = [
@@ -397,7 +397,7 @@ const R = {
       texto(s, o.modelo, { x: x + 0.74, y: 2.52, w: w - 1.0, h: 0.34, fontSize: 16, bold: true, valign: 'middle', objectName: `onda-modelo-${i}` });
       texto(s, o.sub, { x: x + 0.3, y: 2.98, w: w - 0.6, h: 0.6, fontSize: 15, color: COR.muted, objectName: `onda-sub-${i}` });
       if (i === 0) {
-        // lib-hash a trabalhar; 12 cartoes a meio; os 3 de criptografia a espera do lib-hash.
+        // lib-hash a trabalhar; 12 tarefas a meio; os 3 de criptografia a espera do lib-hash.
         quadrado(s, x + 0.3, 3.7, 0.42, COR.amarelo, 'hash');
         texto(s, 'lib-hash', { x: x + 0.85, y: 3.7, w: 1.6, h: 0.42, fontSize: 14, bold: true, valign: 'middle', objectName: 'hash-rotulo' });
         const cores = [COR.verde, COR.amarelo, COR.verde, COR.verde, COR.amarelo, COR.verde];
