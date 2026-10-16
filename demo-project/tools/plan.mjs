@@ -133,7 +133,8 @@ const INSTRUCOES = T.instrucoes;
 function construir(modo, maxParalelo) {
   const specs = ler('specs/cards.json');
   const extra = ler('specs/tarefas.json');
-  const cartoes = specs.cartoes.filter((c) => modo === 'apresentador' || c.modo === 'participante');
+  // Os dois modos constroem as 100 tarefas da Arena; muda so o paralelismo (8 no participante, 16 no apresentador).
+  const cartoes = specs.cartoes;
   const cat = Object.fromEntries(specs.categorias.map((c) => [c.id, c.nome]));
   const tarefas = [];
   for (const l of extra.lib) tarefas.push({ ...l, grupo: 'suporte', grupo_tipo: 'lib', instrucoes: INSTRUCOES.lib(l) });

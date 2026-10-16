@@ -1,8 +1,11 @@
 {
-  "CUSTO_CARTAO": "US$ 0,0017",
-  "PESO_ORQ": "50%",
-  "ESTIMATIVA": "US$ 1,00",
+  "CUSTO_CARTAO": "US$ 0,0018",
+  "PESO_ORQ": "80%",
+  "ESTIMATIVA": "US$ 3,70",
   "APRES_DURACAO": "6,9 min",
   "APRES_CUSTO": "US$ 2,55",
-  "APRES_AGENTES": "107"
+  "APRES_AGENTES": "107",
+  "P1_CUSTO": "US$ 3,39",
+  "P1_SWARM": "6,5 min",
+  "P1_SESSAO": "9 min"
 }

@@ -50,7 +50,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 | 7 | Jira MCP (Atlassian), user scope में | `~/.claude.json` |
 | 8 | Skills, `ws-*` agents, cost hooks और statusline, `settings.json` के safe merge के साथ | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Workshop के projects | `~/workshop-claude/` |
-| 10 | Memória app v0.4.1 (optional, setup को रोकता नहीं) | `uv tool`, `~/.memoria` |
+| 10 | Agent Memory app v0.4.1 (optional, setup को रोकता नहीं) | `uv tool`, `~/.memoria` |
 | 11 | Claude Desktop (optional, `--no-desktop / -NoDesktop` से skip होता है) | `~/Applications` |
 | 12 | Haiku के साथ final test, और `pricing.json` से cost | — |
 

@@ -42,10 +42,10 @@ async function obterCartoes() {
   };
 }
 
-// Com plano, mostra os cartoes do plano; sem plano, os do modo participante. Os que existem aparecem sempre.
+// Com plano, mostra os cartoes do plano; sem plano, todos. Os que existem aparecem sempre.
 function visiveis() {
   const { modo, cartoes } = estado.dados;
-  return cartoes.filter((c) => c.existe || (modo ? c.no_plano : c.modo === 'participante'));
+  return cartoes.filter((c) => c.existe || !modo || c.no_plano);
 }
 
 function agrupar(lista) {

@@ -30,12 +30,19 @@ main() {
   # BENCH_CSV / BENCH_REPORT: escrever noutro sitio (tools/test-machine.sh nao mexe nos resultados do repositorio)
   local CSV="${BENCH_CSV:-$KIT/benchmark/results.csv}" REPORT="${BENCH_REPORT:-$KIT/benchmark/REPORT.md}"
 
+  # A versao do Claude Code que os participantes vao ter e a do repos.conf. CLAUDE_BIN escolhe o binario.
+  local CLAUDE_BIN="${CLAUDE_BIN:-claude}" CC_KIT CC_AQUI
+  CC_KIT=$(sed -n 's/^CLAUDE_CODE_VERSION=//p' "$KIT/repos.conf" | head -1)
+  CC_AQUI=$("$CLAUDE_BIN" --version 2>/dev/null | awk '{print $1}')
+  if [ -n "$CC_KIT" ] && [ "$CC_AQUI" != "$CC_KIT" ]; then
+    echo "AVISO: o kit instala o Claude Code $CC_KIT e este benchmark usa o ${CC_AQUI:-?} ($CLAUDE_BIN). Os participantes podem ver outra coisa (ex.: pedidos de permissao). Para medir a versao do kit: CLAUDE_BIN=<binario $CC_KIT>." >&2
+  fi
   local TOKEN=""
   if command -v security >/dev/null 2>&1; then
     TOKEN="$(security find-generic-password -s workshop-benchmark-oauth -w 2>/dev/null || true)"
   fi
   local ISOLADO=0; [ -n "$TOKEN" ] && [ "$SEM_ISOLAMENTO" = 0 ] && ISOLADO=1
-  echo "Benchmark: modo=$MODO execucoes=$N paralelo=$MAX isolado=$ISOLADO claude=$(claude --version 2>/dev/null | head -1)"
+  echo "Benchmark: modo=$MODO execucoes=$N paralelo=$MAX isolado=$ISOLADO claude=$("$CLAUDE_BIN" --version 2>/dev/null | head -1)"
 
   local i
   for i in $(seq 1 "$N"); do
@@ -61,7 +68,7 @@ main() {
       [ -x "$MEMBIN" ] || MEMBIN="$(command -v memoria || true)"
       if [ -n "$MEMBIN" ]; then
         mkdir -p "$RUN/memoria"
-        env "${ENVV[@]}" claude mcp add --scope user -e MEMORIA_HOME="$RUN/memoria" memoria -- "$MEMBIN" mcp >/dev/null 2>&1 || true
+        env "${ENVV[@]}" "$CLAUDE_BIN" mcp add --scope user -e MEMORIA_HOME="$RUN/memoria" memoria -- "$MEMBIN" mcp >/dev/null 2>&1 || true
       fi
     else
       # Sem isolamento: config do utilizador, mas so as definicoes do projeto e so o MCP da memoria.
@@ -87,10 +94,10 @@ main() {
       cd "$ARENA"
       export CLAUDE_CODE_OAUTH_TOKEN="$TOKEN"
       [ -z "$TOKEN" ] && unset CLAUDE_CODE_OAUTH_TOKEN
-      env "${ENVV[@]}" claude -p --session-id "$SID" "/demo-plan --auto $MODO_ARG" "${FLAGS[@]}" < /dev/null > "$RUN/1-plan.json" 2> "$RUN/1-plan.err" || true
-      env "${ENVV[@]}" claude -p --resume "$SID" "/demo-swarm --auto" "${FLAGS[@]}" < /dev/null > "$RUN/2-swarm.json" 2> "$RUN/2-swarm.err" || true
-      env "${ENVV[@]}" claude -p --resume "$SID" "/demo-review --auto" "${FLAGS[@]}" < /dev/null > "$RUN/3-review.json" 2> "$RUN/3-review.err" || true
-      env "${ENVV[@]}" claude -p --resume "$SID" "/demo-cost --auto" "${FLAGS[@]}" < /dev/null > "$RUN/4-cost.json" 2> "$RUN/4-cost.err" || true
+      env "${ENVV[@]}" "$CLAUDE_BIN" -p --session-id "$SID" "/demo-plan --auto $MODO_ARG" "${FLAGS[@]}" < /dev/null > "$RUN/1-plan.json" 2> "$RUN/1-plan.err" || true
+      env "${ENVV[@]}" "$CLAUDE_BIN" -p --resume "$SID" "/demo-swarm --auto" "${FLAGS[@]}" < /dev/null > "$RUN/2-swarm.json" 2> "$RUN/2-swarm.err" || true
+      env "${ENVV[@]}" "$CLAUDE_BIN" -p --resume "$SID" "/demo-review --auto" "${FLAGS[@]}" < /dev/null > "$RUN/3-review.json" 2> "$RUN/3-review.err" || true
+      env "${ENVV[@]}" "$CLAUDE_BIN" -p --resume "$SID" "/demo-cost --auto" "${FLAGS[@]}" < /dev/null > "$RUN/4-cost.json" 2> "$RUN/4-cost.err" || true
     )
     local T1; T1="$(date +%s)"
     "$NODE" "$KIT/benchmark/collect.mjs" --run "$RUN" --id "$ID" --modo "$MODO" --duracao $((T1 - T0)) --csv "$CSV" --isolado "$ISOLADO"

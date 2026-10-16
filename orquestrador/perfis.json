@@ -59,12 +59,12 @@
       "output": 2825
     },
     "orquestrador_participante": {
-      "pedidos": 3,
-      "input": 9,
+      "pedidos": 5,
+      "input": 17,
       "cache_write_5m": 0,
-      "cache_write_1h": 5281,
-      "cache_read": 182518,
-      "output": 1142
+      "cache_write_1h": 9665,
+      "cache_read": 752968,
+      "output": 2055
     },
     "orquestrador_apresentador": {
       "pedidos": 4,
@@ -75,6 +75,6 @@
       "output": 2481
     }
   },
-  "calibracao": "11 execuções do benchmark (participante e apresentador)",
+  "calibracao": "11 execuções do benchmark (participante e apresentador); orquestrador_participante: execução interativa com 100 tarefas (17 out. 2026)",
   "margem": 0.15
 }

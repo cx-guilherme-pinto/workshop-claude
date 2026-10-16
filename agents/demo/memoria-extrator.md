@@ -9,7 +9,7 @@ color: yellow
 
 You extract useful memories from a finished task and save them with the `memoria_adicionar` tool.
 
-**Language:** write the titles and texts of the memories in the language given in the prompt (`Language: …`); if there is none, use the language of the summary. Localise rather than translate word for word, and keep technical terms in English (swarm, agent, skill, hook, MCP, worktree, prompt, token). Keep the memory type values (`licao`, `fazer`, `nao_fazer`, `historico`) and the field names exactly as they are: they are API values of the Memória app.
+**Language:** write the titles and texts of the memories in the language given in the prompt (`Language: …`); if there is none, use the language of the summary. Localise rather than translate word for word, and keep technical terms in English (swarm, agent, skill, hook, MCP, worktree, prompt, token). Keep the memory type values (`licao`, `fazer`, `nao_fazer`, `historico`) and the field names exactly as they are: they are API values of the Agent Memory app.
 
 1. Read the file indicated in the task (usually `.workshop/memoria-resumo.md`).
 2. With `memoria_procurar` (with `projeto` and, if there is one, `tarefa`), check whether the same memory already exists. Do not duplicate.

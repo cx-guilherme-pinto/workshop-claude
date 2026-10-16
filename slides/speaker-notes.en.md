@@ -156,7 +156,7 @@ Before the video, say what is going to be built. The Arena is a security mini-ga
 
 [25:30 → 26:00] 0.5 min · you should be here at 26 min
 
-Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 tasks. Right after, each person does the same with 15.
+Bridge into Project 1. What they are about to see is the cycle from the previous slide (plan → swarm → review → cost → memory) in a real run with 100 tasks. Right after, each person builds the same Arena, with up to 8 agents in parallel.
 
 ### 18. 100 agents building the Arena
 
@@ -174,7 +174,7 @@ Recording of someone playing the final Arena: point at the insecure line, pick t
 
 [29:30 → 30:00] 0.5 min · you should be here at 30 min
 
-25 minutes of hands-on. In the benchmark, the 15-task swarm took 2 to 3 minutes (the full session, 3.5 to 5); in interactive mode and with new accounts it can take longer. We use that time to look at features.
+25 minutes of hands-on. In the measured run, the 100-task swarm took 6.5 min (the full session, 9 min); in interactive mode and with new accounts it can take longer. We use that time to look at features.
 
 ### 21. What we will do in this project today
 
@@ -210,13 +210,13 @@ Explain before running it. The key point: a script picks what runs, not the mode
 
 [38:30 → 40:30] 2 min · you should be here at 39 min
 
-From here the swarm works for a few minutes (2 to 3 in the benchmark; longer with new accounts). The next slides use that time; whoever finishes first plays the Arena.
+From here the swarm works for a few minutes (6.5 min in the measured run; longer with new accounts). The next slides use that time; whoever finishes first plays the Arena.
 
 ### 27. Ask without interrupting
 
 [40:30 → 42:30] 2 min · you should be here at 41 min
 
-/btw answers on the side. It is the right way to ask questions during a long run.
+/btw answers on the side, outside the conversation. Careful: while the answer panel is open, the agents' results wait (Claude Code shows "background task updates waiting while this panel is open"). Read it and press Esc so the swarm carries on.
 
 ### 28. Hooks: Claude Code signals, a script reacts
 
