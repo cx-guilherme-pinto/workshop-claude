@@ -34,7 +34,7 @@ for (const d of ['public', 'pages', 'templates', 'lib']) {
 }
 const server = existsSync(join(ROOT, 'server.js')) ? readFileSync(join(ROOT, 'server.js'), 'utf8') : '';
 const csp = /Content-Security-Policy/.test(server) ? 'definido' : 'EM FALTA';
-const arriscados = ['server.js', 'public/app.js', 'pages/categoria.js', 'pages/pontuacao.js', 'lib/hash.js'].filter((p) => existsSync(join(ROOT, p)));
+const arriscados = ['server.js', 'public/app.js', 'public/dom.js', 'public/jogo.js', 'public/estado.js', 'public/progresso.js', 'pages/categoria.js', 'pages/pontuacao.js', 'lib/hash.js'].filter((p) => existsSync(join(ROOT, p)));
 const md = `# Resumo para a revisão
 
 ## Estado das tarefas

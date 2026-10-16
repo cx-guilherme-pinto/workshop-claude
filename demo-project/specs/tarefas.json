@@ -7,8 +7,14 @@
       "onda": 1,
       "agente": "worker",
       "spec": "specs/lib-hash.md",
-      "teste": ["node", "--test", "lib/hash.test.js"],
-      "ficheiros": ["lib/hash.js"],
+      "teste": [
+        "node",
+        "--test",
+        "lib/hash.test.js"
+      ],
+      "ficheiros": [
+        "lib/hash.js"
+      ],
       "depende": []
     }
   ],
@@ -19,9 +25,17 @@
       "onda": 2,
       "agente": "implementer",
       "spec": "specs/pagina-categoria.md",
-      "teste": ["node", "--test", "pages/categoria.test.js"],
-      "ficheiros": ["pages/categoria.js"],
-      "depende": ["*cartoes"]
+      "teste": [
+        "node",
+        "--test",
+        "pages/categoria.test.js"
+      ],
+      "ficheiros": [
+        "pages/categoria.js"
+      ],
+      "depende": [
+        "*cartoes"
+      ]
     },
     {
       "id": "tabela-pontuacao",
@@ -29,9 +43,17 @@
       "onda": 2,
       "agente": "implementer",
       "spec": "specs/tabela-pontuacao.md",
-      "teste": ["node", "--test", "pages/pontuacao.test.js"],
-      "ficheiros": ["pages/pontuacao.js"],
-      "depende": ["*cartoes"]
+      "teste": [
+        "node",
+        "--test",
+        "pages/pontuacao.test.js"
+      ],
+      "ficheiros": [
+        "pages/pontuacao.js"
+      ],
+      "depende": [
+        "*cartoes"
+      ]
     }
   ],
   "integracao": {
@@ -40,9 +62,18 @@
     "onda": 3,
     "agente": "integrator",
     "spec": "specs/integracao.md",
-    "teste": ["node", "--test"],
-    "ficheiros": ["public/", "pages/"],
-    "depende": ["pagina-categoria", "tabela-pontuacao"]
+    "teste": [
+      "node",
+      "tools/check-integracao.mjs"
+    ],
+    "ficheiros": [
+      "public/",
+      "pages/"
+    ],
+    "depende": [
+      "pagina-categoria",
+      "tabela-pontuacao"
+    ]
   },
   "revisao": {
     "id": "revisao",
@@ -50,9 +81,19 @@
     "onda": 4,
     "agente": "reviewer",
     "spec": "specs/revisao.md",
-    "preparar": ["node", "tools/review-digest.mjs"],
-    "teste": { "ficheiro_json": ".workshop/veredito.json", "campo": "veredito" },
-    "ficheiros": [".workshop/veredito.json"],
-    "depende": ["integracao"]
+    "preparar": [
+      "node",
+      "tools/review-digest.mjs"
+    ],
+    "teste": {
+      "ficheiro_json": ".workshop/veredito.json",
+      "campo": "veredito"
+    },
+    "ficheiros": [
+      ".workshop/veredito.json"
+    ],
+    "depende": [
+      "integracao"
+    ]
   }
 }
