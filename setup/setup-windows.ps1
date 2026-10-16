@@ -1210,6 +1210,7 @@ function Test-WsStep6 {
     }
     if ((Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60).ExitCode -ne 0) {
       $script:GhSemLogin = $true
+      Set-WsDetail ''
       Set-WsFail 'E-GH-02' ''
       return $false
     }

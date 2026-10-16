@@ -899,6 +899,7 @@ ws_s6_detect() {
     fi
     if ! gh auth status >/dev/null 2>&1 </dev/null; then
       WS_GH_SEM_LOGIN=1
+      ws_detail ""
       ws_fail E-GH-02 ""
       return 1
     fi
