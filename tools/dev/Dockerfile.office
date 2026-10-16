@@ -1,0 +1,6 @@
+# So para desenvolvimento: LibreOffice headless para converter os slides em PDF (QA visual).
+FROM debian:stable-slim
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      libreoffice-impress fonts-liberation fonts-dejavu-core poppler-utils fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /w
