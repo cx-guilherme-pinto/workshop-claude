@@ -21,12 +21,12 @@ Today the kit points to **https://github.com/cx-guilherme-pinto/workshop-claude*
 
 2. **Generate the slides and the documentation again.** `node tools/render.mjs` (the READMEs in every language, `docs/INSTALL.md`, `docs/TROUBLESHOOTING.md`, this file and their versions in `docs/pt/`, `docs/hi/` and `docs/he/`) and the slides build, which reads `repos.conf` directly.
 
-3. **Create the public releases with the same versions.** Kit `v1.0.0-rc.1` and app `v0.5.0`:
+3. **Create the public releases with the same versions.** Kit `v1.0.0-rc.2` and app `v0.5.0`:
 
    ```bash
-   tools/build-release.sh v1.0.0-rc.1
-   tools/publish-release.sh v1.0.0-rc.1 --dry-run   # shows what will be uploaded
-   tools/publish-release.sh v1.0.0-rc.1
+   tools/build-release.sh v1.0.0-rc.2
+   tools/publish-release.sh v1.0.0-rc.2 --dry-run   # shows what will be uploaded
+   tools/publish-release.sh v1.0.0-rc.2
    ```
 
    The memory app is published from its own repository, with the same version.
@@ -34,11 +34,11 @@ Today the kit points to **https://github.com/cx-guilherme-pinto/workshop-claude*
 4. **Run `--check` against the new URLs**, on a clean machine or with a temporary `HOME`:
 
    ```bash
-   curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash -s -- --check
+   curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash -s -- --check
    ```
 
-   On Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex`.
+   On Windows: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex`.
 
 5. **Look for leftovers of the development server.** `node tools/check-repo.mjs` fails if `gitea.guilhermepinto.pt` appears outside `repos.conf` and the generated files. Also confirm with `git grep -n gitea.guilhermepinto.pt`.
 
-Current values: release at https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1, checksums at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS.
+Current values: release at https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.2, checksums at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/SHA256SUMS.

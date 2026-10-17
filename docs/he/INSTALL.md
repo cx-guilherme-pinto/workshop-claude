@@ -18,18 +18,18 @@
 **ב-macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash
 ```
 
-חלופה: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh)`
+חלופה: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh)`
 
 **ב-Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex
 ```
 
-אם PowerShell חוסם את הפקודה שלמעלה, הורידו את [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) והריצו את הפקודה הבאה בתיקייה שבה שמרתם אותו:
+אם PowerShell חוסם את הפקודה שלמעלה, הורידו את [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-windows.ps1) והריצו את הפקודה הבאה בתיקייה שבה שמרתם אותו:
 
 ```powershell
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
@@ -57,4 +57,4 @@ Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass 
 
 ## אימות לפני הרצה (אופציונלי)
 
-ה-checksums של SHA-256 לכל קובץ ב-release נמצאים בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/SHA256SUMS. דף ה-release: https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.1.
+ה-checksums של SHA-256 לכל קובץ ב-release נמצאים בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/SHA256SUMS. דף ה-release: https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.2.
