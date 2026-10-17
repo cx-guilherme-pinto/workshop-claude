@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Short security challenges, built and tested by a swarm of Claude agents.">
+  <title>Security Arena</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="top-bar">
+    <a class="brand" href="#/">Security Arena</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="home">Challenges</a>
+      <a href="#/score" data-nav="score">Score</a>
+      <a href="/status">Swarm status</a>
+    </nav>
+  </header>
+  <main id="content" tabindex="-1">
+    <noscript>
+      <section class="notice">
+        <h1 class="section-title">The Arena needs JavaScript</h1>
+        <p>The challenges are ES modules loaded by this page. Turn on JavaScript and reload.</p>
+      </section>
+    </noscript>
+  </main>
+  <footer class="footer">
+    <div>
+      <p class="footer-brand">Security Arena</p>
+      <p class="footer-text">Demo project of the Claude Code workshop. Each card is a module with tests, written by an agent.</p>
+    </div>
+    <button class="button button-small" type="button" id="delete-progress">Delete my progress</button>
+  </footer>
+</body>
+</html>

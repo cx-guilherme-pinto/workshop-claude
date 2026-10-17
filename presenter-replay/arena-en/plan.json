@@ -1,0 +1,2057 @@
+{
+  "v": 1,
+  "project": "security-arena",
+  "mode": "participant",
+  "created_at": "2026-10-17T12:04:01.407Z",
+  "main_model": "claude-sonnet-5-5",
+  "config": {
+    "max_parallel": 8,
+    "max_attempts": 3,
+    "escalate_to": "implementer"
+  },
+  "agents": {
+    "worker": {
+      "model": "claude-haiku-5-5"
+    },
+    "implementer": {
+      "model": "claude-sonnet-5-5"
+    },
+    "integrator": {
+      "model": "claude-sonnet-5-5"
+    },
+    "reviewer": {
+      "model": "claude-opus-5-5"
+    },
+    "planner": {
+      "model": "claude-opus-5-5"
+    },
+    "memory-extractor": {
+      "model": "claude-haiku-5-5"
+    }
+  },
+  "adjustments": null,
+  "support_estimate": [
+    "planner",
+    "memory-extractor"
+  ],
+  "tasks": [
+    {
+      "id": "lib-hash",
+      "title": "Cryptography utility lib/hash.js",
+      "group": "support",
+      "group_type": "lib",
+      "wave": 1,
+      "agent": "worker",
+      "spec": "specs/lib-hash.md",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "lib/hash.test.js"
+      ],
+      "files": [
+        "lib/hash.js"
+      ],
+      "instructions": "Implement lib/hash.js as described in specs/lib-hash.md.\nCheck: node --test lib/hash.test.js\nAnswer with one single line: \"OK lib-hash\" or \"FAILED lib-hash: <reason>\"."
+    },
+    {
+      "id": "pw-01",
+      "title": "Which password is strongest?",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-01/card.test.js"
+      ],
+      "files": [
+        "cards/pw-01/card.js"
+      ],
+      "instructions": "Build the card pw-01 (\"Which password is strongest?\").\n1. Read cards/pw-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-01/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-01/card.test.js\nAnswer with one single line: \"OK pw-01\" or \"FAILED pw-01: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-02",
+      "title": "From the strongest second factor to the weakest",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-02/card.test.js"
+      ],
+      "files": [
+        "cards/pw-02/card.js"
+      ],
+      "instructions": "Build the card pw-02 (\"From the strongest second factor to the weakest\").\n1. Read cards/pw-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-02/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-02/card.test.js\nAnswer with one single line: \"OK pw-02\" or \"FAILED pw-02: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-03",
+      "title": "One password, thousands of accounts",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-03/card.test.js"
+      ],
+      "files": [
+        "cards/pw-03/card.js"
+      ],
+      "instructions": "Build the card pw-03 (\"One password, thousands of accounts\").\n1. Read cards/pw-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-03/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-03/card.test.js\nAnswer with one single line: \"OK pw-03\" or \"FAILED pw-03: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-04",
+      "title": "How do you store 80 passwords?",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-04/card.test.js"
+      ],
+      "files": [
+        "cards/pw-04/card.js"
+      ],
+      "instructions": "Build the card pw-04 (\"How do you store 80 passwords?\").\n1. Read cards/pw-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-04/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-04/card.test.js\nAnswer with one single line: \"OK pw-04\" or \"FAILED pw-04: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-05",
+      "title": "The three types of factor",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-05/card.test.js"
+      ],
+      "files": [
+        "cards/pw-05/card.js"
+      ],
+      "instructions": "Build the card pw-05 (\"The three types of factor\").\n1. Read cards/pw-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-05/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-05/card.test.js\nAnswer with one single line: \"OK pw-05\" or \"FAILED pw-05: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-06",
+      "title": "The password policy has bad rules",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-06/card.test.js"
+      ],
+      "files": [
+        "cards/pw-06/card.js"
+      ],
+      "instructions": "Build the card pw-06 (\"The password policy has bad rules\").\n1. Read cards/pw-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-06/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-06/card.test.js\nAnswer with one single line: \"OK pw-06\" or \"FAILED pw-06: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-07",
+      "title": "How credential stuffing works",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-07/card.test.js"
+      ],
+      "files": [
+        "cards/pw-07/card.js"
+      ],
+      "instructions": "Build the card pw-07 (\"How credential stuffing works\").\n1. Read cards/pw-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-07/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-07/card.test.js\nAnswer with one single line: \"OK pw-07\" or \"FAILED pw-07: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-08",
+      "title": "Your email showed up in a breach",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-08/card.test.js"
+      ],
+      "files": [
+        "cards/pw-08/card.js"
+      ],
+      "instructions": "Build the card pw-08 (\"Your email showed up in a breach\").\n1. Read cards/pw-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-08/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-08/card.test.js\nAnswer with one single line: \"OK pw-08\" or \"FAILED pw-08: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-09",
+      "title": "The security question",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-09/card.test.js"
+      ],
+      "files": [
+        "cards/pw-09/card.js"
+      ],
+      "instructions": "Build the card pw-09 (\"The security question\").\n1. Read cards/pw-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-09/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-09/card.test.js\nAnswer with one single line: \"OK pw-09\" or \"FAILED pw-09: <reason in a few words>\"."
+    },
+    {
+      "id": "pw-10",
+      "title": "Signing in without a password",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pw-10/card.test.js"
+      ],
+      "files": [
+        "cards/pw-10/card.js"
+      ],
+      "instructions": "Build the card pw-10 (\"Signing in without a password\").\n1. Read cards/pw-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/pw-10/card.js, with the template given in the spec.\n3. Check: node --test cards/pw-10/card.test.js\nAnswer with one single line: \"OK pw-10\" or \"FAILED pw-10: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-01",
+      "title": "Which is the real site?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-01/card.test.js"
+      ],
+      "files": [
+        "cards/ph-01/card.js"
+      ],
+      "instructions": "Build the card ph-01 (\"Which is the real site?\").\n1. Read cards/ph-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-01/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-01/card.test.js\nAnswer with one single line: \"OK ph-01\" or \"FAILED ph-01: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-02",
+      "title": "What gives this email away?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-02/card.test.js"
+      ],
+      "files": [
+        "cards/ph-02/card.js"
+      ],
+      "instructions": "Build the card ph-02 (\"What gives this email away?\").\n1. Read cards/ph-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-02/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-02/card.test.js\nAnswer with one single line: \"OK ph-02\" or \"FAILED ph-02: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-03",
+      "title": "The disguised attachment",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-03/card.test.js"
+      ],
+      "files": [
+        "cards/ph-03/card.js"
+      ],
+      "instructions": "Build the card ph-03 (\"The disguised attachment\").\n1. Read cards/ph-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-03/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-03/card.test.js\nAnswer with one single line: \"OK ph-03\" or \"FAILED ph-03: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-04",
+      "title": "The name proves nothing",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-04/card.test.js"
+      ],
+      "files": [
+        "cards/ph-04/card.js"
+      ],
+      "instructions": "Build the card ph-04 (\"The name proves nothing\").\n1. Read cards/ph-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-04/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-04/card.test.js\nAnswer with one single line: \"OK ph-04\" or \"FAILED ph-04: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-05",
+      "title": "The QR code stuck on the parking meter",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-05/card.test.js"
+      ],
+      "files": [
+        "cards/ph-05/card.js"
+      ],
+      "instructions": "Build the card ph-05 (\"The QR code stuck on the parking meter\").\n1. Read cards/ph-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-05/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-05/card.test.js\nAnswer with one single line: \"OK ph-05\" or \"FAILED ph-05: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-06",
+      "title": "Read the URL in the right order",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-06/card.test.js"
+      ],
+      "files": [
+        "cards/ph-06/card.js"
+      ],
+      "instructions": "Build the card ph-06 (\"Read the URL in the right order\").\n1. Read cards/ph-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-06/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-06/card.test.js\nAnswer with one single line: \"OK ph-06\" or \"FAILED ph-06: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-07",
+      "title": "The link lies",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-07/card.test.js"
+      ],
+      "files": [
+        "cards/ph-07/card.js"
+      ],
+      "instructions": "Build the card ph-07 (\"The link lies\").\n1. Read cards/ph-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-07/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-07/card.test.js\nAnswer with one single line: \"OK ph-07\" or \"FAILED ph-07: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-08",
+      "title": "Enable content?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-08/card.test.js"
+      ],
+      "files": [
+        "cards/ph-08/card.js"
+      ],
+      "instructions": "Build the card ph-08 (\"Enable content?\").\n1. Read cards/ph-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-08/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-08/card.test.js\nAnswer with one single line: \"OK ph-08\" or \"FAILED ph-08: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-09",
+      "title": "Phishing by SMS",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-09/card.test.js"
+      ],
+      "files": [
+        "cards/ph-09/card.js"
+      ],
+      "instructions": "Build the card ph-09 (\"Phishing by SMS\").\n1. Read cards/ph-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-09/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-09/card.test.js\nAnswer with one single line: \"OK ph-09\" or \"FAILED ph-09: <reason in a few words>\"."
+    },
+    {
+      "id": "ph-10",
+      "title": "The app wants access to your email",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/ph-10/card.test.js"
+      ],
+      "files": [
+        "cards/ph-10/card.js"
+      ],
+      "instructions": "Build the card ph-10 (\"The app wants access to your email\").\n1. Read cards/ph-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/ph-10/card.js, with the template given in the spec.\n3. Check: node --test cards/ph-10/card.test.js\nAnswer with one single line: \"OK ph-10\" or \"FAILED ph-10: <reason in a few words>\"."
+    },
+    {
+      "id": "web-01",
+      "title": "Find the SQL injection",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-01/card.test.js"
+      ],
+      "files": [
+        "cards/web-01/card.js"
+      ],
+      "instructions": "Build the card web-01 (\"Find the SQL injection\").\n1. Read cards/web-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-01/card.js, with the template given in the spec.\n3. Check: node --test cards/web-01/card.test.js\nAnswer with one single line: \"OK web-01\" or \"FAILED web-01: <reason in a few words>\"."
+    },
+    {
+      "id": "web-02",
+      "title": "Find the XSS",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-02/card.test.js"
+      ],
+      "files": [
+        "cards/web-02/card.js"
+      ],
+      "instructions": "Build the card web-02 (\"Find the XSS\").\n1. Read cards/web-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-02/card.js, with the template given in the spec.\n3. Check: node --test cards/web-02/card.test.js\nAnswer with one single line: \"OK web-02\" or \"FAILED web-02: <reason in a few words>\"."
+    },
+    {
+      "id": "web-03",
+      "title": "The hidden form",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-03/card.test.js"
+      ],
+      "files": [
+        "cards/web-03/card.js"
+      ],
+      "instructions": "Build the card web-03 (\"The hidden form\").\n1. Read cards/web-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-03/card.js, with the template given in the spec.\n3. Check: node --test cards/web-03/card.test.js\nAnswer with one single line: \"OK web-03\" or \"FAILED web-03: <reason in a few words>\"."
+    },
+    {
+      "id": "web-04",
+      "title": "Other people's invoices",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-04/card.test.js"
+      ],
+      "files": [
+        "cards/web-04/card.js"
+      ],
+      "instructions": "Build the card web-04 (\"Other people's invoices\").\n1. Read cards/web-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-04/card.js, with the template given in the spec.\n3. Check: node --test cards/web-04/card.test.js\nAnswer with one single line: \"OK web-04\" or \"FAILED web-04: <reason in a few words>\"."
+    },
+    {
+      "id": "web-05",
+      "title": "Where do you go after logging in?",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-05/card.test.js"
+      ],
+      "files": [
+        "cards/web-05/card.js"
+      ],
+      "instructions": "Build the card web-05 (\"Where do you go after logging in?\").\n1. Read cards/web-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-05/card.js, with the template given in the spec.\n3. Check: node --test cards/web-05/card.test.js\nAnswer with one single line: \"OK web-05\" or \"FAILED web-05: <reason in a few words>\"."
+    },
+    {
+      "id": "web-06",
+      "title": "Where can scripts come from?",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-06/card.test.js"
+      ],
+      "files": [
+        "cards/web-06/card.js"
+      ],
+      "instructions": "Build the card web-06 (\"Where can scripts come from?\").\n1. Read cards/web-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-06/card.js, with the template given in the spec.\n3. Check: node --test cards/web-06/card.test.js\nAnswer with one single line: \"OK web-06\" or \"FAILED web-06: <reason in a few words>\"."
+    },
+    {
+      "id": "web-07",
+      "title": "A well-configured session cookie",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-07/card.test.js"
+      ],
+      "files": [
+        "cards/web-07/card.js"
+      ],
+      "instructions": "Build the card web-07 (\"A well-configured session cookie\").\n1. Read cards/web-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-07/card.js, with the template given in the spec.\n3. Check: node --test cards/web-07/card.test.js\nAnswer with one single line: \"OK web-07\" or \"FAILED web-07: <reason in a few words>\"."
+    },
+    {
+      "id": "web-08",
+      "title": "A session from start to finish",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-08/card.test.js"
+      ],
+      "files": [
+        "cards/web-08/card.js"
+      ],
+      "instructions": "Build the card web-08 (\"A session from start to finish\").\n1. Read cards/web-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-08/card.js, with the template given in the spec.\n3. Check: node --test cards/web-08/card.test.js\nAnswer with one single line: \"OK web-08\" or \"FAILED web-08: <reason in a few words>\"."
+    },
+    {
+      "id": "web-09",
+      "title": "The site inside an iframe",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-09/card.test.js"
+      ],
+      "files": [
+        "cards/web-09/card.js"
+      ],
+      "instructions": "Build the card web-09 (\"The site inside an iframe\").\n1. Read cards/web-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-09/card.js, with the template given in the spec.\n3. Check: node --test cards/web-09/card.test.js\nAnswer with one single line: \"OK web-09\" or \"FAILED web-09: <reason in a few words>\"."
+    },
+    {
+      "id": "web-10",
+      "title": "CORS that is too open",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/web-10/card.test.js"
+      ],
+      "files": [
+        "cards/web-10/card.js"
+      ],
+      "instructions": "Build the card web-10 (\"CORS that is too open\").\n1. Read cards/web-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/web-10/card.js, with the template given in the spec.\n3. Check: node --test cards/web-10/card.test.js\nAnswer with one single line: \"OK web-10\" or \"FAILED web-10: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-01",
+      "title": "Two networks at the coffee shop",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-01/card.test.js"
+      ],
+      "files": [
+        "cards/rd-01/card.js"
+      ],
+      "instructions": "Build the card rd-01 (\"Two networks at the coffee shop\").\n1. Read cards/rd-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-01/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-01/card.test.js\nAnswer with one single line: \"OK rd-01\" or \"FAILED rd-01: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-02",
+      "title": "Where your traffic goes",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-02/card.test.js"
+      ],
+      "files": [
+        "cards/rd-02/card.js"
+      ],
+      "instructions": "Build the card rd-02 (\"Where your traffic goes\").\n1. Read cards/rd-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-02/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-02/card.test.js\nAnswer with one single line: \"OK rd-02\" or \"FAILED rd-02: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-03",
+      "title": "Always HTTPS",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-03/card.test.js"
+      ],
+      "files": [
+        "cards/rd-03/card.js"
+      ],
+      "instructions": "Build the card rd-03 (\"Always HTTPS\").\n1. Read cards/rd-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-03/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-03/card.test.js\nAnswer with one single line: \"OK rd-03\" or \"FAILED rd-03: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-04",
+      "title": "What happens when you open an HTTPS site",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-04/card.test.js"
+      ],
+      "files": [
+        "cards/rd-04/card.js"
+      ],
+      "instructions": "Build the card rd-04 (\"What happens when you open an HTTPS site\").\n1. Read cards/rd-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-04/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-04/card.test.js\nAnswer with one single line: \"OK rd-04\" or \"FAILED rd-04: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-05",
+      "title": "What a VPN does not do",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-05/card.test.js"
+      ],
+      "files": [
+        "cards/rd-05/card.js"
+      ],
+      "instructions": "Build the card rd-05 (\"What a VPN does not do\").\n1. Read cards/rd-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-05/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-05/card.test.js\nAnswer with one single line: \"OK rd-05\" or \"FAILED rd-05: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-06",
+      "title": "Too many ports open on the firewall",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-06/card.test.js"
+      ],
+      "files": [
+        "cards/rd-06/card.js"
+      ],
+      "instructions": "Build the card rd-06 (\"Too many ports open on the firewall\").\n1. Read cards/rd-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-06/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-06/card.test.js\nAnswer with one single line: \"OK rd-06\" or \"FAILED rd-06: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-07",
+      "title": "DNS that nobody can read",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-07/card.test.js"
+      ],
+      "files": [
+        "cards/rd-07/card.js"
+      ],
+      "instructions": "Build the card rd-07 (\"DNS that nobody can read\").\n1. Read cards/rd-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-07/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-07/card.test.js\nAnswer with one single line: \"OK rd-07\" or \"FAILED rd-07: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-08",
+      "title": "Where to connect the cheap cameras",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-08/card.test.js"
+      ],
+      "files": [
+        "cards/rd-08/card.js"
+      ],
+      "instructions": "Build the card rd-08 (\"Where to connect the cheap cameras\").\n1. Read cards/rd-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-08/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-08/card.test.js\nAnswer with one single line: \"OK rd-08\" or \"FAILED rd-08: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-09",
+      "title": "The badly configured router",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-09/card.test.js"
+      ],
+      "files": [
+        "cards/rd-09/card.js"
+      ],
+      "instructions": "Build the card rd-09 (\"The badly configured router\").\n1. Read cards/rd-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-09/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-09/card.test.js\nAnswer with one single line: \"OK rd-09\" or \"FAILED rd-09: <reason in a few words>\"."
+    },
+    {
+      "id": "rd-10",
+      "title": "Certificate warning",
+      "group": "networks",
+      "group_name": "Networks",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/rd-10/card.test.js"
+      ],
+      "files": [
+        "cards/rd-10/card.js"
+      ],
+      "instructions": "Build the card rd-10 (\"Certificate warning\").\n1. Read cards/rd-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-10/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-10/card.test.js\nAnswer with one single line: \"OK rd-10\" or \"FAILED rd-10: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-01",
+      "title": "The curious calculator",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-01/card.test.js"
+      ],
+      "files": [
+        "cards/pv-01/card.js"
+      ],
+      "instructions": "Build the card pv-01 (\"The curious calculator\").\n1. Read cards/pv-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-01/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-01/card.test.js\nAnswer with one single line: \"OK pv-01\" or \"FAILED pv-01: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-02",
+      "title": "The photo says where you are",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-02/card.test.js"
+      ],
+      "files": [
+        "cards/pv-02/card.js"
+      ],
+      "instructions": "Build the card pv-02 (\"The photo says where you are\").\n1. Read cards/pv-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-02/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-02/card.test.js\nAnswer with one single line: \"OK pv-02\" or \"FAILED pv-02: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-03",
+      "title": "The 1-pixel image",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-03/card.test.js"
+      ],
+      "files": [
+        "cards/pv-03/card.js"
+      ],
+      "instructions": "Build the card pv-03 (\"The 1-pixel image\").\n1. Read cards/pv-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-03/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-03/card.test.js\nAnswer with one single line: \"OK pv-03\" or \"FAILED pv-03: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-04",
+      "title": "Taking your data with you",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-04/card.test.js"
+      ],
+      "files": [
+        "cards/pv-04/card.js"
+      ],
+      "instructions": "Build the card pv-04 (\"Taking your data with you\").\n1. Read cards/pv-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-04/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-04/card.test.js\nAnswer with one single line: \"OK pv-04\" or \"FAILED pv-04: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-05",
+      "title": "Too much data for a newsletter",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-05/card.test.js"
+      ],
+      "files": [
+        "cards/pv-05/card.js"
+      ],
+      "instructions": "Build the card pv-05 (\"Too much data for a newsletter\").\n1. Read cards/pv-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-05/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-05/card.test.js\nAnswer with one single line: \"OK pv-05\" or \"FAILED pv-05: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-06",
+      "title": "Asking a company for your data",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-06/card.test.js"
+      ],
+      "files": [
+        "cards/pv-06/card.js"
+      ],
+      "instructions": "Build the card pv-06 (\"Asking a company for your data\").\n1. Read cards/pv-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-06/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-06/card.test.js\nAnswer with one single line: \"OK pv-06\" or \"FAILED pv-06: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-07",
+      "title": "No cookies and they still recognize you",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-07/card.test.js"
+      ],
+      "files": [
+        "cards/pv-07/card.js"
+      ],
+      "instructions": "Build the card pv-07 (\"No cookies and they still recognize you\").\n1. Read cards/pv-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-07/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-07/card.test.js\nAnswer with one single line: \"OK pv-07\" or \"FAILED pv-07: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-08",
+      "title": "The boarding pass photo",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-08/card.test.js"
+      ],
+      "files": [
+        "cards/pv-08/card.js"
+      ],
+      "instructions": "Build the card pv-08 (\"The boarding pass photo\").\n1. Read cards/pv-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-08/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-08/card.test.js\nAnswer with one single line: \"OK pv-08\" or \"FAILED pv-08: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-09",
+      "title": "Personal data in the URL",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-09/card.test.js"
+      ],
+      "files": [
+        "cards/pv-09/card.js"
+      ],
+      "instructions": "Build the card pv-09 (\"Personal data in the URL\").\n1. Read cards/pv-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-09/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-09/card.test.js\nAnswer with one single line: \"OK pv-09\" or \"FAILED pv-09: <reason in a few words>\"."
+    },
+    {
+      "id": "pv-10",
+      "title": "Who sees your post?",
+      "group": "privacy",
+      "group_name": "Privacy",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/pv-10/card.test.js"
+      ],
+      "files": [
+        "cards/pv-10/card.js"
+      ],
+      "instructions": "Build the card pv-10 (\"Who sees your post?\").\n1. Read cards/pv-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-10/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-10/card.test.js\nAnswer with one single line: \"OK pv-10\" or \"FAILED pv-10: <reason in a few words>\"."
+    },
+    {
+      "id": "es-01",
+      "title": "The CEO's urgent request",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-01/card.test.js"
+      ],
+      "files": [
+        "cards/es-01/card.js"
+      ],
+      "instructions": "Build the card es-01 (\"The CEO's urgent request\").\n1. Read cards/es-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-01/card.js, with the template given in the spec.\n3. Check: node --test cards/es-01/card.test.js\nAnswer with one single line: \"OK es-01\" or \"FAILED es-01: <reason in a few words>\"."
+    },
+    {
+      "id": "es-02",
+      "title": "Do you hold the door?",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-02/card.test.js"
+      ],
+      "files": [
+        "cards/es-02/card.js"
+      ],
+      "instructions": "Build the card es-02 (\"Do you hold the door?\").\n1. Read cards/es-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-02/card.js, with the template given in the spec.\n3. Check: node --test cards/es-02/card.test.js\nAnswer with one single line: \"OK es-02\" or \"FAILED es-02: <reason in a few words>\"."
+    },
+    {
+      "id": "es-03",
+      "title": "The bank on the phone",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-03/card.test.js"
+      ],
+      "files": [
+        "cards/es-03/card.js"
+      ],
+      "instructions": "Build the card es-03 (\"The bank on the phone\").\n1. Read cards/es-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-03/card.js, with the template given in the spec.\n3. Check: node --test cards/es-03/card.test.js\nAnswer with one single line: \"OK es-03\" or \"FAILED es-03: <reason in a few words>\"."
+    },
+    {
+      "id": "es-04",
+      "title": "15 approval requests",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-04/card.test.js"
+      ],
+      "files": [
+        "cards/es-04/card.js"
+      ],
+      "instructions": "Build the card es-04 (\"15 approval requests\").\n1. Read cards/es-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-04/card.js, with the template given in the spec.\n3. Check: node --test cards/es-04/card.test.js\nAnswer with one single line: \"OK es-04\" or \"FAILED es-04: <reason in a few words>\"."
+    },
+    {
+      "id": "es-05",
+      "title": "The migration story",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-05/card.test.js"
+      ],
+      "files": [
+        "cards/es-05/card.js"
+      ],
+      "instructions": "Build the card es-05 (\"The migration story\").\n1. Read cards/es-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-05/card.js, with the template given in the spec.\n3. Check: node --test cards/es-05/card.test.js\nAnswer with one single line: \"OK es-05\" or \"FAILED es-05: <reason in a few words>\"."
+    },
+    {
+      "id": "es-06",
+      "title": "The stages of a social engineering attack",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-06/card.test.js"
+      ],
+      "files": [
+        "cards/es-06/card.js"
+      ],
+      "instructions": "Build the card es-06 (\"The stages of a social engineering attack\").\n1. Read cards/es-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-06/card.js, with the template given in the spec.\n3. Check: node --test cards/es-06/card.test.js\nAnswer with one single line: \"OK es-06\" or \"FAILED es-06: <reason in a few words>\"."
+    },
+    {
+      "id": "es-07",
+      "title": "The USB drive in the parking lot",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-07/card.test.js"
+      ],
+      "files": [
+        "cards/es-07/card.js"
+      ],
+      "instructions": "Build the card es-07 (\"The USB drive in the parking lot\").\n1. Read cards/es-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-07/card.js, with the template given in the spec.\n3. Check: node --test cards/es-07/card.test.js\nAnswer with one single line: \"OK es-07\" or \"FAILED es-07: <reason in a few words>\"."
+    },
+    {
+      "id": "es-08",
+      "title": "Tailor-made phishing",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-08/card.test.js"
+      ],
+      "files": [
+        "cards/es-08/card.js"
+      ],
+      "instructions": "Build the card es-08 (\"Tailor-made phishing\").\n1. Read cards/es-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-08/card.js, with the template given in the spec.\n3. Check: node --test cards/es-08/card.test.js\nAnswer with one single line: \"OK es-08\" or \"FAILED es-08: <reason in a few words>\"."
+    },
+    {
+      "id": "es-09",
+      "title": "The supplier changed banks",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-09/card.test.js"
+      ],
+      "files": [
+        "cards/es-09/card.js"
+      ],
+      "instructions": "Build the card es-09 (\"The supplier changed banks\").\n1. Read cards/es-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-09/card.js, with the template given in the spec.\n3. Check: node --test cards/es-09/card.test.js\nAnswer with one single line: \"OK es-09\" or \"FAILED es-09: <reason in a few words>\"."
+    },
+    {
+      "id": "es-10",
+      "title": "The new number scam",
+      "group": "social-engineering",
+      "group_name": "Social engineering",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/es-10/card.test.js"
+      ],
+      "files": [
+        "cards/es-10/card.js"
+      ],
+      "instructions": "Build the card es-10 (\"The new number scam\").\n1. Read cards/es-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/es-10/card.js, with the template given in the spec.\n3. Check: node --test cards/es-10/card.test.js\nAnswer with one single line: \"OK es-10\" or \"FAILED es-10: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-01",
+      "title": "Decrypt Caesar's message",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
+        "lib-hash"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-01/card.test.js"
+      ],
+      "files": [
+        "cards/cr-01/card.js"
+      ],
+      "instructions": "Build the card cr-01 (\"Decrypt Caesar's message\").\n1. Read cards/cr-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-01/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-01/card.test.js\nAnswer with one single line: \"OK cr-01\" or \"FAILED cr-01: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-02",
+      "title": "The Base64 cookie",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
+        "lib-hash"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-02/card.test.js"
+      ],
+      "files": [
+        "cards/cr-02/card.js"
+      ],
+      "instructions": "Build the card cr-02 (\"The Base64 cookie\").\n1. Read cards/cr-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-02/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-02/card.test.js\nAnswer with one single line: \"OK cr-02\" or \"FAILED cr-02: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-03",
+      "title": "Which is the real file?",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
+        "lib-hash"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-03/card.test.js"
+      ],
+      "files": [
+        "cards/cr-03/card.js"
+      ],
+      "instructions": "Build the card cr-03 (\"Which is the real file?\").\n1. Read cards/cr-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-03/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-03/card.test.js\nAnswer with one single line: \"OK cr-03\" or \"FAILED cr-03: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-04",
+      "title": "Repeated hashes in the breach",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
+        "lib-hash"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-04/card.test.js"
+      ],
+      "files": [
+        "cards/cr-04/card.js"
+      ],
+      "instructions": "Build the card cr-04 (\"Repeated hashes in the breach\").\n1. Read cards/cr-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-04/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-04/card.test.js\nAnswer with one single line: \"OK cr-04\" or \"FAILED cr-04: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-05",
+      "title": "Hash or encryption?",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-05/card.test.js"
+      ],
+      "files": [
+        "cards/cr-05/card.js"
+      ],
+      "instructions": "Build the card cr-05 (\"Hash or encryption?\").\n1. Read cards/cr-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-05/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-05/card.test.js\nAnswer with one single line: \"OK cr-05\" or \"FAILED cr-05: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-06",
+      "title": "One letter changes everything",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
+        "lib-hash"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-06/card.test.js"
+      ],
+      "files": [
+        "cards/cr-06/card.js"
+      ],
+      "instructions": "Build the card cr-06 (\"One letter changes everything\").\n1. Read cards/cr-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-06/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-06/card.test.js\nAnswer with one single line: \"OK cr-06\" or \"FAILED cr-06: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-07",
+      "title": "From the weakest key to the strongest",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-07/card.test.js"
+      ],
+      "files": [
+        "cards/cr-07/card.js"
+      ],
+      "instructions": "Build the card cr-07 (\"From the weakest key to the strongest\").\n1. Read cards/cr-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-07/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-07/card.test.js\nAnswer with one single line: \"OK cr-07\" or \"FAILED cr-07: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-08",
+      "title": "Storing passwords: from worst to best",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-08/card.test.js"
+      ],
+      "files": [
+        "cards/cr-08/card.js"
+      ],
+      "instructions": "Build the card cr-08 (\"Storing passwords: from worst to best\").\n1. Read cards/cr-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-08/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-08/card.test.js\nAnswer with one single line: \"OK cr-08\" or \"FAILED cr-08: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-09",
+      "title": "The S in HTTPS",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-09/card.test.js"
+      ],
+      "files": [
+        "cards/cr-09/card.js"
+      ],
+      "instructions": "Build the card cr-09 (\"The S in HTTPS\").\n1. Read cards/cr-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-09/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-09/card.test.js\nAnswer with one single line: \"OK cr-09\" or \"FAILED cr-09: <reason in a few words>\"."
+    },
+    {
+      "id": "cr-10",
+      "title": "Truly random numbers",
+      "group": "cryptography",
+      "group_name": "Basic cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cr-10/card.test.js"
+      ],
+      "files": [
+        "cards/cr-10/card.js"
+      ],
+      "instructions": "Build the card cr-10 (\"Truly random numbers\").\n1. Read cards/cr-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-10/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-10/card.test.js\nAnswer with one single line: \"OK cr-10\" or \"FAILED cr-10: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-01",
+      "title": "The key in the code",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-01/card.test.js"
+      ],
+      "files": [
+        "cards/sc-01/card.js"
+      ],
+      "instructions": "Build the card sc-01 (\"The key in the code\").\n1. Read cards/sc-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-01/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-01/card.test.js\nAnswer with one single line: \"OK sc-01\" or \"FAILED sc-01: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-02",
+      "title": "I deleted the key in the next commit",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-02/card.test.js"
+      ],
+      "files": [
+        "cards/sc-02/card.js"
+      ],
+      "instructions": "Build the card sc-02 (\"I deleted the key in the next commit\").\n1. Read cards/sc-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-02/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-02/card.test.js\nAnswer with one single line: \"OK sc-02\" or \"FAILED sc-02: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-03",
+      "title": "The .env stays out",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-03/card.test.js"
+      ],
+      "files": [
+        "cards/sc-03/card.js"
+      ],
+      "instructions": "Build the card sc-03 (\"The .env stays out\").\n1. Read cards/sc-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-03/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-03/card.test.js\nAnswer with one single line: \"OK sc-03\" or \"FAILED sc-03: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-04",
+      "title": "From minimal access to full access",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-04/card.test.js"
+      ],
+      "files": [
+        "cards/sc-04/card.js"
+      ],
+      "instructions": "Build the card sc-04 (\"From minimal access to full access\").\n1. Read cards/sc-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-04/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-04/card.test.js\nAnswer with one single line: \"OK sc-04\" or \"FAILED sc-04: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-05",
+      "title": "The public bucket",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-05/card.test.js"
+      ],
+      "files": [
+        "cards/sc-05/card.js"
+      ],
+      "instructions": "Build the card sc-05 (\"The public bucket\").\n1. Read cards/sc-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-05/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-05/card.test.js\nAnswer with one single line: \"OK sc-05\" or \"FAILED sc-05: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-06",
+      "title": "The life of a secret",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-06/card.test.js"
+      ],
+      "files": [
+        "cards/sc-06/card.js"
+      ],
+      "instructions": "Build the card sc-06 (\"The life of a secret\").\n1. Read cards/sc-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-06/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-06/card.test.js\nAnswer with one single line: \"OK sc-06\" or \"FAILED sc-06: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-07",
+      "title": "The secret in the CI log",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-07/card.test.js"
+      ],
+      "files": [
+        "cards/sc-07/card.js"
+      ],
+      "instructions": "Build the card sc-07 (\"The secret in the CI log\").\n1. Read cards/sc-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-07/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-07/card.test.js\nAnswer with one single line: \"OK sc-07\" or \"FAILED sc-07: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-08",
+      "title": "The cloud root account",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-08/card.test.js"
+      ],
+      "files": [
+        "cards/sc-08/card.js"
+      ],
+      "instructions": "Build the card sc-08 (\"The cloud root account\").\n1. Read cards/sc-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-08/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-08/card.test.js\nAnswer with one single line: \"OK sc-08\" or \"FAILED sc-08: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-09",
+      "title": "The secret in the image",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-09/card.test.js"
+      ],
+      "files": [
+        "cards/sc-09/card.js"
+      ],
+      "instructions": "Build the card sc-09 (\"The secret in the image\").\n1. Read cards/sc-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-09/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-09/card.test.js\nAnswer with one single line: \"OK sc-09\" or \"FAILED sc-09: <reason in a few words>\"."
+    },
+    {
+      "id": "sc-10",
+      "title": "How the app reaches the database",
+      "group": "cloud-secrets",
+      "group_name": "Secrets and cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/sc-10/card.test.js"
+      ],
+      "files": [
+        "cards/sc-10/card.js"
+      ],
+      "instructions": "Build the card sc-10 (\"How the app reaches the database\").\n1. Read cards/sc-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-10/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-10/card.test.js\nAnswer with one single line: \"OK sc-10\" or \"FAILED sc-10: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-01",
+      "title": "From the weakest lock to the strongest",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-01/card.test.js"
+      ],
+      "files": [
+        "cards/mb-01/card.js"
+      ],
+      "instructions": "Build the card mb-01 (\"From the weakest lock to the strongest\").\n1. Read cards/mb-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-01/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-01/card.test.js\nAnswer with one single line: \"OK mb-01\" or \"FAILED mb-01: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-02",
+      "title": "The paid game for free",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-02/card.test.js"
+      ],
+      "files": [
+        "cards/mb-02/card.js"
+      ],
+      "instructions": "Build the card mb-02 (\"The paid game for free\").\n1. Read cards/mb-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-02/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-02/card.test.js\nAnswer with one single line: \"OK mb-02\" or \"FAILED mb-02: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-03",
+      "title": "The cleaner app wants accessibility",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-03/card.test.js"
+      ],
+      "files": [
+        "cards/mb-03/card.js"
+      ],
+      "instructions": "Build the card mb-03 (\"The cleaner app wants accessibility\").\n1. Read cards/mb-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-03/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-03/card.test.js\nAnswer with one single line: \"OK mb-03\" or \"FAILED mb-03: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-04",
+      "title": "The pending update",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-04/card.test.js"
+      ],
+      "files": [
+        "cards/mb-04/card.js"
+      ],
+      "instructions": "Build the card mb-04 (\"The pending update\").\n1. Read cards/mb-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-04/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-04/card.test.js\nAnswer with one single line: \"OK mb-04\" or \"FAILED mb-04: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-05",
+      "title": "How a phone number gets stolen",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-05/card.test.js"
+      ],
+      "files": [
+        "cards/mb-05/card.js"
+      ],
+      "instructions": "Build the card mb-05 (\"How a phone number gets stolen\").\n1. Read cards/mb-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-05/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-05/card.test.js\nAnswer with one single line: \"OK mb-05\" or \"FAILED mb-05: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-06",
+      "title": "You lost your phone",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-06/card.test.js"
+      ],
+      "files": [
+        "cards/mb-06/card.js"
+      ],
+      "instructions": "Build the card mb-06 (\"You lost your phone\").\n1. Read cards/mb-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-06/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-06/card.test.js\nAnswer with one single line: \"OK mb-06\" or \"FAILED mb-06: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-07",
+      "title": "Is the app ready for the store?",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-07/card.test.js"
+      ],
+      "files": [
+        "cards/mb-07/card.js"
+      ],
+      "instructions": "Build the card mb-07 (\"Is the app ready for the store?\").\n1. Read cards/mb-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-07/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-07/card.test.js\nAnswer with one single line: \"OK mb-07\" or \"FAILED mb-07: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-08",
+      "title": "Charging at the airport",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-08/card.test.js"
+      ],
+      "files": [
+        "cards/mb-08/card.js"
+      ],
+      "instructions": "Build the card mb-08 (\"Charging at the airport\").\n1. Read cards/mb-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-08/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-08/card.test.js\nAnswer with one single line: \"OK mb-08\" or \"FAILED mb-08: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-09",
+      "title": "Managing the company's phones",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-09/card.test.js"
+      ],
+      "files": [
+        "cards/mb-09/card.js"
+      ],
+      "instructions": "Build the card mb-09 (\"Managing the company's phones\").\n1. Read cards/mb-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-09/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-09/card.test.js\nAnswer with one single line: \"OK mb-09\" or \"FAILED mb-09: <reason in a few words>\"."
+    },
+    {
+      "id": "mb-10",
+      "title": "What shows on the lock screen",
+      "group": "mobile",
+      "group_name": "Mobile devices",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/mb-10/card.test.js"
+      ],
+      "files": [
+        "cards/mb-10/card.js"
+      ],
+      "instructions": "Build the card mb-10 (\"What shows on the lock screen\").\n1. Read cards/mb-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/mb-10/card.js, with the template given in the spec.\n3. Check: node --test cards/mb-10/card.test.js\nAnswer with one single line: \"OK mb-10\" or \"FAILED mb-10: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-01",
+      "title": "Find the path traversal",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-01/card.test.js"
+      ],
+      "files": [
+        "cards/cs-01/card.js"
+      ],
+      "instructions": "Build the card cs-01 (\"Find the path traversal\").\n1. Read cards/cs-01/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-01/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-01/card.test.js\nAnswer with one single line: \"OK cs-01\" or \"FAILED cs-01: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-02",
+      "title": "Validating age",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-02/card.test.js"
+      ],
+      "files": [
+        "cards/cs-02/card.js"
+      ],
+      "instructions": "Build the card cs-02 (\"Validating age\").\n1. Read cards/cs-02/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-02/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-02/card.test.js\nAnswer with one single line: \"OK cs-02\" or \"FAILED cs-02: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-03",
+      "title": "The password in the log",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-03/card.test.js"
+      ],
+      "files": [
+        "cards/cs-03/card.js"
+      ],
+      "instructions": "Build the card cs-03 (\"The password in the log\").\n1. Read cards/cs-03/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-03/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-03/card.test.js\nAnswer with one single line: \"OK cs-03\" or \"FAILED cs-03: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-04",
+      "title": "The calculator with eval",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-04/card.test.js"
+      ],
+      "files": [
+        "cards/cs-04/card.js"
+      ],
+      "instructions": "Build the card cs-04 (\"The calculator with eval\").\n1. Read cards/cs-04/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-04/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-04/card.test.js\nAnswer with one single line: \"OK cs-04\" or \"FAILED cs-04: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-05",
+      "title": "Fixing a vulnerable dependency",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-05/card.test.js"
+      ],
+      "files": [
+        "cards/cs-05/card.js"
+      ],
+      "instructions": "Build the card cs-05 (\"Fixing a vulnerable dependency\").\n1. Read cards/cs-05/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-05/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-05/card.test.js\nAnswer with one single line: \"OK cs-05\" or \"FAILED cs-05: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-06",
+      "title": "Values kept apart from the SQL",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-06/card.test.js"
+      ],
+      "files": [
+        "cards/cs-06/card.js"
+      ],
+      "instructions": "Build the card cs-06 (\"Values kept apart from the SQL\").\n1. Read cards/cs-06/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-06/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-06/card.test.js\nAnswer with one single line: \"OK cs-06\" or \"FAILED cs-06: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-07",
+      "title": "The error that says too much",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-07/card.test.js"
+      ],
+      "files": [
+        "cards/cs-07/card.js"
+      ],
+      "instructions": "Build the card cs-07 (\"The error that says too much\").\n1. Read cards/cs-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-07/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-07/card.test.js\nAnswer with one single line: \"OK cs-07\" or \"FAILED cs-07: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-08",
+      "title": "Unlimited attempts",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-08/card.test.js"
+      ],
+      "files": [
+        "cards/cs-08/card.js"
+      ],
+      "instructions": "Build the card cs-08 (\"Unlimited attempts\").\n1. Read cards/cs-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-08/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-08/card.test.js\nAnswer with one single line: \"OK cs-08\" or \"FAILED cs-08: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-09",
+      "title": "Find the command injection",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-09/card.test.js"
+      ],
+      "files": [
+        "cards/cs-09/card.js"
+      ],
+      "instructions": "Build the card cs-09 (\"Find the command injection\").\n1. Read cards/cs-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-09/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-09/card.test.js\nAnswer with one single line: \"OK cs-09\" or \"FAILED cs-09: <reason in a few words>\"."
+    },
+    {
+      "id": "cs-10",
+      "title": "Pinned versions",
+      "group": "secure-code",
+      "group_name": "Secure code",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
+        "node",
+        "--test",
+        "cards/cs-10/card.test.js"
+      ],
+      "files": [
+        "cards/cs-10/card.js"
+      ],
+      "instructions": "Build the card cs-10 (\"Pinned versions\").\n1. Read cards/cs-10/spec.md and cards/CONTRACT.md.\n2. Write only cards/cs-10/card.js, with the template given in the spec.\n3. Check: node --test cards/cs-10/card.test.js\nAnswer with one single line: \"OK cs-10\" or \"FAILED cs-10: <reason in a few words>\"."
+    },
+    {
+      "id": "category-page",
+      "title": "Category page",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/category-page.md",
+      "depends_on": [
+        "*cards"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "pages/category.test.js"
+      ],
+      "files": [
+        "pages/category.js"
+      ],
+      "instructions": "Implement pages/category.js as described in specs/category-page.md. Follow DESIGN.md.\nCheck: node --test pages/category.test.js\nAnswer with one single line: \"OK category-page\" or \"FAILED category-page: <reason>\"."
+    },
+    {
+      "id": "score-table",
+      "title": "Score table",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/score-table.md",
+      "depends_on": [
+        "*cards"
+      ],
+      "test": [
+        "node",
+        "--test",
+        "pages/score.test.js"
+      ],
+      "files": [
+        "pages/score.js"
+      ],
+      "instructions": "Implement pages/score.js as described in specs/score-table.md. Follow DESIGN.md.\nCheck: node --test pages/score.test.js\nAnswer with one single line: \"OK score-table\" or \"FAILED score-table: <reason>\"."
+    },
+    {
+      "id": "integration",
+      "title": "Integration and full suite",
+      "group": "integration",
+      "group_type": "integration",
+      "wave": 3,
+      "agent": "integrator",
+      "spec": "specs/integration.md",
+      "depends_on": [
+        "category-page",
+        "score-table",
+        "*cards"
+      ],
+      "test": [
+        "node",
+        "tools/check-integration.mjs"
+      ],
+      "files": [
+        "public/",
+        "pages/"
+      ],
+      "instructions": "Final integration. Follow specs/integration.md.\nRun the full suite: node --test\nAnswer with one single line: \"OK integration\" or \"FAILED integration: <reason>\"."
+    },
+    {
+      "id": "review",
+      "title": "Security and quality review",
+      "group": "review",
+      "group_type": "review",
+      "wave": 4,
+      "agent": "reviewer",
+      "spec": "specs/review.md",
+      "depends_on": [
+        "integration"
+      ],
+      "test": {
+        "json_file": ".workshop/verdict.json",
+        "field": "verdict"
+      },
+      "files": [
+        ".workshop/verdict.json"
+      ],
+      "prepare": [
+        "node",
+        "tools/review-digest.mjs"
+      ],
+      "instructions": "Security and quality review. Follow specs/review.md.\nRead .workshop/review-summary.md first (already generated). Write the verdict to .workshop/verdict.json.\nAnswer with one single line: \"OK review: <verdict>\"."
+    }
+  ]
+}

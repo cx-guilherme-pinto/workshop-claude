@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Swarm status of the Security Arena: one square per task, live.">
+  <title>Swarm status · Security Arena</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/status.css">
+  <script type="module" src="/status.js"></script>
+</head>
+<body class="status-page">
+  <a class="skip-link" href="#board">Skip to the tasks</a>
+  <header class="top-bar">
+    <a class="brand" href="/">Security Arena</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">Challenges</a>
+      <a href="/#/score">Score</a>
+      <a href="/status" aria-current="page">Swarm status</a>
+    </nav>
+  </header>
+  <main id="content">
+    <section class="status-top" aria-labelledby="status-title">
+      <div class="status-row">
+        <div class="status-titles">
+          <h1 class="section-title" id="status-title">Swarm status</h1>
+          <p class="note" id="status-sub" aria-live="polite">Connecting to the server…</p>
+        </div>
+        <div class="replay" id="replay" hidden></div>
+      </div>
+      <dl class="counters">
+        <div class="counter" data-state="green"><dt>green</dt><dd class="number" id="n-green">0</dd></div>
+        <div class="counter" data-state="working"><dt>working</dt><dd class="number" id="n-working">0</dd></div>
+        <div class="counter" data-state="red"><dt>red</dt><dd class="number" id="n-red">0</dd></div>
+        <div class="counter" data-state="todo"><dt>to do</dt><dd class="number" id="n-todo">0</dd></div>
+      </dl>
+      <dl class="meters">
+        <div class="meter">
+          <dt>time since the start</dt>
+          <dd><span class="number meter-value" id="time">0:00</span> <span class="note number" id="time-note"></span></dd>
+        </div>
+        <div class="meter">
+          <dt id="cost-label">total cost, target US$ 5.00</dt>
+          <dd><span class="number meter-value" id="cost">US$ 0.00</span> <span class="note number" id="cost-note"></span></dd>
+          <dd class="cost-bar" id="cost-bar" role="meter" aria-labelledby="cost-label" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span class="cost-bar-value" id="cost-bar-value"></span></dd>
+        </div>
+      </dl>
+    </section>
+    <section class="board" id="board" tabindex="-1" aria-label="Swarm tasks">
+      <ul class="squares" id="squares" role="list" data-density="large"></ul>
+      <div class="board-empty" id="board-empty" hidden>
+        <h2 class="section-title">No plan yet</h2>
+        <p>In Claude Code, run <strong>/demo-plan</strong> and then <strong>/demo-swarm</strong>. Each task shows up here as a square and changes color live.</p>
+        <a class="button" id="see-example" href="/status?replay=example" hidden>See the example replay</a>
+      </div>
+    </section>
+  </main>
+  <dialog class="panel" id="panel" aria-labelledby="panel-title"></dialog>
+</body>
+</html>

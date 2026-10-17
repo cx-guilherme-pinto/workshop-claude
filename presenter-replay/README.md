@@ -5,7 +5,7 @@ This folder holds the **final Arena** of a real run and the data to replay it wi
 | Folder | Language | Run |
 |---|---|---|
 | `arena/` | Portuguese | presenter mode: 100 cards, 107 agents, 6.9 min, US$ 2.55, 105/105 tasks green |
-| `arena-en/` | English | built from the English recording (see `README` in that folder when it exists) |
+| `arena-en/` | English | participant mode, recorded for the English deck: 100 cards, 107 agents, 8.6 min, US$ 3.36, 105/105 tasks green |
 
 ## Plan B, if the video fails on the projector
 

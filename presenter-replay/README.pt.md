@@ -5,7 +5,7 @@ Esta pasta guarda a **Arena final** de uma execução real e os dados para a rep
 | Pasta | Língua | Execução |
 |---|---|---|
 | `arena/` | português | modo apresentador: 100 cartões, 107 agentes, 6,9 min, US$ 2,55, 105/105 tarefas verdes |
-| `arena-en/` | inglês | feita a partir da gravação em inglês |
+| `arena-en/` | inglês | modo participante, gravada para a apresentação em inglês: 100 cartões, 107 agentes, 8,6 min, US$ 3,36, 105/105 tarefas verdes |
 
 ## Plano B, se o vídeo falhar no projetor
 

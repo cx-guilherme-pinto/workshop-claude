@@ -236,7 +236,7 @@ export const T = {
     badRequest: 'Pedido inválido.\n',
     internalError: 'Erro interno.\n',
     invalidPort: (v) => `Porta inválida: ${v}`,
-    portBusy: (asked, port) => `A porta ${asked} estava ocupada; uso a ${port}.`,
+    portBusy: (asked, port) => `A porta ${asked} já está a ser usada por outro programa; uso a ${port}. Abre os endereços abaixo (não o localhost:${asked}).`,
     arena: (url) => `Arena de Segurança:  ${url}`,
     status: (url) => `Estado do swarm:     ${url}`,
     replay: (url) => `Repetição de exemplo: ${url}`,
