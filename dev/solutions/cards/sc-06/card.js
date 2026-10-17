@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'sc-06',
   title: 'A vida de um segredo',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 2,
   concept: 'Um segredo tem ciclo de vida: cria-se num cofre, roda-se com regularidade e revoga-se no fim.',
   prompt: 'Ordena o ciclo de vida de uma chave de API, do primeiro ao último passo.',

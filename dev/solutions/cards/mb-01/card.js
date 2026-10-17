@@ -1,6 +1,6 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'mb-01',
   title: 'Do bloqueio mais fraco ao mais forte',
   category: 'mobile',

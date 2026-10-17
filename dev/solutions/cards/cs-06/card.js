@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'cs-06',
   title: 'Valores separados do SQL',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 2,
   concept: 'Consultas parametrizadas enviam o SQL e os valores em separado, e a base de dados nunca os mistura.',
   prompt: 'Como se chama a técnica de escrever o SQL com marcadores (como ?) e enviar os valores à parte?',

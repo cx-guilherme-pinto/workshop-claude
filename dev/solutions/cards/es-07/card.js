@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'es-07',
   title: 'A pen USB no parque',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Baiting: deixar um objeto apelativo, como uma pen USB, à espera de que alguém o use.',
   prompt: "Encontras uma pen USB no parque da empresa com a etiqueta 'Salários 2026'. O que fazes?",

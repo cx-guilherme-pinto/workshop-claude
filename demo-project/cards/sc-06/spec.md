@@ -1,8 +1,8 @@
 # Cartão sc-06 — A vida de um segredo
 
-- **Categoria:** segredos-cloud
+- **Categoria:** cloud-secrets
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

@@ -1,6 +1,6 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'web-08',
   title: 'A sessão do princípio ao fim',
   category: 'web',

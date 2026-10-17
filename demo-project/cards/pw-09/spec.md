@@ -2,7 +2,7 @@
 
 - **Categoria:** passwords
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

@@ -1,6 +1,6 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'web-01',
   title: 'Encontra a injeção SQL',
   category: 'web',

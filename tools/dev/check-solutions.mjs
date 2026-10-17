@@ -1,42 +1,44 @@
 #!/usr/bin/env node
-// Prova que todos os testes pre-escritos da Arena sao satisfaziveis:
-// copia o projeto demo para uma pasta temporaria, junta as solucoes de referencia
-// (dev/solutions, que NAO entram no kit) e corre a suite completa.
+// Proves that every pre-written test of the Arena can be satisfied:
+// copies the demo project to a temporary folder, adds the reference solutions
+// (dev/solutions, which are NOT part of the kit) and runs the full suite.
 //
-//   node tools/dev/check-solutions.mjs [--lingua en] [--keep]
+//   node tools/dev/check-solutions.mjs [--lang en] [--keep]      (--lingua still works)
 //
-// Com --lingua en monta a Arena em ingles como o instalador (installer/assemble-demo.mjs: demo-project/
-// sem i18n/, com i18n/en/ por cima e os cartoes gerados de novo), junta dev/solutions e, por cima,
-// dev/solutions/i18n/en/ (as solucoes que mudam em ingles: respostas livres e paginas).
+// With --lang en it assembles the English Arena like the installer (installer/assemble-demo.mjs: demo-project/
+// without i18n/, with i18n/en/ on top and the cards generated again), adds dev/solutions and, on top,
+// dev/solutions/i18n/en/ (the solutions that change in English: free answers and pages).
 import { cpSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { copiarArena } from '../../installer/assemble-demo.mjs';
+import * as installer from '../../installer/assemble-demo.mjs';
 
 const KIT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
-const i = argv.indexOf('--lingua');
-const lingua = i >= 0 ? argv[i + 1] : 'pt';
-if (!['pt', 'en'].includes(lingua)) {
-  console.error('--lingua tem de ser pt ou en');
+const i = argv.findIndex((a) => a === '--lang' || a === '--lingua');
+const lang = i >= 0 ? argv[i + 1] : 'pt';
+if (!['pt', 'en'].includes(lang)) {
+  console.error('--lang must be pt or en');
   process.exit(2);
 }
+// The installer's function that copies the Arena (it had a Portuguese name before).
+const copyArena = installer.copyArena ?? installer.copiarArena;
 
-const SOLUCOES = join(KIT, 'dev/solutions');
-const tmp = mkdtempSync(join(tmpdir(), 'arena-solucoes-'));
+const SOLUTIONS = join(KIT, 'dev/solutions');
+const tmp = mkdtempSync(join(tmpdir(), 'arena-solutions-'));
 try {
-  if (lingua === 'pt') {
+  if (lang === 'pt') {
     cpSync(join(KIT, 'demo-project'), tmp, { recursive: true, filter: (p) => !p.includes(`${'/'}.workshop`) && resolve(p) !== resolve(KIT, 'demo-project/i18n') });
   } else {
-    copiarArena(tmp, lingua);
+    copyArena(tmp, lang);
   }
-  if (existsSync(SOLUCOES)) cpSync(SOLUCOES, tmp, { recursive: true, filter: (p) => resolve(p) !== resolve(SOLUCOES, 'i18n') });
-  if (existsSync(join(SOLUCOES, 'i18n', lingua))) cpSync(join(SOLUCOES, 'i18n', lingua), tmp, { recursive: true });
-  const r = spawnSync(process.execPath, ['--test', '--test-timeout=10000'], { cwd: tmp, stdio: 'inherit', env: { ...process.env, WORKSHOP_LANG: lingua } });
+  if (existsSync(SOLUTIONS)) cpSync(SOLUTIONS, tmp, { recursive: true, filter: (p) => resolve(p) !== resolve(SOLUTIONS, 'i18n') });
+  if (existsSync(join(SOLUTIONS, 'i18n', lang))) cpSync(join(SOLUTIONS, 'i18n', lang), tmp, { recursive: true });
+  const r = spawnSync(process.execPath, ['--test', '--test-timeout=10000'], { cwd: tmp, stdio: 'inherit', env: { ...process.env, WORKSHOP_LANG: lang } });
   process.exitCode = r.status ?? 1;
 } finally {
   if (!argv.includes('--keep')) rmSync(tmp, { recursive: true, force: true });
-  else console.log('pasta mantida:', tmp);
+  else console.log('folder kept:', tmp);
 }

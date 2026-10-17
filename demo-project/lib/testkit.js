@@ -1,7 +1,7 @@
-// Testkit da Arena: a mesma API de testes em Node (node:test) e no browser.
-// Os testes importam daqui, nunca de "node:test" diretamente, para poderem correr nos dois.
+// The Arena testkit: the same test API in Node (node:test) and in the browser.
+// Tests import from here, never from "node:test" directly, so that they run in both.
 //
-//   import { test, assert, readSource, novoContentor } from '../../lib/testkit.js';
+//   import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
 
 const isNode = typeof process !== 'undefined' && !!process.versions?.node && typeof window === 'undefined';
 
@@ -15,7 +15,7 @@ if (isNode) {
     test: nodeTest.test,
     assert: nodeAssert.default,
     readSource: (rel, base) => readFile(new URL(rel, base), 'utf8'),
-    novoContentor: () => {
+    newContainer: () => {
       const doc = createFakeDocument();
       const c = doc.createElement('div');
       doc.body.appendChild(c);
@@ -29,5 +29,5 @@ if (isNode) {
 export const test = api.test;
 export const assert = api.assert;
 export const readSource = api.readSource;
-export const novoContentor = api.novoContentor;
-export const ambiente = isNode ? 'node' : 'browser';
+export const newContainer = api.newContainer;
+export const environment = isNode ? 'node' : 'browser';

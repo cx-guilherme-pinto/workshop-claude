@@ -1,8 +1,8 @@
 # Cartão rd-04 — O que acontece ao abrir um site HTTPS
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

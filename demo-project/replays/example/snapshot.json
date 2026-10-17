@@ -1,0 +1,340 @@
+{
+  "description": "Execução sintética de 15 tarefas no modo participante, para ensaiar o /status. Não é uma gravação real.",
+  "synthetic": true,
+  "generated_at": "2026-10-16T14:20:02.000Z",
+  "mode": "participant",
+  "start": "2026-10-16T14:00:00.000Z",
+  "end": "2026-10-16T14:20:00.000Z",
+  "total": 15,
+  "counts": {
+    "todo": 0,
+    "working": 0,
+    "green": 14,
+    "red": 0,
+    "failed": 1
+  },
+  "cost": {
+    "total": 2.6686,
+    "main": 0.5391,
+    "subagents": 2.1295
+  },
+  "budget": {
+    "target_usd": 5,
+    "cap_usd": 10
+  },
+  "tasks": [
+    {
+      "id": "lib-hash",
+      "title": "Utilitário de criptografia lib/hash.js",
+      "group": "support",
+      "group_type": "lib",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 38,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test lib/hash.test.js",
+        "code": 0,
+        "passed": 5,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "ph-01",
+      "title": "Qual é o site verdadeiro?",
+      "group": "phishing",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 22,
+      "cost_usd": 0.0034,
+      "test": {
+        "command": "node --test cards/ph-01/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "ph-02",
+      "title": "O que denuncia este email?",
+      "group": "phishing",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 2,
+      "agent": "worker-11",
+      "model": "claude-haiku-5-5",
+      "seconds": 20,
+      "cost_usd": 0.0073,
+      "test": {
+        "command": "node --test cards/ph-02/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "pv-01",
+      "title": "A calculadora curiosa",
+      "group": "privacy",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 19,
+      "cost_usd": 0.0029,
+      "test": {
+        "command": "node --test cards/pv-01/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "pw-01",
+      "title": "Qual é a password mais forte?",
+      "group": "passwords",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 14,
+      "cost_usd": 0.0016,
+      "test": {
+        "command": "node --test cards/pw-01/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "pw-02",
+      "title": "Do segundo fator mais forte ao mais fraco",
+      "group": "passwords",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 18,
+      "cost_usd": 0.0027,
+      "test": {
+        "command": "node --test cards/pw-02/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "rd-01",
+      "title": "Duas redes no café",
+      "group": "networks",
+      "group_type": "card",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "implementer-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 84,
+      "cost_usd": 0.0995,
+      "test": {
+        "command": "node --test cards/rd-01/card.test.js",
+        "code": 1,
+        "passed": 4,
+        "failed": 2,
+        "excerpt": "✖ rd-01: rejeita as respostas erradas (0.41ms)\nAssertionError [ERR_ASSERTION]: validate não devia aceitar \"a\"\n✖ rd-01: desenha o desafio e devolve a resposta (1.2ms)\nAssertionError [ERR_ASSERTION]: a interação devia devolver a resposta certa",
+        "ms": 412
+      }
+    },
+    {
+      "id": "web-01",
+      "title": "Encontra a injeção SQL",
+      "group": "web",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 17,
+      "cost_usd": 0.0024,
+      "test": {
+        "command": "node --test cards/web-01/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "web-02",
+      "title": "Encontra o XSS",
+      "group": "web",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-13",
+      "model": "claude-haiku-5-5",
+      "seconds": 21,
+      "cost_usd": 0.003,
+      "test": {
+        "command": "node --test cards/web-02/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "cr-01",
+      "title": "Decifra a mensagem de César",
+      "group": "cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-09",
+      "model": "claude-haiku-5-5",
+      "seconds": 24,
+      "cost_usd": 0.0035,
+      "test": {
+        "command": "node --test cards/cr-01/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "cr-02",
+      "title": "O cookie em Base64",
+      "group": "cryptography",
+      "group_type": "card",
+      "wave": 1,
+      "state": "green",
+      "attempt": 3,
+      "agent": "implementer-02",
+      "model": "claude-sonnet-5-5",
+      "seconds": 71,
+      "cost_usd": 0.0943,
+      "test": {
+        "command": "node --test cards/cr-02/card.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "category-page",
+      "title": "Página de categoria",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "state": "green",
+      "attempt": 1,
+      "agent": "implementer-03",
+      "model": "claude-sonnet-5-5",
+      "seconds": 248,
+      "cost_usd": 0.3121,
+      "test": {
+        "command": "node --test pages/category.test.js",
+        "code": 0,
+        "passed": 14,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "score-table",
+      "title": "Tabela de pontuação",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "state": "green",
+      "attempt": 1,
+      "agent": "implementer-04",
+      "model": "claude-sonnet-5-5",
+      "seconds": 205,
+      "cost_usd": 0.2688,
+      "test": {
+        "command": "node --test pages/score.test.js",
+        "code": 0,
+        "passed": 12,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 380
+      }
+    },
+    {
+      "id": "integration",
+      "title": "Integração e suite completa",
+      "group": "integration",
+      "group_type": "integration",
+      "wave": 3,
+      "state": "green",
+      "attempt": 1,
+      "agent": "integrator-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 371,
+      "cost_usd": 0.5817,
+      "test": {
+        "command": "node tools/check-integration.mjs",
+        "code": 0,
+        "passed": 96,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 21840
+      }
+    },
+    {
+      "id": "review",
+      "title": "Revisão de segurança e qualidade",
+      "group": "review",
+      "group_type": "review",
+      "wave": 4,
+      "state": "green",
+      "attempt": 1,
+      "agent": "reviewer-01",
+      "model": "claude-opus-5-5",
+      "seconds": 136,
+      "cost_usd": 0.7412,
+      "test": {
+        "file": ".workshop/verdict.json",
+        "value": "approved_with_reservations",
+        "excerpt": "",
+        "ms": 12
+      }
+    }
+  ]
+}

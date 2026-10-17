@@ -1,8 +1,8 @@
 # Cartão es-02 — Seguras a porta?
 
-- **Categoria:** engenharia-social
+- **Categoria:** social-engineering
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'sc-05',
   title: 'O bucket público',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 1,
   concept: 'Um bucket com leitura pública fica acessível a qualquer pessoa na internet.',
   prompt: 'O bucket atlas-backups tem a leitura pública ativa. Quem consegue ler os backups?',

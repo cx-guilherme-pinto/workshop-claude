@@ -1,19 +1,19 @@
-import { resposta, normalizar } from '../../templates/resposta.js';
+import { answer, normalize } from '../../templates/answer.js';
 import { sha256Hex } from '../../lib/hash.js';
 
 const PASSWORDS = { ana: 'summer2026', tom: 'blue-cat-77', eva: 'summer2026' };
 const HASHES = Object.fromEntries(Object.entries(PASSWORDS).map(([u, p]) => [u, sha256Hex(p)]));
 const REPEATED = Object.keys(HASHES).filter((u) => Object.values(HASHES).filter((x) => x === HASHES[u]).length > 1);
 
-export default resposta({
+export default answer({
   id: 'cr-04',
   title: 'Repeated hashes in the breach',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
   concept: 'Without a salt, identical passwords give identical hashes and stand out in a breach.',
   prompt: 'In a breach, the passwords were stored with SHA-256 and no salt. Which two users have the same password?',
   scenario: {
-    kind: 'texto',
+    kind: 'text',
     label: 'Stolen table',
     lines: [
       'ana: 6a0436eecdad379345d804a9e4861a46e2135054879760acaf8d88534f871b26',

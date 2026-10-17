@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'cr-09',
   title: 'O S do HTTPS',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 1,
   concept: 'O HTTPS é HTTP dentro de TLS; o antigo SSL já não é seguro.',
   prompt: 'Que protocolo cifra a ligação quando vês https:// na barra do browser?',

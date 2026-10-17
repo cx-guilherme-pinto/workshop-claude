@@ -1,8 +1,8 @@
 # Cartão rd-10 — Aviso de certificado
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

@@ -1,8 +1,8 @@
 # Cartão cs-05 — Corrigir uma dependência vulnerável
 
-- **Categoria:** codigo-seguro
+- **Categoria:** secure-code
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

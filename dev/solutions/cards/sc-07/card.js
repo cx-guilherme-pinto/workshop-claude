@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'sc-07',
   title: 'O segredo no registo do CI',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 2,
   concept: 'Tudo o que um pipeline escreve fica nos registos, que muita gente pode ler.',
   prompt: 'Este pipeline de CI corre em cada push. Que passo expõe um segredo?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'steps:',
     '  - run: npm ci',

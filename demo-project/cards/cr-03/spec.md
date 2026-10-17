@@ -1,8 +1,8 @@
 # Cartão cr-03 — Qual é o ficheiro verdadeiro?
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 - **Depende de:** lib-hash
 
 ## Conceito
@@ -17,7 +17,7 @@ Descarregaste o instalador da Empresa Atlas de três sítios. Qual ficheiro (A, 
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "Hashes SHA-256",
   "lines": [
     "Publicado: aead3ef36683a19ac4daef563b4c4c88076a8e63d039cc71cce386bd856aa07a",

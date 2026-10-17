@@ -2,7 +2,7 @@
 
 - **Categoria:** phishing
 - **Dificuldade:** 1
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Este SMS chegou ao teu telemóvel. Que trechos são sinais de smishing?
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

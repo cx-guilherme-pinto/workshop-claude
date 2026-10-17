@@ -1,6 +1,6 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'pw-10',
   title: 'Entrar sem password',
   category: 'passwords',

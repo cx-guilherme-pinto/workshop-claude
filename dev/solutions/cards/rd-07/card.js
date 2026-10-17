@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'rd-07',
   title: 'DNS que ninguém lê',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'O DNS tradicional viaja sem cifra; o DoH esconde os nomes que consultas.',
   prompt: 'Que sigla designa o DNS cifrado dentro de HTTPS?',

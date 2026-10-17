@@ -1,8 +1,8 @@
 # Cartão pv-09 — Dados pessoais no URL
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 2
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 

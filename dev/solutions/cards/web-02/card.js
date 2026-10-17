@@ -1,6 +1,6 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'web-02',
   title: 'Encontra o XSS',
   category: 'web',

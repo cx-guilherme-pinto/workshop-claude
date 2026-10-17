@@ -1,8 +1,8 @@
 # Cartão pv-08 — A foto do cartão de embarque
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

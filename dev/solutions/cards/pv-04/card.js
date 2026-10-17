@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'pv-04',
   title: 'Levar os dados contigo',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'O RGPD dá-te o direito de receber os teus dados num formato que outro serviço consegue ler.',
   prompt: 'Que direito do RGPD te deixa levar os teus dados para outro serviço, num formato legível por máquina?',

@@ -1,6 +1,6 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'mb-06',
   title: 'Perdeste o telemóvel',
   category: 'mobile',

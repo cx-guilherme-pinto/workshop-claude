@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'pv-02',
   title: 'A foto diz onde estás',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'Os metadados EXIF de uma foto podem guardar as coordenadas GPS de onde foi tirada.',
   prompt: 'Como se chamam os metadados de uma foto que podem guardar a data, o modelo do telemóvel e as coordenadas GPS?',

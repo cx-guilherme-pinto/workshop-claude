@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'es-06',
   title: 'As fases de um ataque de engenharia social',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 2,
   concept: 'Um ataque de engenharia social começa muito antes do contacto: com pesquisa sobre o alvo.',
   prompt: 'Ordena as fases do ataque, da primeira à última.',

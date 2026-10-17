@@ -1,4 +1,4 @@
-// Solucao de referencia (NAO faz parte do kit). Prova que lib/hash.test.js e satisfazivel.
+// Reference solution (NOT part of the kit). Proves that lib/hash.test.js can be satisfied.
 
 const K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -13,20 +13,20 @@ const K = new Uint32Array([
 
 const rotr = (x, n) => (x >>> n) | (x << (32 - n));
 
-export function sha256Hex(texto) {
-  const dados = new TextEncoder().encode(String(texto));
-  const bits = dados.length * 8;
-  const tamanho = Math.ceil((dados.length + 9) / 64) * 64;
-  const buf = new Uint8Array(tamanho);
-  buf.set(dados);
-  buf[dados.length] = 0x80;
-  const vista = new DataView(buf.buffer);
-  vista.setUint32(tamanho - 8, Math.floor(bits / 0x100000000));
-  vista.setUint32(tamanho - 4, bits >>> 0);
+export function sha256Hex(text) {
+  const data = new TextEncoder().encode(String(text));
+  const bits = data.length * 8;
+  const size = Math.ceil((data.length + 9) / 64) * 64;
+  const buf = new Uint8Array(size);
+  buf.set(data);
+  buf[data.length] = 0x80;
+  const view = new DataView(buf.buffer);
+  view.setUint32(size - 8, Math.floor(bits / 0x100000000));
+  view.setUint32(size - 4, bits >>> 0);
   const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
   const W = new Uint32Array(64);
-  for (let o = 0; o < tamanho; o += 64) {
-    for (let t = 0; t < 16; t++) W[t] = vista.getUint32(o + t * 4);
+  for (let o = 0; o < size; o += 64) {
+    for (let t = 0; t < 16; t++) W[t] = view.getUint32(o + t * 4);
     for (let t = 16; t < 64; t++) {
       const s0 = rotr(W[t - 15], 7) ^ rotr(W[t - 15], 18) ^ (W[t - 15] >>> 3);
       const s1 = rotr(W[t - 2], 17) ^ rotr(W[t - 2], 19) ^ (W[t - 2] >>> 10);
@@ -47,22 +47,22 @@ export function sha256Hex(texto) {
   return Array.from(H, (x) => x.toString(16).padStart(8, '0')).join('');
 }
 
-export function cesar(texto, deslocamento) {
-  const n = ((Number(deslocamento) % 26) + 26) % 26;
-  return String(texto).replace(/[a-zA-Z]/g, (ch) => {
+export function caesar(text, shift) {
+  const n = ((Number(shift) % 26) + 26) % 26;
+  return String(text).replace(/[a-zA-Z]/g, (ch) => {
     const base = ch <= 'Z' ? 65 : 97;
     return String.fromCharCode(((ch.charCodeAt(0) - base + n) % 26) + base);
   });
 }
 
-export function paraBase64(texto) {
-  const bytes = new TextEncoder().encode(String(texto));
+export function toBase64(text) {
+  const bytes = new TextEncoder().encode(String(text));
   let bin = '';
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin);
 }
 
-export function deBase64(b64) {
+export function fromBase64(b64) {
   const bin = atob(String(b64));
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }

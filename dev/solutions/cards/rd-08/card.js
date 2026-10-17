@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'rd-08',
   title: 'Onde ligar as câmaras baratas',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'Separar dispositivos pouco fiáveis numa rede própria limita o estrago se forem atacados.',
   prompt: 'Compraste câmaras Wi-Fi baratas para casa. Onde as ligas?',

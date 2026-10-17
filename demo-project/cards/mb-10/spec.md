@@ -2,7 +2,7 @@
 
 - **Categoria:** mobile
 - **Dificuldade:** 1
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Este é o ecrã bloqueado do teu telemóvel. Que notificação não devia aparec
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

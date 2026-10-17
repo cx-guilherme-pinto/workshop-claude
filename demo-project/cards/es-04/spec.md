@@ -1,8 +1,8 @@
 # Cartão es-04 — 15 pedidos de aprovação
 
-- **Categoria:** engenharia-social
+- **Categoria:** social-engineering
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

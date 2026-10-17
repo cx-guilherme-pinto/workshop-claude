@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'sc-10',
   title: 'Como a app chega à base de dados',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 2,
   concept: 'Credenciais temporárias, dadas pela cloud a um serviço, evitam chaves fixas que podem vazar.',
   prompt: 'Uma app na cloud precisa de ler uma base de dados. Que credencial é mais segura?',

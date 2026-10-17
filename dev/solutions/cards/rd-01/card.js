@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'rd-01',
   title: 'Duas redes no café',
-  category: 'redes',
+  category: 'networks',
   difficulty: 1,
   concept: 'Qualquer pessoa pode criar uma rede Wi-Fi com o nome de um café (evil twin).',
   prompt: "No café aparecem as redes 'Cafe_Central' e 'Cafe_Central_Gratis'. O que fazes?",

@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'es-03',
   title: 'O banco ao telefone',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Vishing: burla por chamada de voz em que o burlão finge ser do banco ou do apoio técnico.',
   prompt: "Liga alguém do 'apoio do Banco Luz' e pede o código que acabaste de receber por SMS. Quantas vezes um banco a sério te pede esse código ao telefone?",

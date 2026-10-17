@@ -1,6 +1,6 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'ph-07',
   title: 'O link mente',
   category: 'phishing',
@@ -8,7 +8,7 @@ export default resposta({
   concept: 'O texto de um link pode mostrar um endereço e levar a outro.',
   prompt: 'Num email, o link mostra um endereço, mas ao passar o rato o browser mostra outro. Que domínio vais abrir se clicares?',
   scenario: {
-    kind: 'texto',
+    kind: 'text',
     label: 'Link no email',
     lines: [
       'Texto do link: https://bancoluz.example/extrato',

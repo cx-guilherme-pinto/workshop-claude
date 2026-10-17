@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'cr-07',
   title: 'Da chave mais fraca à mais forte',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 1,
   concept: 'Cada bit a mais numa chave duplica o número de chaves que um atacante tem de testar.',
   prompt: 'Ordena estas cifras, da chave mais fraca à mais forte.',

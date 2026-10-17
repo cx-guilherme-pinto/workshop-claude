@@ -1,6 +1,6 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'ph-06',
   title: 'Lê o URL pela ordem certa',
   category: 'phishing',

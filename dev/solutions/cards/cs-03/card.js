@@ -1,9 +1,9 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'cs-03',
   title: 'A password no registo',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 1,
   concept: 'Passwords e tokens nunca devem ir para os registos da aplicação.',
   prompt: 'Este código regista cada login. Que linha põe dados secretos nos registos?',

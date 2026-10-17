@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'es-02',
   title: 'Seguras a porta?',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Tailgating: entrar numa zona protegida colado a quem tem acesso.',
   prompt: 'À porta do escritório, alguém com uma caixa pesada pede-te para segurar a porta. Não tem cartão à vista. O que fazes?',

@@ -2,7 +2,7 @@
 
 - **Categoria:** mobile
 - **Dificuldade:** 1
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 
