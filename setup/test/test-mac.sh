@@ -147,7 +147,7 @@ eq "$(ws_memory_wheel 0.4.1 "$WS_TMP/sums")" memoria-0.4.1-py3-none-any.whl "whe
 CM="$WS_TMP/cm"; mkdir -p "$CM/ws"; : > "$CM/memoria"
 printf '#!/bin/sh\nd=%s\ncase "$1 $2" in\n "mcp get") [ -f "$d/$3" ] && cat "$d/$3";;\n "mcp remove") rm -f "$d/$5";;\n "mcp add") printf "%%s\\n" "$*" > "$d/$5";;\nesac\n' "$CM" > "$CM/claude"; chmod +x "$CM/claude"
 ( WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1
-[ ! -f "$CM/memoria" ] && grep -q 'mcp add --scope user agent-memory -- /u/bin/agent-memory mcp' "$CM/agent-memory" && ok || ko "mcp: o registo memoria sai e entra agent-memory"
+[ ! -f "$CM/memoria" ] && grep -q 'mcp add --scope user agent-memory -e PYTHONHOME= -e PYTHONPATH= -e PYTHONSTARTUP= -- /u/bin/agent-memory mcp' "$CM/agent-memory" && ok || ko "mcp: o registo memoria sai e entra agent-memory"
 ( WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1; eq "$(grep -c . "$CM/agent-memory")" 1 "mcp: ja registado com o mesmo programa, nao muda"
 
 # --- passo 9: migracao do projeto de treino e da tag da Arena (sem perder trabalho)
@@ -1027,6 +1027,114 @@ eq "$(cat "$G11/o")" "http://proxy.empresa.pt:8080|localhost,127.0.0.1,meu.servi
 printf '#!/bin/sh\nprintf "%%s " "$@"\n' > "$G11/bin/node-args"; chmod +x "$G11/bin/node-args"
 eq "$(WS_NODE="$G11/bin/node-args"; KIT_SRC=/k; WS_LANG=en; WS_CA_PEM=""; WS_PROXY=http://p:8080; NO_PROXY=meu.servidor; no_proxy=""; WS_STEP_LOG=/dev/null; ws_iu verificar)" \
   "/k/installer/install-user.mjs verificar --node $G11/bin/node-args --kit-src /k --lingua-maquina en --https-proxy http://p:8080 --no-proxy localhost,127.0.0.1,meu.servidor " "ws_iu: --no-proxy com o NO_PROXY da pessoa junto do --https-proxy"
+
+# --- chaos round 2 R1-env: ambiente hostil (BASH_ENV, cores, NODE_OPTIONS, PATH relativo, certificados, TMPDIR,
+# CLAUDE_CONFIG_DIR, modelos, uv, Python, disco cheio, HOME comprida)
+R1="$WS_TMP/r1env"; mkdir -p "$R1/h/.config/zsh" "$R1/bin"
+# BASH_ENV com noclobber, uma funcao cd que corre ls, CDPATH e um cat trocado: o setup desfaz tudo antes de main()
+printf 'set -o noclobber\ncd() { builtin cd "$@" && ls; }\ncat() { echo HIJACK; }\nexport CDPATH=/tmp\n' > "$R1/rc"
+printf 'export ZDOTDIR="$HOME/.config/zsh"\n' > "$R1/h/.zshenv"
+o=$(BASH_ENV="$R1/rc" HOME="$R1/h" /bin/bash -c 'WS_SOURCE_ONLY=1; . "$1"; WS_TMP="$2"; WS_LOG=/dev/null; printf "%s|%s|%s|" "$(shopt -qo noclobber && echo on || echo off)" "$(type -t cd)" "${CDPATH-unset}"; : > "$2/zdotdir.out"; ws_zdotdir' _ "$ROOT/setup/setup-mac.sh" "$R1" 2>&1)
+eq "$o" "off|builtin|unset|$R1/h/.config/zsh" "R1 BASH_ENV: noclobber, cd e CDPATH desfeitos; o ZDOTDIR do .zshenv chega"
+o=$(BASH_ENV="$R1/rc" /bin/bash "$ROOT/setup/setup-mac.sh" --help 2>&1)
+case "$o" in *HIJACK*) ko "R1 BASH_ENV: uma funcao do .bashrc (cat) ainda corre no setup" ;; *"Workshop setup (macOS)"*) ok ;; *) ko "R1 BASH_ENV --help: [$o]" ;; esac
+# cores forcadas: saem do ambiente do setup; o negrito segue o NO_COLOR original
+o=$( export GREP_OPTIONS=--color=always CLICOLOR_FORCE=1 FORCE_COLOR=3; unset NO_COLOR WS_NO_COLOR0; ws_env_sanitize
+  printf '%s|%s|%s|%s|%s' "$(ws_ver_of 'Claude Code 2.1.292')" "${GREP_OPTIONS-unset}" "${FORCE_COLOR-unset}" "$NO_COLOR" "${WS_NO_COLOR0-unset}" )
+eq "$o" "2.1.292|unset|unset|1|" "R1 cores: GREP_OPTIONS/FORCE_COLOR fora, NO_COLOR=1 para os comandos, o original guardado vazio"
+eq "$(GREP_OPTIONS=--color=always ws_ver_of 'v 24.22.0')" "24.22.0" "R1 cores: ws_ver_of sem cores mesmo com GREP_OPTIONS"
+if command -v script >/dev/null 2>&1; then
+  printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; unset NO_COLOR WS_NO_COLOR0; ws_env_sanitize; ws_color_detect; printf "C%s|%s\n" "$WS_COLOR" "$NO_COLOR"' > "$R1/cor.sh"
+  TERM=xterm-256color script -q /dev/null /bin/bash "$R1/cor.sh" "$ROOT/setup/setup-mac.sh" </dev/null > "$R1/cor.out" 2>&1
+  grep -q 'C1|1' "$R1/cor.out" && ok || ko "R1 cores: o setup continua com negrito depois do NO_COLOR=1 [$(tr -d '\r\n' < "$R1/cor.out")]"
+fi
+# NODE_OPTIONS: guardado e tirado; um node que so responde ao -v nao conta
+eq "$( export NODE_OPTIONS='--require /nao/existe.js'; unset WS_NODE_OPTIONS0; ws_env_sanitize; printf '%s|%s' "${NODE_OPTIONS-unset}" "$WS_NODE_OPTIONS0" )" "unset|--require /nao/existe.js" "R1 NODE_OPTIONS: fora do setup, o valor fica para o aviso"
+if [ -n "$NODE" ]; then
+  eq "$(NODE_OPTIONS='--require /nao/existe.js' ws_node_major "$NODE")" "" "R1 NODE_OPTIONS: node que nao corre scripts nao conta"
+  case "$(ws_node_major "$NODE")" in [0-9]*) ok ;; *) ko "R1 ws_node_major com -e" ;; esac
+fi
+# Node do workshop sem o npm (tar com a pasta temporaria apagada a meio) nao conta como instalado
+mkdir -p "$R1/node/bin"; printf '#!/bin/sh\nexit 0\n' > "$R1/node/bin/node"; chmod +x "$R1/node/bin/node"
+ws_node_complete "$R1/node"; eq "$?" 1 "R1 node incompleto (sem npm)"
+# PATH: so as entradas absolutas (VS Code num projeto JavaScript)
+eq "$( HOME="$R1/h"; WS_HOME="$R1/h/.workshop-claude"; PATH="./node_modules/.bin:.::/usr/bin:rel/dir:/a b/[x]*:/bin:"; ws_path_setup; printf '%s' "$PATH" )" \
+  "$R1/h/.workshop-claude/node/bin:$R1/h/.workshop-claude/bin:$R1/h/.local/bin:/usr/bin:/a b/[x]*:/bin" "R1 PATH: sem ., ./node_modules/.bin, relativas nem vazias"
+# certificados que apontam para ficheiros que nao existem: saem do setup e o passo 0 diz quais
+o=$( export SSL_CERT_FILE=/nao/existe.pem CURL_CA_BUNDLE=/etc/ssl/cert.pem SSL_CERT_DIR=/nao/pasta; unset WS_CA_BAD0; ws_env_sanitize
+  WS_CUR=0; SW_0=""; ws_s0_env_warnings; printf '%s|%s|%s' "${SSL_CERT_FILE-unset}" "${CURL_CA_BUNDLE-unset}" "$SW_0" )
+eq "$o" "unset|/etc/ssl/cert.pem|E-NET-09|SSL_CERT_FILE=/nao/existe.pem · SSL_CERT_DIR=/nao/pasta" "R1 certificados: so os que nao existem saem, com aviso E-NET-09"
+eq "$(ws_net_code 77 000)" E-NET-09 "R1 curl 77 -> E-NET-09 (nao e a empresa a intercetar)"
+# modelos trocados por variaveis (shell e settings.json)
+mkdir -p "$R1/cd"; printf '{"env":{"ANTHROPIC_DEFAULT_SONNET_MODEL":"anthropic.claude-old-v1"}}\n' > "$R1/cd/settings.json"
+o=$( unset ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_SUBAGENT_MODEL WS_CA_BAD0 WS_TMPDIR_BAD0
+  CLAUDE_DIR="$R1/cd"; ANTHROPIC_MODEL=claude-velho; DISABLE_AUTOUPDATER=1; WS_CUR=0; SW_0=""; ws_s0_env_warnings; printf '%s' "$SW_0" )
+eq "$o" "E-CFG-10|ANTHROPIC_MODEL=claude-velho (shell) · ANTHROPIC_DEFAULT_SONNET_MODEL=anthropic.claude-old-v1 ($R1/cd/settings.json)" "R1 modelos: shell e settings.json; DISABLE_AUTOUPDATER nao conta"
+# TMPDIR que nao existe ou sem escrita: usa /tmp e avisa; a pasta apagada a meio volta a existir
+mkdir -p "$R1/ro"; chmod 555 "$R1/ro"
+for t in "$R1/nao-existe" "$R1/ro"; do
+  o=$( WS_HOME="$R1/h/.workshop-claude"; TMPDIR=$t; unset WS_TMPDIR_BAD0; ws_tmp_make; printf '%s|%s|%s' "$?" "$TMPDIR" "$WS_TMPDIR_BAD0"; [ -f "$WS_TMP/.ws-tmp" ] && printf '|ok'; rm -rf "$WS_TMP" )
+  eq "$o" "0|/tmp|$t|ok" "R1 TMPDIR mau ($t): pasta temporaria em /tmp, aviso guardado"
+done
+chmod 755 "$R1/ro"
+o=$( WS_HOME="$R1/h/.workshop-claude"; WS_LOG=/dev/null; TMPDIR=$R1; ws_tmp_make; rm -rf "$WS_TMP"; ws_tmp_gone; a=$?; ws_tmp_gone; printf '%s|%s|%s' "$a" "$?" "$([ -d "$WS_TMP" ] && echo dir)"; rm -rf "$WS_TMP" )
+eq "$o" "0|1|dir" "R1 pasta temporaria apagada a meio: volta a ser criada e diz-se uma vez"
+o=$( WS_HOME="$R1/h/.workshop-claude"; WS_LOG=/dev/null; TMPDIR=$R1; ws_tmp_make; WS_CUR=4; SF_4="E-NET-07|x"; WS_STEP_LOG=/dev/null; rm -rf "$WS_TMP"; ws_fail_reclass; printf '%s' "${SF_4%%|*}"; rm -rf "$WS_TMP" )
+eq "$o" "E-SO-10" "R1 falha com a pasta temporaria apagada -> E-SO-10 e nao a rede"
+# disco cheio: o ENOSPC no log ganha ao codigo do passo; a tabela final aparece mesmo sem a poder gravar
+printf 'tar: Write failed: No space left on device\n' > "$R1/s.log"
+o=$( WS_CUR=8; SF_8="E-KIT-01|"; WS_STEP_LOG="$R1/s.log"; WS_TMP=$R1; WS_LOG=/dev/null; touch "$R1/.ws-tmp"; ws_fail_reclass; printf '%s|%s' "$SF_8" "${WS_DISK_FULL:-0}" )
+eq "$o" "E-SO-06|No space left on device · E-KIT-01|1" "R1 disco cheio: E-SO-06 em vez de E-KIT-01"
+o=$( WS_CUR=12; SF_12="E-SMOKE-02|"; WS_STEP_LOG="$R1/s.log"; ws_disk_reclass; printf '%s|%s' "$?" "${SF_12%%|*}" )
+eq "$o" "1|E-SMOKE-02" "R1 disco cheio: os creditos (E-SMOKE-02) nao sao trocados"
+o=$( WS_CUR=12; SW_12=""; ST_12=""; WS_STEP_LOG="$R1/s.log"; WS_LOG=/dev/null; WS_PERFIL_AVISADOS=""; ws_profile_warn E-PROF-01 "$R1/h/.zshrc"; printf '%s' "${SW_12%%|*}" )
+eq "$o" "E-SO-06" "R1 disco cheio: o perfil que nao se escreve e E-SO-06, nao E-PROF-01"
+mkdir -p "$R1/rs"; chmod 555 "$R1/rs"
+o=$( WS_MODE=check; WS_RESUMO="$R1/rs/summary.txt"; WS_HOME="$R1/rs"; WS_LOG=/dev/null; WS_OS=macOS; WS_COLOR=0; WS_TODO_MCP=0
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do ws_set ST "$n" ok; ws_set SD "$n" ""; done; ws_summary 2>&1 )
+case "$o" in *"$M_passos_12"*"$M_ui_final_check_ok"*) ok ;; *) ko "R1 resumo sem poder gravar: a tabela tem de aparecer [$o]" ;; esac
+case "$o" in *"summary.txt"*|*"No such file"*|*"Permission denied"*) ko "R1 resumo sem poder gravar: nao diz que gravou nem mostra erros do bash" ;; *) ok ;; esac
+chmod 755 "$R1/rs"
+# uv apontado para um espelho da empresa: o nome da variavel e o URL sem utilizador nem palavra-passe
+eq "$( unset UV_DEFAULT_INDEX UV_INDEX UV_EXTRA_INDEX_URL; UV_INDEX_URL=https://bea:segredo@pypi.empresa.pt/simple; ws_uv_index )" "UV_INDEX_URL=https://pypi.empresa.pt/simple" "R1 uv: espelho mostrado sem credenciais"
+eq "$( unset UV_DEFAULT_INDEX UV_INDEX_URL UV_INDEX UV_EXTRA_INDEX_URL; ws_uv_index; printf '%s' "$?" )" "1" "R1 uv: sem espelho"
+# Python de outro ambiente: guardado, tirado do setup; o registo MCP sem as variaveis vazias nao conta
+o=$( export PYTHONHOME=/opt/miniconda PYTHONPATH=/velho VIRTUAL_ENV=/v; unset WS_PYTHON_ENV0; ws_env_sanitize; printf '%s|%s|%s' "${PYTHONHOME-unset}" "${VIRTUAL_ENV-unset}" "$WS_PYTHON_ENV0" )
+eq "$o" "unset|unset|PYTHONHOME=/opt/miniconda PYTHONPATH=/velho" "R1 Python: PYTHONHOME/PYTHONPATH fora do setup, guardados para o aviso"
+WS_MCP_OUT=$(printf 'agent-memory:\n  Command: /u/bin/agent-memory\n  Args: mcp\n'); ws_memory_mcp_env; eq "$?" 1 "R1 MCP: registo antigo sem PYTHONHOME vazio"
+WS_MCP_OUT=$(printf 'agent-memory:\n  Command: /u/bin/agent-memory\n  Args: mcp\n  Environment:\n    PYTHONHOME=\n'); ws_memory_mcp_env; eq "$?" 0 "R1 MCP: registo com PYTHONHOME vazio"
+# HOME comprida: o indice do SQLite passa dos 504 bytes -> E-MEM-10, e nao E-MEM-05 (reinstalar nao resolve)
+printf '#!/bin/sh\nprintf "  [OK] Python 3.12.15\\n  [FAIL] Index of your memories: unable to open database file\\n"; exit 1\n' > "$R1/bin/am"; chmod +x "$R1/bin/am"
+lp="$R1/$(printf 'p%.0s' $(seq 260))/$(printf 'q%.0s' $(seq 260))"
+o=$( WS_CUR=10; SW_10=""; SD_10=""; WS_STEP_LOG="$R1/s10.log"; WS_LOG=/dev/null; unset WS_PYTHON_ENV0; AGENT_MEMORY_HOME=$lp; ws_memory_selftest "$R1/bin/am" 0.5.0; printf '%s' "${SW_10%%|*}" )
+eq "$o" "E-MEM-10" "R1 HOME comprida: E-MEM-10"
+o=$( WS_CUR=10; SW_10=""; SD_10=""; WS_STEP_LOG="$R1/s10.log"; WS_LOG=/dev/null; unset WS_PYTHON_ENV0; AGENT_MEMORY_HOME="$R1/m"; ws_memory_selftest "$R1/bin/am" 0.5.0; printf '%s' "${SW_10%%|*}" )
+eq "$o" "E-MEM-05" "R1 HOME normal: continua E-MEM-05"
+# CLAUDE_CONFIG_DIR com um "~" literal: o setup para antes de criar o que quer que seja (E-CFG-08)
+mkdir -p "$R1/hc"
+o=$( cd "$R1/hc" && HOME="$R1/hc" CLAUDE_CONFIG_DIR='~/.claude-work' /bin/bash "$ROOT/setup/setup-mac.sh" --check </dev/null 2>&1 ); rc=$?
+case "$rc|$o" in "1|"*"CLAUDE_CONFIG_DIR is not an absolute path"*"E-CFG-08"*) ok ;; *) ko "R1 CLAUDE_CONFIG_DIR com ~: [$rc] $o" ;; esac
+[ -e "$R1/hc/~" ] && ko "R1 CLAUDE_CONFIG_DIR com ~: criou uma pasta ~" || ok
+# CLAUDE_CONFIG_DIR so neste terminal: um terminal novo nao o tem -> E-CFG-09; com o mesmo valor, so a nota
+o=$( ws_newterm() { printf '\n'; }; CLAUDE_CONFIG_DIR="$R1/cw"; CLAUDE_DIR="$R1/cw"; HOME="$R1/h"; WS_CUR=8; SW_8=""; SN_8=""; WS_LOG=/dev/null; ws_s8_config_dir; printf '%s#%s' "${SW_8%%|*}" "$SN_8" )
+eq "$o" "E-CFG-09#Claude Code folder (CLAUDE_CONFIG_DIR): $R1/cw" "R1 CLAUDE_CONFIG_DIR diferente num terminal novo -> E-CFG-09"
+o=$( ws_newterm() { printf '%s\n' "$R1/cw/"; }; CLAUDE_CONFIG_DIR="$R1/cw"; CLAUDE_DIR="$R1/cw"; HOME="$R1/h"; WS_CUR=8; SW_8=""; SN_8=""; WS_LOG=/dev/null; ws_s8_config_dir; printf '%s' "$SW_8" )
+eq "$o" "" "R1 CLAUDE_CONFIG_DIR igual num terminal novo: sem aviso"
+# teste final: claude que nao arranca (127) e resposta que nao se le (exit 0)
+for c in "127|E-CC-02" "0|E-SMOKE-01|exit 0, reply not readable"; do
+  IFS='|' read -r code want det <<EOF
+$c
+EOF
+  printf '#!/bin/sh\necho "nao e json"\nexit %s\n' "$code" > "$R1/bin/claude"; chmod +x "$R1/bin/claude"
+  o=$( WS_CLAUDE="$R1/bin/claude"; CLAUDE_DIR="$R1/vazio"; WS_CUR=12; SF_12=""; WS_TMP=$R1; WS_PRICING="$ROOT/pricing.json"; WS_TMO_SMOKE=10; WS_GW_URL=""; WS_GW_DOWN=0
+    WS_STEP_LOG="$R1/s12.log"; WS_LOG=/dev/null; WS_NODE=$NODE; unset ANTHROPIC_BASE_URL; ws_s12_install >/dev/null 2>&1; printf '%s' "$SF_12" )
+  case "$o" in "$want|"*"$det"*) ok ;; *) ko "R1 teste final exit $code: [$o]" ;; esac
+done
+grep -q '"codigo \$rc"' "$ROOT/setup/setup-mac.sh" && ko "R1 teste final: detalhe em portugues (codigo)" || ok
+# os codigos novos existem nos dois catalogos
+for c in E-NET-09 E-SO-09 E-SO-10 E-CFG-08 E-CFG-09 E-CFG-10 E-NODE-03 E-MEM-08 E-MEM-09 E-MEM-10; do
+  [ -n "$(ws_err_field "$c" titulo)" ] && grep -q "\"$c\"" "$ROOT/setup/messages.pt.json" && ok || ko "R1 catalogo: $c"
+done
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

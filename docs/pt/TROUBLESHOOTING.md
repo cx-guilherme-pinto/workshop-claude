@@ -27,6 +27,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-NET-06` | Proxy só com autenticação NTLM ou Kerberos | [macOS](#mac-e-net-06) · [Windows](#windows-e-net-06) |
 | `E-NET-07` | O download falhou | [macOS](#mac-e-net-07) · [Windows](#windows-e-net-07) |
 | `E-NET-08` | O Claude Code está configurado com um proxy que não responde nesta rede | [macOS](#mac-e-net-08) · [Windows](#windows-e-net-08) |
+| `E-NET-09` | Uma variável de certificados aponta para um ficheiro que não existe ou está errado | [macOS](#mac-e-net-09) · [Windows](#windows-e-net-09) |
 | `E-SO-01` | Windows anterior a 10.0.18362 (versão 1903) | [Windows](#windows-e-so-01) |
 | `E-SO-02` | Windows em ARM64 | [Windows](#windows-e-so-02) |
 | `E-SO-03` | A pasta pessoal está no OneDrive | [macOS](#mac-e-so-03) · [Windows](#windows-e-so-03) |
@@ -35,6 +36,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-SO-06` | Pouco espaço em disco | [macOS](#mac-e-so-06) · [Windows](#windows-e-so-06) |
 | `E-SO-07` | Uma política da empresa bloqueia os scripts do PowerShell | [Windows](#windows-e-so-07) |
 | `E-SO-08` | O PowerShell ISE não consegue correr o setup | [Windows](#windows-e-so-08) |
+| `E-SO-09` | A variável da pasta temporária aponta para uma pasta que não serve | [macOS](#mac-e-so-09) · [Windows](#windows-e-so-09) |
+| `E-SO-10` | A pasta temporária do setup foi apagada enquanto ele corria | [macOS](#mac-e-so-10) · [Windows](#windows-e-so-10) |
 | `E-CFG-01` | Há definições geridas pela empresa (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | Está definida a variável ANTHROPIC_API_KEY ou ANTHROPIC_AUTH_TOKEN | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | A variável ANTHROPIC_BASE_URL está definida | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
@@ -42,6 +45,9 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-CFG-05` | O ficheiro settings.json do Claude Code tem um erro | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | Já tinhas uma statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | O uv está proibido de usar o Python gerido | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
+| `E-CFG-08` | O CLAUDE_CONFIG_DIR não é um caminho absoluto | [macOS](#mac-e-cfg-08) · [Windows](#windows-e-cfg-08) |
+| `E-CFG-09` | Os terminais novos não usam a mesma pasta do Claude Code | [macOS](#mac-e-cfg-09) · [Windows](#windows-e-cfg-09) |
+| `E-CFG-10` | Há uma variável que troca os modelos do Claude Code | [macOS](#mac-e-cfg-10) · [Windows](#windows-e-cfg-10) |
 | `E-PERM-01` | Sem permissão para escrever na pasta pessoal | [macOS](#mac-e-perm-01) · [Windows](#windows-e-perm-01) |
 | `E-PERM-02` | Um programa foi bloqueado pela segurança do computador | [macOS](#mac-e-perm-02) · [Windows](#windows-e-perm-02) |
 | `E-PERM-03` | O instalador pediu permissões de administrador | [macOS](#mac-e-perm-03) · [Windows](#windows-e-perm-03) |
@@ -59,6 +65,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-AUTH-05` | O gateway da empresa no ANTHROPIC_BASE_URL não responde | [macOS](#mac-e-auth-05) · [Windows](#windows-e-auth-05) |
 | `E-NODE-01` | Não consegui instalar o Node.js | [macOS](#mac-e-node-01) · [Windows](#windows-e-node-01) |
 | `E-NODE-02` | Há um Node antigo ou avariado à frente no PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
+| `E-NODE-03` | O NODE_OPTIONS parte o Node no teu terminal | [macOS](#mac-e-node-03) · [Windows](#windows-e-node-03) |
 | `E-UV-01` | Não consegui instalar o uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-UV-02` | Há um uv antigo à frente no PATH | [macOS](#mac-e-uv-02) · [Windows](#windows-e-uv-02) |
 | `E-GH-01` | Não consegui instalar o GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
@@ -82,6 +89,9 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-MEM-05` | O teste da app Agent Memory falhou | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-MEM-06` | Não consegui criar o atalho da app Agent Memory | [macOS](#mac-e-mem-06) · [Windows](#windows-e-mem-06) |
 | `E-MEM-07` | A pasta da app Agent Memory não aceita escrita | [macOS](#mac-e-mem-07) · [Windows](#windows-e-mem-07) |
+| `E-MEM-08` | O uv aponta para um espelho de pacotes que não funciona | [macOS](#mac-e-mem-08) · [Windows](#windows-e-mem-08) |
+| `E-MEM-09` | O PYTHONHOME ou o PYTHONPATH está definido no teu terminal | [macOS](#mac-e-mem-09) · [Windows](#windows-e-mem-09) |
+| `E-MEM-10` | O caminho da tua pasta pessoal é demasiado comprido para a app Agent Memory | [macOS](#mac-e-mem-10) |
 | `E-DESK-01` | O Claude Desktop tem limitações com a Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | Não consegui instalar o Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-PROF-01` | O setup não conseguiu pôr as pastas do workshop num perfil do shell | [macOS](#mac-e-prof-01) |
@@ -233,6 +243,22 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 grep -n -i proxy ~/.claude/settings.json
 ```
 
+<a id="mac-e-net-09"></a>
+
+### E-NET-09 · Uma variável de certificados aponta para um ficheiro que não existe ou está errado
+
+- **Porquê:** O SSL_CERT_FILE, CURL_CA_BUNDLE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE ou SSL_CERT_DIR (entre parênteses), ou uma linha cacert no ~/.curlrc, aponta para um ficheiro de certificados que não existe ou não tem os certificados certos. Costuma ser um resto de uma instalação antiga do Homebrew, do Anaconda ou do Zscaler. O curl falha então em todos os sites com "curl: (77) error setting certificate verify locations", e o uv falha com "invalid peer certificate". O setup ignora a variável nos comandos dele, mas o teu terminal continua a tê-la.
+- **O que fazer:**
+  - Se o próprio comando de instalação parar com curl: (77), corre o primeiro comando abaixo no mesmo terminal e volta a colar o comando de instalação.
+  - Encontra o export no perfil do shell com o segundo comando, apaga essa linha (ou aponta-a para o ficheiro certo) e abre um terminal novo.
+
+Comandos (macOS):
+
+```
+unset SSL_CERT_FILE CURL_CA_BUNDLE GIT_SSL_CAINFO NODE_EXTRA_CA_CERTS REQUESTS_CA_BUNDLE SSL_CERT_DIR
+grep -nE 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS|cacert' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile ~/.curlrc 2>/dev/null
+```
+
 <a id="mac-e-so-03"></a>
 
 ### E-SO-03 · A pasta pessoal está no OneDrive
@@ -269,6 +295,29 @@ Comando (macOS):
 ```
 df -h ~
 ```
+
+<a id="mac-e-so-09"></a>
+
+### E-SO-09 · A variável da pasta temporária aponta para uma pasta que não serve
+
+- **Porquê:** O TMPDIR (no Windows, o TEMP ou o TMP), entre parênteses, aponta para uma pasta que não existe ou sem escrita, muitas vezes um export copiado de outro computador. O setup usou outra pasta temporária, mas outros programas no teu terminal (Claude Code, uv, npm) podem falhar.
+- **O que fazer:**
+  - Encontra o export com o primeiro comando e apaga-o (o macOS define o TMPDIR sozinho), depois abre um terminal novo.
+
+Comandos (macOS):
+
+```
+grep -n TMPDIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+unset TMPDIR
+```
+
+<a id="mac-e-so-10"></a>
+
+### E-SO-10 · A pasta temporária do setup foi apagada enquanto ele corria
+
+- **Porquê:** Alguma coisa apagou a pasta temporária do setup (entre parênteses) a meio de um passo, normalmente uma app de limpeza ou um script que esvazia as pastas temporárias. O passo perdeu os ficheiros que tinha descarregado.
+- **O que fazer:**
+  - Põe a app de limpeza em pausa durante uns minutos e volta a correr o setup: os passos já feitos são saltados.
 
 <a id="mac-e-cfg-01"></a>
 
@@ -377,6 +426,53 @@ Comando (macOS):
 
 ```
 env | grep -E "^UV_(PYTHON_DOWNLOADS|NO_MANAGED_PYTHON|PYTHON_PREFERENCE)"
+```
+
+<a id="mac-e-cfg-08"></a>
+
+### E-CFG-08 · O CLAUDE_CONFIG_DIR não é um caminho absoluto
+
+- **Porquê:** O CLAUDE_CONFIG_DIR (entre parênteses) é um caminho relativo, ou começa por um ~ dentro de aspas. Nem o Claude Code nem o setup o expandem, por isso cada pasta onde corresses o claude ficava com a sua cópia das definições, das skills e dos logins (por exemplo, uma pasta chamada ~ dentro da Arena). O setup parou antes de mudar o que quer que fosse.
+- **O que fazer:**
+  - Encontra a linha com o primeiro comando. Escreve o caminho com $HOME, por exemplo export CLAUDE_CONFIG_DIR="$HOME/.claude-work" (sem aspas à volta de um ~), ou apaga a linha se não precisas de uma pasta do Claude Code à parte.
+  - Abre um terminal novo, confirma o valor com o segundo comando e volta a correr o setup.
+
+Comandos (macOS):
+
+```
+grep -n CLAUDE_CONFIG_DIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+echo "$CLAUDE_CONFIG_DIR"
+```
+
+<a id="mac-e-cfg-09"></a>
+
+### E-CFG-09 · Os terminais novos não usam a mesma pasta do Claude Code
+
+- **Porquê:** Este terminal tem o CLAUDE_CONFIG_DIR, por isso o setup pôs as skills, os hooks e os servidores MCP nessa pasta (entre parênteses). Um terminal novo tem outro valor, ou nenhum, e o claude que abrires lá não os vê. Acontece quando a variável foi exportada só neste terminal, por um IDE ou pelo direnv.
+- **O que fazer:**
+  - Para ficar com essa pasta: guarda a variável para os terminais novos com o primeiro comando, abre um terminal novo e volta a correr o setup.
+  - Para usar a pasta normal (~/.claude): abre um terminal novo sem o CLAUDE_CONFIG_DIR e volta a correr o setup.
+
+Comando (macOS):
+
+```
+echo "export CLAUDE_CONFIG_DIR=\"$CLAUDE_CONFIG_DIR\"" >> ~/.zshrc
+```
+
+<a id="mac-e-cfg-10"></a>
+
+### E-CFG-10 · Há uma variável que troca os modelos do Claude Code
+
+- **Porquê:** Uma variável (entre parênteses, da shell ou do "env" de um ficheiro de definições) troca os modelos que o Claude Code usa. É o modelo da sessão, ou os nomes sonnet, haiku e opus das skills e dos agentes do workshop. Um id de modelo retirado, ou que só existe no Bedrock ou no Vertex, falha com o login do Console, e outro modelo muda os custos. O teste final escolhe o seu próprio modelo, por isso não o mostra.
+- **O que fazer:**
+  - Se não precisas da troca, tira-a: corre o segundo comando neste terminal, apaga a linha do ~/.zshrc e, se estiver no ~/.claude/settings.json, tira-a do "env". Depois abre um terminal novo.
+  - Se foi a empresa que a pôs (definições geridas), fala com o organizador antes do workshop.
+
+Comandos (macOS):
+
+```
+env | grep -E '^(ANTHROPIC_(MODEL|DEFAULT_[A-Z]+_MODEL|SMALL_FAST_MODEL)|CLAUDE_CODE_SUBAGENT_MODEL)='
+unset ANTHROPIC_MODEL ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_SUBAGENT_MODEL
 ```
 
 <a id="mac-e-perm-01"></a>
@@ -608,6 +704,22 @@ Comandos (macOS):
 type -a node
 nvm install 22 && nvm alias default 22
 node -v
+```
+
+<a id="mac-e-node-03"></a>
+
+### E-NODE-03 · O NODE_OPTIONS parte o Node no teu terminal
+
+- **Porquê:** O NODE_OPTIONS (entre parênteses) faz falhar todos os scripts do Node. Normalmente é um --require de um ficheiro que já não existe (o "Debug: Auto Attach" do VS Code ou do Cursor, um agente de monitorização) ou uma opção que esta versão do Node recusa. O setup correu o Node sem ele, mas os hooks, a statusline e as skills do workshop correm o Node a partir do teu terminal: a indicação do custo e os avisos de orçamento não funcionariam.
+- **O que fazer:**
+  - Neste terminal, corre o primeiro comando. No VS Code ou no Cursor, corre "Debug: Toggle Auto Attach" e escolhe Disabled ou Smart, depois abre um terminal novo.
+  - Se o export estiver no perfil do shell, encontra-o com o segundo comando e apaga-o, depois abre um terminal novo.
+
+Comandos (macOS):
+
+```
+unset NODE_OPTIONS
+grep -n NODE_OPTIONS ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
 ```
 
 <a id="mac-e-uv-01"></a>
@@ -929,6 +1041,49 @@ ls -ld ~/.agent-memory ~/.memoria
 agent-memory selftest
 ```
 
+<a id="mac-e-mem-08"></a>
+
+### E-MEM-08 · O uv aponta para um espelho de pacotes que não funciona
+
+- **Porquê:** Uma variável (entre parênteses: UV_DEFAULT_INDEX, UV_INDEX_URL, UV_INDEX ou UV_EXTRA_INDEX_URL) manda o uv para um espelho de pacotes da empresa em vez do pypi.org, e esse espelho não respondeu ou não tem os pacotes da app. Muitas vezes só funciona na VPN da empresa. As skills funcionam sem a app.
+- **O que fazer:**
+  - Liga-te à VPN da empresa e volta a correr o setup.
+  - Ou, se não precisas do espelho, tira a variável neste terminal (comando abaixo), apaga-a do perfil do shell e volta a correr o setup.
+
+Comando (macOS):
+
+```
+unset UV_DEFAULT_INDEX UV_INDEX_URL UV_INDEX UV_EXTRA_INDEX_URL
+```
+
+<a id="mac-e-mem-09"></a>
+
+### E-MEM-09 · O PYTHONHOME ou o PYTHONPATH está definido no teu terminal
+
+- **Porquê:** O teu terminal exporta o PYTHONHOME ou o PYTHONPATH (entre parênteses), muitas vezes um resto de uma instalação antiga do Anaconda ou do conda. Fazem o Python da app Agent Memory carregar os ficheiros errados e falhar ("No module named encodings", ImportError). O setup e o MCP de memória do Claude Code correm a app sem eles, mas o agent-memory escrito no teu terminal falha.
+- **O que fazer:**
+  - Encontra o export com o comando abaixo e apaga-o (ou o bloco antigo do conda), depois abre um terminal novo.
+
+Comando (macOS):
+
+```
+grep -nE 'PYTHONHOME|PYTHONPATH|conda' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+```
+
+<a id="mac-e-mem-10"></a>
+
+### E-MEM-10 · O caminho da tua pasta pessoal é demasiado comprido para a app Agent Memory
+
+- **Porquê:** A app guarda o índice de pesquisa em <pasta das memórias>/.index/index-v3.sqlite, e o SQLite do Python dela só abre bases de dados com caminhos de até 504 bytes (entre parênteses, o tamanho aqui). Com um caminho da pasta pessoal muito comprido o índice nunca abre: voltar a correr o setup ou o agent-memory reindex não resolve. As tuas notas estão a salvo, e as skills funcionam sem a app.
+- **O que fazer:**
+  - Põe as memórias numa pasta mais curta: junta a linha abaixo ao ~/.zshrc, abre um terminal novo e volta a correr o setup. As notas que já tens ficam na pasta antiga: copia-as se as quiseres.
+
+Comando (macOS):
+
+```
+echo 'export AGENT_MEMORY_HOME="/Users/Shared/agent-memory-$USER"' >> ~/.zshrc
+```
+
 <a id="mac-e-desk-01"></a>
 
 ### E-DESK-01 · O Claude Desktop tem limitações com a Console
@@ -1173,6 +1328,22 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
 ```
 
+<a id="windows-e-net-09"></a>
+
+### E-NET-09 · Uma variável de certificados aponta para um ficheiro que não existe ou está errado
+
+- **Porquê:** O SSL_CERT_FILE, CURL_CA_BUNDLE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE ou SSL_CERT_DIR (entre parênteses), ou uma linha cacert no ~/.curlrc, aponta para um ficheiro de certificados que não existe ou não tem os certificados certos. Costuma ser um resto de uma instalação antiga do Homebrew, do Anaconda ou do Zscaler. O curl falha então em todos os sites com "curl: (77) error setting certificate verify locations", e o uv falha com "invalid peer certificate". O setup ignora a variável nos comandos dele, mas o teu terminal continua a tê-la.
+- **O que fazer:**
+  - Se o próprio comando de instalação parar com curl: (77), corre o primeiro comando abaixo no mesmo terminal e volta a colar o comando de instalação.
+  - Encontra o export no perfil do shell com o segundo comando, apaga essa linha (ou aponta-a para o ficheiro certo) e abre um terminal novo.
+
+Comandos (Windows):
+
+```
+Get-ChildItem Env: | Where-Object Name -match 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS'
+[Environment]::SetEnvironmentVariable('SSL_CERT_FILE', $null, 'User')
+```
+
 <a id="windows-e-so-01"></a>
 
 ### E-SO-01 · Windows anterior a 10.0.18362 (versão 1903)
@@ -1263,6 +1434,28 @@ Comando (Windows):
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
+
+<a id="windows-e-so-09"></a>
+
+### E-SO-09 · A variável da pasta temporária aponta para uma pasta que não serve
+
+- **Porquê:** O TMPDIR (no Windows, o TEMP ou o TMP), entre parênteses, aponta para uma pasta que não existe ou sem escrita, muitas vezes um export copiado de outro computador. O setup usou outra pasta temporária, mas outros programas no teu terminal (Claude Code, uv, npm) podem falhar.
+- **O que fazer:**
+  - Encontra o export com o primeiro comando e apaga-o (o macOS define o TMPDIR sozinho), depois abre um terminal novo.
+
+Comando (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('TEMP', 'User'); [Environment]::GetEnvironmentVariable('TMP', 'User')
+```
+
+<a id="windows-e-so-10"></a>
+
+### E-SO-10 · A pasta temporária do setup foi apagada enquanto ele corria
+
+- **Porquê:** Alguma coisa apagou a pasta temporária do setup (entre parênteses) a meio de um passo, normalmente uma app de limpeza ou um script que esvazia as pastas temporárias. O passo perdeu os ficheiros que tinha descarregado.
+- **O que fazer:**
+  - Põe a app de limpeza em pausa durante uns minutos e volta a correr o setup: os passos já feitos são saltados.
 
 <a id="windows-e-cfg-01"></a>
 
@@ -1373,6 +1566,52 @@ Comando (Windows):
 
 ```
 Get-ChildItem Env:UV_*
+```
+
+<a id="windows-e-cfg-08"></a>
+
+### E-CFG-08 · O CLAUDE_CONFIG_DIR não é um caminho absoluto
+
+- **Porquê:** O CLAUDE_CONFIG_DIR (entre parênteses) é um caminho relativo, ou começa por um ~ dentro de aspas. Nem o Claude Code nem o setup o expandem, por isso cada pasta onde corresses o claude ficava com a sua cópia das definições, das skills e dos logins (por exemplo, uma pasta chamada ~ dentro da Arena). O setup parou antes de mudar o que quer que fosse.
+- **O que fazer:**
+  - Encontra a linha com o primeiro comando. Escreve o caminho com $HOME, por exemplo export CLAUDE_CONFIG_DIR="$HOME/.claude-work" (sem aspas à volta de um ~), ou apaga a linha se não precisas de uma pasta do Claude Code à parte.
+  - Abre um terminal novo, confirma o valor com o segundo comando e volta a correr o setup.
+
+Comandos (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')
+Remove-Item Env:CLAUDE_CONFIG_DIR
+```
+
+<a id="windows-e-cfg-09"></a>
+
+### E-CFG-09 · Os terminais novos não usam a mesma pasta do Claude Code
+
+- **Porquê:** Este terminal tem o CLAUDE_CONFIG_DIR, por isso o setup pôs as skills, os hooks e os servidores MCP nessa pasta (entre parênteses). Um terminal novo tem outro valor, ou nenhum, e o claude que abrires lá não os vê. Acontece quando a variável foi exportada só neste terminal, por um IDE ou pelo direnv.
+- **O que fazer:**
+  - Para ficar com essa pasta: guarda a variável para os terminais novos com o primeiro comando, abre um terminal novo e volta a correr o setup.
+  - Para usar a pasta normal (~/.claude): abre um terminal novo sem o CLAUDE_CONFIG_DIR e volta a correr o setup.
+
+Comando (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('CLAUDE_CONFIG_DIR', $env:CLAUDE_CONFIG_DIR, 'User')
+```
+
+<a id="windows-e-cfg-10"></a>
+
+### E-CFG-10 · Há uma variável que troca os modelos do Claude Code
+
+- **Porquê:** Uma variável (entre parênteses, da shell ou do "env" de um ficheiro de definições) troca os modelos que o Claude Code usa. É o modelo da sessão, ou os nomes sonnet, haiku e opus das skills e dos agentes do workshop. Um id de modelo retirado, ou que só existe no Bedrock ou no Vertex, falha com o login do Console, e outro modelo muda os custos. O teste final escolhe o seu próprio modelo, por isso não o mostra.
+- **O que fazer:**
+  - Se não precisas da troca, tira-a: corre o segundo comando neste terminal, apaga a linha do ~/.zshrc e, se estiver no ~/.claude/settings.json, tira-a do "env". Depois abre um terminal novo.
+  - Se foi a empresa que a pôs (definições geridas), fala com o organizador antes do workshop.
+
+Comando (Windows):
+
+```
+Get-ChildItem Env: | Where-Object Name -match 'ANTHROPIC_.*MODEL|CLAUDE_CODE_SUBAGENT_MODEL'
 ```
 
 <a id="windows-e-perm-01"></a>
@@ -1621,6 +1860,22 @@ Comandos (Windows):
 ```
 Get-Command node -All
 node -v
+```
+
+<a id="windows-e-node-03"></a>
+
+### E-NODE-03 · O NODE_OPTIONS parte o Node no teu terminal
+
+- **Porquê:** O NODE_OPTIONS (entre parênteses) faz falhar todos os scripts do Node. Normalmente é um --require de um ficheiro que já não existe (o "Debug: Auto Attach" do VS Code ou do Cursor, um agente de monitorização) ou uma opção que esta versão do Node recusa. O setup correu o Node sem ele, mas os hooks, a statusline e as skills do workshop correm o Node a partir do teu terminal: a indicação do custo e os avisos de orçamento não funcionariam.
+- **O que fazer:**
+  - Neste terminal, corre o primeiro comando. No VS Code ou no Cursor, corre "Debug: Toggle Auto Attach" e escolhe Disabled ou Smart, depois abre um terminal novo.
+  - Se o export estiver no perfil do shell, encontra-o com o segundo comando e apaga-o, depois abre um terminal novo.
+
+Comandos (Windows):
+
+```
+Remove-Item Env:NODE_OPTIONS
+[Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'User')
 ```
 
 <a id="windows-e-uv-01"></a>
@@ -1947,6 +2202,35 @@ Comandos (Windows):
 ```
 icacls "$env:USERPROFILE\.agent-memory"
 agent-memory selftest
+```
+
+<a id="windows-e-mem-08"></a>
+
+### E-MEM-08 · O uv aponta para um espelho de pacotes que não funciona
+
+- **Porquê:** Uma variável (entre parênteses: UV_DEFAULT_INDEX, UV_INDEX_URL, UV_INDEX ou UV_EXTRA_INDEX_URL) manda o uv para um espelho de pacotes da empresa em vez do pypi.org, e esse espelho não respondeu ou não tem os pacotes da app. Muitas vezes só funciona na VPN da empresa. As skills funcionam sem a app.
+- **O que fazer:**
+  - Liga-te à VPN da empresa e volta a correr o setup.
+  - Ou, se não precisas do espelho, tira a variável neste terminal (comando abaixo), apaga-a do perfil do shell e volta a correr o setup.
+
+Comando (Windows):
+
+```
+Remove-Item Env:UV_DEFAULT_INDEX, Env:UV_INDEX_URL, Env:UV_INDEX, Env:UV_EXTRA_INDEX_URL -ErrorAction SilentlyContinue
+```
+
+<a id="windows-e-mem-09"></a>
+
+### E-MEM-09 · O PYTHONHOME ou o PYTHONPATH está definido no teu terminal
+
+- **Porquê:** O teu terminal exporta o PYTHONHOME ou o PYTHONPATH (entre parênteses), muitas vezes um resto de uma instalação antiga do Anaconda ou do conda. Fazem o Python da app Agent Memory carregar os ficheiros errados e falhar ("No module named encodings", ImportError). O setup e o MCP de memória do Claude Code correm a app sem eles, mas o agent-memory escrito no teu terminal falha.
+- **O que fazer:**
+  - Encontra o export com o comando abaixo e apaga-o (ou o bloco antigo do conda), depois abre um terminal novo.
+
+Comando (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('PYTHONHOME', 'User'); [Environment]::GetEnvironmentVariable('PYTHONPATH', 'User')
 ```
 
 <a id="windows-e-desk-01"></a>

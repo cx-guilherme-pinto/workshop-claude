@@ -261,6 +261,8 @@ function Get-WsNetCode {
   # parou ou partiu-se a meio (uma falha passageira, nao um bloqueio).
   param([string]$Status, [int]$Http)
   if ($Status -eq 'Blocked') { return 'E-PERM-02' }
+  # ERROR_DISK_FULL / ERROR_HANDLE_DISK_FULL ao escrever o ficheiro: o disco, nao a rede.
+  if ($Status -eq 'DiskFull') { return 'E-SO-06' }
   if ($Http -eq 407) { return 'E-NET-03' }
   if ($Http -eq 403 -or $Http -eq 451 -or $Status -eq 'HtmlPage') { return 'E-NET-01' }
   if ($script:DlPartial -and @('Timeout', 'ReceiveFailure', 'ConnectionClosed', 'KeepAliveFailure', 'ConnectFailure', 'PipelineFailure', 'RequestCanceled') -contains $Status) { return 'E-NET-07' }
@@ -428,7 +430,8 @@ function Get-WsWebErrorInfo {
         'TimedOut' { $st = 'Timeout' }
         default { $st = 'ConnectFailure' }
       }
-    } elseif ($e -is [System.Security.Authentication.AuthenticationException]) { $st = 'TrustFailure' }
+    } elseif ($e -is [IO.IOException] -and @(112, 39) -contains ($e.HResult -band 0xFFFF)) { $st = 'DiskFull' }
+    elseif ($e -is [System.Security.Authentication.AuthenticationException]) { $st = 'TrustFailure' }
     elseif ($e -is [TimeoutException] -or $e.GetType().Name -eq 'TaskCanceledException') { $st = 'Timeout' }
     $e = $e.InnerException
   }
@@ -983,6 +986,26 @@ function Read-WsYesNo {
 
 # =============================================================== processos, rede, ficheiros
 
+# Ambiente herdado que parte o que o setup le ou corre (o ws_env_sanitize do Mac), tirado so dos programas que o
+# setup corre, nunca do terminal da pessoa: cores forcadas (o "uv tool dir --bin" vinha com codigos ESC), um
+# NODE_OPTIONS que parte o Node (o "Auto Attach" do VS Code) e o Python de outro ambiente (Anaconda). As variaveis
+# de certificados so saem quando apontam para um ficheiro (ou pasta) que nao existe.
+$script:ChildEnvDrop = @('FORCE_COLOR', 'CLICOLOR_FORCE', 'NODE_OPTIONS', 'PYTHONHOME', 'PYTHONPATH', 'PYTHONSTARTUP')
+$script:CaVars = @('SSL_CERT_FILE', 'CURL_CA_BUNDLE', 'GIT_SSL_CAINFO', 'NODE_EXTRA_CA_CERTS', 'REQUESTS_CA_BUNDLE', 'SSL_CERT_DIR')
+function Test-WsCaPathOk {
+  param([string]$Name, [string]$Value)
+  if (-not $Value) { return $true }
+  try {
+    if ($Name -eq 'SSL_CERT_DIR') { return (Test-Path -LiteralPath $Value -PathType Container) }
+    return (Test-Path -LiteralPath $Value -PathType Leaf)
+  } catch { return $false }
+}
+function Get-WsCaBad {
+  # "NOME=valor" de cada variavel de certificados deste processo que aponta para algo que nao existe (aviso E-NET-09).
+  $out = @()
+  foreach ($k in $script:CaVars) { $v = [Environment]::GetEnvironmentVariable($k); if ($v -and -not (Test-WsCaPathOk $k $v)) { $out += ($k + '=' + $v) } }
+  return $out
+}
 function Invoke-WsProcess {
   # Corre um executavel com argumentos exatos (incluindo vazios), sem janela, com stdout/stderr em UTF-8.
   # -WatchPaths: pastas onde o programa descarrega; enquanto corre, mostra de 30 em 30 s quanto ja chegou (o que
@@ -999,6 +1022,9 @@ function Invoke-WsProcess {
   $psi.StandardOutputEncoding = [Text.Encoding]::UTF8
   $psi.StandardErrorEncoding = [Text.Encoding]::UTF8
   if ($WorkingDirectory) { $psi.WorkingDirectory = $WorkingDirectory }
+  foreach ($k in $script:ChildEnvDrop) { if ($psi.EnvironmentVariables.ContainsKey($k)) { $psi.EnvironmentVariables.Remove($k) } }
+  foreach ($k in $script:CaVars) { if ($psi.EnvironmentVariables.ContainsKey($k) -and -not (Test-WsCaPathOk $k $psi.EnvironmentVariables[$k])) { $psi.EnvironmentVariables.Remove($k) } }
+  $psi.EnvironmentVariables['NO_COLOR'] = '1'
   if ($Environment) { foreach ($k in $Environment.Keys) { $psi.EnvironmentVariables[$k] = [string]$Environment[$k] } }
   if ($RemoveEnv) { foreach ($k in $RemoveEnv) { if ($psi.EnvironmentVariables.ContainsKey($k)) { $psi.EnvironmentVariables.Remove($k) } } }
   Write-WsLog ('$ {0} {1}' -f $FilePath, $psi.Arguments)
@@ -1378,6 +1404,17 @@ function Test-WsMissingCode {
   return (@('E-CC-01', 'E-NODE-01', 'E-UV-01', 'E-GH-01', 'E-GIT-02', 'E-MCP-01', 'E-KIT-01', 'E-KIT-03', 'E-DEMO-01', 'E-MEM-01', 'E-MEM-03', 'E-DESK-02') -contains $Code)
 }
 
+function Get-WsDiskFull {
+  # Disco cheio: menos de 50 MB livres no disco da pasta pessoal, ou a mensagem do Windows no log do passo.
+  # Devolve o detalhe ("NN MB free") ou ''.
+  try {
+    $drive = Get-PSDrive -Name ($script:UserHome.Substring(0, 1)) -ErrorAction Stop
+    if ($null -ne $drive.Free -and $drive.Free -lt 50MB) { return ('{0} MB free' -f [int][math]::Floor($drive.Free / 1MB)) }
+  } catch { }
+  if ($script:StepLog -and $script:StepLog.ToString() -match 'not enough space on the disk|ENOSPC|No space left on device|os error 112') { return 'No space left on device' }
+  return ''
+}
+
 function Invoke-WsPermReclass {
   # Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da rede
   # ou de reinstalar: mostra-se E-PERM-01 com a linha que o diz (restos de uma execucao como administrador ou de
@@ -1388,7 +1425,10 @@ function Invoke-WsPermReclass {
   $s = $script:T[$script:Cur]
   if (-not $s.Falha) { return }
   $c = [string]$s.Falha[0]
-  if ($c -like 'E-PERM-*' -or $c -like 'E-AUTH-*' -or @('E-SO-07', 'E-CFG-05', 'E-GH-02', 'E-SMOKE-02', 'E-SMOKE-03') -contains $c) { return }
+  if ($c -like 'E-PERM-*' -or $c -like 'E-AUTH-*' -or @('E-SO-06', 'E-SO-07', 'E-CFG-05', 'E-GH-02', 'E-SMOKE-02', 'E-SMOKE-03') -contains $c) { return }
+  # Disco cheio (como o ws_disk_reclass do Mac): cada passo falhava com outra causa (a rede, o kit, reinstalar).
+  $full = Get-WsDiskFull
+  if ($full) { Set-WsFail 'E-SO-06' ($full + ' - ' + $c); return }
   $l = Get-WsPermLine (Protect-WsText $script:StepLog.ToString() $script:Literals) $script:UserHome
   if (-not $l) { return }
   $m = [regex]::Match($l, '[''`"]((?:~|[A-Za-z]:)[\\/][^''`"]+)[''`"]')
@@ -1586,7 +1626,7 @@ function Get-WsWinPowerShell {
 # Primeiro o uv do workshop (~\.local\bin\uv.exe): um uv antigo mais a frente no PATH nao serve (ver Test-WsStep5).
 function Get-WsUv { $p = Join-Path $script:UserHome '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; return $null }
 # O claude do kit (~\.local\bin) primeiro, seja qual for a ordem do PATH: um claude.cmd antigo do npm nao o esconde.
-function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; if (Test-Path -LiteralPath $p) { return $p }; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; return $null }
+function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; if (Test-Path -LiteralPath $p) { return $p }; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application' -and $c.Source -notmatch '[\\/]node_modules[\\/]') { return $c.Source }; return $null }
 
 function Get-WsGit {
   $c = Get-Command git -ErrorAction SilentlyContinue
@@ -1662,10 +1702,13 @@ function Test-WsStep0 {
   if ($keys) { Set-WsWarn 'E-CFG-02' $keys }
   $cloud = Get-WsCloudWhere
   if ($cloud) { Set-WsWarn 'E-CFG-04' $cloud }
+  Test-WsEnvWarnings
 
   try {
     $drive = Get-PSDrive -Name ($script:UserHome.Substring(0, 1)) -ErrorAction Stop
-    $gb = [math]::Floor($drive.Free / 1GB)
+    # Com uma casa decimal: "0 GB" com 590 MB livres escondia quanto falta.
+    $g = $drive.Free / 1GB; $dec = 1; if ($g -lt 0.1) { $dec = 2 }
+    $gb = ([math]::Round($g, $dec)).ToString([Globalization.CultureInfo]::InvariantCulture)
     Add-WsNote (M 's0_disco' @{ GB = $gb })
     if ($drive.Free -lt 3GB) { Set-WsWarn 'E-SO-06' ('{0} GB' -f $gb) }
   } catch { }
@@ -1693,6 +1736,22 @@ function Test-WsStep0 {
   return $true
 }
 function Install-WsStep0 { return (Test-WsStep0) }
+
+function Test-WsEnvWarnings {
+  # Variaveis do terminal que o setup contorna mas que continuam a partir o que a pessoa corre la (como no Mac).
+  # Modelos trocados (shell ou "env" das definicoes): mudam o sonnet/haiku das skills e o modelo da sessao.
+  $mv = @()
+  foreach ($k in @('ANTHROPIC_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL', 'CLAUDE_CODE_SUBAGENT_MODEL')) {
+    $v = [Environment]::GetEnvironmentVariable($k)
+    if ($v) { $mv += ($k + '=' + $v + ' (shell)'); continue }
+    $r = Get-WsSettingsEnv $k
+    if ($r) { $mv += ('{0}={1} ({2})' -f $k, $r[0], $r[1]) }
+  }
+  if ($mv.Count -gt 0) { Set-WsWarn 'E-CFG-10' ($mv -join ' - ') }
+  $ca = @(Get-WsCaBad)
+  if ($ca.Count -gt 0) { Set-WsWarn 'E-NET-09' ($ca -join ' - ') }
+  if ($script:TmpBad) { Set-WsWarn 'E-SO-09' $script:TmpBad }
+}
 
 function Test-WsTruthy { param([string]$V) return ($V -match '^(1|true|yes|on)$') }
 
@@ -2417,8 +2476,9 @@ function Install-WsStep3 {
 
 function Get-WsNodeMajor {
   param([string]$Exe)
-  $r = Invoke-WsProcess $Exe @('-v') -TimeoutSec 60
-  $m = [regex]::Match($r.StdOut, '^v([0-9]+)')
+  # Com -e e nao -v: um node que responde ao -v mas nao corre scripts nao serve.
+  $r = Invoke-WsProcess $Exe @('-e', 'process.stdout.write(process.versions.node)') -TimeoutSec 60
+  $m = [regex]::Match($r.StdOut, '^v?([0-9]+)')
   if ($m.Success) { return [int]$m.Groups[1].Value }
   return 0
 }
@@ -2449,11 +2509,13 @@ function Test-WsStep4 {
   $cands = @()
   if ($script:NodeExe) { $cands += $script:NodeExe }
   $c = Get-Command node -ErrorAction SilentlyContinue
-  if ($c -and $c.CommandType -eq 'Application') { $cands += $c.Source }
+  # O node de um projeto (node_modules\.bin, o terminal do VS Code) nao e o do workshop.
+  if ($c -and $c.CommandType -eq 'Application' -and $c.Source -notmatch '[\\/]node_modules[\\/]') { $cands += $c.Source }
   $cands += (Join-Path $script:WsHome 'node\node.exe')
   $found = $null
   foreach ($x in $cands) {
     if (-not (Test-Path -LiteralPath $x)) { continue }
+    if ($x -eq (Join-Path $script:WsHome 'node\node.exe') -and -not (Test-WsNodeComplete (Join-Path $script:WsHome 'node'))) { Write-WsLog ('incomplete node, npm does not start: ' + $x); continue }
     # Os hooks e a statusline correm este node a cada passo do Claude: numa partilha (o H:\ de uma versao antiga
     # do setup, por exemplo) ficavam lentos e parados sem rede. Instala-se um local.
     if (Test-WsNetworkPath $x (Get-WsDriveType $x)) { Write-WsLog ('node on a network share, not used: ' + $x); continue }
@@ -2463,6 +2525,11 @@ function Test-WsStep4 {
   if (-not $found) { Set-WsFail 'E-NODE-01' ('node >= ' + $script:C.NODE_MIN_MAJOR); return $false }
   $v = (Invoke-WsProcess $found @('-v')).StdOut.Trim()
   Set-WsDetail (M 's4_ja' @{ VERSAO = $v; CAMINHO = $found })
+  # O setup corre o node sem o NODE_OPTIONS da pessoa (Invoke-WsProcess); se esse partir o Node, os hooks, a
+  # statusline e as skills partem no terminal dela.
+  if ($env:NODE_OPTIONS -and (Invoke-WsProcess $found @('-e', '0') -TimeoutSec 60 -Environment @{ NODE_OPTIONS = $env:NODE_OPTIONS }).ExitCode -ne 0) {
+    Set-WsWarn 'E-NODE-03' ('NODE_OPTIONS=' + $env:NODE_OPTIONS)
+  }
   Sync-WsExtras
   # O -Uninstall so precisa do $script:NodeExe.
   if ($script:Mode -eq 'uninstall') { return $true }
@@ -2476,6 +2543,14 @@ function Test-WsStep4 {
   # -1 (nao deu para saber) fica so no log: nao e um Node antigo.
   if ($fresh -ge 0 -and $fresh -lt [int]$script:C.NODE_MIN_MAJOR) { $d = ''; if ($fresh -gt 0) { $d = 'v' + $fresh }; Set-WsWarn 'E-NODE-02' $d }
   return $true
+}
+
+function Test-WsNodeComplete {
+  # O Node do workshop inteiro (node.exe e o npm que arranca)? Uma extracao a meio deixa o node.exe sem o npm.
+  param([string]$Dir)
+  $n = Join-Path $Dir 'node.exe'; $cli = Join-Path $Dir 'node_modules\npm\bin\npm-cli.js'
+  if (-not (Test-Path -LiteralPath $n) -or -not (Test-Path -LiteralPath $cli)) { return $false }
+  return ((Invoke-WsProcess $n @($cli, '-v') -TimeoutSec 120).ExitCode -eq 0)
 }
 
 function Install-WsStep4 {
@@ -2494,13 +2569,17 @@ function Install-WsStep4 {
   if ($rc -eq 1) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
   if ($rc -eq 2) { Set-WsFail 'E-NODE-01' ('SHA-256 ' + $file); return $false }
   Add-Type -AssemblyName System.IO.Compression.FileSystem
-  [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), (Join-Path $d 'x'))
-  $inner = Join-Path $d ('x\node-v{0}-win-{1}' -f $script:C.NODE_VERSION, $a)
+  # Extrai-se ao lado do destino (fora da pasta temporaria) e so se troca depois de o npm arrancar.
+  $nn = Join-Path $script:WsHome 'node.new'
+  Remove-Item -LiteralPath $nn -Recurse -Force -ErrorAction SilentlyContinue
+  [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), $nn)
+  $inner = Join-Path $nn ('node-v{0}-win-{1}' -f $script:C.NODE_VERSION, $a)
+  if (-not (Test-WsNodeComplete $inner)) { Remove-Item -LiteralPath $nn -Recurse -Force -ErrorAction SilentlyContinue; Set-WsFail 'E-NODE-01' 'zip (incomplete)'; return $false }
   $dest = Join-Path $script:WsHome 'node'
   Remove-Item -LiteralPath ($dest + '.old') -Recurse -Force -ErrorAction SilentlyContinue
   if (Test-Path -LiteralPath $dest) { Move-Item -LiteralPath $dest -Destination ($dest + '.old') }
   Move-Item -LiteralPath $inner -Destination $dest
-  Remove-Item -LiteralPath ($dest + '.old') -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath ($dest + '.old'), $nn -Recurse -Force -ErrorAction SilentlyContinue
   $script:NodeExe = Join-Path $dest 'node.exe'
   if ((Get-WsNodeMajor $script:NodeExe) -lt 1) { Set-WsFail 'E-PERM-02' $script:NodeExe; return $false }
   Add-WsUserPath $dest
@@ -2864,7 +2943,22 @@ function Test-WsStep8 {
   Sync-WsExtras
   $r = Invoke-WsInstallUser 'verificar'
   Read-WsInstallUserOutput $r.StdOut
+  if ($r.ExitCode -eq 0) { Test-WsClaudeConfigDir }
   return ($r.ExitCode -eq 0)
+}
+
+function Test-WsClaudeConfigDir {
+  # Com CLAUDE_CONFIG_DIR, as skills, os hooks e os MCP vao para essa pasta: diz-se qual e e, se um terminal novo
+  # (variaveis do Utilizador, senao da Maquina) nao tiver o mesmo valor, o claude de la nao os ve (E-CFG-09).
+  if (-not $env:CLAUDE_CONFIG_DIR) { return }
+  Add-WsNote (M 's8_claude_dir' @{ CAMINHO = $script:ClaudeDir })
+  $nt = [Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')
+  if (-not $nt) { $nt = [Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'Machine') }
+  if ($nt) { $nt = [Environment]::ExpandEnvironmentVariables($nt) }
+  if (([string]$nt).TrimEnd('\', '/') -ne ([string]$env:CLAUDE_CONFIG_DIR).TrimEnd('\', '/')) {
+    $show = 'not set'; if ($nt) { $show = $nt }
+    Set-WsWarn 'E-CFG-09' ($script:ClaudeDir + ' - new terminal: ' + $show)
+  }
 }
 
 function Install-WsStep8 {
@@ -2879,6 +2973,7 @@ function Install-WsStep8 {
   if ($r.ExitCode -eq 3) { if (-not $script:T['8'].Falha) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json') }; return $false }
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-KIT-03' ('install-user ({0})' -f $r.ExitCode); return $false }
   Sync-WsExtras
+  Test-WsClaudeConfigDir
   return $true
 }
 
@@ -3152,6 +3247,11 @@ function Invoke-WsMemorySelftest {
   param([string]$Exe, [string]$Ver)
   $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1'; AGENT_MEMORY_LANG = 'en'; MEMORIA_LANG = 'en' }
   $st = Read-WsSelftest $r.StdOut
+  # O setup corre a app sem o PYTHONHOME/PYTHONPATH da pessoa (Invoke-WsProcess) e o MCP regista-se sem eles; no
+  # terminal dela, "agent-memory" escrito a mao continua a falhar.
+  $pyEnv = @()
+  foreach ($k in @('PYTHONHOME', 'PYTHONPATH')) { $v = [Environment]::GetEnvironmentVariable($k); if ($v) { $pyEnv += ($k + '=' + $v) } }
+  if ($pyEnv.Count -gt 0) { Set-WsWarn 'E-MEM-09' ($pyEnv -join ' ') }
   if ($r.ExitCode -eq 0) {
     Set-WsDetail (M 's10_ok' @{ VERSAO = $Ver; PY = $st.Python })
     return $true
@@ -3252,6 +3352,8 @@ function Test-WsMemoryMcp {
   param([string]$Exe)
   $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
   if ($g.ExitCode -ne 0 -or -not (Test-WsMcpCommand $g.StdOut $Exe)) { return $false }
+  # Com um PYTHONHOME/PYTHONPATH no terminal, um registo sem as variaveis vazias nao arranca.
+  if (($env:PYTHONHOME -or $env:PYTHONPATH) -and [string]$g.StdOut -notmatch 'PYTHONHOME=') { return $false }
   return ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -ne 0)
 }
 
@@ -3297,12 +3399,20 @@ function Install-WsStep10 {
   if ($r.ExitCode -ne 0) {
     # Certificado da empresa: o passo 0 so testa a api.anthropic.com, e um proxy pode inspecionar so o github.com (o
     # Python do uv) ou o pypi.org. Repete uma vez com os certificados do Windows (o uv usa os seus por defeito).
-    if (($r.StdOut + ' ' + $r.StdErr) -notmatch 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed') { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
-    if (@('true', '1') -contains [string]$env:UV_SYSTEM_CERTS) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
-    Write-WsLog 'uv: certificate error, retrying with UV_SYSTEM_CERTS=true'
+    if (($r.StdOut + ' ' + $r.StdErr) -notmatch 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed') {
+      # O uv apontado para um espelho de pacotes da empresa que nao responde ou nao tem os pacotes (como no Mac).
+      $ix = Get-WsUvIndex
+      if ($ix) { Set-WsFail 'E-MEM-08' $ix } else { Set-WsFail 'E-MEM-03' 'uv tool install' }
+      return $false
+    }
+    # O uv da prioridade ao SSL_CERT_FILE (e ao SSL_CERT_DIR) mesmo com UV_SYSTEM_CERTS: o retry vai sem eles.
+    $sslFile = [string]$env:SSL_CERT_FILE
+    if (@('true', '1') -contains [string]$env:UV_SYSTEM_CERTS -and -not ($sslFile + $env:SSL_CERT_DIR)) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
+    Write-WsLog 'uv: certificate error, retrying with UV_SYSTEM_CERTS=true, without SSL_CERT_FILE/SSL_CERT_DIR'
     $uvEnv['UV_SYSTEM_CERTS'] = 'true'
-    $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv
-    if ($r.ExitCode -ne 0) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
+    $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv ($script:UvBlockEnv + @('SSL_CERT_FILE', 'SSL_CERT_DIR')) -Environment $uvEnv
+    if ($r.ExitCode -ne 0) { if ($sslFile) { Set-WsFail 'E-NET-09' ('SSL_CERT_FILE=' + $sslFile) } else { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org' }; return $false }
+    if ($sslFile) { Set-WsWarn 'E-NET-09' ('SSL_CERT_FILE=' + $sslFile) }
   }
   # The distribution changed its name? Take the old one out of uv (only the program: the data stays).
   if ($dist -ne 'memoria') {
@@ -3330,6 +3440,15 @@ function Install-WsStep10 {
   return $true
 }
 
+function Get-WsUvIndex {
+  # Espelho de pacotes para o uv (o primeiro definido), sem utilizador nem palavra-passe no URL.
+  foreach ($k in @('UV_DEFAULT_INDEX', 'UV_INDEX_URL', 'UV_INDEX', 'UV_EXTRA_INDEX_URL')) {
+    $v = [Environment]::GetEnvironmentVariable($k)
+    if ($v) { return ($k + '=' + (Format-WsProxyShow $v)) }
+  }
+  return ''
+}
+
 function Register-WsMemoryMcp {
   # Registers the app's MCP server as "agent-memory" (command "<exe> mcp"). An old "memoria" registration goes,
   # and an "agent-memory" one that points to another program (e.g. an older memoria.exe) is redone.
@@ -3340,12 +3459,15 @@ function Register-WsMemoryMcp {
   }
   $cur = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
   if ($cur.ExitCode -eq 0) {
-    if (Test-WsMcpCommand $cur.StdOut $Exe) { return $true }
+    # Um registo de uma versao anterior do setup (sem o PYTHONHOME vazio, ver abaixo) e refeito.
+    if ((Test-WsMcpCommand $cur.StdOut $Exe) -and ([string]$cur.StdOut -match 'PYTHONHOME=')) { return $true }
     $c = (Get-WsMcpField $cur.StdOut 'Command').Replace('\\', '\')
-    if ($c) { Add-WsNote (M 's10_mcp_substituido' @{ ANTIGO = $c }) }
+    if ($c -and -not (Test-WsMcpCommand $cur.StdOut $Exe)) { Add-WsNote (M 's10_mcp_substituido' @{ ANTIGO = $c }) }
     [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', $script:McpName) -TimeoutSec 120)
   }
-  $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', $script:McpName, '--', $Exe, 'mcp') -TimeoutSec 120
+  # O Claude Code passa ao servidor o ambiente do terminal: um PYTHONHOME ou PYTHONPATH de um Anaconda antigo partia
+  # o Python da app. Vazios, o Python ignora-os. O nome vem antes do -e (o -e aceita varios valores).
+  $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', $script:McpName, '-e', 'PYTHONHOME=', '-e', 'PYTHONPATH=', '-e', 'PYTHONSTARTUP=', '--', $Exe, 'mcp') -TimeoutSec 120
   if ($m.ExitCode -ne 0) { return $false }
   Register-WsExtra 'mcp' $script:McpName '' '' ''
   return $true
@@ -3940,6 +4062,35 @@ function Invoke-WsRelaunch {
   return $code
 }
 
+function Test-WsAbsolutePath {
+  # C:\... ou \\servidor\...: um caminho relativo, "~" ou "C:pasta" depende da pasta atual.
+  param([string]$P)
+  return ($P -match '^[A-Za-z]:[\\/]' -or $P -match '^[\\/]{2}[^\\/]')
+}
+
+function New-WsTmpDir {
+  # Pasta temporaria do setup: a do sistema (TMP/TEMP), senao %LOCALAPPDATA%\Temp, senao a pasta do workshop. Um
+  # TEMP que aponta para uma pasta sem escrita fica em $script:TmpBad (aviso E-SO-09, como o TMPDIR no Mac) e os
+  # programas que o setup corre recebem a pasta que serve.
+  $first = ''
+  try { $first = [IO.Path]::GetTempPath() } catch { $first = '' }
+  $bases = @($first)
+  if ($env:LOCALAPPDATA) { $bases += (Join-Path $env:LOCALAPPDATA 'Temp') }
+  $bases += (Join-Path $script:WsHome 'tmp')
+  $name = 'ws-setup-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+  foreach ($b in $bases) {
+    if (-not $b) { continue }
+    $t = Join-Path $b $name
+    try {
+      New-Item -ItemType Directory -Path $t -Force -ErrorAction Stop | Out-Null
+      [IO.File]::WriteAllText((Join-Path $t '.ws-tmp'), '')
+      if ($b -ne $first) { $script:TmpBad = ('TEMP=' + $first); $env:TEMP = $b; $env:TMP = $b }
+      return $t
+    } catch { Remove-Item -LiteralPath $t -Recurse -Force -ErrorAction SilentlyContinue }
+  }
+  return ''
+}
+
 function Invoke-WsMain {
   $o = $script:Params
   $script:Mode = 'install'
@@ -3997,8 +4148,20 @@ function Invoke-WsMain {
       try { Rename-Item -LiteralPath $script:LogFile -NewName ('setup.log.unwritable-' + (Get-Date -Format 'yyyyMMddHHmmss')) -ErrorAction Stop } catch { }
     }
   }
-  $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('ws-setup-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-  New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
+  # CLAUDE_CONFIG_DIR relativo ou com um "~" (o Claude Code nao o expande): para aqui, antes de mudar o que quer que
+  # seja (E-CFG-08, como no Mac).
+  if ($env:CLAUDE_CONFIG_DIR) {
+    if (-not (Test-WsAbsolutePath $env:CLAUDE_CONFIG_DIR)) { Write-WsCode 'E-CFG-08' ('CLAUDE_CONFIG_DIR=' + $env:CLAUDE_CONFIG_DIR) '  '; return 1 }
+    $script:ClaudeDir = $env:CLAUDE_CONFIG_DIR.TrimEnd('\', '/')
+    if ($script:ClaudeDir -match '^[A-Za-z]:$') { $script:ClaudeDir += '\' }
+  }
+  $script:TmpBad = ''
+  $script:Tmp = New-WsTmpDir
+  if (-not $script:Tmp) {
+    Write-Host ('No usable temporary folder: TEMP ({0}), %LOCALAPPDATA%\Temp and {1}\tmp cannot be written or the disk is full.' -f $env:TEMP, $script:WsHome)
+    Write-Host 'Fix the TEMP and TMP user variables (or free some disk space), open a new PowerShell window and run the setup again.'
+    return 1
+  }
   Initialize-WsLang
   $script:Titles = @{}
   foreach ($p in $script:Msgs.passos.PSObject.Properties) { $script:Titles[$p.Name] = $p.Value }

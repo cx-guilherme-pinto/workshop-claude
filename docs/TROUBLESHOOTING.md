@@ -27,6 +27,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-NET-06` | Proxy with NTLM or Kerberos authentication only | [macOS](#mac-e-net-06) · [Windows](#windows-e-net-06) |
 | `E-NET-07` | The download failed | [macOS](#mac-e-net-07) · [Windows](#windows-e-net-07) |
 | `E-NET-08` | Claude Code is set to use a proxy that does not answer on this network | [macOS](#mac-e-net-08) · [Windows](#windows-e-net-08) |
+| `E-NET-09` | A certificate variable points to a missing or wrong file | [macOS](#mac-e-net-09) · [Windows](#windows-e-net-09) |
 | `E-SO-01` | Windows older than 10.0.18362 (version 1903) | [Windows](#windows-e-so-01) |
 | `E-SO-02` | Windows on ARM64 | [Windows](#windows-e-so-02) |
 | `E-SO-03` | Your home folder is in OneDrive | [macOS](#mac-e-so-03) · [Windows](#windows-e-so-03) |
@@ -35,6 +36,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-SO-06` | Low disk space | [macOS](#mac-e-so-06) · [Windows](#windows-e-so-06) |
 | `E-SO-07` | A company policy blocks PowerShell scripts | [Windows](#windows-e-so-07) |
 | `E-SO-08` | PowerShell ISE can't run the setup | [Windows](#windows-e-so-08) |
+| `E-SO-09` | The temporary folder variable points to a folder that cannot be used | [macOS](#mac-e-so-09) · [Windows](#windows-e-so-09) |
+| `E-SO-10` | The setup's temporary folder was deleted while it ran | [macOS](#mac-e-so-10) · [Windows](#windows-e-so-10) |
 | `E-CFG-01` | There are company-managed settings (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | The ANTHROPIC_BASE_URL variable is set | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
@@ -42,6 +45,9 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-CFG-05` | The Claude Code settings.json file has an error | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | You already had a statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | uv is not allowed to use managed Python | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
+| `E-CFG-08` | CLAUDE_CONFIG_DIR is not an absolute path | [macOS](#mac-e-cfg-08) · [Windows](#windows-e-cfg-08) |
+| `E-CFG-09` | New terminals do not use the same Claude Code folder | [macOS](#mac-e-cfg-09) · [Windows](#windows-e-cfg-09) |
+| `E-CFG-10` | A model override is set for Claude Code | [macOS](#mac-e-cfg-10) · [Windows](#windows-e-cfg-10) |
 | `E-PERM-01` | No permission to write to your home folder | [macOS](#mac-e-perm-01) · [Windows](#windows-e-perm-01) |
 | `E-PERM-02` | A program was blocked by the computer's security | [macOS](#mac-e-perm-02) · [Windows](#windows-e-perm-02) |
 | `E-PERM-03` | The installer asked for administrator permissions | [macOS](#mac-e-perm-03) · [Windows](#windows-e-perm-03) |
@@ -59,6 +65,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-AUTH-05` | The company gateway in ANTHROPIC_BASE_URL is not answering | [macOS](#mac-e-auth-05) · [Windows](#windows-e-auth-05) |
 | `E-NODE-01` | I couldn't install Node.js | [macOS](#mac-e-node-01) · [Windows](#windows-e-node-01) |
 | `E-NODE-02` | An old or broken Node comes first in the PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
+| `E-NODE-03` | NODE_OPTIONS breaks Node in your terminal | [macOS](#mac-e-node-03) · [Windows](#windows-e-node-03) |
 | `E-UV-01` | I couldn't install uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-UV-02` | An older uv comes first in the PATH | [macOS](#mac-e-uv-02) · [Windows](#windows-e-uv-02) |
 | `E-GH-01` | I couldn't install GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
@@ -82,6 +89,9 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-MEM-05` | The Agent Memory app test failed | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-MEM-06` | Couldn't create the Agent Memory shortcut | [macOS](#mac-e-mem-06) · [Windows](#windows-e-mem-06) |
 | `E-MEM-07` | The Agent Memory folder is not writable | [macOS](#mac-e-mem-07) · [Windows](#windows-e-mem-07) |
+| `E-MEM-08` | uv is pointed at a package mirror that does not work | [macOS](#mac-e-mem-08) · [Windows](#windows-e-mem-08) |
+| `E-MEM-09` | PYTHONHOME or PYTHONPATH is set in your terminal | [macOS](#mac-e-mem-09) · [Windows](#windows-e-mem-09) |
+| `E-MEM-10` | Your home folder path is too long for the Agent Memory app | [macOS](#mac-e-mem-10) |
 | `E-DESK-01` | Claude Desktop has limits with the Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | I couldn't install Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-PROF-01` | The setup could not add the workshop folders to a shell profile | [macOS](#mac-e-prof-01) |
@@ -233,6 +243,22 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 grep -n -i proxy ~/.claude/settings.json
 ```
 
+<a id="mac-e-net-09"></a>
+
+### E-NET-09 · A certificate variable points to a missing or wrong file
+
+- **Why:** SSL_CERT_FILE, CURL_CA_BUNDLE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE or SSL_CERT_DIR (shown in brackets), or a cacert line in ~/.curlrc, points to a certificate file that does not exist or does not have the right certificates. It is often left over from an old Homebrew, Anaconda or Zscaler install. curl then fails on every site with "curl: (77) error setting certificate verify locations", and uv fails with "invalid peer certificate". The setup ignores the variable in its own commands, but your terminal still has it.
+- **What to do:**
+  - If the install command itself stops with curl: (77), run the first command below in the same terminal and paste the install command again.
+  - Find the export in your shell profile with the second command, delete that line (or point it to the right file) and open a new terminal.
+
+Commands (macOS):
+
+```
+unset SSL_CERT_FILE CURL_CA_BUNDLE GIT_SSL_CAINFO NODE_EXTRA_CA_CERTS REQUESTS_CA_BUNDLE SSL_CERT_DIR
+grep -nE 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS|cacert' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile ~/.curlrc 2>/dev/null
+```
+
 <a id="mac-e-so-03"></a>
 
 ### E-SO-03 · Your home folder is in OneDrive
@@ -269,6 +295,29 @@ Command (macOS):
 ```
 df -h ~
 ```
+
+<a id="mac-e-so-09"></a>
+
+### E-SO-09 · The temporary folder variable points to a folder that cannot be used
+
+- **Why:** TMPDIR (on Windows, TEMP or TMP), shown in brackets, points to a folder that does not exist or cannot be written, often an export copied from another computer. The setup used another temporary folder, but other programs in your terminal (Claude Code, uv, npm) may fail.
+- **What to do:**
+  - Find the export with the first command and delete it (macOS sets TMPDIR by itself), then open a new terminal.
+
+Commands (macOS):
+
+```
+grep -n TMPDIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+unset TMPDIR
+```
+
+<a id="mac-e-so-10"></a>
+
+### E-SO-10 · The setup's temporary folder was deleted while it ran
+
+- **Why:** Something deleted the setup's temporary folder (shown in brackets) in the middle of a step, usually a cleaning app or a script that empties the temporary folders. The step lost the files it had downloaded.
+- **What to do:**
+  - Pause the cleaning app for a few minutes and run the setup again: the steps already done are skipped.
 
 <a id="mac-e-cfg-01"></a>
 
@@ -377,6 +426,53 @@ Command (macOS):
 
 ```
 env | grep -E "^UV_(PYTHON_DOWNLOADS|NO_MANAGED_PYTHON|PYTHON_PREFERENCE)"
+```
+
+<a id="mac-e-cfg-08"></a>
+
+### E-CFG-08 · CLAUDE_CONFIG_DIR is not an absolute path
+
+- **Why:** CLAUDE_CONFIG_DIR (shown in brackets) is a relative path, or starts with a ~ inside quotes. Neither Claude Code nor the setup expands it, so every folder where you run claude would get its own copy of the settings, the skills and the logins (for example a folder named ~ inside the Arena). The setup stopped before changing anything.
+- **What to do:**
+  - Find the line with the first command. Write the path with $HOME, for example export CLAUDE_CONFIG_DIR="$HOME/.claude-work" (no quotes around a ~), or delete the line if you do not need a separate Claude Code folder.
+  - Open a new terminal, check the value with the second command and run the setup again.
+
+Commands (macOS):
+
+```
+grep -n CLAUDE_CONFIG_DIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+echo "$CLAUDE_CONFIG_DIR"
+```
+
+<a id="mac-e-cfg-09"></a>
+
+### E-CFG-09 · New terminals do not use the same Claude Code folder
+
+- **Why:** This terminal has CLAUDE_CONFIG_DIR, so the setup put the skills, the hooks and the MCP servers in that folder (shown in brackets). A new terminal has another value, or none, so the claude you open there will not see them. This happens when the variable was exported only in this terminal, by an IDE or by direnv.
+- **What to do:**
+  - To keep that folder: save the variable for new terminals with the first command, open a new terminal and run the setup again.
+  - To use the normal folder (~/.claude): open a new terminal where CLAUDE_CONFIG_DIR is not set and run the setup again.
+
+Command (macOS):
+
+```
+echo "export CLAUDE_CONFIG_DIR=\"$CLAUDE_CONFIG_DIR\"" >> ~/.zshrc
+```
+
+<a id="mac-e-cfg-10"></a>
+
+### E-CFG-10 · A model override is set for Claude Code
+
+- **Why:** A variable (shown in brackets, from the shell or from the "env" of a settings file) replaces the models Claude Code uses. That is the session model, or the sonnet, haiku and opus aliases of the workshop skills and agents. A retired model id, or one that only exists on Bedrock or Vertex, fails with a Console login, and another model changes the costs. The final test picks its own model, so it does not show this.
+- **What to do:**
+  - If you do not need the override, remove it: run the second command in this terminal, delete the line from ~/.zshrc and, if it is in ~/.claude/settings.json, remove it from "env". Then open a new terminal.
+  - If your company set it (managed settings), talk to the organizer before the workshop.
+
+Commands (macOS):
+
+```
+env | grep -E '^(ANTHROPIC_(MODEL|DEFAULT_[A-Z]+_MODEL|SMALL_FAST_MODEL)|CLAUDE_CODE_SUBAGENT_MODEL)='
+unset ANTHROPIC_MODEL ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_SUBAGENT_MODEL
 ```
 
 <a id="mac-e-perm-01"></a>
@@ -608,6 +704,22 @@ Commands (macOS):
 type -a node
 nvm install 22 && nvm alias default 22
 node -v
+```
+
+<a id="mac-e-node-03"></a>
+
+### E-NODE-03 · NODE_OPTIONS breaks Node in your terminal
+
+- **Why:** NODE_OPTIONS (shown in brackets) makes every Node script fail. It is usually a --require of a file that no longer exists (VS Code or Cursor "Debug: Auto Attach", a monitoring agent) or an option this Node version rejects. The setup ran Node without it, but the workshop hooks, the statusline and the skills run Node from your terminal: the cost display and the budget warnings would not work.
+- **What to do:**
+  - In this terminal, run the first command. In VS Code or Cursor, run "Debug: Toggle Auto Attach" and choose Disabled or Smart, then open a new terminal.
+  - If the export is in your shell profile, find it with the second command and delete it, then open a new terminal.
+
+Commands (macOS):
+
+```
+unset NODE_OPTIONS
+grep -n NODE_OPTIONS ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
 ```
 
 <a id="mac-e-uv-01"></a>
@@ -929,6 +1041,49 @@ ls -ld ~/.agent-memory ~/.memoria
 agent-memory selftest
 ```
 
+<a id="mac-e-mem-08"></a>
+
+### E-MEM-08 · uv is pointed at a package mirror that does not work
+
+- **Why:** A variable (shown in brackets: UV_DEFAULT_INDEX, UV_INDEX_URL, UV_INDEX or UV_EXTRA_INDEX_URL) sends uv to a company package mirror instead of pypi.org, and that mirror did not answer or does not have the packages of the app. Often it only works on the company VPN. The skills work without the app.
+- **What to do:**
+  - Connect to the company VPN and run the setup again.
+  - Or, if you do not need the mirror, remove the variable in this terminal (command below), delete it from your shell profile and run the setup again.
+
+Command (macOS):
+
+```
+unset UV_DEFAULT_INDEX UV_INDEX_URL UV_INDEX UV_EXTRA_INDEX_URL
+```
+
+<a id="mac-e-mem-09"></a>
+
+### E-MEM-09 · PYTHONHOME or PYTHONPATH is set in your terminal
+
+- **Why:** Your terminal exports PYTHONHOME or PYTHONPATH (shown in brackets), often left over from an old Anaconda or conda install. They make the Python of the Agent Memory app load the wrong files and fail ("No module named encodings", ImportError). The setup and the memory MCP of Claude Code run the app without them, but agent-memory typed in your terminal fails.
+- **What to do:**
+  - Find the export with the command below and delete it (or the old conda block), then open a new terminal.
+
+Command (macOS):
+
+```
+grep -nE 'PYTHONHOME|PYTHONPATH|conda' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null
+```
+
+<a id="mac-e-mem-10"></a>
+
+### E-MEM-10 · Your home folder path is too long for the Agent Memory app
+
+- **Why:** The app keeps its search index in <memories folder>/.index/index-v3.sqlite, and the SQLite of its Python only opens database paths of up to 504 bytes (in brackets, the length here). With a very long home folder path the index never opens: running the setup again or agent-memory reindex does not fix it. Your notes are safe, and the skills work without the app.
+- **What to do:**
+  - Put the memories in a shorter folder: add the line below to ~/.zshrc, open a new terminal and run the setup again. The notes you already have stay in the old folder: copy them over if you want them.
+
+Command (macOS):
+
+```
+echo 'export AGENT_MEMORY_HOME="/Users/Shared/agent-memory-$USER"' >> ~/.zshrc
+```
+
 <a id="mac-e-desk-01"></a>
 
 ### E-DESK-01 · Claude Desktop has limits with the Console
@@ -1173,6 +1328,22 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
 ```
 
+<a id="windows-e-net-09"></a>
+
+### E-NET-09 · A certificate variable points to a missing or wrong file
+
+- **Why:** SSL_CERT_FILE, CURL_CA_BUNDLE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE or SSL_CERT_DIR (shown in brackets), or a cacert line in ~/.curlrc, points to a certificate file that does not exist or does not have the right certificates. It is often left over from an old Homebrew, Anaconda or Zscaler install. curl then fails on every site with "curl: (77) error setting certificate verify locations", and uv fails with "invalid peer certificate". The setup ignores the variable in its own commands, but your terminal still has it.
+- **What to do:**
+  - If the install command itself stops with curl: (77), run the first command below in the same terminal and paste the install command again.
+  - Find the export in your shell profile with the second command, delete that line (or point it to the right file) and open a new terminal.
+
+Commands (Windows):
+
+```
+Get-ChildItem Env: | Where-Object Name -match 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS'
+[Environment]::SetEnvironmentVariable('SSL_CERT_FILE', $null, 'User')
+```
+
 <a id="windows-e-so-01"></a>
 
 ### E-SO-01 · Windows older than 10.0.18362 (version 1903)
@@ -1263,6 +1434,28 @@ Command (Windows):
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
+
+<a id="windows-e-so-09"></a>
+
+### E-SO-09 · The temporary folder variable points to a folder that cannot be used
+
+- **Why:** TMPDIR (on Windows, TEMP or TMP), shown in brackets, points to a folder that does not exist or cannot be written, often an export copied from another computer. The setup used another temporary folder, but other programs in your terminal (Claude Code, uv, npm) may fail.
+- **What to do:**
+  - Find the export with the first command and delete it (macOS sets TMPDIR by itself), then open a new terminal.
+
+Command (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('TEMP', 'User'); [Environment]::GetEnvironmentVariable('TMP', 'User')
+```
+
+<a id="windows-e-so-10"></a>
+
+### E-SO-10 · The setup's temporary folder was deleted while it ran
+
+- **Why:** Something deleted the setup's temporary folder (shown in brackets) in the middle of a step, usually a cleaning app or a script that empties the temporary folders. The step lost the files it had downloaded.
+- **What to do:**
+  - Pause the cleaning app for a few minutes and run the setup again: the steps already done are skipped.
 
 <a id="windows-e-cfg-01"></a>
 
@@ -1373,6 +1566,52 @@ Command (Windows):
 
 ```
 Get-ChildItem Env:UV_*
+```
+
+<a id="windows-e-cfg-08"></a>
+
+### E-CFG-08 · CLAUDE_CONFIG_DIR is not an absolute path
+
+- **Why:** CLAUDE_CONFIG_DIR (shown in brackets) is a relative path, or starts with a ~ inside quotes. Neither Claude Code nor the setup expands it, so every folder where you run claude would get its own copy of the settings, the skills and the logins (for example a folder named ~ inside the Arena). The setup stopped before changing anything.
+- **What to do:**
+  - Find the line with the first command. Write the path with $HOME, for example export CLAUDE_CONFIG_DIR="$HOME/.claude-work" (no quotes around a ~), or delete the line if you do not need a separate Claude Code folder.
+  - Open a new terminal, check the value with the second command and run the setup again.
+
+Commands (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')
+Remove-Item Env:CLAUDE_CONFIG_DIR
+```
+
+<a id="windows-e-cfg-09"></a>
+
+### E-CFG-09 · New terminals do not use the same Claude Code folder
+
+- **Why:** This terminal has CLAUDE_CONFIG_DIR, so the setup put the skills, the hooks and the MCP servers in that folder (shown in brackets). A new terminal has another value, or none, so the claude you open there will not see them. This happens when the variable was exported only in this terminal, by an IDE or by direnv.
+- **What to do:**
+  - To keep that folder: save the variable for new terminals with the first command, open a new terminal and run the setup again.
+  - To use the normal folder (~/.claude): open a new terminal where CLAUDE_CONFIG_DIR is not set and run the setup again.
+
+Command (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('CLAUDE_CONFIG_DIR', $env:CLAUDE_CONFIG_DIR, 'User')
+```
+
+<a id="windows-e-cfg-10"></a>
+
+### E-CFG-10 · A model override is set for Claude Code
+
+- **Why:** A variable (shown in brackets, from the shell or from the "env" of a settings file) replaces the models Claude Code uses. That is the session model, or the sonnet, haiku and opus aliases of the workshop skills and agents. A retired model id, or one that only exists on Bedrock or Vertex, fails with a Console login, and another model changes the costs. The final test picks its own model, so it does not show this.
+- **What to do:**
+  - If you do not need the override, remove it: run the second command in this terminal, delete the line from ~/.zshrc and, if it is in ~/.claude/settings.json, remove it from "env". Then open a new terminal.
+  - If your company set it (managed settings), talk to the organizer before the workshop.
+
+Command (Windows):
+
+```
+Get-ChildItem Env: | Where-Object Name -match 'ANTHROPIC_.*MODEL|CLAUDE_CODE_SUBAGENT_MODEL'
 ```
 
 <a id="windows-e-perm-01"></a>
@@ -1621,6 +1860,22 @@ Commands (Windows):
 ```
 Get-Command node -All
 node -v
+```
+
+<a id="windows-e-node-03"></a>
+
+### E-NODE-03 · NODE_OPTIONS breaks Node in your terminal
+
+- **Why:** NODE_OPTIONS (shown in brackets) makes every Node script fail. It is usually a --require of a file that no longer exists (VS Code or Cursor "Debug: Auto Attach", a monitoring agent) or an option this Node version rejects. The setup ran Node without it, but the workshop hooks, the statusline and the skills run Node from your terminal: the cost display and the budget warnings would not work.
+- **What to do:**
+  - In this terminal, run the first command. In VS Code or Cursor, run "Debug: Toggle Auto Attach" and choose Disabled or Smart, then open a new terminal.
+  - If the export is in your shell profile, find it with the second command and delete it, then open a new terminal.
+
+Commands (Windows):
+
+```
+Remove-Item Env:NODE_OPTIONS
+[Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'User')
 ```
 
 <a id="windows-e-uv-01"></a>
@@ -1947,6 +2202,35 @@ Commands (Windows):
 ```
 icacls "$env:USERPROFILE\.agent-memory"
 agent-memory selftest
+```
+
+<a id="windows-e-mem-08"></a>
+
+### E-MEM-08 · uv is pointed at a package mirror that does not work
+
+- **Why:** A variable (shown in brackets: UV_DEFAULT_INDEX, UV_INDEX_URL, UV_INDEX or UV_EXTRA_INDEX_URL) sends uv to a company package mirror instead of pypi.org, and that mirror did not answer or does not have the packages of the app. Often it only works on the company VPN. The skills work without the app.
+- **What to do:**
+  - Connect to the company VPN and run the setup again.
+  - Or, if you do not need the mirror, remove the variable in this terminal (command below), delete it from your shell profile and run the setup again.
+
+Command (Windows):
+
+```
+Remove-Item Env:UV_DEFAULT_INDEX, Env:UV_INDEX_URL, Env:UV_INDEX, Env:UV_EXTRA_INDEX_URL -ErrorAction SilentlyContinue
+```
+
+<a id="windows-e-mem-09"></a>
+
+### E-MEM-09 · PYTHONHOME or PYTHONPATH is set in your terminal
+
+- **Why:** Your terminal exports PYTHONHOME or PYTHONPATH (shown in brackets), often left over from an old Anaconda or conda install. They make the Python of the Agent Memory app load the wrong files and fail ("No module named encodings", ImportError). The setup and the memory MCP of Claude Code run the app without them, but agent-memory typed in your terminal fails.
+- **What to do:**
+  - Find the export with the command below and delete it (or the old conda block), then open a new terminal.
+
+Command (Windows):
+
+```
+[Environment]::GetEnvironmentVariable('PYTHONHOME', 'User'); [Environment]::GetEnvironmentVariable('PYTHONPATH', 'User')
 ```
 
 <a id="windows-e-desk-01"></a>

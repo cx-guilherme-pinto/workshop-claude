@@ -184,7 +184,7 @@ Describe 'app Agent Memory (contrato da app)' {
     Register-WsMemoryMcp 'C:\u\agent-memory.exe' | Should -BeTrue
     $script:Registered.ContainsKey('memoria') | Should -BeFalse
     $script:Registered.ContainsKey('agent-memory') | Should -BeTrue
-    ($script:Calls -join ';') | Should -Match 'mcp add --scope user agent-memory -- C:\\u\\agent-memory\.exe mcp'
+    ($script:Calls -join ';') | Should -Match 'mcp add --scope user agent-memory -e PYTHONHOME= -e PYTHONPATH= -e PYTHONSTARTUP= -- C:\\u\\agent-memory\.exe mcp'
   }
 }
 
@@ -1947,7 +1947,7 @@ Describe 'chaos G4-auth-tools' {
       $a = @($Arguments); $script:Calls += ($a -join ' ')
       if ($a[1] -eq 'get') { if ($script:Reg.ContainsKey($a[2])) { return @{ ExitCode = 0; StdOut = ($a[2] + ":`n  Type: stdio`n  Command: " + $script:Reg[$a[2]] + "`n  Args: mcp") } }; return @{ ExitCode = 1; StdOut = '' } }
       if ($a[1] -eq 'remove') { $script:Reg.Remove($a[-1]); return @{ ExitCode = 0; StdOut = '' } }
-      if ($a[1] -eq 'add') { $script:Reg[$a[4]] = $a[6]; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a[1] -eq 'add') { $script:Reg[$a[4]] = $a[-2]; return @{ ExitCode = 0; StdOut = '' } }
       return @{ ExitCode = 0; StdOut = '' }
     }
     $exe = 'C:\u\.local\bin\agent-memory.exe'
@@ -3024,3 +3024,158 @@ Describe 'chaos G7-language' {
   }
 }
 
+
+Describe 'chaos round 2 R1-env' {
+  BeforeEach {
+    $script:T = New-WsStateTable; $script:Cur = '0'; $script:Mode = 'install'
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Saved = @{}
+    foreach ($k in @('FORCE_COLOR', 'NODE_OPTIONS', 'PYTHONHOME', 'PYTHONPATH', 'SSL_CERT_FILE', 'CURL_CA_BUNDLE', 'ANTHROPIC_MODEL', 'CLAUDE_CONFIG_DIR', 'UV_DEFAULT_INDEX', 'UV_INDEX_URL', 'UV_INDEX', 'UV_EXTRA_INDEX_URL', 'TMPDIR', 'TEMP', 'TMP')) {
+      $script:Saved[$k] = [Environment]::GetEnvironmentVariable($k)
+    }
+  }
+  AfterEach {
+    foreach ($k in $script:Saved.Keys) { [Environment]::SetEnvironmentVariable($k, $script:Saved[$k]) }
+  }
+  It 'os programas que o setup corre nao recebem cores forcadas, NODE_OPTIONS, o Python de outro ambiente nem certificados que nao existem' {
+    $envExe = '/usr/bin/env'
+    if (-not (Test-Path -LiteralPath $envExe)) { Set-ItResult -Skipped -Because 'sem /usr/bin/env'; return }
+    $good = Join-Path $TestDrive 'ca.pem'; [IO.File]::WriteAllText($good, 'x')
+    $env:FORCE_COLOR = '3'; $env:NODE_OPTIONS = '--require /nao/existe.js'; $env:PYTHONHOME = '/opt/conda'
+    $env:SSL_CERT_FILE = (Join-Path $TestDrive 'nao-existe.pem'); $env:CURL_CA_BUNDLE = $good
+    $r = Invoke-WsProcess $envExe @() -TimeoutSec 30
+    $r.StdOut | Should -Not -Match '(?m)^(FORCE_COLOR|NODE_OPTIONS|PYTHONHOME|SSL_CERT_FILE)='
+    $r.StdOut | Should -Match '(?m)^NO_COLOR=1'
+    $r.StdOut | Should -Match ('(?m)^CURL_CA_BUNDLE=' + [regex]::Escape($good))
+    $r = Invoke-WsProcess $envExe @() -TimeoutSec 30 -Environment @{ NODE_OPTIONS = '--x' }
+    $r.StdOut | Should -Match '(?m)^NODE_OPTIONS=--x' -Because 'o -Environment volta a por o NODE_OPTIONS (o teste do E-NODE-03)'
+    $env:NODE_OPTIONS | Should -Be '--require /nao/existe.js' -Because 'o ambiente do proprio PowerShell fica como estava'
+  }
+  It 'disco cheio: o erro de escrita do download e E-SO-06, e uma falha com a mensagem no log do passo tambem' {
+    $e = New-Object System.IO.IOException('There is not enough space on the disk.', -2147024784)
+    (Get-WsWebErrorInfo $e).Status | Should -Be 'DiskFull'
+    Get-WsNetCode 'DiskFull' 0 | Should -Be 'E-SO-06'
+    $script:UserHome = 'C:\Users\ana'
+    [void]$script:StepLog.Append('download failed: https://x There is not enough space on the disk.')
+    $script:Cur = '8'; Set-WsFail 'E-KIT-01' ''
+    Invoke-WsPermReclass
+    $script:T['8'].Falha[0] | Should -Be 'E-SO-06'
+    $script:T['8'].Falha[1] | Should -Be 'No space left on device - E-KIT-01'
+    $script:Cur = '12'; Set-WsFail 'E-SMOKE-02' ''
+    Invoke-WsPermReclass
+    $script:T['12'].Falha[0] | Should -Be 'E-SMOKE-02' -Because 'sem creditos nao e o disco'
+  }
+  It 'CLAUDE_CONFIG_DIR: so caminhos absolutos' {
+    Test-WsAbsolutePath 'C:\Users\ana\.claude-work' | Should -BeTrue
+    Test-WsAbsolutePath '\\servidor\partilha\claude' | Should -BeTrue
+    Test-WsAbsolutePath '~\.claude-work' | Should -BeFalse
+    Test-WsAbsolutePath '.claude-work' | Should -BeFalse
+    Test-WsAbsolutePath 'C:claude' | Should -BeFalse
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "(?s)Test-WsAbsolutePath \`$env:CLAUDE_CONFIG_DIR.*?Write-WsCode 'E-CFG-08'.*?return 1.*?New-WsTmpDir"
+  }
+  It 'CLAUDE_CONFIG_DIR so neste terminal: nota e E-CFG-09' {
+    $script:Cur = '8'
+    $env:CLAUDE_CONFIG_DIR = 'C:\Users\ana\.claude-work'; $script:ClaudeDir = $env:CLAUDE_CONFIG_DIR
+    Test-WsClaudeConfigDir
+    $script:T['8'].Notas[0] | Should -Be (M 's8_claude_dir' @{ CAMINHO = 'C:\Users\ana\.claude-work' })
+    if (-not [Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')) {
+      $script:T['8'].Avisos[0] -join '|' | Should -Be 'E-CFG-09|C:\Users\ana\.claude-work - new terminal: not set'
+    }
+    $script:T = New-WsStateTable; Remove-Item Env:CLAUDE_CONFIG_DIR
+    Test-WsClaudeConfigDir
+    @($script:T['8'].Notas).Count | Should -Be 0
+  }
+  It 'passo 0: modelos trocados, certificados que nao existem e um TEMP que nao serve' {
+    $script:ClaudeDir = Join-Path $TestDrive 'cdm'
+    New-Item -ItemType Directory -Path $script:ClaudeDir -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:ClaudeDir 'settings.json'), '{"env":{"ANTHROPIC_DEFAULT_SONNET_MODEL":"anthropic.claude-old-v1"}}')
+    $env:ANTHROPIC_MODEL = 'claude-velho'; $env:SSL_CERT_FILE = (Join-Path $TestDrive 'nao-existe.pem')
+    $script:TmpBad = 'TEMP=X:\Temp\'
+    Mock Get-WsSettingsEnv { return $null } -ParameterFilter { $Name -ne 'ANTHROPIC_DEFAULT_SONNET_MODEL' }
+    Test-WsEnvWarnings
+    $w = @($script:T['0'].Avisos | ForEach-Object { $_ -join '|' })
+    $w | Should -Contain ('E-CFG-10|ANTHROPIC_MODEL=claude-velho (shell) - ANTHROPIC_DEFAULT_SONNET_MODEL=anthropic.claude-old-v1 (' + (Join-Path $script:ClaudeDir 'settings.json') + ')')
+    $w | Should -Contain ('E-NET-09|SSL_CERT_FILE=' + $env:SSL_CERT_FILE)
+    $w | Should -Contain 'E-SO-09|TEMP=X:\Temp\'
+    $script:TmpBad = ''
+  }
+  It 'pasta temporaria: um TEMP que nao serve passa para a pasta do workshop' {
+    if ($IsWindows -or $env:OS -eq 'Windows_NT') { Set-ItResult -Skipped -Because 'no Windows o GetTempPath le o TMP do sistema'; return }
+    $script:WsHome = Join-Path $TestDrive 'wsh'; New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    $f = Join-Path $TestDrive 'um-ficheiro'; [IO.File]::WriteAllText($f, 'x')
+    $env:TMPDIR = $f + '/'
+    $script:TmpBad = ''
+    $t = New-WsTmpDir
+    $t | Should -Not -BeNullOrEmpty
+    $t.StartsWith((Join-Path $script:WsHome 'tmp')) | Should -BeTrue
+    Test-Path -LiteralPath (Join-Path $t '.ws-tmp') | Should -BeTrue
+    $script:TmpBad | Should -Match '^TEMP='
+    $script:TmpBad = ''
+  }
+  It 'NODE_OPTIONS: o major vem do -e e um NODE_OPTIONS que parte o Node da E-NODE-03' {
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = '24.11.1'; StdErr = '' } }
+    Get-WsNodeMajor 'node.exe' | Should -Be 24
+    Should -Invoke Invoke-WsProcess -ParameterFilter { (@($Arguments) -join ' ') -eq '-e process.stdout.write(process.versions.node)' }
+    $script:Cur = '4'; $script:Mode = 'check'
+    $script:C = @{ NODE_MIN_MAJOR = '22' }
+    $script:WsHome = Join-Path $TestDrive 'ws4'
+    $script:NodeExe = Join-Path $TestDrive 'node4.exe'; Set-Content -LiteralPath $script:NodeExe -Value 'x'
+    Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'node' }
+    Mock Get-WsDriveType { return 3 }
+    Mock Test-WsNetworkPath { return $false }
+    Mock Get-WsNodeMajor { return 24 }
+    Mock Get-WsFreshNodeMajor { return 24 }
+    Mock Sync-WsExtras { }
+    Mock Invoke-WsProcess { if ($Environment -and $Environment.NODE_OPTIONS) { return @{ ExitCode = 9; StdOut = ''; StdErr = 'not allowed' } }; return @{ ExitCode = 0; StdOut = 'v24.11.1'; StdErr = '' } }
+    $env:NODE_OPTIONS = '--experimental-policy=policy.json'
+    Test-WsStep4 | Should -BeTrue
+    $script:T['4'].Avisos[0] -join '|' | Should -Be 'E-NODE-03|NODE_OPTIONS=--experimental-policy=policy.json'
+    $script:T = New-WsStateTable; Remove-Item Env:NODE_OPTIONS
+    Test-WsStep4 | Should -BeTrue
+    @($script:T['4'].Avisos).Count | Should -Be 0
+  }
+  It 'Node do workshop sem o npm nao conta' {
+    $d = Join-Path $TestDrive 'node-sem-npm'; New-Item -ItemType Directory -Path $d -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $d 'node.exe'), 'x')
+    Test-WsNodeComplete $d | Should -BeFalse
+  }
+  It 'uv: espelho de pacotes mostrado sem credenciais (E-MEM-08) e o retry de certificados sem o SSL_CERT_FILE' {
+    foreach ($k in @('UV_DEFAULT_INDEX', 'UV_INDEX', 'UV_EXTRA_INDEX_URL')) { [Environment]::SetEnvironmentVariable($k, $null) }
+    $env:UV_INDEX_URL = 'https://bea:segredo@pypi.empresa.pt/simple'
+    Get-WsUvIndex | Should -Be 'UV_INDEX_URL=https://pypi.empresa.pt/simple'
+    Remove-Item Env:UV_INDEX_URL
+    Get-WsUvIndex | Should -Be ''
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "(?s)\`$ix = Get-WsUvIndex\s+if \(\`$ix\) \{ Set-WsFail 'E-MEM-08' \`$ix \}"
+    $text | Should -Match "-RemoveEnv \(\`$script:UvBlockEnv \+ @\('SSL_CERT_FILE', 'SSL_CERT_DIR'\)\)"
+  }
+  It 'MCP: um registo sem o PYTHONHOME vazio e refeito (sem nota de troca); o aviso E-MEM-09 com o PYTHONHOME na shell' {
+    $script:Cur = '10'; $script:ClaudeExe = 'claude.exe'; $script:Calls = @()
+    $exe = 'C:\u\.local\bin\agent-memory.exe'
+    $script:Out = "agent-memory:`n  Type: stdio`n  Command: $exe`n  Args: mcp"
+    Mock Register-WsExtra { }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments); $script:Calls += ($a -join ' ')
+      if ($a[1] -eq 'get') { if ($a[2] -eq 'agent-memory') { return @{ ExitCode = 0; StdOut = $script:Out } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a[1] -eq 'add') { $script:Out = "agent-memory:`n  Command: $exe`n  Args: mcp`n  Environment:`n    PYTHONHOME=`n"; return @{ ExitCode = 0; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $env:PYTHONHOME = 'C:\Miniconda3'
+    Test-WsMemoryMcp $exe | Should -BeFalse -Because 'com o PYTHONHOME na shell, o registo antigo nao arranca'
+    Register-WsMemoryMcp $exe | Should -BeTrue
+    ($script:Calls -join ';') | Should -Match 'mcp add --scope user agent-memory -e PYTHONHOME= -e PYTHONPATH= -e PYTHONSTARTUP= -- '
+    @($script:T['10'].Notas).Count | Should -Be 0
+    Test-WsMemoryMcp $exe | Should -BeTrue
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = "[OK] Python 3.12.15`n"; StdErr = '' } }
+    Invoke-WsMemorySelftest $exe '0.5.0' | Should -BeTrue
+    $script:T['10'].Avisos[0] -join '|' | Should -Be 'E-MEM-09|PYTHONHOME=C:\Miniconda3'
+  }
+  It 'os codigos novos existem nos dois catalogos' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($c in @('E-NET-09', 'E-SO-09', 'E-SO-10', 'E-CFG-08', 'E-CFG-09', 'E-CFG-10', 'E-NODE-03', 'E-MEM-08', 'E-MEM-09', 'E-MEM-10')) {
+      $script:Msgs.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+      $pt.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+    }
+  }
+}
