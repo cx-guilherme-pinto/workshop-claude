@@ -326,14 +326,38 @@ function Test-WsPublicCa {
   return [bool]($Issuer -match $script:PublicCas)
 }
 
+function ConvertTo-WsPathKey {
+  # Chave para comparar pastas do PATH (com -ieq): %VARIAVEIS% expandidas, sem aspas e sem barra no fim.
+  param([string]$Entry)
+  return ([Environment]::ExpandEnvironmentVariables([string]$Entry).Trim('"').TrimEnd('\'))
+}
+
+function Test-WsPathHas {
+  # A lista PATH ja tem esta pasta? Outra caixa, a barra no fim, aspas ou %USERPROFILE%\... contam como a mesma.
+  param([string]$PathValue, [string]$Entry)
+  if (-not $PathValue -or -not $Entry) { return $false }
+  $norm = ConvertTo-WsPathKey $Entry
+  foreach ($i in $PathValue.Split(';')) { if ($i -ne '' -and (ConvertTo-WsPathKey $i) -ieq $norm) { return $true } }
+  return $false
+}
+
 function Add-WsPathEntry {
-  # Acrescenta uma pasta a uma lista PATH (no inicio), sem duplicados. Devolve a lista nova.
+  # Poe uma pasta no inicio de uma lista PATH. Se ja la estiver (em qualquer posicao), passa para o inicio com a
+  # grafia que tinha (uma %USERPROFILE%\... do registo nao vira C:\Users\...): um claude, uv ou gh antigo que venha
+  # antes no PATH (npm, pipx, winget) deixa de passar a frente do do workshop. As copias com a mesma grafia saem;
+  # uma com outra grafia fica onde esta (e da pessoa: o --uninstall, que tira a grafia do kit, nunca a leva).
+  # Devolve a lista nova.
   param([string]$PathValue, [string]$Entry)
   $items = @()
   if ($PathValue) { $items = @($PathValue.Split(';') | Where-Object { $_ -ne '' }) }
-  $norm = $Entry.TrimEnd('\')
-  foreach ($i in $items) { if ($i.TrimEnd('\') -ieq $norm) { return ($items -join ';') } }
-  return ((@($Entry) + $items) -join ';')
+  if (-not $Entry) { return ($items -join ';') }
+  $norm = ConvertTo-WsPathKey $Entry
+  $keep = $null
+  foreach ($i in $items) { if ((ConvertTo-WsPathKey $i) -ieq $norm) { $keep = $i; break } }
+  if ($null -eq $keep) { $keep = $Entry }
+  $raw = $keep.TrimEnd('\')
+  $rest = @($items | Where-Object { $_.TrimEnd('\') -ine $raw })
+  return ((@($keep) + $rest) -join ';')
 }
 
 function Remove-WsPathEntry {
@@ -341,6 +365,15 @@ function Remove-WsPathEntry {
   if (-not $PathValue) { return '' }
   $norm = $Entry.TrimEnd('\')
   return ((@($PathValue.Split(';') | Where-Object { $_ -ne '' -and $_.TrimEnd('\') -ine $norm })) -join ';')
+}
+
+function Move-WsPathFront {
+  # As pastas de $Entries que ja estao na lista PATH passam para o inicio, pela ordem dada (a primeira fica a
+  # frente de todas); as que nao estao nao entram. Devolve a lista nova, igual a dada se a ordem ja era essa.
+  param([string]$PathValue, [string[]]$Entries)
+  $p = $PathValue
+  for ($k = $Entries.Count - 1; $k -ge 0; $k--) { if (Test-WsPathHas $p $Entries[$k]) { $p = Add-WsPathEntry $p $Entries[$k] } }
+  return $p
 }
 
 function ConvertTo-WsLangTag {
@@ -879,7 +912,8 @@ function Test-WsSignature {
 }
 
 function Update-WsSessionPath {
-  # Recarrega o PATH desta sessao a partir do registo (Maquina + Utilizador) e acrescenta as pastas do kit.
+  # Recarrega o PATH desta sessao a partir do registo (Maquina + Utilizador) e poe as pastas do kit a frente
+  # (mesmo as que ja la estavam), como o ws_path_setup no Mac.
   $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $user = [Environment]::GetEnvironmentVariable('Path', 'User')
   $p = ($machine, $user | Where-Object { $_ }) -join ';'
@@ -905,15 +939,41 @@ function Send-WsEnvChanged {
 }
 
 function Add-WsUserPath {
+  # Poe a pasta a frente do PATH do utilizador (registo) e desta sessao. So fica registada para o --uninstall se
+  # nao estava la antes: uma pasta que a pessoa ja tinha so muda de lugar, e o --uninstall deixa-a ficar.
   param([string]$Dir)
   $cur = Get-WsUserEnvRaw 'Path'
+  $had = Test-WsPathHas $cur $Dir
   $new = Add-WsPathEntry $cur $Dir
   if ($new -ne $cur) {
     New-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -Value $new -PropertyType ExpandString -Force | Out-Null
-    Register-WsExtra 'path_utilizador' $Dir '' '' ''
+    if (-not $had) { Register-WsExtra 'path_utilizador' $Dir '' '' '' }
     Send-WsEnvChanged
   }
   Update-WsSessionPath
+}
+
+function Update-WsUserPathFront {
+  # No fim de cada instalacao (como o bloco do perfil no Mac): as pastas do kit que ja estao no PATH do utilizador
+  # passam para o inicio dele, numa so escrita e so se a ordem mudar. Assim um claude, uv ou gh antigo que venha
+  # antes (npm em %APPDATA%\npm, pipx, winget) deixa de passar a frente num terminal novo, tambem quando os passos
+  # ja estavam feitos e nenhum Install-WsStepN correu. Nao acrescenta pastas (isso e o Add-WsUserPath, que as
+  # regista) nem mexe no PATH da maquina (precisa de admin; num terminal novo vem sempre antes do do utilizador).
+  try {
+    $cur = Get-WsUserEnvRaw 'Path'
+    if (-not $cur) { return }
+    $dirs = @(Join-Path $script:UserHome '.local\bin')
+    # o node do kit so quando e o que esta em uso (como o WS_NODE_BIN_DIR no Mac): nao passa a frente de um mais novo
+    $kn = Join-Path $script:WsHome 'node'
+    if ($script:NodeExe -and (Split-Path $script:NodeExe) -ieq $kn) { $dirs += $kn }
+    $dirs += (Join-Path $script:WsHome 'bin')
+    $new = Move-WsPathFront $cur $dirs
+    if ($new -eq $cur) { return }
+    New-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -Value $new -PropertyType ExpandString -Force -ErrorAction Stop | Out-Null
+    Write-WsLog ('user PATH: workshop folders moved to the front (' + ($dirs -join ', ') + ')')
+    Send-WsEnvChanged
+    Update-WsSessionPath
+  } catch { Write-WsLog ('user PATH not reordered: ' + $_.Exception.Message) }
 }
 
 function Set-WsUserEnv {
@@ -1138,7 +1198,8 @@ function Get-WsWinPowerShell {
 }
 
 function Get-WsUv { $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; $p = Join-Path $script:UserHome '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; return $null }
-function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; if (Test-Path -LiteralPath $p) { return $p }; return $null }
+# O claude do kit (~\.local\bin) primeiro, seja qual for a ordem do PATH: um claude.cmd antigo do npm nao o esconde.
+function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; if (Test-Path -LiteralPath $p) { return $p }; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; return $null }
 
 function Get-WsGit {
   $c = Get-Command git -ErrorAction SilentlyContinue
@@ -2683,6 +2744,7 @@ function Invoke-WsMain {
     Invoke-WsStep 10 @(5)
     Invoke-WsStep 11
     Invoke-WsStep 12 @(2, 3)
+    if ($script:Mode -eq 'install') { Update-WsUserPathFront }
     Sync-WsExtras
     $faltam = Write-WsSummary
     if ($script:Mode -eq 'doctor') { Invoke-WsDoctor }
