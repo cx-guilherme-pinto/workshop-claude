@@ -97,6 +97,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-MEM-08` | uv is pointed at a package mirror that does not work | [macOS](#mac-e-mem-08) · [Windows](#windows-e-mem-08) |
 | `E-MEM-09` | PYTHONHOME or PYTHONPATH is set in your terminal | [macOS](#mac-e-mem-09) · [Windows](#windows-e-mem-09) |
 | `E-MEM-10` | Your home folder path is too long for the Agent Memory app | [macOS](#mac-e-mem-10) |
+| `E-MEM-11` | Another folder has memories that the Agent Memory app does not show | [macOS](#mac-e-mem-11) · [Windows](#windows-e-mem-11) |
+| `E-MEM-12` | The Agent Memory shortcut does not use the memories folder of this window | [Windows](#windows-e-mem-12) |
 | `E-DESK-01` | Claude Desktop has limits with the Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | I couldn't install Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-PROF-01` | The setup could not add the workshop folders to a shell profile | [macOS](#mac-e-prof-01) |
@@ -1166,6 +1168,21 @@ Command (macOS):
 
 ```
 echo 'export AGENT_MEMORY_HOME="/Users/Shared/agent-memory-$USER"' >> ~/.zshrc
+```
+
+<a id="mac-e-mem-11"></a>
+
+### E-MEM-11 · Another folder has memories that the Agent Memory app does not show
+
+- **Why:** The app reads one data folder: AGENT_MEMORY_HOME, else MEMORIA_HOME, else ~/.memoria (from older versions) while ~/.agent-memory has no notes, else ~/.agent-memory. Another folder (in brackets, with how many notes it has) also has notes, usually left over from an older version or from a variable set in another terminal. Nothing was moved or deleted, and the app, its MCP and the skills work.
+- **What to do:**
+  - You can continue. The first command shows the folder in use (the line "Memory folder") and the other folder.
+  - To see those notes, move their project folders into the folder in use. Or point AGENT_MEMORY_HOME to the folder you want in your shell profile (Windows: in your user variables), open a new terminal and run the setup again.
+
+Command (macOS):
+
+```
+agent-memory selftest
 ```
 
 <a id="mac-e-desk-01"></a>
@@ -2407,6 +2424,36 @@ Command (Windows):
 
 ```
 [Environment]::GetEnvironmentVariable('PYTHONHOME', 'User'); [Environment]::GetEnvironmentVariable('PYTHONPATH', 'User')
+```
+
+<a id="windows-e-mem-11"></a>
+
+### E-MEM-11 · Another folder has memories that the Agent Memory app does not show
+
+- **Why:** The app reads one data folder: AGENT_MEMORY_HOME, else MEMORIA_HOME, else ~/.memoria (from older versions) while ~/.agent-memory has no notes, else ~/.agent-memory. Another folder (in brackets, with how many notes it has) also has notes, usually left over from an older version or from a variable set in another terminal. Nothing was moved or deleted, and the app, its MCP and the skills work.
+- **What to do:**
+  - You can continue. The first command shows the folder in use (the line "Memory folder") and the other folder.
+  - To see those notes, move their project folders into the folder in use. Or point AGENT_MEMORY_HOME to the folder you want in your shell profile (Windows: in your user variables), open a new terminal and run the setup again.
+
+Command (Windows):
+
+```
+agent-memory selftest
+```
+
+<a id="windows-e-mem-12"></a>
+
+### E-MEM-12 · The Agent Memory shortcut does not use the memories folder of this window
+
+- **Why:** This window has AGENT_MEMORY_HOME (or MEMORIA_HOME), but your user variables have another value or none (in brackets, the folder in use and the one a new window gets). The Start menu shortcut, a new terminal and Claude Code opened from there use the other folder, so they do not show the same notes. This happens when the variable was set only in this window or by an IDE.
+- **What to do:**
+  - To keep this folder: save the variable for new windows with the first command, open a new PowerShell window and run the setup again.
+  - To use the normal folder: open a new PowerShell window where the variable is not set and run the setup again.
+
+Command (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('AGENT_MEMORY_HOME', $env:AGENT_MEMORY_HOME, 'User')
 ```
 
 <a id="windows-e-desk-01"></a>

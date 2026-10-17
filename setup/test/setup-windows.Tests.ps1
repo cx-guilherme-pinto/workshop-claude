@@ -3568,3 +3568,116 @@ Describe 'chaos round 2 R2-cfg-auth' {
   }
 }
 
+Describe 'agent memory folder rules (a regra da app, src/memoria/config.py)' {
+  BeforeEach {
+    $script:T = New-WsStateTable; $script:Cur = '10'; $script:Mode = 'install'
+    $script:StepLog = [Text.StringBuilder]::new()
+    $script:AmKeep = @{}
+    foreach ($k in @('AGENT_MEMORY_HOME', 'MEMORIA_HOME', 'PYTHONHOME', 'PYTHONPATH', 'CLAUDE_CONFIG_DIR')) {
+      $script:AmKeep[$k] = [Environment]::GetEnvironmentVariable($k)
+      [Environment]::SetEnvironmentVariable($k, $null)
+    }
+    $env:CLAUDE_CONFIG_DIR = (Join-Path $TestDrive 'amcc')
+    $script:AmHome = Join-Path $TestDrive ('amh-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $script:AmHome -Force | Out-Null
+    $script:UserHome = $script:AmHome
+  }
+  AfterEach {
+    foreach ($k in $script:AmKeep.Keys) { [Environment]::SetEnvironmentVariable($k, $script:AmKeep[$k]) }
+  }
+
+  It 'variaveis: AGENT_MEMORY_HOME, senao MEMORIA_HOME, sem espacos; ~ e relativo contam a partir do perfil' {
+    $h = $script:AmHome
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '/x/a'; MEMORIA_HOME = '/x/m' } $h | Should -Be '/x/a'
+    Get-WsMemoryHome @{ MEMORIA_HOME = '/x/m' } $h | Should -Be '/x/m'
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '  /x/a  ' } $h | Should -Be '/x/a'
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '~' } $h | Should -Be $h
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '~/notas' } $h | Should -Be (Join-Path $h 'notas')
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '~\notas' } $h | Should -Be (Join-Path $h 'notas')
+    Get-WsMemoryHome @{ MEMORIA_HOME = ' rel ' } $h | Should -Be (Join-Path $h 'rel')
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '   '; MEMORIA_HOME = '/x/m' } $h | Should -Be (Join-Path $h '.agent-memory') -Because 'como a app: so espacos = pasta por omissao'
+  }
+
+  It 'pasta por omissao: ~\.memoria enquanto ~\.agent-memory nao tiver notas; ~\.agent-memory com notas ganha' {
+    $h = $script:AmHome
+    $new = Join-Path $h '.agent-memory'; $old = Join-Path $h '.memoria'
+    Get-WsMemoryHome @{} $h | Should -Be $new
+    Set-Content -LiteralPath $old -Value 'x'
+    Get-WsMemoryHome @{} $h | Should -Be $new -Because 'um ficheiro ~\.memoria nao conta'
+    Remove-Item -LiteralPath $old -Force
+    New-Item -ItemType Directory -Path $old -Force | Out-Null
+    Get-WsMemoryHome @{} $h | Should -Be $old
+    New-Item -ItemType Directory -Path (Join-Path $new '.index') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $new 'config.json') -Value '{}'
+    Set-Content -LiteralPath (Join-Path $new '.index/n.md') -Value 'x'
+    Get-WsMemoryHome @{} $h | Should -Be $new -Because 'as duas sem notas'
+    New-Item -ItemType Directory -Path (Join-Path $old 'proj') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $old 'proj/2026-01-01-a.md') -Value 'x'
+    Get-WsMemoryHome @{} $h | Should -Be $old -Because 'so config.json e .index nao escondem as notas antigas'
+    New-Item -ItemType Directory -Path (Join-Path $new 'proj') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $new 'proj/2026-01-02-b.md') -Value 'x'
+    Get-WsMemoryHome @{} $h | Should -Be $new
+  }
+
+  It 'link partido: ~\.memoria continua a ser a pasta e o config.json nunca cria nada atras dele' {
+    if (-not (Test-Path -LiteralPath '/bin/sh')) { Set-ItResult -Skipped -Because 'so em macOS/Linux (links simbolicos sem admin)'; return }
+    $h = $script:AmHome
+    $new = Join-Path $h '.agent-memory'; $old = Join-Path $h '.memoria'; $cloud = Join-Path $TestDrive 'amcloud/memoria'
+    New-Item -ItemType SymbolicLink -Path $old -Target $cloud | Out-Null
+    Get-WsMemoryHome @{} $h | Should -Be $old
+    New-Item -ItemType Directory -Path $new -Force | Out-Null
+    Get-WsMemoryHome @{} $h | Should -Be $old -Because '~\.agent-memory sem notas'
+    $script:C = @{ MEMORY_APP_REPO_URL = 'https://h/o/app'; RELEASE_DOWNLOAD_URL = 'https://h/{file}'; PYTHON_VERSION = '3.12.13' }; $script:UvExe = $null
+    Mock Get-WsMemoryHome { return $old }
+    Write-WsMemoryConfig | Should -BeFalse
+    $script:StepLog.ToString() | Should -Match '^config\.json: .+ is a link that does not lead to a folder'
+    Test-Path -LiteralPath (Join-Path $TestDrive 'amcloud') | Should -BeFalse
+  }
+
+  It 'selftest: [WARN] de memorias que nao aparecem (codigo 0) = E-MEM-11; o [WARN] nao e o motivo de uma falha' {
+    $script:AmOut = "Agent Memory 0.5.1 . Python 3.12.13`n  [OK] SQLite 3.50 with FTS5`n  [OK] Memory folder: C:\u\.agent-memory`n  [WARN] C:\u\.memoria (~/.memoria) has 3 memories that are not shown (the folder in use is the one above). Move them there.`n"
+    $script:AmRc = 0
+    Mock Invoke-WsProcess { return @{ ExitCode = $script:AmRc; StdOut = $script:AmOut; StdErr = '' } }
+    Invoke-WsMemorySelftest 'agent-memory.exe' '0.5.1' | Should -BeTrue
+    $script:T['10'].Avisos[0] -join '|' | Should -BeExactly 'E-MEM-11|C:\u\.memoria (~/.memoria) has 3 memories that are not shown'
+    $script:T = New-WsStateTable
+    $script:AmOut = "  [OK] x`n  [WARN] Something else`n"
+    Invoke-WsMemorySelftest 'agent-memory.exe' '0.5.1' | Should -BeTrue
+    @($script:T['10'].Avisos).Count | Should -Be 0
+    $script:T = New-WsStateTable
+    $script:AmOut = "  [OK] x`n  [WARN] C:\u\.memoria (~/.memoria) has 3 memories that are not shown`n  [FAIL] FTS5 is not available`n"; $script:AmRc = 1
+    Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'amself') }
+    Invoke-WsMemorySelftest 'agent-memory.exe' '0.5.1' | Should -BeFalse
+    $script:T['10'].Avisos[0] -join '|' | Should -BeExactly 'E-MEM-05|FTS5 is not available'
+  }
+
+  It 'atalho do menu Iniciar: a variavel so nesta janela (nao no HKCU\Environment) = E-MEM-12' {
+    $h = $script:AmHome
+    $script:AmUser = @{}
+    Mock Get-WsNewWindowEnv { return [string]$script:AmUser[$Name] }
+    Test-WsMemoryHomeNewWindow
+    @($script:T['10'].Avisos).Count | Should -Be 0 -Because 'sem variavel nao ha nada a avisar'
+    $env:AGENT_MEMORY_HOME = (Join-Path $h 'dados')
+    Test-WsMemoryHomeNewWindow
+    $script:T['10'].Avisos[0][0] | Should -Be 'E-MEM-12'
+    ($script:T['10'].Avisos[0][1] -replace '/', '\') | Should -BeExactly '~\dados - new window: ~\.agent-memory'
+    $script:T = New-WsStateTable
+    $script:AmUser = @{ AGENT_MEMORY_HOME = ((Join-Path $h 'dados') + '\') }
+    Test-WsMemoryHomeNewWindow
+    @($script:T['10'].Avisos).Count | Should -Be 0 -Because 'o mesmo valor nas variaveis do Utilizador'
+    $script:AmUser = @{ MEMORIA_HOME = '~/dados' }
+    Test-WsMemoryHomeNewWindow
+    @($script:T['10'].Avisos).Count | Should -Be 0 -Because 'a mesma pasta pelo nome antigo'
+    $env:AGENT_MEMORY_HOME = $null; $env:MEMORIA_HOME = '/outra'
+    Test-WsMemoryHomeNewWindow
+    $script:T['10'].Avisos[0][0] | Should -Be 'E-MEM-12'
+  }
+
+  It 'os codigos novos existem nos dois catalogos' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($c in @('E-MEM-11', 'E-MEM-12')) {
+      $script:Msgs.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+      $pt.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+    }
+  }
+}

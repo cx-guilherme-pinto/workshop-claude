@@ -97,6 +97,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-MEM-08` | O uv aponta para um espelho de pacotes que não funciona | [macOS](#mac-e-mem-08) · [Windows](#windows-e-mem-08) |
 | `E-MEM-09` | O PYTHONHOME ou o PYTHONPATH está definido no teu terminal | [macOS](#mac-e-mem-09) · [Windows](#windows-e-mem-09) |
 | `E-MEM-10` | O caminho da tua pasta pessoal é demasiado comprido para a app Agent Memory | [macOS](#mac-e-mem-10) |
+| `E-MEM-11` | Outra pasta tem memórias que a app Agent Memory não mostra | [macOS](#mac-e-mem-11) · [Windows](#windows-e-mem-11) |
+| `E-MEM-12` | O atalho da Agent Memory não usa a pasta das memórias desta janela | [Windows](#windows-e-mem-12) |
 | `E-DESK-01` | O Claude Desktop tem limitações com a Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | Não consegui instalar o Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-PROF-01` | O setup não conseguiu pôr as pastas do workshop num perfil do shell | [macOS](#mac-e-prof-01) |
@@ -1166,6 +1168,21 @@ Comando (macOS):
 
 ```
 echo 'export AGENT_MEMORY_HOME="/Users/Shared/agent-memory-$USER"' >> ~/.zshrc
+```
+
+<a id="mac-e-mem-11"></a>
+
+### E-MEM-11 · Outra pasta tem memórias que a app Agent Memory não mostra
+
+- **Porquê:** A app lê uma só pasta dos dados: AGENT_MEMORY_HOME, senão MEMORIA_HOME, senão ~/.memoria (de versões antigas) enquanto ~/.agent-memory não tiver notas, senão ~/.agent-memory. Outra pasta (entre parênteses, com quantas notas tem) também tem notas, normalmente de uma versão antiga ou de uma variável definida noutro terminal. Nada foi movido nem apagado, e a app, o MCP dela e as skills funcionam.
+- **O que fazer:**
+  - Podes continuar. O primeiro comando mostra a pasta em uso (a linha "Memory folder") e a outra pasta.
+  - Para veres essas notas, move as pastas dos projetos para a pasta em uso. Ou aponta o AGENT_MEMORY_HOME para a pasta que queres no perfil da shell (Windows: nas variáveis do utilizador), abre um terminal novo e volta a correr o setup.
+
+Comando (macOS):
+
+```
+agent-memory selftest
 ```
 
 <a id="mac-e-desk-01"></a>
@@ -2407,6 +2424,36 @@ Comando (Windows):
 
 ```
 [Environment]::GetEnvironmentVariable('PYTHONHOME', 'User'); [Environment]::GetEnvironmentVariable('PYTHONPATH', 'User')
+```
+
+<a id="windows-e-mem-11"></a>
+
+### E-MEM-11 · Outra pasta tem memórias que a app Agent Memory não mostra
+
+- **Porquê:** A app lê uma só pasta dos dados: AGENT_MEMORY_HOME, senão MEMORIA_HOME, senão ~/.memoria (de versões antigas) enquanto ~/.agent-memory não tiver notas, senão ~/.agent-memory. Outra pasta (entre parênteses, com quantas notas tem) também tem notas, normalmente de uma versão antiga ou de uma variável definida noutro terminal. Nada foi movido nem apagado, e a app, o MCP dela e as skills funcionam.
+- **O que fazer:**
+  - Podes continuar. O primeiro comando mostra a pasta em uso (a linha "Memory folder") e a outra pasta.
+  - Para veres essas notas, move as pastas dos projetos para a pasta em uso. Ou aponta o AGENT_MEMORY_HOME para a pasta que queres no perfil da shell (Windows: nas variáveis do utilizador), abre um terminal novo e volta a correr o setup.
+
+Comando (Windows):
+
+```
+agent-memory selftest
+```
+
+<a id="windows-e-mem-12"></a>
+
+### E-MEM-12 · O atalho da Agent Memory não usa a pasta das memórias desta janela
+
+- **Porquê:** Esta janela tem AGENT_MEMORY_HOME (ou MEMORIA_HOME), mas as tuas variáveis de utilizador têm outro valor ou nenhum (entre parênteses, a pasta em uso e a que uma janela nova recebe). O atalho do menu Iniciar, um terminal novo e o Claude Code aberto a partir dele usam a outra pasta, por isso não mostram as mesmas notas. Acontece quando a variável foi definida só nesta janela ou por um IDE.
+- **O que fazer:**
+  - Para manteres esta pasta: guarda a variável para as janelas novas com o primeiro comando, abre uma janela nova do PowerShell e volta a correr o setup.
+  - Para usares a pasta normal: abre uma janela nova do PowerShell onde a variável não esteja definida e volta a correr o setup.
+
+Comando (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('AGENT_MEMORY_HOME', $env:AGENT_MEMORY_HOME, 'User')
 ```
 
 <a id="windows-e-desk-01"></a>
