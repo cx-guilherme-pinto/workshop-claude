@@ -977,6 +977,166 @@ Describe 'chaos G1-tty' {
       } finally {
         if ($null -eq $old) { Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue } else { $env:NO_COLOR = $old }
       }
+Describe 'chaos G2-profiles' {
+  BeforeAll { $env:WS_PESTER_UP = 'C:\Users\t' }
+  AfterAll { Remove-Item Env:WS_PESTER_UP -ErrorAction SilentlyContinue }
+
+  Context 'a pasta do kit passa para a frente do PATH, mesmo que ja la esteja (path-claude-stale)' {
+    It 'tira-a de onde estiver e poe uma so copia no inicio, com a grafia que ja tinha' {
+      Add-WsPathEntry 'C:\npm;C:\a;C:\novo' 'C:\novo' | Should -Be 'C:\novo;C:\npm;C:\a'
+      Add-WsPathEntry 'C:\npm;C:\Novo\;C:\a;C:\novo' 'C:\novo' | Should -Be 'C:\Novo\;C:\npm;C:\a'
+      Add-WsPathEntry 'C:\novo;C:\npm' 'C:\NOVO\' | Should -Be 'C:\novo;C:\npm'
+      Add-WsPathEntry 'C:\npm;;C:\novo;' 'C:\novo' | Should -Be 'C:\novo;C:\npm'
+      Add-WsPathEntry 'C:\a' 'C:\novo' | Should -Be 'C:\novo;C:\a'
+      Add-WsPathEntry 'C:\a;;C:\b;' '' | Should -Be 'C:\a;C:\b'
+    }
+    It 'uma %VARIAVEL% do registo conta como a mesma pasta e fica escrita como estava' {
+      Add-WsPathEntry 'C:\npm;%WS_PESTER_UP%\.local\bin' 'C:\Users\t\.local\bin' | Should -Be '%WS_PESTER_UP%\.local\bin;C:\npm'
+      Add-WsPathEntry 'C:\npm;"C:\x y\bin\"' 'C:\x y\bin' | Should -Be '"C:\x y\bin\";C:\npm'
+    }
+    It 'uma copia com outra grafia (a da pessoa) fica onde esta: o --uninstall so tira a do kit' {
+      $p = 'C:\Users\t\.local\bin;C:\npm;%WS_PESTER_UP%\.local\bin'
+      Add-WsPathEntry $p 'C:\Users\t\.local\bin' | Should -Be $p
+      Remove-WsPathEntry $p 'C:\Users\t\.local\bin' | Should -Be 'C:\npm;%WS_PESTER_UP%\.local\bin'
+    }
+    It 'Test-WsPathHas compara sem caixa, sem barra no fim, sem aspas e com as variaveis expandidas' {
+      Test-WsPathHas 'C:\npm;C:\Novo\' 'c:\novo' | Should -BeTrue
+      Test-WsPathHas 'C:\npm;%WS_PESTER_UP%\.local\bin' 'C:\Users\T\.local\bin\' | Should -BeTrue
+      Test-WsPathHas 'C:\npm;"C:\x y\bin"' 'C:\x y\bin' | Should -BeTrue
+      Test-WsPathHas 'C:\npm;C:\novo2' 'C:\novo' | Should -BeFalse
+      Test-WsPathHas '' 'C:\novo' | Should -BeFalse
+      Test-WsPathHas $null 'C:\novo' | Should -BeFalse
+      Test-WsPathHas 'C:\a' '' | Should -BeFalse
+    }
+    It 'Move-WsPathFront: as que ja estao vao para o inicio pela ordem dada, as outras nao entram, e repetir nao muda nada' {
+      $r = Move-WsPathFront 'C:\npm;C:\b;C:\x;C:\a' @('C:\a', 'C:\nao', 'C:\b')
+      $r | Should -Be 'C:\a;C:\b;C:\npm;C:\x'
+      Move-WsPathFront $r @('C:\a', 'C:\nao', 'C:\b') | Should -BeExactly $r
+      Move-WsPathFront 'C:\npm;;C:\x' @('C:\nao') | Should -BeExactly 'C:\npm;;C:\x'
+      Move-WsPathFront '' @('C:\a') | Should -Be ''
+    }
+  }
+
+  Context 'Add-WsUserPath: uma pasta que a pessoa ja tinha muda de lugar e nao fica para o --uninstall tirar' {
+    BeforeEach {
+      $script:RegPath = $null; $script:Written = $null
+      Mock Get-WsUserEnvRaw { return $script:RegPath }
+      Mock New-ItemProperty { $script:Written = $Value }
+      Mock Register-WsExtra { }
+      Mock Send-WsEnvChanged { }
+      Mock Update-WsSessionPath { }
+    }
+    It 'ja estava atras do npm: passa para a frente, sem registo' {
+      $script:RegPath = 'C:\Users\t\AppData\Roaming\npm;%WS_PESTER_UP%\.local\bin'
+      Add-WsUserPath 'C:\Users\t\.local\bin'
+      $script:Written | Should -Be '%WS_PESTER_UP%\.local\bin;C:\Users\t\AppData\Roaming\npm'
+      Should -Invoke Register-WsExtra -Times 0 -Exactly
+      Should -Invoke Send-WsEnvChanged -Times 1 -Exactly
+    }
+    It 'nao estava: entra no inicio e fica registada' {
+      $script:RegPath = 'C:\Users\t\AppData\Roaming\npm'
+      Add-WsUserPath 'C:\Users\t\.local\bin'
+      $script:Written | Should -Be 'C:\Users\t\.local\bin;C:\Users\t\AppData\Roaming\npm'
+      Should -Invoke Register-WsExtra -Times 1 -Exactly -ParameterFilter { $Tipo -eq 'path_utilizador' -and $Nome -eq 'C:\Users\t\.local\bin' }
+    }
+    It 'PATH do utilizador vazio: entra e fica registada' {
+      Add-WsUserPath 'C:\Users\t\.local\bin'
+      $script:Written | Should -Be 'C:\Users\t\.local\bin'
+      Should -Invoke Register-WsExtra -Times 1 -Exactly
+    }
+    It 'ja estava no inicio: nao escreve nada' {
+      $script:RegPath = 'C:\Users\t\.local\bin;C:\npm'
+      Add-WsUserPath 'C:\Users\t\.local\bin\'
+      $script:Written | Should -BeNullOrEmpty
+      Should -Invoke New-ItemProperty -Times 0 -Exactly
+      Should -Invoke Register-WsExtra -Times 0 -Exactly
+      Should -Invoke Update-WsSessionPath -Times 1 -Exactly
+    }
+  }
+
+  Context 'Update-WsUserPathFront: no fim de cada instalacao, mesmo com os passos ja feitos' {
+    BeforeEach {
+      $script:UserHome = Join-Path $TestDrive 'u'; $script:WsHome = Join-Path $script:UserHome '.workshop-claude'; $script:NodeExe = $null
+      $script:Lb = Join-Path $script:UserHome '.local\bin'; $script:Kb = Join-Path $script:WsHome 'bin'; $script:Kn = Join-Path $script:WsHome 'node'
+      Remove-Item -LiteralPath $script:UserHome -Recurse -Force -ErrorAction SilentlyContinue   # cada caso comeca sem as pastas no disco
+      $script:RegPath = $null; $script:Written = $null
+      Mock Get-WsUserEnvRaw { return $script:RegPath }
+      Mock New-ItemProperty { $script:Written = $Value }
+      Mock Register-WsExtra { }
+      Mock Send-WsEnvChanged { }
+      Mock Update-WsSessionPath { }
+    }
+    It 'um claude antigo do npm a frente: as pastas do kit passam para o inicio numa so escrita, sem registo' {
+      $script:RegPath = ('C:\npm;{0};C:\x;{1}' -f $script:Lb, $script:Kb)
+      Update-WsUserPathFront
+      $script:Written | Should -Be ('{0};{1};C:\npm;C:\x' -f $script:Lb, $script:Kb)
+      Should -Invoke New-ItemProperty -Times 1 -Exactly
+      Should -Invoke Register-WsExtra -Times 0 -Exactly
+      Should -Invoke Send-WsEnvChanged -Times 1 -Exactly
+    }
+    It 'repetir com a ordem ja certa nao escreve nada' {
+      $script:RegPath = ('{0};{1};C:\npm;C:\x' -f $script:Lb, $script:Kb)
+      Update-WsUserPathFront
+      Should -Invoke New-ItemProperty -Times 0 -Exactly
+      Should -Invoke Send-WsEnvChanged -Times 0 -Exactly
+    }
+    It 'nao acrescenta pastas que nao estavam, nem escreve num PATH vazio' {
+      $script:RegPath = 'C:\npm;C:\x'
+      Update-WsUserPathFront
+      $script:RegPath = $null
+      Update-WsUserPathFront
+      Should -Invoke New-ItemProperty -Times 0 -Exactly
+    }
+    It 'uma pasta do kit que existe no disco mas saiu do PATH do utilizador volta a entrar' {
+      New-Item -ItemType Directory -Path $script:Kb -Force | Out-Null
+      $script:RegPath = ('C:\npm;{0}' -f $script:Lb)
+      Mock Add-WsUserPath { }
+      Update-WsUserPathFront
+      Should -Invoke Add-WsUserPath -Times 1 -Exactly
+      Should -Invoke Add-WsUserPath -Times 1 -Exactly -ParameterFilter { $Dir -eq $script:Kb }
+    }
+    It 'uma GPO apagou o PATH do utilizador: as pastas do kit voltam pela ordem certa e ficam para o --uninstall' {
+      New-Item -ItemType Directory -Path $script:Lb, $script:Kb -Force | Out-Null
+      Mock New-ItemProperty { $script:Written = $Value; $script:RegPath = $Value }
+      Update-WsUserPathFront
+      $script:RegPath | Should -Be ('{0};{1}' -f $script:Lb, $script:Kb)
+      Should -Invoke Register-WsExtra -Times 2 -Exactly -ParameterFilter { $Tipo -eq 'path_utilizador' }
+      Update-WsUserPathFront
+      Should -Invoke New-ItemProperty -Times 3 -Exactly
+    }
+    It 'o node do kit so vai para a frente quando e o que esta em uso' {
+      $script:RegPath = ('C:\nvm;{0};{1}' -f $script:Kn, $script:Lb)
+      Update-WsUserPathFront
+      $script:Written | Should -Be ('{0};C:\nvm;{1}' -f $script:Lb, $script:Kn)
+      $script:NodeExe = Join-Path $script:Kn 'node.exe'
+      Update-WsUserPathFront
+      $script:Written | Should -Be ('{0};{1};C:\nvm' -f $script:Lb, $script:Kn)
+    }
+    It 'um erro do registo fica no log e nao para o setup' {
+      $script:RegPath = ('C:\npm;{0}' -f $script:Lb)
+      Mock New-ItemProperty { throw 'acesso negado' }
+      { Update-WsUserPathFront } | Should -Not -Throw
+      Should -Invoke Send-WsEnvChanged -Times 0 -Exactly
+    }
+    It 'so corre na instalacao, depois do passo 12' {
+      $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+      $text | Should -Match "Invoke-WsStep 12 @\(2, 3\)\r?\n\s+if \(\`$script:Mode -eq 'install'\) \{ Update-WsUserPathFront \}"
+    }
+  }
+
+  Context 'Get-WsClaude: o claude do kit primeiro' {
+    BeforeEach {
+      $script:UserHome = Join-Path $TestDrive 'u'
+      Mock Get-Command { return [pscustomobject]@{ CommandType = 'Application'; Source = 'C:\npm\claude.cmd' } } -ParameterFilter { $Name -eq 'claude' }
+    }
+    It 'com ~\.local\bin\claude.exe, usa-o mesmo que o PATH tenha outro antes' {
+      $p = Join-Path $script:UserHome '.local\bin\claude.exe'
+      New-Item -ItemType File -Path $p -Force | Out-Null
+      Get-WsClaude | Should -Be $p
+    }
+    It 'sem ele, usa o do PATH' {
+      $script:UserHome = Join-Path $TestDrive 'sem-claude'
+      Get-WsClaude | Should -Be 'C:\npm\claude.cmd'
     }
   }
 }
