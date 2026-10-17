@@ -1393,5 +1393,84 @@ grep -q '\[ "\$m" = unknown \] || ws_newterm_claude_check' "$ROOT/setup/setup-ma
 # resumo: 1 aviso no singular
 eq "$(ws_m final_aviso1)" "There is 1 warning above. It doesn't block the workshop, but read it." "r2 resumo: 1 aviso no singular"
 
+# --- agent memory folder rules (a regra da app: src/memoria/config.py). HOME e CLAUDE_CONFIG_DIR em pastas temporarias.
+AM="$WS_TMP/amrules"; mkdir -p "$AM/h" "$AM/cc" "$AM/bin" "$AM/ws"
+amh() { ( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; unset AGENT_MEMORY_HOME MEMORIA_HOME; eval "$1"; ws_memory_home ); }
+eq "$(amh 'AGENT_MEMORY_HOME=/x/a; MEMORIA_HOME=/x/m')" /x/a "am rules: AGENT_MEMORY_HOME primeiro"
+eq "$(amh 'MEMORIA_HOME=/x/m')" /x/m "am rules: MEMORIA_HOME (legado)"
+eq "$(amh 'AGENT_MEMORY_HOME="  /x/a  "')" /x/a "am rules: valor sem espacos a volta"
+eq "$(amh 'AGENT_MEMORY_HOME="~"')" "$AM/h" "am rules: ~ sozinho e a HOME"
+eq "$(amh 'AGENT_MEMORY_HOME="~/notas"')" "$AM/h/notas" "am rules: ~/ literal conta a partir da HOME"
+eq "$(amh 'MEMORIA_HOME=" rel/m "')" "$AM/h/rel/m" "am rules: caminho relativo conta a partir da HOME (nunca da pasta atual)"
+eq "$(amh 'AGENT_MEMORY_HOME="~x"')" "$AM/h/~x" "am rules: ~x nao e expandido, fica relativo a HOME"
+eq "$(amh 'AGENT_MEMORY_HOME="   "; MEMORIA_HOME=/x/m')" "$AM/h/.agent-memory" "am rules: AGENT_MEMORY_HOME so com espacos = pasta por omissao (como a app)"
+eq "$(amh '')" "$AM/h/.agent-memory" "am rules: nada -> ~/.agent-memory"
+printf 'x' > "$AM/h/.memoria"
+eq "$(amh '')" "$AM/h/.agent-memory" "am rules: ~/.memoria ficheiro nao conta"
+rm -f "$AM/h/.memoria"; mkdir -p "$AM/h/.memoria"
+eq "$(amh '')" "$AM/h/.memoria" "am rules: ~/.memoria sem ~/.agent-memory"
+mkdir -p "$AM/h/.agent-memory/.index"; printf '{}' > "$AM/h/.agent-memory/config.json"; printf 'x' > "$AM/h/.agent-memory/.index/n.md"
+eq "$(amh '')" "$AM/h/.agent-memory" "am rules: as duas sem notas -> ~/.agent-memory"
+mkdir -p "$AM/h/.memoria/proj"; printf 'x' > "$AM/h/.memoria/proj/2026-01-01-a.md"
+eq "$(amh '')" "$AM/h/.memoria" "am rules: ~/.agent-memory so com config.json/.index nao esconde as notas de ~/.memoria"
+mkdir -p "$AM/h/.agent-memory/proj"; printf 'x' > "$AM/h/.agent-memory/proj/2026-01-02-b.md"
+eq "$(amh '')" "$AM/h/.agent-memory" "am rules: ~/.agent-memory com notas ganha"
+rm -rf "$AM/h/.memoria"; ln -s "$AM/nuvem/memoria" "$AM/h/.memoria"
+eq "$(amh '')" "$AM/h/.agent-memory" "am rules: link partido ~/.memoria com ~/.agent-memory com notas -> ~/.agent-memory"
+rm -rf "$AM/h/.agent-memory/proj"
+eq "$(amh '')" "$AM/h/.memoria" "am rules: link partido ~/.memoria continua a ser a pasta (~/.agent-memory sem notas)"
+rm -rf "$AM/h/.agent-memory"
+eq "$(amh '')" "$AM/h/.memoria" "am rules: link partido ~/.memoria sem ~/.agent-memory"
+ln -s "$AM/nuvem/agent" "$AM/h/.agent-memory"
+eq "$(amh '')" "$AM/h/.memoria" "am rules: ~/.agent-memory link partido conta como nao existir"
+rm -f "$AM/h/.agent-memory"
+# config.json: nunca se cria nada atraves de um link partido (passo 10 continua com a linha no log)
+o=$( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; unset AGENT_MEMORY_HOME MEMORIA_HOME; WS_STEP_LOG="$AM/s10.log"; : > "$WS_STEP_LOG"; WS_NODE=$NODE; ws_memory_config; printf '%s' "$?" )
+eq "$o|$([ -e "$AM/nuvem" ] && echo criou)|$(grep -c 'is a link that does not lead to a folder' "$AM/s10.log")" "1||1" "am rules: config.json nao cria a pasta atras de um link partido"
+o=$( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; AGENT_MEMORY_HOME="$AM/h/.memoria"; WS_STEP_LOG="$AM/s10.log"; WS_NODE=""; C_MEMORY_APP_REPO_URL=r; C_RELEASE_DOWNLOAD_URL=p; C_PYTHON_VERSION=3.12; ws_memory_config; printf '%s' "$?" )
+eq "$o|$([ -e "$AM/nuvem" ] && echo criou)" "1|" "am rules: config.json com AGENT_MEMORY_HOME num link partido (sem node)"
+rm -f "$AM/h/.memoria"
+# shellcheck disable=SC2088
+o=$( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; AGENT_MEMORY_HOME="~/dados"; WS_STEP_LOG="$AM/s10.log"; WS_NODE=""; C_MEMORY_APP_REPO_URL=r; C_RELEASE_DOWNLOAD_URL=p; C_PYTHON_VERSION=3.12; cd "$AM/bin" && ws_memory_config; printf '%s' "$?" )
+eq "$o|$([ -f "$AM/h/dados/config.json" ] && echo cfg)|$([ -e "$AM/bin/~" ] && echo til)" "0|cfg|" "am rules: config.json em ~/dados, nunca numa pasta ~ na pasta atual"
+# selftest: [WARN] de outra pasta com notas (codigo 0) -> aviso E-MEM-11; o [WARN] nao conta como motivo de falha
+printf '#!/bin/sh\nprintf "Agent Memory 0.5.1 \302\267 Python 3.12.13\\n  [OK] SQLite 3.50 with FTS5\\n  [OK] Memory folder: /h/.agent-memory\\n  [WARN] /h/.memoria (~/.memoria) has 3 memories that are not shown (the folder in use is the one above). Move them there.\\n"\n' > "$AM/bin/am"; chmod +x "$AM/bin/am"
+o=$( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; unset WS_PYTHON_ENV0; WS_CUR=10; SW_10=""; SD_10=""; WS_STEP_LOG="$AM/s10.log"; WS_LOG=/dev/null; ws_memory_selftest "$AM/bin/am" 0.5.1; printf '%s#%s' "$?" "$SW_10" )
+eq "$o" "0#E-MEM-11|/h/.memoria (~/.memoria) has 3 memories that are not shown" "am rules: selftest com [WARN] de memorias que nao aparecem -> E-MEM-11"
+printf '#!/bin/sh\nprintf "Agent Memory 0.5.1 \302\267 Python 3.12.13\\n  [OK] x\\n  [WARN] Something else\\n"\n' > "$AM/bin/am"
+o=$( HOME="$AM/h"; unset WS_PYTHON_ENV0; WS_CUR=10; SW_10=""; WS_STEP_LOG="$AM/s10.log"; WS_LOG=/dev/null; ws_memory_selftest "$AM/bin/am" 0.5.1; printf '%s#%s' "$?" "$SW_10" )
+eq "$o" "0#" "am rules: outro [WARN] nao da aviso"
+printf '#!/bin/sh\nprintf "  [OK] x\\n  [WARN] /h/.memoria (~/.memoria) has 3 memories that are not shown\\n  [FAIL] FTS5 is not available\\n"; exit 1\n' > "$AM/bin/am"
+o=$( HOME="$AM/h"; unset WS_PYTHON_ENV0; WS_CUR=10; SW_10=""; WS_STEP_LOG="$AM/s10.log"; WS_LOG=/dev/null; AGENT_MEMORY_HOME="$AM/m"; ws_memory_selftest "$AM/bin/am" 0.5.1; printf '%s' "$SW_10" )
+eq "$o" "E-MEM-05|FTS5 is not available" "am rules: selftest falhado: o [WARN] nao entra no motivo"
+# atalho do Dock: com AGENT_MEMORY_HOME/MEMORIA_HOME na shell a pasta vai escrita no atalho; outra pasta = refazer
+printf '#!/bin/sh\nprintf "%%s" "$AGENT_MEMORY_HOME"\n' > "$AM/bin/agent-memory-gui"; chmod +x "$AM/bin/agent-memory-gui"
+L="$AM/h/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE"
+amsc() { ( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; WS_HOME="$AM/ws"; KIT_SRC=""; WS_STEP_LOG="$AM/s10.log"; WS_LOG=/dev/null; C_MEMORY_APP_VERSION=v0.5.1
+  unset AGENT_MEMORY_HOME MEMORIA_HOME; eval "$1"; ws_memory_shortcut "$AM/bin/agent-memory" >/dev/null 2>&1; printf '%s' "$?" ); }
+eq "$(amsc '')|$(grep -c AGENT_MEMORY_HOME "$L")" "0|0" "am rules: atalho sem variavel nao leva pasta"
+eq "$( HOME="$AM/h"; unset AGENT_MEMORY_HOME MEMORIA_HOME; ws_memory_launcher_ok; printf '%s' "$?" )" 0 "am rules: atalho sem variavel esta certo"
+eq "$( HOME="$AM/h"; unset MEMORIA_HOME; AGENT_MEMORY_HOME=/x/a; ws_memory_launcher_ok; printf '%s' "$?" )" 1 "am rules: variavel nova -> atalho por refazer"
+eq "$(amsc 'MEMORIA_HOME="~/m e \"q\" \$x"')" 0 "am rules: atalho com MEMORIA_HOME"
+eq "$(env -u AGENT_MEMORY_HOME -u MEMORIA_HOME /bin/sh "$L")" "$AM/h/m e \"q\" \$x" "am rules: o atalho arranca com a pasta normalizada (aspas e \$ protegidos)"
+eq "$(AGENT_MEMORY_HOME=/ja/definida /bin/sh "$L")" /ja/definida "am rules: um AGENT_MEMORY_HOME do arranque ganha (:=)"
+grep -qxF ": \"\${AGENT_MEMORY_HOME:=$AM/h/m e \\\"q\\\" \\\$x}\"; export AGENT_MEMORY_HOME" "$L" && ok || ko "am rules: linha do atalho [$(sed -n 2p "$L")]"
+# shellcheck disable=SC2088
+eq "$( HOME="$AM/h"; unset AGENT_MEMORY_HOME; MEMORIA_HOME='~/m e "q" $x'; ws_memory_launcher_ok; printf '%s' "$?" )" 0 "am rules: atalho com a mesma pasta esta certo"
+eq "$( HOME="$AM/h"; unset MEMORIA_HOME; AGENT_MEMORY_HOME=/outra; ws_memory_launcher_ok; printf '%s' "$?" )" 1 "am rules: outra pasta -> atalho por refazer"
+eq "$( HOME="$AM/h"; unset AGENT_MEMORY_HOME MEMORIA_HOME; ws_memory_launcher_ok; printf '%s' "$?" )" 1 "am rules: sem variavel, atalho com pasta -> por refazer"
+eq "$(amsc 'AGENT_MEMORY_HOME=/outra')|$(env -u AGENT_MEMORY_HOME /bin/sh "$L")" "0|/outra" "am rules: atalho refeito com a pasta nova"
+eq "$(amsc '')|$(grep -c AGENT_MEMORY_HOME "$L")" "0|0" "am rules: atalho refeito sem pasta"
+# passo 10 (instalar): o atalho com outra pasta e refeito sem reinstalar a app
+printf '#!/bin/sh\nprintf "Agent Memory 0.5.1 \302\267 Python 3.12.13\\n  [OK] x\\n"\n' > "$AM/bin/agent-memory"; chmod +x "$AM/bin/agent-memory"
+printf '#!/bin/sh\ncase "$1 $2" in "tool list") echo "agent-memory v0.5.1";; "tool dir") echo "%s/bin";; esac\n' "$AM" > "$AM/bin/uv"; chmod +x "$AM/bin/uv"
+o=$( HOME="$AM/h"; CLAUDE_CONFIG_DIR="$AM/cc"; PATH="$AM/bin:$PATH"; WS_HOME="$AM/ws"; KIT_SRC=""; WS_CUR=10; WS_STEP_LOG="$AM/s10.log"; WS_LOG=/dev/null; WS_MODE=install; WS_NODE=$NODE; WS_CLAUDE=""
+  WS_UV="$AM/bin/uv"; unset MEMORIA_HOME WS_PYTHON_ENV0; AGENT_MEMORY_HOME="$AM/h/dados"; C_MEMORY_APP_VERSION=v0.5.1; SW_10=""; SF_10=""; ws_s10_detect; printf '%s|%s|%s' "$?" "$SW_10$SF_10" "$(env -u AGENT_MEMORY_HOME /bin/sh "$L")" )
+eq "$o" "0||$AM/h/dados" "am rules: passo 10 refaz o atalho com a pasta de agora"
+# os codigos novos existem nos dois catalogos
+for c in E-MEM-11 E-MEM-12; do
+  [ -n "$(ws_err_field "$c" titulo)" ] && grep -q "\"$c\"" "$ROOT/setup/messages.pt.json" && ok || ko "am rules catalogo: $c"
+done
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

@@ -655,7 +655,8 @@ function Read-WsSelftest {
   $m = [regex]::Match([string]$Text, 'Python ([0-9]+\.[0-9]+(\.[0-9]+)?)')
   if ($m.Success) { $py = $m.Groups[1].Value }
   $fts = [bool]([regex]::IsMatch([string]$Text, '(?m)^\s*\[OK\].*FTS5'))
-  $falhas = @([regex]::Matches([string]$Text, '(?m)^\s*\[(?!OK\])[^\]\r\n]+\]\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value.Trim() })
+  # Um [WARN] tambem nao e uma falha (outra pasta com notas, E-MEM-11).
+  $falhas = @([regex]::Matches([string]$Text, '(?m)^\s*\[(?!OK\]|WARN\])[^\]\r\n]+\]\s*(.+?)\s*$') | ForEach-Object { $_.Groups[1].Value.Trim() })
   return @{ Python = $py; Fts5 = $fts; Falhas = $falhas }
 }
 
@@ -3391,19 +3392,79 @@ function Get-WsMemoryExe {
 }
 
 function Get-WsMemoryHome {
-  # The app's data folder (the app's own rule): AGENT_MEMORY_HOME; MEMORIA_HOME; ~\.memoria if it exists and
-  # ~\.agent-memory does not; otherwise ~\.agent-memory. Nothing is ever moved or deleted.
+  # The app's data folder (the app's own rule, src/memoria/config.py): AGENT_MEMORY_HOME; else MEMORIA_HOME; else
+  # ~\.memoria if it exists (or is a link) and ~\.agent-memory has no notes (see below); else ~\.agent-memory.
+  # Nothing is ever moved or deleted.
   # ~ e a pasta do perfil ($script:UserHome), como na app (Path.home() = USERPROFILE), nunca o H:\ do $HOME.
   param([hashtable]$EnvValues = $null, [string]$UserHome = '')
   if (-not $UserHome) { $UserHome = $script:UserHome }
   if (-not $UserHome) { $UserHome = Get-WsUserHome ([Environment]::GetFolderPath('UserProfile')) $env:USERPROFILE $HOME }
   if ($null -eq $EnvValues) { $EnvValues = @{ AGENT_MEMORY_HOME = $env:AGENT_MEMORY_HOME; MEMORIA_HOME = $env:MEMORIA_HOME } }
-  if ($EnvValues['AGENT_MEMORY_HOME']) { return [string]$EnvValues['AGENT_MEMORY_HOME'] }
-  if ($EnvValues['MEMORIA_HOME']) { return [string]$EnvValues['MEMORIA_HOME'] }
+  $v = Get-WsMemoryHomeEnv $EnvValues $UserHome
+  if ($v) { return $v }
+  # ~\.memoria (de versoes antigas) continua a ser a pasta se ~\.agent-memory nao existir, ou se nao tiver notas (so
+  # o config.json de um setup, ou o .index) e ~\.memoria tiver notas ou for um link partido (pasta na nuvem).
   $new = Join-Path $UserHome '.agent-memory'
   $old = Join-Path $UserHome '.memoria'
-  if (-not (Test-Path -LiteralPath $new) -and (Test-Path -LiteralPath $old)) { return $old }
+  $oldDir = Test-Path -LiteralPath $old -PathType Container
+  if ($oldDir -or (Test-WsReparsePoint $old)) {
+    if (-not (Test-Path -LiteralPath $new) -or (-not (Test-WsMemoryNotes $new) -and (-not $oldDir -or (Test-WsMemoryNotes $old)))) { return $old }
+  }
   return $new
+}
+
+function Get-WsMemoryHomeEnv {
+  # AGENT_MEMORY_HOME (senao MEMORIA_HOME) sem espacos a volta e absoluta: um ~ no inicio e um caminho relativo
+  # contam a partir da pasta do perfil, nunca da pasta onde o setup corre. '' sem nada definido.
+  param([hashtable]$EnvValues, [string]$UserHome)
+  $v = [string]$EnvValues['AGENT_MEMORY_HOME']
+  if (-not $v) { $v = [string]$EnvValues['MEMORIA_HOME'] }
+  $v = $v.Trim()
+  if (-not $v) { return '' }
+  if ($v -eq '~') { $v = $UserHome }
+  elseif ($v.StartsWith('~/') -or $v.StartsWith('~\')) { $v = Join-Path $UserHome $v.Substring(2) }
+  if (-not [IO.Path]::IsPathRooted($v)) { $v = Join-Path $UserHome $v }
+  return $v
+}
+
+function Test-WsReparsePoint {
+  # Um link (simbolico ou juncao), mesmo partido: o Test-Path segue o link e diz que nao existe.
+  param([string]$Path)
+  $it = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+  return [bool]($it -and ($it.Attributes -band [IO.FileAttributes]::ReparsePoint))
+}
+
+function Test-WsMemoryNotes {
+  # A pasta tem notas (<pasta que nao comeca por .>\*.md, as que a app mostra)?
+  param([string]$Dir)
+  try {
+    foreach ($d in [IO.Directory]::EnumerateDirectories($Dir)) {
+      if ([IO.Path]::GetFileName($d).StartsWith('.')) { continue }
+      foreach ($f in [IO.Directory]::EnumerateFiles($d, '*.md')) { if ($f) { return $true } }
+    }
+  } catch { }
+  return $false
+}
+
+function Test-WsMemoryHomeNewWindow {
+  # O atalho do menu Iniciar (e um terminal novo) recebe as variaveis do Utilizador (HKCU\Environment), senao as da
+  # Maquina, e nao as desta janela: com AGENT_MEMORY_HOME/MEMORIA_HOME so nesta janela abria outra pasta (E-MEM-12).
+  if (-not ($env:AGENT_MEMORY_HOME -or $env:MEMORIA_HOME)) { return }
+  $nw = @{}
+  foreach ($k in @('AGENT_MEMORY_HOME', 'MEMORIA_HOME')) {
+    $v = Get-WsNewWindowEnv $k
+    if ($v) { $nw[$k] = [Environment]::ExpandEnvironmentVariables($v) }
+  }
+  $cur = (Get-WsMemoryHome).TrimEnd('\', '/')
+  $new = (Get-WsMemoryHome $nw).TrimEnd('\', '/')
+  if ($cur -ne $new) { Set-WsWarn 'E-MEM-12' ((Format-WsHomePath $cur $script:UserHome) + ' - new window: ' + (Format-WsHomePath $new $script:UserHome)) }
+}
+
+function Get-WsNewWindowEnv {
+  param([string]$Name)
+  $v = [Environment]::GetEnvironmentVariable($Name, 'User')
+  if (-not $v) { $v = [Environment]::GetEnvironmentVariable($Name, 'Machine') }
+  return [string]$v
 }
 
 function Get-WsMemoryWheel {
@@ -3433,8 +3494,13 @@ function Invoke-WsMemorySelftest {
   $pyEnv = @()
   foreach ($k in @('PYTHONHOME', 'PYTHONPATH')) { $v = [Environment]::GetEnvironmentVariable($k); if ($v) { $pyEnv += ($k + '=' + $v) } }
   if ($pyEnv.Count -gt 0) { Set-WsWarn 'E-MEM-09' ($pyEnv -join ' ') }
+  Test-WsMemoryHomeNewWindow
   if ($r.ExitCode -eq 0) {
     Set-WsDetail (M 's10_ok' @{ VERSAO = $Ver; PY = $st.Python })
+    # Outra pasta dos dados com notas que a app nao mostra (uma linha [WARN], que nao faz falhar o selftest): nada
+    # se move, so se avisa (E-MEM-11).
+    $ign = @([regex]::Matches([string]$r.StdOut, '(?m)^\s*\[WARN\]\s*(.*?memories that are not shown)') | ForEach-Object { $_.Groups[1].Value.Trim() })
+    if ($ign.Count -gt 0) { Set-WsWarn 'E-MEM-11' ($ign -join '; ') }
     return $true
   }
   Set-WsDetail (M 's10_ja' @{ VERSAO = $Ver })
@@ -3743,6 +3809,9 @@ function Write-WsMemoryConfig {
   # utilizador, um ficheiro, so de leitura) devolve $false: o erro vai para o log do passo, nunca para o ecra.
   try {
     $dir = Get-WsMemoryHome
+    # Um link que nao leva a uma pasta (pasta na nuvem por sincronizar, partilha offline): nunca se cria nada
+    # atraves dele (a app passava a usar outra pasta).
+    if ((Test-WsReparsePoint $dir) -and -not (Test-Path -LiteralPath $dir -PathType Container)) { Add-WsStepLog ('config.json: ' + $dir + ' is a link that does not lead to a folder (nothing created)'); return $false }
     New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
     $f = Join-Path $dir 'config.json'
     $cfg = [ordered]@{}

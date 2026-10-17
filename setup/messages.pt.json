@@ -1374,6 +1374,34 @@
       ],
       "windows": []
     },
+    "E-MEM-11": {
+      "titulo": "Outra pasta tem memórias que a app Agent Memory não mostra",
+      "so": "todos",
+      "causa": "A app lê uma só pasta dos dados: AGENT_MEMORY_HOME, senão MEMORIA_HOME, senão ~/.memoria (de versões antigas) enquanto ~/.agent-memory não tiver notas, senão ~/.agent-memory. Outra pasta (entre parênteses, com quantas notas tem) também tem notas, normalmente de uma versão antiga ou de uma variável definida noutro terminal. Nada foi movido nem apagado, e a app, o MCP dela e as skills funcionam.",
+      "fazer": [
+        "Podes continuar. O primeiro comando mostra a pasta em uso (a linha \"Memory folder\") e a outra pasta.",
+        "Para veres essas notas, move as pastas dos projetos para a pasta em uso. Ou aponta o AGENT_MEMORY_HOME para a pasta que queres no perfil da shell (Windows: nas variáveis do utilizador), abre um terminal novo e volta a correr o setup."
+      ],
+      "mac": [
+        "agent-memory selftest"
+      ],
+      "windows": [
+        "agent-memory selftest"
+      ]
+    },
+    "E-MEM-12": {
+      "titulo": "O atalho da Agent Memory não usa a pasta das memórias desta janela",
+      "so": "windows",
+      "causa": "Esta janela tem AGENT_MEMORY_HOME (ou MEMORIA_HOME), mas as tuas variáveis de utilizador têm outro valor ou nenhum (entre parênteses, a pasta em uso e a que uma janela nova recebe). O atalho do menu Iniciar, um terminal novo e o Claude Code aberto a partir dele usam a outra pasta, por isso não mostram as mesmas notas. Acontece quando a variável foi definida só nesta janela ou por um IDE.",
+      "fazer": [
+        "Para manteres esta pasta: guarda a variável para as janelas novas com o primeiro comando, abre uma janela nova do PowerShell e volta a correr o setup.",
+        "Para usares a pasta normal: abre uma janela nova do PowerShell onde a variável não esteja definida e volta a correr o setup."
+      ],
+      "mac": [],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('AGENT_MEMORY_HOME', $env:AGENT_MEMORY_HOME, 'User')"
+      ]
+    },
     "E-DESK-01": {
       "titulo": "O Claude Desktop tem limitações com a Console",
       "so": "todos",

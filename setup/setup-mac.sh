@@ -2416,13 +2416,36 @@ ws_memory_bin() {
   for b in "$d/agent-memory" "$d/memoria"; do [ -x "$b" ] && { printf '%s' "$b"; return 0; }; done
   return 1
 }
-# Pasta dos dados da app (o mesmo contrato da app): AGENT_MEMORY_HOME; MEMORIA_HOME; ~/.memoria se existir e
-# ~/.agent-memory nao; senao ~/.agent-memory. Nunca se move nem apaga nada.
-ws_memory_home() {
-  if [ -n "${AGENT_MEMORY_HOME:-}" ]; then printf '%s' "$AGENT_MEMORY_HOME"
-  elif [ -n "${MEMORIA_HOME:-}" ]; then printf '%s' "$MEMORIA_HOME"
-  elif [ ! -d "$HOME/.agent-memory" ] && [ -d "$HOME/.memoria" ]; then printf '%s' "$HOME/.memoria"
-  else printf '%s' "$HOME/.agent-memory"; fi
+# Pasta dos dados da app (a regra da app, src/memoria/config.py): AGENT_MEMORY_HOME; senao MEMORIA_HOME; senao
+# ~/.memoria se existir (ou for um link) e ~/.agent-memory nao tiver notas (ver ws_memory_home_default); senao
+# ~/.agent-memory. Nunca se move nem apaga nada.
+ws_memory_home() { ws_memory_home_env || ws_memory_home_default; }
+# A pasta de AGENT_MEMORY_HOME (senao MEMORIA_HOME), sem espacos a volta e absoluta: um "~" no inicio (um "~/..." entre
+# aspas no .zshrc chega literal) e um caminho relativo contam a partir da HOME, nunca da pasta onde o setup corre.
+# Devolve 1 sem nada definido.
+ws_memory_home_env() {
+  local v=${AGENT_MEMORY_HOME:-${MEMORIA_HOME:-}}
+  v=${v#"${v%%[![:space:]]*}"}; v=${v%"${v##*[![:space:]]}"}
+  [ -n "$v" ] || return 1
+  # shellcheck disable=SC2088  # o ~ literal do valor, nao um caminho a expandir
+  case "$v" in "~") v=$HOME ;; "~/"*) v="$HOME/${v#"~/"}" ;; esac
+  case "$v" in /*) ;; *) v="$HOME/$v" ;; esac
+  printf '%s' "$v"
+}
+# ~/.memoria (de versoes antigas) continua a ser a pasta se ~/.agent-memory nao existir, ou se ~/.agent-memory nao tiver
+# notas (so o config.json de um setup, ou o .index) e ~/.memoria tiver notas ou for um link partido (pasta na nuvem
+# por sincronizar).
+ws_memory_home_default() {
+  local n="$HOME/.agent-memory" o="$HOME/.memoria"
+  if { [ -d "$o" ] || [ -L "$o" ]; } && { [ ! -e "$n" ] || { ! ws_memory_has_notes "$n" && { [ ! -d "$o" ] || ws_memory_has_notes "$o"; }; }; }; then
+    printf '%s' "$o"
+  else printf '%s' "$n"; fi
+}
+# A pasta tem notas (<pasta que nao comeca por .>/*.md, as que a app mostra)?
+ws_memory_has_notes() {
+  local f
+  for f in "$1"/[!.]*/*.md; do { [ -e "$f" ] || [ -L "$f" ]; } && return 0; done
+  return 1
 }
 # shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
 ws_memory_home_show() { local h; h=$(ws_memory_home); case "$h" in "$HOME"/*) printf '~/%s' "${h#"$HOME"/}" ;; *) printf '%s' "$h" ;; esac; }
@@ -2447,7 +2470,7 @@ ws_s10_detect() {
     if [ "$WS_MODE" = install ]; then ws_memory_config || ws_log "config.json not written in $(ws_memory_home_show) (see the step output)"
     elif ws_dir_writable "$(ws_memory_home)"; then ws_fail E-MEM-03 "config.json"; return 1; fi
   fi
-  if [ ! -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ]; then
+  if ! ws_memory_launcher_ok; then
     if [ "$WS_MODE" = install ]; then ws_memory_shortcut "$b" || ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"
     elif ws_dir_writable "$HOME/Applications"; then ws_fail E-MEM-03 "shortcut"; return 1
     else ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"; fi
@@ -2490,7 +2513,7 @@ ws_memory_mcpu_env() { case " ${WS_MCPU_ENV:-} " in *" PYTHONHOME "*) return 0 ;
 # versoes antigas, MEMORIA_LANG=en, como o resto do setup) e o resultado vem do codigo de saida. So a etiqueta
 # [OK] e igual em todas as linguas; qualquer outra etiqueta ([FAIL]...) e um motivo de falha.
 ws_memory_selftest() {
-  local out rc py fails
+  local out rc py fails ign
   out=$(AGENT_MEMORY_LANG=en MEMORIA_LANG=en "$1" selftest 2>&1 </dev/null); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   py=$(printf '%s\n' "$out" | sed -nE 's/.*Python ([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p' | head -n 1)
@@ -2498,10 +2521,16 @@ ws_memory_selftest() {
   # terminal dela, "agent-memory" escrito a mao continua a falhar.
   [ -n "${WS_PYTHON_ENV0:-}" ] && ws_warn E-MEM-09 "$WS_PYTHON_ENV0"
   if [ "$rc" = 0 ]; then
-    ws_detail "$(ws_msg s10_ok VERSAO="$2" PY="${py:-?}")"; return 0
+    ws_detail "$(ws_msg s10_ok VERSAO="$2" PY="${py:-?}")"
+    # Outra pasta dos dados com notas que a app nao mostra (uma linha [WARN] da app, que nao faz falhar o selftest):
+    # nada se move, so se avisa (E-MEM-11).
+    ign=$(printf '%s\n' "$out" | grep -F '[WARN]' | grep -F 'memories that are not shown' | sed -E 's/^[[:space:]]*\[WARN\][[:space:]]*//; s/(memories that are not shown).*/\1/' | tr '\n' ';' | sed 's/;$//')
+    [ -n "$ign" ] && ws_warn E-MEM-11 "$ign"
+    return 0
   fi
   ws_detail "$(ws_msg s10_ja VERSAO="$2")"
-  fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[OK\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
+  # Um [WARN] nao e o motivo da falha.
+  fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[(OK|WARN)\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
   # Pasta das memorias sem escrita (do root depois de um sudo, um ficheiro, um link partido): reinstalar nao
   # resolve, por isso tem o seu codigo e o comando exato.
   # O SQLite do Python do uv nao abre bases de dados com mais de 504 bytes no caminho (MAX_PATHNAME 512 com o
@@ -2668,6 +2697,9 @@ ws_memory_mcp() {
 ws_memory_config() {
   local home cfg uvp
   home=$(ws_memory_home); cfg="$home/config.json"
+  # Um link que nao leva a uma pasta (pasta na nuvem por sincronizar, disco desligado): nunca se cria nada atraves
+  # dele (a app passava a usar outra pasta).
+  if [ -L "$home" ] && [ ! -d "$home" ]; then printf 'config.json: %s is a link that does not lead to a folder (nothing created)\n' "$home" >>"$WS_STEP_LOG"; return 1; fi
   mkdir -p "$home" 2>>"$WS_STEP_LOG" || return 1
   uvp=${WS_UV:-$(command -v uv 2>/dev/null)}
   if [ -n "${WS_NODE:-}" ]; then
@@ -2682,6 +2714,21 @@ ws_memory_config() {
     { printf '{\n  "MEMORY_APP_REPO_URL": "%s",\n  "RELEASE_DOWNLOAD_URL": "%s",\n  "PYTHON_VERSION": "%s",\n  "UV": "%s"\n}\n' \
       "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" > "$cfg"; } 2>>"$WS_STEP_LOG" || return 1
   fi
+}
+# O atalho do Dock arranca sem as variaveis da shell: com AGENT_MEMORY_HOME (ou MEMORIA_HOME) definida quando o setup
+# corre, a pasta (absoluta) vai escrita no atalho, senao a janela abria outra pasta que o MCP. Um valor ja definido
+# quando o atalho arranca ganha (:=). Sem variavel, nenhuma linha.
+ws_memory_launcher_env() {
+  local d
+  d=$(ws_memory_home_env) || return 0
+  # shellcheck disable=SC2016  # o $ e do atalho, nao desta shell
+  printf ': "${AGENT_MEMORY_HOME:=%s}"; export AGENT_MEMORY_HOME\n' "$(printf '%s' "$d" | sed 's/[\\"$`]/\\&/g')"
+}
+# O atalho existe e leva a pasta dos dados de agora (ou nenhuma, sem variavel)? Senao refaz-se.
+ws_memory_launcher_ok() {
+  local f="$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE"
+  [ -x "$f" ] || return 1
+  [ "$(grep -F ': "${AGENT_MEMORY_HOME:=' "$f" 2>/dev/null)" = "$(ws_memory_launcher_env)" ]
 }
 ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminho absoluto
   local app="$HOME/Applications/$WS_APP_BUNDLE" old="$HOME/Applications/$WS_APP_BUNDLE_OLD" b=$1 gui g
@@ -2708,7 +2755,7 @@ ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminh
 </dict>
 </plist>
 EOF
-  printf '#!/bin/sh\nexec "%s" "$@"\n' "$gui" > "$app/Contents/MacOS/$WS_APP_EXE" &&
+  { printf '#!/bin/sh\n'; ws_memory_launcher_env; printf 'exec "%s" "$@"\n' "$gui"; } > "$app/Contents/MacOS/$WS_APP_EXE" &&
   chmod +x "$app/Contents/MacOS/$WS_APP_EXE"; } 2>>"$WS_STEP_LOG" || return 1
   ws_registar atalho "$WS_APP_BUNDLE" "$app"
 }
