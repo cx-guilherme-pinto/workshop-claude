@@ -323,3 +323,56 @@ test('--lingua-maquina grava language.json do kit e a language do Claude Code (s
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// chaos G5 (fs-arena-rerun-keeps-work): a new release (or another language) reinstalls the kit's skills and agents.
+// The person's changes to them are never lost: the edited copy goes to the backup and the setup says where.
+test('chaos G5: reinstalar guarda no backup as skills e agentes do kit que a pessoa alterou', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-editado-'));
+  const home = join(base, 'Bea Teste');
+  const kit = fakeKit(base);
+  const claude = join(home, '.claude');
+  const node = process.execPath;
+  try {
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    writeFileSync(join(claude, 'skills', 'task-plan', 'SKILL.md'), readFileSync(join(claude, 'skills', 'task-plan', 'SKILL.md'), 'utf8') + '<!-- my tweak -->\n');
+    writeFileSync(join(claude, 'skills', 'task-plan', 'my-notes.md'), 'mine\n');
+    writeFileSync(join(claude, 'agents', 'ws-worker.md'), readFileSync(join(claude, 'agents', 'ws-worker.md'), 'utf8') + '<!-- my agent tweak -->\n');
+    writeFileSync(join(kit, 'skills-prod', 'task-plan', 'SKILL.md'), '---\nname: task-plan\n---\nversao nova\n');
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    const ed = r.get('editado');
+    assert.equal(ed.length, 2, r.stdout);
+    const skill = ed.find((p) => p.endsWith('/skills/task-plan'));
+    const agente = ed.find((p) => p.endsWith('/agents/ws-worker.md'));
+    assert.ok(skill && agente, ed.join(' '));
+    assert.match(readFileSync(join(skill, 'SKILL.md'), 'utf8'), /my tweak/);
+    assert.equal(readFileSync(join(skill, 'my-notes.md'), 'utf8'), 'mine\n');
+    assert.match(readFileSync(agente, 'utf8'), /my agent tweak/);
+    assert.match(readFileSync(join(claude, 'skills', 'task-plan', 'SKILL.md'), 'utf8'), /versao nova/, 'the kit version is back');
+    // Unchanged items are replaced with no backup and no note; a reinstall with no edits says nothing.
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.deepEqual(r.get('editado'), []);
+    assert.deepEqual(r.get('anteriores'), []);
+    // A manifest from an older kit (no sha): nothing is deleted, the previous copies go to one backup folder.
+    const mf = join(home, '.workshop-claude', 'manifest.json');
+    const m = JSON.parse(readFileSync(mf, 'utf8'));
+    for (const x of [...m.skills, ...m.agentes]) delete x.sha;
+    writeFileSync(mf, JSON.stringify(m));
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    const ant = r.get('anteriores');
+    assert.equal(ant.length, 1, r.stdout);
+    assert.ok(existsSync(join(ant[0], 'skills', 'task-plan', 'SKILL.md')));
+    assert.ok(existsSync(join(ant[0], 'agents', 'ws-worker.md')));
+    // Uninstall: an edited skill is kept in the backup too.
+    writeFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'edited before uninstall\n');
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    const des = r.get('editado').find((p) => p.endsWith('/skills/design'));
+    assert.ok(des, r.stdout);
+    assert.equal(readFileSync(join(des, 'SKILL.md'), 'utf8'), 'edited before uninstall\n');
+    assert.ok(!existsSync(join(claude, 'skills', 'task-plan')), 'unchanged items are removed');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

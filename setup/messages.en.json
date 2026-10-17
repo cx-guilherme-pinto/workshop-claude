@@ -84,6 +84,7 @@
     "desinst_perfil_falhou": "I couldn't remove the workshop PATH lines from {FICHEIRO}, so I left it as it was. Delete the lines from '# >>> workshop-claude >>>' to '# <<< workshop-claude <<<' by hand.",
     "desinst_projeto_removido": "Project removed (it was unchanged): {CAMINHO}.",
     "desinst_projeto_mantido": "Project kept because it has your changes: {CAMINHO}. Delete it by hand if you want.",
+    "desinst_editado": "You had changed {NOME}: your copy is saved in {PASTA}.",
     "desinst_fim": "Uninstall complete. Still installed: git, Claude Code, Node, uv, gh and the backups in {BACKUP}.",
     "desinst_sem_manifest": "I couldn't find {MANIFEST}. There is nothing from the workshop to undo.",
     "s0_so": "System: {SO}",
@@ -129,7 +130,10 @@
     "s8_lingua_tua": "You already had a \"language\" setting ({NOME}): I kept it. Workshop texts: {KIT}.",
     "s8_lingua_nenhuma": "No \"language\" setting for {LINGUA}: Claude answers in the language you write in. Workshop texts: {KIT}.",
     "s8_lingua_muda": "Language installed here: {DE}. This run asks for {PARA} (WORKSHOP_LANG): nothing is broken. Run the full setup (without --check) to switch.",
+    "s8_editado": "You had changed {NOME}: your copy is saved in {PASTA}, and the kit's version is back in its place.",
+    "s8_anteriores": "The previous versions of the kit's skills and agents are saved in {PASTA}, in case you had changed one.",
     "s9_ja": "{PROJETOS}",
+    "s9_backup": "Your previous folder is saved in {PASTA}.",
     "s9_testes_ok": "App tests: {OK} passed.",
     "s9_sem_testes": "The project doesn't have test/app.test.js yet. I skipped the tests.",
     "s9_lingua_diferente": "{CAMINHO} is in {LINGUA}, and the workshop texts are now in {KIT}. I left it as it was, with your work. To have it in {KIT}: rename that folder and run the setup again (it builds a new one; the renamed folder keeps your work).",
@@ -967,8 +971,8 @@
       "so": "todos",
       "causa": "Copying the projects or running git init on them failed.",
       "fazer": [
-        "Read the message in the log (search for \"assemble\").",
-        "If the folder already exists with other content, rename it and run the setup again."
+        "The reason is in brackets above, and the full message is in the log (search for \"assemble\").",
+        "Once it is fixed, run the setup again: a half-made project is rebuilt by itself, and your work is never deleted."
       ],
       "mac": [
         "ls -la {PROJETOS}"
@@ -1004,6 +1008,21 @@
       ],
       "windows": [
         "Rename-Item {PROJETOS} workshop-claude-old"
+      ]
+    },
+    "E-DEMO-04": {
+      "titulo": "The Arena has its own git history: I left it as it is",
+      "so": "todos",
+      "causa": "The Arena has commits but not the arena-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.",
+      "fazer": [
+        "Nothing to do if you want to keep working in this Arena.",
+        "To get a fresh Arena, rename this folder and run the setup again."
+      ],
+      "mac": [
+        "mv {PROJETOS}/demo-project {PROJETOS}/demo-project-old"
+      ],
+      "windows": [
+        "Rename-Item {PROJETOS}\\demo-project demo-project-old"
       ]
     },
     "E-MEM-01": {

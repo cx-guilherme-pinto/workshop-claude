@@ -25,8 +25,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, copyFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import { parseConf } from './lib/conf.mjs';
+import { gitSync } from './lib/kit-repo.mjs';
 import { linguaMaquina } from './lib/languages.mjs';
 import { isMain as ehPrincipal } from './lib/is-main.mjs';
 import { LANGUAGE_FILE, storedLanguage } from '../hooks/lib/language.mjs';
@@ -137,13 +137,30 @@ function readSettingsFile(P) {
   return { exists: true, text, obj: parseSettings(text) };
 }
 
+// Tira do lugar uma skill/agente nosso sem perder alteracoes da pessoa: se o conteudo ja nao e o que o kit
+// escreveu (sha no manifest), vai para o backup em <ts>/edited/ (linha "editado"); sem sha (manifest de uma
+// versao anterior a v1.0.0-rc.2) nao se sabe, por isso vai para <ts>/previous/ (linha "anteriores", uma so).
+// Devolve { editado } ou { anterior } com o caminho do backup, ou {} quando se apagou uma copia intacta.
+function retirarNosso(kind, item, P, ts) {
+  const dest = item.destino;
+  if (!existsSync(dest)) return {};
+  if (item.sha && fingerprint([dest]) === item.sha) {
+    rmSync(dest, { recursive: true, force: true });
+    return {};
+  }
+  const pasta = item.sha ? 'edited' : 'previous';
+  const to = fwd(moveAside(dest, P.backupDir, join(ts, pasta, kind === 'agentes' ? 'agents' : kind, basename(dest))));
+  return item.sha ? { editado: to } : { anterior: fwd(join(P.backupDir, ts, pasta)) };
+}
+
 // Copia uma skill/agente; se ja existir algo com o mesmo nome que nao e nosso, guarda-o no backup.
 function placeItem(kind, item, destRoot, P, manifest, replacements, ts) {
   const dest = join(destRoot, item.nome);
   const prev = (manifest[kind] || []).find((x) => x.nome === item.nome);
   let backup = prev?.backup || null;
+  let retirado = {};
   if (existsSync(dest)) {
-    if (prev) rmSync(dest, { recursive: true, force: true });
+    if (prev) retirado = retirarNosso(kind, { ...prev, destino: dest }, P, ts);
     else backup = fwd(moveAside(dest, P.backupDir, join(ts, kind, item.nome)));
   }
   if (statSync(item.origem).isDirectory()) copyTree(item.origem, dest, replacements);
@@ -153,7 +170,14 @@ function placeItem(kind, item, destRoot, P, manifest, replacements, ts) {
     for (const [k, v] of Object.entries(replacements)) t = t.split(`{{${k}}}`).join(v);
     writeAtomic(dest, t);
   }
-  return { nome: item.nome, destino: fwd(dest), backup };
+  return { nome: item.nome, destino: fwd(dest), backup, sha: fingerprint([dest]), retirado };
+}
+
+// Linhas "editado" (uma por item) e "anteriores" (uma so) para o setup.
+function saidaRetirados(lista) {
+  for (const r of lista) if (r.editado) out('editado', r.editado);
+  const ant = lista.find((r) => r.anterior);
+  if (ant) out('anteriores', ant.anterior);
 }
 
 export function instalar(flags, env = process.env) {
@@ -194,6 +218,7 @@ export function instalar(flags, env = process.env) {
   const { skills, agentes } = kitSources(kitSrc);
   const novasSkills = skills.map((s) => placeItem('skills', s, P.skillsDir, P, manifest, replacements, ts));
   const novosAgentes = agentes.map((a) => placeItem('agentes', a, P.agentsDir, P, manifest, replacements, ts));
+  const retirados = [...novasSkills, ...novosAgentes].map((x) => x.retirado);
   // Itens nossos de versoes anteriores que ja nao existem no kit: remover (e repor o backup, se houver).
   for (const [kind, now] of [
     ['skills', novasSkills],
@@ -201,11 +226,12 @@ export function instalar(flags, env = process.env) {
   ]) {
     for (const old of manifest[kind] || []) {
       if (now.some((x) => x.nome === old.nome)) continue;
-      restoreItem(old);
+      retirados.push(restoreItem(kind, old, P, ts));
     }
   }
-  manifest.skills = novasSkills;
-  manifest.agentes = novosAgentes;
+  const semRetirado = ({ retirado, ...x }) => x;
+  manifest.skills = novasSkills.map(semRetirado);
+  manifest.agentes = novosAgentes.map(semRetirado);
 
   // 4. Escrever o settings.json. Backup antes de qualquer escrita: o primeiro fica como "original"
   //    (e o que o --desinstalar repoe); os seguintes ficam com a data.
@@ -244,6 +270,7 @@ export function instalar(flags, env = process.env) {
   out('settings', fwd(P.settings));
   if (lm) saidaLingua(lm, linguaKitInstalada(P), merged.settings.language, merged.record);
   for (const w of merged.warnings) out('aviso', w);
+  saidaRetirados(retirados);
   return 0;
 }
 
@@ -255,12 +282,13 @@ function saidaLingua(lm, kit, language, record) {
   out('language_nossa', record?.language_criado && language === record.language_valor ? 1 : 0);
 }
 
-function restoreItem(item) {
-  rmSync(item.destino, { recursive: true, force: true });
+function restoreItem(kind, item, P, ts) {
+  const retirado = retirarNosso(kind, item, P, ts);
   if (item.backup && existsSync(item.backup)) {
     mkdirSync(dirname(item.destino), { recursive: true });
     moveAside(item.backup, dirname(item.destino), basename(item.destino));
   }
+  return retirado;
 }
 
 export function verificar(flags, env = process.env) {
@@ -351,9 +379,12 @@ export function extras(flags, env = process.env) {
   return 0;
 }
 
+// So o repositorio do proprio projeto (nunca um acima dele, ex.: um HOME com os dotfiles em git) e com o git isolado
+// da montagem (lib/kit-repo.mjs): um gitignore global nao pode esconder ficheiros da pessoa desta verificacao.
 function projetoIntacto(dir) {
-  const g = (...a) => spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' });
-  const st = g('status', '--porcelain');
+  if (!existsSync(join(dir, '.git'))) return false;
+  const g = (...a) => gitSync(dir, a);
+  const st = g('status', '--porcelain', '--untracked-files=all');
   if (st.status !== 0 || st.stdout.trim() !== '') return false;
   const n = g('rev-list', '--count', 'HEAD');
   return n.status === 0 && n.stdout.trim() === '1';
@@ -387,10 +418,12 @@ export function desinstalar(flags, env = process.env) {
       }
     }
   }
-  for (const it of [...(manifest.skills || []), ...(manifest.agentes || [])]) {
-    restoreItem(it);
+  const retirados = [];
+  for (const [kind, it] of [...(manifest.skills || []).map((x) => ['skills', x]), ...(manifest.agentes || []).map((x) => ['agentes', x])]) {
+    retirados.push(restoreItem(kind, it, P, ts));
     out('removido', it.nome);
   }
+  saidaRetirados(retirados);
   rmSync(P.kitDir, { recursive: true, force: true });
   out('removido', 'kit');
   for (const x of manifest.extras || []) {

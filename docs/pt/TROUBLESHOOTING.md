@@ -74,6 +74,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-DEMO-01` | Não consegui montar os projetos do workshop | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | Os testes da app da Arena falharam | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | A pasta do projeto já existe e não é do kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
+| `E-DEMO-04` | A Arena tem um histórico git próprio: deixei-a como está | [macOS](#mac-e-demo-04) · [Windows](#windows-e-demo-04) |
 | `E-MEM-01` | A release da app Agent Memory ainda não foi publicada | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
 | `E-MEM-02` | O ficheiro da app Agent Memory não confere (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
 | `E-MEM-03` | A instalação da app Agent Memory falhou | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
@@ -787,8 +788,8 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 - **Porquê:** A cópia ou o git init dos projetos falhou.
 - **O que fazer:**
-  - Lê a mensagem no log (procura «assemble»).
-  - Se a pasta já existir com outro conteúdo, muda-lhe o nome e volta a correr o setup.
+  - A razão está entre parênteses acima, e a mensagem completa está no log (procura «assemble»).
+  - Depois de corrigires, volta a correr o setup: um projeto montado a meio é refeito sozinho, e o teu trabalho nunca é apagado.
 
 Comando (macOS):
 
@@ -823,6 +824,21 @@ Comando (macOS):
 
 ```
 mv ~/workshop-claude ~/workshop-claude-antigo
+```
+
+<a id="mac-e-demo-04"></a>
+
+### E-DEMO-04 · A Arena tem um histórico git próprio: deixei-a como está
+
+- **Porquê:** A Arena tem commits mas não tem a tag arena-start (o ponto de partida), por isso o /demo-reset não a consegue repor no início. O setup nunca apaga o teu trabalho.
+- **O que fazer:**
+  - Não há nada a fazer se quiseres continuar a trabalhar nesta Arena.
+  - Para teres uma Arena nova, muda o nome desta pasta e volta a correr o setup.
+
+Comando (macOS):
+
+```
+mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
 ```
 
 <a id="mac-e-mem-01"></a>
@@ -1740,8 +1756,8 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 - **Porquê:** A cópia ou o git init dos projetos falhou.
 - **O que fazer:**
-  - Lê a mensagem no log (procura «assemble»).
-  - Se a pasta já existir com outro conteúdo, muda-lhe o nome e volta a correr o setup.
+  - A razão está entre parênteses acima, e a mensagem completa está no log (procura «assemble»).
+  - Depois de corrigires, volta a correr o setup: um projeto montado a meio é refeito sozinho, e o teu trabalho nunca é apagado.
 
 Comando (Windows):
 
@@ -1776,6 +1792,21 @@ Comando (Windows):
 
 ```
 Rename-Item ~/workshop-claude workshop-claude-antigo
+```
+
+<a id="windows-e-demo-04"></a>
+
+### E-DEMO-04 · A Arena tem um histórico git próprio: deixei-a como está
+
+- **Porquê:** A Arena tem commits mas não tem a tag arena-start (o ponto de partida), por isso o /demo-reset não a consegue repor no início. O setup nunca apaga o teu trabalho.
+- **O que fazer:**
+  - Não há nada a fazer se quiseres continuar a trabalhar nesta Arena.
+  - Para teres uma Arena nova, muda o nome desta pasta e volta a correr o setup.
+
+Comando (Windows):
+
+```
+Rename-Item ~/workshop-claude\demo-project demo-project-old
 ```
 
 <a id="windows-e-mem-01"></a>

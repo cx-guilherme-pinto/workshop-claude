@@ -729,5 +729,85 @@ if [ -e /usr/bin/install_name_tool ]; then
 fi
 grep -nE '^[[:space:]]*(gh|uv|"\$WS_CLAUDE") (auth status|mcp get|mcp list|tool)' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "setup-mac.sh: gh/uv/claude chamados sem limite ou pelo nome" || ok
 
+# --- chaos G5-arena-git: passo 9 sem perder trabalho, montagem interrompida e git global hostil
+G5="$WS_TMP/g5"; mkdir -p "$G5/st/vazia" "$G5/st/alheia" "$G5/st/inc" "$G5/st/semgit" "$G5/st/ok" "$G5/st/propria"
+g5git() { GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -c user.email=t@t -c user.name=t "$@"; }
+echo x > "$G5/st/alheia/f"
+printf '{"status":"incomplete","language":"en"}\n' > "$G5/st/inc/.arena-kit.json"; echo x > "$G5/st/inc/README.md"
+printf '{"version":"v1"}\n' > "$G5/st/semgit/.arena-kit.json"
+for d in ok propria; do printf '{"version":"v1"}\n' > "$G5/st/$d/.arena-kit.json"; ( cd "$G5/st/$d" && g5git init -q && g5git commit -q --allow-empty -m x ) >/dev/null 2>&1; done
+( cd "$G5/st/ok" && g5git tag arena-start ) >/dev/null 2>&1
+for c in vazia:vazia alheia:alheia inc:incompleta semgit:incompleta ok:ok propria:propria nada:vazia; do
+  eq "$(ws_proj_state "$G5/st/${c%%:*}" .arena-kit.json refs/tags/arena-start)" "${c#*:}" "ws_proj_state ${c%%:*}"
+done
+# Um HOME com os dotfiles em git (com uma tag arena-start): a marca sem .git proprio nao passa por pronta.
+( cd "$G5/st" && g5git init -q && g5git commit -q --allow-empty -m dotfiles && g5git tag arena-start ) >/dev/null 2>&1
+eq "$(ws_proj_state "$G5/st/semgit" .arena-kit.json refs/tags/arena-start)" incompleta "ws_proj_state: ignora o repositorio acima"
+grep -n 'assemble-demo.mjs.*--force' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "o passo 9 ainda forca a Arena (apagava o historico da pessoa)" || ok
+
+# ws_assemble com um node falso: o que corre e o que mostra
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s/node.args"\ncase "$*" in *--falha*) echo "ERROR: git commit -q -m x failed: error: gpg failed to sign the data" >&2; exit 1;; esac\nprintf "{\\"status\\":\\"assembled\\",\\"backup\\":\\"%%s/.workshop-claude/backup/t/demo-project\\"}\\n" "$HOME"\n' "$G5" > "$G5/node"; chmod +x "$G5/node"
+g5a() { # pasta [extra] -> SF#SW#SN#args do node
+  ( WS_NODE="$G5/node"; KIT_SRC="$G5/kit"; WS_CUR=9; WS_STEP_LOG="$G5/a.log"; : > "$WS_STEP_LOG"; : > "$G5/node.args"; SF_9=""; SW_9=""; SN_9=""
+    ws_registar() { :; }
+    ws_assemble assemble-demo.mjs "$1" .arena-kit.json refs/tags/arena-start --language en ${2:+"$2"}
+    printf '%s#%s#%s#%s' "$SF_9" "$SW_9" "$SN_9" "$(tr '\n' ' ' < "$G5/node.args")" )
+}
+r=$(g5a "$G5/st/propria"); case "$r" in '#E-DEMO-04|'*'##') ok ;; *) ko "ws_assemble propria: aviso E-DEMO-04 e o node nao corre [$r]" ;; esac
+# shellcheck disable=SC2088
+r=$(g5a "$G5/st/inc"); case "$r" in *'--force '*) ok ;; *) ko "ws_assemble incompleta: --force [$r]" ;; esac
+case "$r" in *'Your previous folder is saved in ~/.workshop-claude/backup/t/demo-project.'*) ok ;; *) ko "ws_assemble: nota do backup com ~ [$r]" ;; esac
+r=$(g5a "$G5/st/ok"); case "$r" in *'--force'*) ko "ws_assemble ok: sem --force [$r]" ;; '##'*'--dest '*) ok ;; *) ko "ws_assemble ok [$r]" ;; esac
+r=$(g5a "$G5/st/alheia"); case "$r" in 'E-DEMO-03|'*) ok ;; *) ko "ws_assemble alheia: E-DEMO-03 [$r]" ;; esac
+r=$(g5a "$G5/st/vazia" --falha); case "$r" in 'E-DEMO-01|assemble-demo.mjs: git commit -q -m x failed: error: gpg failed to sign the data#'*) ok ;; *) ko "ws_assemble: a causa do E-DEMO-01 no ecra [$r]" ;; esac
+
+# Migracao da tag com tag.gpgsign global (sem gpg): a tag nova fica leve, sem pedir mensagem nem assinatura.
+printf '[tag]\n\tgpgsign = true\n[gpg]\n\tprogram = %s/no-gpg\n[core]\n\teditor = false\n' "$G5" > "$G5/sign.gitconfig"
+mkdir -p "$G5/mig/demo-project"; : > "$G5/mig/demo-project/.arena-kit.json"
+( cd "$G5/mig/demo-project" && g5git init -q && g5git commit -q --allow-empty -m x && g5git tag arena-inicial ) >/dev/null 2>&1
+( export GIT_CONFIG_GLOBAL="$G5/sign.gitconfig"; WS_PROJ="$G5/mig"; ws_s9_migrate )
+eq "$(g5git -C "$G5/mig/demo-project" cat-file -t arena-start 2>/dev/null)" commit "s9 migrate: tag arena-start leve com tag.gpgsign global"
+
+# Passo 8: skills/agentes do kit alterados pela pessoa ficam no backup e o setup diz onde.
+( WS_CUR=8; SN_8=""; ws_s8_parse "$(printf 'skills\t7\neditado\t%s/.workshop-claude/backup/t/edited/skills/task-plan\nanteriores\t%s/.workshop-claude/backup/t/previous\n' "$HOME" "$HOME")"; printf '%s' "$SN_8" ) > "$G5/s8"
+grep -q 'You had changed task-plan: your copy is saved in ~/.workshop-claude/backup/t/edited/skills/task-plan' "$G5/s8" && ok || ko "s8: nota editado [$(cat "$G5/s8")]"
+grep -q 'previous versions of the kit.s skills and agents are saved in ~/.workshop-claude/backup/t/previous' "$G5/s8" && ok || ko "s8: nota anteriores"
+
+# Passo 9 a serio (node e assemblers do repositorio) num HOME falso com um git global hostil: assinatura sem gpg,
+# hook que falha, gitignore global com *.js e lib/, autocrlf + safecrlf.
+if [ -n "$NODE" ]; then
+  HH="$G5/hh"; mkdir -p "$HH/hooks"; printf '#!/bin/sh\necho ran >> "%s/hook-ran"\nexit 1\n' "$HH" > "$HH/hooks/pre-commit"; chmod +x "$HH/hooks/pre-commit"
+  printf '*.js\nlib/\n' > "$HH/ignore"
+  printf '[commit]\n\tgpgsign = true\n[tag]\n\tgpgsign = true\n[gpg]\n\tprogram = %s/no-gpg\n[core]\n\thooksPath = %s/hooks\n\texcludesFile = %s/ignore\n\tautocrlf = true\n\tsafecrlf = true\n\teditor = false\n[user]\n\tuseConfigOnly = true\n' "$HH" "$HH" "$HH" > "$HH/gitconfig"
+  EH="$G5/Bea Teste"
+  g5e() { # funcao do passo 9 -> rc#SF#SW#SN
+    ( export HOME="$EH" GIT_CONFIG_GLOBAL="$HH/gitconfig" GIT_CONFIG_NOSYSTEM=1; mkdir -p "$HOME/.workshop-claude"
+      WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; WS_PROJ_SHOW='~/workshop-claude'
+      WS_NODE="$NODE"; KIT_SRC="$ROOT"; WS_LANG_KIT=en; WS_CUR=9; WS_MODE=install; WS_STEP_LOG="$G5/e.log"; : > "$WS_STEP_LOG"
+      SF_9=""; SW_9=""; SN_9=""; SD_9=""
+      ws_kit_ensure() { return 0; }
+      "$1"; printf '%s#%s#%s#%s' "$?" "$SF_9" "$SW_9" "$SN_9" )
+  }
+  A="$EH/workshop-claude/demo-project"; P="$EH/workshop-claude/practice-project"
+  r=$(g5e ws_s9_install); case "$r" in '0###'*) ok ;; *) ko "s9 git hostil: instala [$r] $(grep ERROR "$G5/e.log" | head -n 2)" ;; esac
+  eq "$(g5git -C "$A" cat-file -t arena-start 2>/dev/null)" commit "s9 git hostil: tag arena-start leve"
+  [ -n "$(g5git -C "$A" ls-files 'lib/*.js')" ] && [ -n "$(g5git -C "$P" ls-files 'src/*.js')" ] && ok || ko "s9 git hostil: os .js entram no commit apesar do gitignore global"
+  [ ! -e "$HH/hook-ran" ] && ok || ko "s9 git hostil: o hook da pessoa correu"
+  # Ctrl-C a meio da copia do projeto de treino: so a marca incompleta e um ficheiro. Volta a montar, sem backup.
+  rm -rf "$P"; mkdir -p "$P"; printf '{"status":"incomplete","language":"en"}\n' > "$P/.sandbox-kit.json"; echo '{}' > "$P/package.json"
+  r=$(g5e ws_s9_install); case "$r" in '0###'*) ok ;; *) ko "s9 montagem interrompida: refeita sem backup [$r]" ;; esac
+  [ -n "$(g5git -C "$P" ls-files 'src/*.js')" ] && ok || ko "s9 montagem interrompida: projeto completo"
+  # Historico proprio na Arena (sem a tag) e uma nota: fica tudo como esta, com o aviso E-DEMO-04.
+  echo mine > "$A/MY-NOTES.md"; g5git -C "$A" tag -d arena-start >/dev/null 2>&1
+  r=$(g5e ws_s9_install); case "$r" in '0##E-DEMO-04|'*) ok ;; *) ko "s9 historico proprio: aviso E-DEMO-04 [$r]" ;; esac
+  [ "$(cat "$A/MY-NOTES.md" 2>/dev/null)" = mine ] && ok || ko "s9 historico proprio: a nota da pessoa ficou"
+  r=$(g5e ws_s9_detect); case "$r" in '0##E-DEMO-04|'*) ok ;; *) ko "s9 detect historico proprio: aviso e nao E-DEMO-01 [$r]" ;; esac
+  # Sem .git no projeto de treino: refeito, e a pasta anterior (com o trabalho) vai para o backup.
+  echo mine > "$P/MY-NOTES.md"; rm -rf "$P/.git"
+  r=$(g5e ws_s9_install); case "$r" in *'Your previous folder is saved in ~/.workshop-claude/backup/'*'/practice-project.'*) ok ;; *) ko "s9 sem .git: nota do backup [$r]" ;; esac
+  # shellcheck disable=SC2012
+  [ "$(cat "$EH"/.workshop-claude/backup/*/practice-project/MY-NOTES.md 2>/dev/null)" = mine ] && [ ! -e "$P/MY-NOTES.md" ] && ok || ko "s9 sem .git: o trabalho esta no backup"
+fi
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
