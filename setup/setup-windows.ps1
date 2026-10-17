@@ -632,14 +632,21 @@ function Get-WsGitBashCandidates {
 
 function Test-WsLockHeld {
   # O .lock tem o PID (versoes antigas) ou o PID e a hora de arranque desse processo (ticks UTC). So esta ocupado
-  # se esse PID ainda e um PowerShell e, quando o .lock a tem, com a mesma hora de arranque: um PID que o Windows
-  # reutilizou (por exemplo depois de reiniciar) nao bloqueia o setup. $Proc: @{ Name; StartTicks } ou $null.
-  param([string]$LockText, $Proc)
+  # se esse PID ainda e um PowerShell, nao e este processo ($Self) e, quando o .lock tem a hora, com a mesma hora
+  # de arranque: um PID que o Windows reutilizou (por exemplo depois de reiniciar) nao bloqueia o setup. Uma hora
+  # que nao se le (StartTicks 0: um PowerShell de outro utilizador, do SYSTEM ou elevado, como os scripts do Intune)
+  # tambem nao bloqueia: o setup corre sempre como a propria pessoa. $Proc: @{ Name; StartTicks } ou $null.
+  param([string]$LockText, $Proc, [int]$Self = 0)
   $lines = @(([string]$LockText) -split "`r?`n" | Where-Object { $_ -match '\S' })
-  if ($lines.Count -eq 0 -or $lines[0].Trim() -notmatch '^\d+$') { return $false }
+  if ($lines.Count -eq 0) { return $false }
+  $id = $lines[0].Trim() -as [int64]
+  if ($lines[0].Trim() -notmatch '^\d+$' -or $null -eq $id) { return $false }
   if (-not $Proc) { return $false }
+  if ($Self -gt 0 -and $id -eq $Self) { return $false }
   if ([string]$Proc.Name -notmatch '^(powershell|pwsh|powershell_ise)$') { return $false }
-  if ($lines.Count -gt 1 -and $lines[1].Trim() -match '^\d+$' -and [int64]$Proc.StartTicks -gt 0) { return ([int64]$lines[1].Trim() -eq [int64]$Proc.StartTicks) }
+  $since = $null
+  if ($lines.Count -gt 1 -and $lines[1].Trim() -match '^\d+$') { $since = $lines[1].Trim() -as [int64] }
+  if ($since -gt 0) { return ($since -eq [int64]$Proc.StartTicks) }
   return $true
 }
 
@@ -655,6 +662,79 @@ function Resolve-WsFailCode {
   if ($Mode -ne 'install') { return @($Code, $Detail) }
   if ($ProxyAuth -and @('2', '5', '10', '12') -contains $Step -and @('E-CC-01', 'E-UV-01', 'E-MEM-03', 'E-SMOKE-01', 'E-NET-01', 'E-NET-05', 'E-NET-07') -contains $Code) { return @('E-NET-03', $Code) }
   return @($Code, $Detail)
+}
+
+function Format-WsHomePath {
+  # Caminho para mostrar: ~\... dentro da pasta do perfil, o resto como esta.
+  param([string]$Path, [string]$UserHome)
+  if (-not $Path -or -not $UserHome) { return $Path }
+  $h = $UserHome.TrimEnd('\', '/')
+  if ($Path.TrimEnd('\', '/') -ieq $h) { return '~' }
+  if (Find-WsInFolder $h @($Path)) { return ('~' + $Path.Substring($h.Length)) }
+  return $Path
+}
+
+function Get-WsPermFixCmd {
+  # O comando que devolve um caminho a pessoa. -Kind: 'dir' (pasta sem escrita: icacls para ela e o que tem dentro),
+  # 'file' (ficheiro sem escrita), 'readonly' (ficheiro com o atributo "So de leitura") ou 'notdir' (um ficheiro onde
+  # devia estar uma pasta: muda de nome e o setup cria a pasta). -User: DOMINIO\nome. Precisa de ser o dono (ou o IT).
+  param([string]$Path, [string]$Kind, [string]$User)
+  switch ($Kind) {
+    'notdir' { return ('Rename-Item -LiteralPath "{0}" -NewName "{1}.old"' -f $Path, (($Path.TrimEnd('\', '/') -split '[\\/]')[-1])) }
+    'readonly' { return ('attrib -R "{0}"' -f $Path) }
+    'file' { return ('icacls "{0}" /grant "{1}:F"' -f $Path, $User) }
+  }
+  return ('icacls "{0}" /grant "{1}:(OI)(CI)F" /T' -f $Path, $User)
+}
+
+function Get-WsPermLine {
+  # A primeira linha da saida de um passo com um erro de permissao (ou "nao e uma pasta"), com ~ no lugar da pasta
+  # do perfil e no maximo 160 caracteres; '' se nao houver. O "Permission denied (publickey)" do ssh nao conta.
+  param([string]$Text, [string]$UserHome)
+  foreach ($l in (([string]$Text) -split "`r?`n")) {
+    if ($l -cnotmatch 'EACCES|EPERM|EEXIST|ENOTDIR|EROFS|is denied|UnauthorizedAccess|Permission denied|File exists|Not a directory|Read-only file system') { continue }
+    if ($l -match 'publickey') { continue }
+    $t = $l
+    if ($UserHome) { $t = [regex]::Replace($t, [regex]::Escape($UserHome.TrimEnd('\', '/')) + '(?![A-Za-z0-9_.-])', '~', 'IgnoreCase') }
+    $t = $t.Trim()
+    return $t.Substring(0, [Math]::Min(160, $t.Length))
+  }
+  return ''
+}
+
+function Get-WsLastInstallResult {
+  # O Invoke-WsStep escreve "result step N: estado [codigo|detalhe da falha]" no setup.log de cada instalacao: o
+  # -Check e o -Doctor nao voltam a instalar, mas assim sabem porque falhou a ultima instalacao do passo N (num passo
+  # nao bloqueante a falha aparece como aviso). Devolve @(codigo, detalhe), ou $null se essa instalacao correu bem.
+  param([string]$N, [string]$LogFile)
+  $r = $null
+  $re = '^\S+ result step ' + [regex]::Escape($N) + ': (\S+) ?(.*)$'
+  try {
+    foreach ($l in (Get-Content -LiteralPath $LogFile -Encoding UTF8 -ErrorAction Stop)) {
+      if ($l -match $re) { $r = @($Matches[1], $Matches[2].Trim()) }
+    }
+  } catch { return $null }
+  if (-not $r -or @('falhou', 'aviso') -notcontains $r[0] -or $r[1] -notmatch '^E-') { return $null }
+  $i = $r[1].IndexOf('|')
+  if ($i -lt 0) { return @($r[1], '') }
+  return @($r[1].Substring(0, $i), $r[1].Substring($i + 1))
+}
+
+function Get-WsLastStepOutput {
+  # O ultimo bloco "--- command output (step N) ---" que uma instalacao (mode install) escreveu no setup.log. O
+  # Write-WsLog poe a hora antes da primeira linha do bloco, por isso so se compara o fim da linha.
+  param([string]$N, [string[]]$Lines)
+  $mode = ''; $on = $false; $b = @(); $last = @()
+  $head = '--- command output (step ' + $N + ') ---'
+  foreach ($l in $Lines) {
+    if ($on) {
+      if ($l -eq '--- end ---') { $on = $false; $last = $b } else { $b += $l }
+      continue
+    }
+    if ($l -match ' === step \d+: .* \(mode ([a-z]+)\)$') { $mode = $Matches[1] }
+    elseif ($mode -eq 'install' -and $l.EndsWith($head)) { $on = $true; $b = @() }
+  }
+  return $last
 }
 
 # =============================================================== mensagens, log e saida
@@ -824,8 +904,8 @@ function Get-WsSumFor {
 
 function Invoke-WsDownload {
   # Download via .part. -Auth envia o REPO_TOKEN so ao servidor dos repositorios (nunca vai para o log).
-  # Define $script:DlHttp e $script:DlStatus.
-  param([string]$Url, [string]$OutFile, [switch]$Auth)
+  # Define $script:DlHttp e $script:DlStatus. -TimeoutSec: curto para o que nao pode atrasar o arranque (Update-WsSelf).
+  param([string]$Url, [string]$OutFile, [switch]$Auth, [int]$TimeoutSec = 600)
   $part = $OutFile + '.part'
   Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
   $script:DlHttp = 0; $script:DlStatus = ''
@@ -837,7 +917,7 @@ function Invoke-WsDownload {
     $headers['Authorization'] = 'token ' + $env:REPO_TOKEN
   }
   try {
-    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $part -Headers $headers -UserAgent $script:UA -TimeoutSec 600 -ErrorAction Stop
+    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $part -Headers $headers -UserAgent $script:UA -TimeoutSec $TimeoutSec -ErrorAction Stop
   } catch {
     $ex = $_.Exception
     $info = Get-WsWebErrorInfo $ex
@@ -974,6 +1054,15 @@ function Write-WsResult {
     Write-WsSay ('     ' + (Get-WsSymbol 'aviso' $script:Emoji) + ' ' + (M 'estado_aviso')) 'Yellow'
     Write-WsCode $w[0] $w[1] '        '
   }
+  # Sem detalhe, o resumo mostra o titulo do codigo (da falha ou do primeiro aviso), para a linha nao ficar vazia.
+  if (-not $s.Detalhe) {
+    $c = ''
+    if ($s.Falha -and ($s.Estado -eq 'falhou' -or $s.Estado -eq 'falta')) { $c = [string]$s.Falha[0] }
+    elseif ($s.Avisos.Count -gt 0) { $c = [string]$s.Avisos[0][0] }
+    $e = $null
+    if ($c) { $e = Get-WsErr $c }
+    if ($e) { $s.Detalhe = (Format-WsFill $e.titulo) + ' (' + $c + ')' }
+  }
 }
 
 function Get-WsDefaultCode {
@@ -988,6 +1077,18 @@ function Test-WsMissingCode {
   return (@('E-CC-01', 'E-NODE-01', 'E-UV-01', 'E-GH-01', 'E-GIT-02', 'E-MCP-01', 'E-KIT-01', 'E-KIT-03', 'E-DEMO-01', 'E-MEM-01', 'E-MEM-03', 'E-DESK-02') -contains $Code)
 }
 
+function Invoke-WsPermReclass {
+  # Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da rede
+  # ou de reinstalar: mostra-se E-PERM-01 com a linha que o diz (restos de uma execucao como administrador ou de
+  # outro utilizador, pastas bloqueadas). As causas mais certas (Group Policy, antivirus, login, saldo) ficam.
+  $s = $script:T[$script:Cur]
+  if (-not $s.Falha) { return }
+  $c = [string]$s.Falha[0]
+  if ($c -like 'E-PERM-*' -or $c -like 'E-AUTH-*' -or @('E-SO-07', 'E-CFG-05', 'E-GH-02', 'E-SMOKE-02', 'E-SMOKE-03') -contains $c) { return }
+  $l = Get-WsPermLine (Protect-WsText $script:StepLog.ToString() $script:Literals) $script:UserHome
+  if ($l) { Set-WsFail 'E-PERM-01' $l }
+}
+
 function Invoke-WsStep {
   param([int]$N, [int[]]$Deps = @(), [switch]$Retry)
   $key = "$N"
@@ -999,9 +1100,13 @@ function Invoke-WsStep {
   Write-WsSay ''
   Write-WsSay (M 'passo' @{ N = $key; TITULO = $title }) 'White'
   Write-WsLog ('=== step {0}: {1} (mode {2})' -f $key, $title, $script:Mode)
+  # Cada instalacao deixa "result step N: estado [codigo|detalhe]" no setup.log (ver Get-WsLastInstallResult).
+  $failed = ''
   $dep = Test-WsDependencies $script:T $Deps
   if ($null -ne $dep) {
-    $script:T[$key].Estado = 'naoexec'; Set-WsDetail (M 'dep_falhou' @{ N = $dep }); Write-WsResult $key; return
+    $script:T[$key].Estado = 'naoexec'; Set-WsDetail (M 'dep_falhou' @{ N = $dep }); Write-WsResult $key
+    if ($script:Mode -eq 'install') { Write-WsLog ('result step {0}: naoexec' -f $key) }
+    return
   }
   if ($N -eq 11 -and $script:SemDesktop) { $script:T[$key].Estado = 'saltado'; Set-WsDetail '-NoDesktop'; Write-WsResult $key; return }
   $nonBlocking = ($N -eq 10 -or $N -eq 11)
@@ -1016,10 +1121,14 @@ function Invoke-WsStep {
   } elseif ($script:Mode -ne 'install') {
     if (-not $s.Falha) { Set-WsFail (Get-WsDefaultCode $key) '' }
     $rc = Resolve-WsFailCode $s.Falha[0] $s.Falha[1] $key $script:Mode $script:Blocked $script:GpoBlocks $script:ProxyAuth
-    if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] }
-    elseif (Test-WsMissingCode $script:T[$key].Falha[0]) { Set-WsFail 'E-SETUP-01' $script:T[$key].Falha[0] }
+    if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] } else { Invoke-WsPermReclass }
+    # "Ainda nao instalado": a causa real da ultima instalacao (se falhou) vem do setup.log, porque o -Check e o
+    # -Doctor nao voltam a correr a instalacao.
+    $prev = $null
+    if (Test-WsMissingCode $script:T[$key].Falha[0]) { $prev = Get-WsLastInstallResult $key $script:LogFile; Set-WsFail 'E-SETUP-01' $script:T[$key].Falha[0] }
     $s = $script:T[$key]
     if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falta' }
+    if ($prev) { Set-WsWarn $prev[0] $prev[1] }
   } else {
     $s.Avisos = @(); $s.Falha = $null
     $ok = $false
@@ -1029,12 +1138,15 @@ function Invoke-WsStep {
     else {
       if (-not $s.Falha) { Set-WsFail (Get-WsDefaultCode $key) '' }
       $rc = Resolve-WsFailCode $s.Falha[0] $s.Falha[1] $key $script:Mode $script:Blocked $script:GpoBlocks $script:ProxyAuth
-      if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] }
+      if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] } else { Invoke-WsPermReclass }
       $s = $script:T[$key]
+      # A falha fica registada antes de o passo nao bloqueante a passar a aviso.
+      $failed = (@($s.Falha) -join '|') -replace '[\r\n]+', ' '
       if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falhou' }
     }
   }
   if ($script:StepLog.Length -gt 0) { Write-WsLog ("--- command output (step $key) ---`r`n" + $script:StepLog.ToString() + "`r`n--- end ---") }
+  if ($script:Mode -eq 'install') { Write-WsLog (('result step {0}: {1} {2}' -f $key, $script:T[$key].Estado, $failed).TrimEnd()) }
   Write-WsResult $key
   if ($script:T[$key].Estado -eq 'falhou' -and $script:Mode -eq 'install' -and -not $Retry) {
     if (Invoke-WsHelper $key) {
@@ -1075,7 +1187,15 @@ function Sync-WsExtras {
 function Initialize-WsKit {
   if ($script:KitSrc -and (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\install-user.mjs'))) { return $true }
   $dest = Join-Path $script:WsHome ('kit-src\' + $script:C.WORKSHOP_VERSION)
-  if (Test-Path -LiteralPath (Join-Path $dest '.ws-kit-ok')) { $script:KitSrc = $dest; return $true }
+  $okFile = Join-Path $dest '.ws-kit-ok'
+  # O .ws-kit-ok guarda o SHA-256 do arquivo: uma release republicada com a mesma tag (outro SHA-256) volta a ser
+  # descarregada ao instalar. O -Check e o -Doctor usam o que houver.
+  if (Test-Path -LiteralPath $okFile) {
+    $have = ''
+    try { $have = ([IO.File]::ReadAllText($okFile)).Trim() } catch { $have = '' }
+    if ($script:Mode -ne 'install' -or -not $script:InjKitSha -or $have -eq $script:InjKitSha) { $script:KitSrc = $dest; return $true }
+    Write-WsLog ('kit-src {0} is not the published kit (republished release?): downloading it again' -f $script:C.WORKSHOP_VERSION)
+  }
   if ($script:Mode -ne 'install') { return $false }
   $name = 'workshop-kit-' + $script:C.WORKSHOP_VERSION + '.zip'
   $tmpd = Join-Path $script:Tmp 'kit'
@@ -1094,15 +1214,19 @@ function Initialize-WsKit {
         $inner = Join-Path $tmpd ('x\workshop-kit-' + $script:C.WORKSHOP_VERSION)
         if (Test-Path -LiteralPath $inner) {
           Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
+          # Um kit antigo que nao saiu todo (um ficheiro aberto): o novo nao vai para dentro dele.
+          if (Test-Path -LiteralPath $dest) { throw ('kit-src not replaced: ' + $dest) }
           New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
-          Move-Item -LiteralPath $inner -Destination $dest
-          [IO.File]::WriteAllText((Join-Path $dest '.ws-kit-ok'), (Get-Date -Format o))
+          Move-Item -LiteralPath $inner -Destination $dest -ErrorAction Stop
+          [IO.File]::WriteAllText($okFile, $sum)
           $script:KitSrc = $dest
           return $true
         }
       } catch { Add-WsStepLog $_.Exception.Message }
     }
   }
+  # Sem o arquivo novo, o kit que ja estava descarregado continua a servir.
+  if (Test-Path -LiteralPath $okFile) { $script:KitSrc = $dest; return $true }
   # Recurso: git clone da tag. O REPO_TOKEN, se existir, vai por variaveis de configuracao do git.
   $git = Get-WsGit
   if (-not $git) { return $false }
@@ -1215,6 +1339,7 @@ function Test-WsStep0 {
   # "Known Folder Move", normal nos portateis da empresa) nao tem nada do kit.
   $inOd = Find-WsInFolder $env:OneDrive @($script:UserHome, $script:Proj, $script:ClaudeDir)
   if ($inOd) { Set-WsWarn 'E-SO-03' $inOd }
+  Test-WsPermScan
   Write-WsLog ('home: profile {0}; $HOME {1}' -f $script:UserHome, $HOME)
   Test-WsRoamingAppData
   $gpo = Get-WsGpoPolicy (Read-WsGpoKey 'LocalMachine') (Read-WsGpoKey 'CurrentUser')
@@ -1230,6 +1355,101 @@ function Test-WsStep0 {
   return $true
 }
 function Install-WsStep0 { return (Test-WsStep0) }
+
+function Get-WsUserName {
+  # DOMINIO\nome, para o icacls (so o nome pode ser ambiguo entre uma conta local e uma do dominio).
+  if ($env:USERDOMAIN -and $env:USERNAME) { return ($env:USERDOMAIN + '\' + $env:USERNAME) }
+  if ($env:USERNAME) { return $env:USERNAME }
+  return [Environment]::UserName
+}
+
+function Test-WsDirWritable {
+  # Uma pasta aceita escrita se se consegue criar e apagar um ficheiro nela: com as ACL do Windows e o unico teste
+  # certo. Uma pasta que ainda nao existe conta como a primeira pasta de cima que existe.
+  param([string]$Dir)
+  $d = $Dir
+  while ($d -and -not (Test-Path -LiteralPath $d)) { $d = Split-Path -Parent $d }
+  if (-not $d -or -not (Test-Path -LiteralPath $d -PathType Container)) { return $false }
+  $f = Join-Path $d ('.ws-write-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+  try { [IO.File]::WriteAllText($f, ''); [IO.File]::Delete($f); return $true } catch { return $false }
+}
+
+function Get-WsPermProblems {
+  # Os caminhos que existem e nao aceitam escrita: pastas (-Dirs; um ficheiro onde devia estar uma pasta conta) e
+  # ficheiros (-Files, abertos para ler e escrever). Um caminho dentro de outro ja contado nao conta outra vez.
+  # Devolve uma lista de @{ Path; Kind }, com o Kind do Get-WsPermFixCmd.
+  param([string[]]$Dirs, [string[]]$Files)
+  $out = @()
+  foreach ($p in $Dirs) {
+    if (-not $p -or @($out | Where-Object { Find-WsInFolder $_.Path @($p) }).Count -gt 0) { continue }
+    if (-not (Test-Path -LiteralPath $p)) { continue }
+    if (-not (Test-Path -LiteralPath $p -PathType Container)) { $out += @{ Path = $p; Kind = 'notdir' }; continue }
+    if (-not (Test-WsDirWritable $p)) { $out += @{ Path = $p; Kind = 'dir' } }
+  }
+  foreach ($p in $Files) {
+    if (-not $p -or @($out | Where-Object { Find-WsInFolder $_.Path @($p) }).Count -gt 0) { continue }
+    if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { continue }
+    try { $fs = [IO.File]::Open($p, 'Open', 'ReadWrite', 'ReadWrite'); $fs.Dispose(); continue } catch { }
+    $k = 'file'
+    try { if ((Get-Item -LiteralPath $p -Force -ErrorAction Stop).IsReadOnly) { $k = 'readonly' } } catch { }
+    $out += @{ Path = $p; Kind = $k }
+  }
+  return , $out
+}
+
+function Get-WsPermFix {
+  # O comando que devolve -Path (ou a primeira pasta de cima que exista) a pessoa; '' se nao ha nenhuma.
+  param([string]$Path)
+  $p = $Path
+  while ($p -and -not (Test-Path -LiteralPath $p)) { $p = Split-Path -Parent $p }
+  if (-not $p) { return '' }
+  $k = 'dir'
+  if (Test-Path -LiteralPath $p -PathType Leaf) { $k = 'notdir' }
+  return (Get-WsPermFixCmd $p $k (Get-WsUserName))
+}
+
+function Test-WsPermScan {
+  # Restos de uma execucao como administrador ou de outro utilizador, pastas com ACL proprias e caminhos que deviam
+  # ser pastas e nao sao (ex.: ~\.local\bin como ficheiro). O Claude Code, o uv, o gh, o Node e o kit escrevem ai:
+  # deteta-se antes dos downloads e mostra-se o comando exato que resolve. So avisa: os passos que nao precisam
+  # desses caminhos continuam, e os que precisam (2 e 5, ver Test-WsPermBlocked) falham logo com E-PERM-01.
+  $script:PermBad = @()
+  $h = $script:UserHome
+  $dirs = @($script:WsHome, (Join-Path $script:WsHome 'bin'), (Join-Path $script:WsHome 'kit'), (Join-Path $script:WsHome 'kit-src'),
+    (Join-Path $script:WsHome 'node'), (Join-Path $script:WsHome 'backup'),
+    $script:ClaudeDir, (Join-Path $script:ClaudeDir 'skills'), (Join-Path $script:ClaudeDir 'agents'), (Join-Path $h '.claude\downloads'),
+    (Join-Path $h '.local'), (Join-Path $h '.local\bin'), (Join-Path $h '.local\share'), (Join-Path $h '.local\share\claude'), (Join-Path $h '.local\share\uv'))
+  # O uv guarda as ferramentas e o Python no AppData\Roaming e a cache no AppData\Local; o gh a configuracao no Roaming.
+  foreach ($a in @($env:APPDATA, $env:LOCALAPPDATA)) { if ($a) { $dirs += (Join-Path $a 'uv') } }
+  if ($env:APPDATA) { $dirs += (Join-Path $env:APPDATA 'GitHub CLI') }
+  # Uma partilha de rede sem ligacao demora a responder: essas ficam para o Test-WsRoamingAppData.
+  $dirs = @($dirs | Where-Object { $_ -and -not (Test-WsNetworkPath $_ (Get-WsDriveType $_)) })
+  $cj = Join-Path $h '.claude.json'
+  if ($env:CLAUDE_CONFIG_DIR) { $cj = Join-Path $env:CLAUDE_CONFIG_DIR '.claude.json' }
+  $files = @($cj, (Join-Path $script:ClaudeDir 'settings.json'), $script:LogFile, (Join-Path $script:WsHome 'manifest.json'))
+  $bad = Get-WsPermProblems $dirs $files
+  if ($bad.Count -eq 0) { return }
+  $script:PermBad = @($bad | ForEach-Object { $_.Path })
+  $show = @()
+  foreach ($b in $bad) {
+    $t = Format-WsHomePath $b.Path $h
+    if ($b.Kind -eq 'notdir') { $t += ' (' + (M 'perm_nao_pasta') + ')' }
+    $show += $t
+  }
+  Write-WsLog ('permissions: no write access to: ' + ($show -join ' '))
+  Set-WsWarn 'E-PERM-01' ($show -join ' ')
+  $u = Get-WsUserName
+  foreach ($b in $bad) { Add-WsNote (M 'perm_corrigir' @{ CMD = (Get-WsPermFixCmd $b.Path $b.Kind $u) }) }
+}
+
+function Test-WsPermBlocked {
+  # Um passo que vai escrever num destes caminhos, se o passo 0 os viu sem escrita: E-PERM-01 sem descarregar nada.
+  param([string[]]$Paths)
+  foreach ($q in @($script:PermBad)) {
+    if ($q -and (Find-WsInFolder $q $Paths)) { Set-WsFail 'E-PERM-01' (Format-WsHomePath $q $script:UserHome); return $true }
+  }
+  return $false
+}
 
 function Read-WsGpoKey {
   # Valores da Group Policy do Windows PowerShell (vista de 64 bits, tambem num PowerShell de 32 bits ou no 7).
@@ -1499,6 +1719,7 @@ function Test-WsStep2 {
 }
 
 function Install-WsStep2 {
+  if (Test-WsPermBlocked @((Join-Path $script:UserHome '.claude\downloads'), (Join-Path $script:UserHome '.local\bin\claude.exe'), (Join-Path $script:UserHome '.local\share\claude'))) { return $false }
   Write-WsSay ('  ' + (M 'a_instalar'))
   $f = Join-Path $script:Tmp 'claude-install.ps1'
   if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) $script:C.CLAUDE_INSTALL_PS1_URL; return $false }
@@ -1667,6 +1888,7 @@ function Test-WsStep5 {
 }
 
 function Install-WsStep5 {
+  if (Test-WsPermBlocked @((Join-Path $script:UserHome '.local\bin\uv.exe'))) { return $false }
   $f = Join-Path $script:Tmp 'uv-install.ps1'
   $url = Expand-WsPattern $script:C.UV_INSTALL_PS1_URL @{ version = $script:C.UV_VERSION }
   if (-not (Invoke-WsDownload $url $f)) { Set-WsFail (Get-WsDlCode) $url; return $false }
@@ -1844,7 +2066,7 @@ function Invoke-WsInstallUser {
 
 function Read-WsInstallUserOutput {
   param([string]$Text)
-  $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false
+  $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false; $err = ''; $det = ''
   foreach ($kv in (ConvertFrom-WsTsv $Text)) {
     switch ($kv[0]) {
       'skills' { $skills = $kv[1] }
@@ -1854,9 +2076,18 @@ function Read-WsInstallUserOutput {
       'language_nossa' { $nossa = $kv[1] }
       'lingua_kit' { $kit = $kv[1] }
       'aviso' { if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }; Set-WsWarn $kv[1] 'statusLine' }
-      'erro' { Set-WsFail $kv[1] '' }
+      'erro' { $err = $kv[1] }
+      'erro_detalhe' { $det = $kv[1] }
       'falta' { Write-WsLog ('missing: ' + $kv[1]) }
     }
+  }
+  # settings.json com erro: o caminho e onde esta o erro (linha e coluna, ou o campo) ficam no ecra, sem o
+  # "0 skills, 0 agents".
+  if ($err) {
+    $p = $det
+    if ($err -eq 'E-CFG-05') { $p = Join-Path $script:ClaudeDir 'settings.json'; if ($det) { $p += ' - ' + $det } }
+    Set-WsFail $err $p
+    return
   }
   Set-WsDetail (M 's8_ja' @{ SKILLS = $skills; AGENTES = $agentes })
   if (-not $temLingua) { return }
@@ -1877,9 +2108,13 @@ function Test-WsStep8 {
 
 function Install-WsStep8 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
+  # O detalhe e as notas sao os desta instalacao (o Test do passo ja os tinha escrito uma vez).
+  $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @()
   $r = Invoke-WsInstallUser 'instalar'
   Read-WsInstallUserOutput $r.StdOut
-  if ($r.ExitCode -eq 3) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json'); return $false }
+  # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
+  if ($r.ExitCode -ne 0) { $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @() }
+  if ($r.ExitCode -eq 3) { if (-not $script:T['8'].Falha) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json') }; return $false }
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-KIT-03' ('install-user ({0})' -f $r.ExitCode); return $false }
   Sync-WsExtras
   return $true
@@ -2053,7 +2288,8 @@ $script:UvBlockEnv = @('UV_PYTHON_DOWNLOADS', 'UV_NO_MANAGED_PYTHON', 'UV_PYTHON
 
 function Invoke-WsMemorySelftest {
   # Corre "agent-memory selftest" (em ingles, como o resto do setup) e mostra o Python gerido pelo uv.
-  # O resultado vem do codigo de saida (contrato da app desde a v0.3.0). Falha -> aviso E-MEM-05.
+  # O resultado vem do codigo de saida (contrato da app desde a v0.3.0). Falha -> aviso E-MEM-05, ou E-MEM-07 com
+  # o comando que resolve quando a pasta das memorias nao aceita escrita (reinstalar nao resolve).
   param([string]$Exe, [string]$Ver)
   $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1'; AGENT_MEMORY_LANG = 'en'; MEMORIA_LANG = 'en' }
   $st = Read-WsSelftest $r.StdOut
@@ -2064,7 +2300,12 @@ function Invoke-WsMemorySelftest {
   Set-WsDetail (M 's10_ja' @{ VERSAO = $Ver })
   $d = ($st.Falhas -join '; ')
   if (-not $d) { $d = [IO.Path]::GetFileNameWithoutExtension($Exe) + ' selftest (' + $r.ExitCode + ')' }
-  if ($script:Blocked -eq $Exe) { Set-WsWarn 'E-PERM-02' $Exe } else { Set-WsWarn 'E-MEM-05' $d }
+  if ($script:Blocked -eq $Exe) { Set-WsWarn 'E-PERM-02' $Exe }
+  elseif ($d -match 'Cannot write to|readonly database|Permission denied|is denied|Read-only file system|Not a directory|File exists|file when that file already exists|directory name is invalid') {
+    Set-WsWarn 'E-MEM-07' $d
+    $fix = Get-WsPermFix (Get-WsMemoryHome)
+    if ($fix) { Add-WsNote (M 'perm_corrigir' @{ CMD = $fix }) }
+  } else { Set-WsWarn 'E-MEM-05' $d }
   return $false
 }
 
@@ -2076,8 +2317,9 @@ function Get-WsMemoryGui {
 }
 
 function New-WsMemoryShortcut {
-  # O atalho "Agent Memory" no menu Iniciar. Falhar aqui (WScript.Shell bloqueado por um EDR, a pasta Programas
-  # numa partilha offline) e so um aviso: o MCP e a app funcionam sem atalho.
+  # O atalho "Agent Memory" no menu Iniciar. Falhar aqui (a pasta Programas sem escrita ou numa partilha offline, o
+  # WScript.Shell bloqueado por um EDR, AppLocker ou WDAC) e so um aviso, E-MEM-06: o MCP e a app funcionam sem
+  # atalho, e o erro fica no log do passo.
   param([string]$Gui)
   try {
     # The old shortcut ("Memoria" with an accent) was ours: it goes.
@@ -2092,7 +2334,13 @@ function New-WsMemoryShortcut {
     $s.Save()
     Register-WsExtra 'atalho' 'agent-memory' $lnk '' ''
     return $true
-  } catch { Set-WsWarn 'E-MEM-03' ('shortcut: ' + $_.Exception.Message); return $false }
+  } catch {
+    Add-WsStepLog ('shortcut: ' + $_.Exception.Message)
+    $dir = [Environment]::GetFolderPath('Programs')
+    if ($lnk) { $dir = Split-Path -Parent $lnk }
+    Set-WsWarn 'E-MEM-06' (Format-WsHomePath $dir $script:UserHome)
+    return $false
+  }
 }
 
 function Test-WsStep10 {
@@ -2107,9 +2355,20 @@ function Test-WsStep10 {
   if ($script:ClaudeExe) {
     if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
   }
-  if (-not (Test-Path -LiteralPath (Join-Path (Get-WsMemoryHome) 'config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
-  if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) {
-    if ($script:Mode -eq 'install') { [void](New-WsMemoryShortcut (Get-WsMemoryGui $bin $exe)) } else { Set-WsWarn 'E-MEM-03' 'shortcut' }
+  # O config.json e o atalho sao extras: ao instalar refazem-se aqui, sem reinstalar a app (que falhava da mesma
+  # maneira). No -Check, uma pasta sem escrita (dados ou menu Iniciar) nao se resolve a reinstalar: fica um aviso
+  # (o selftest diz o resto); com escrita, falta correr o setup (E-SETUP-01).
+  $mh = Get-WsMemoryHome
+  if (-not (Test-Path -LiteralPath (Join-Path $mh 'config.json'))) {
+    if ($script:Mode -eq 'install') { if (-not (Write-WsMemoryConfig)) { Write-WsLog 'config.json not written: memories folder not writable' } }
+    elseif (Test-WsDirWritable $mh) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
+  }
+  $lnk = Get-WsShortcutPath
+  if (-not (Test-Path -LiteralPath $lnk)) {
+    $lnkDir = Split-Path -Parent $lnk
+    if ($script:Mode -eq 'install') { [void](New-WsMemoryShortcut (Get-WsMemoryGui $bin $exe)) }
+    elseif (Test-WsDirWritable $lnkDir) { Set-WsWarn 'E-SETUP-01' 'shortcut' }
+    else { Set-WsWarn 'E-MEM-06' (Format-WsHomePath $lnkDir $script:UserHome) }
   }
   if (-not (Get-WsWebView2Version)) { Set-WsWarn 'E-MEM-04' '' }
   [void](Invoke-WsMemorySelftest $exe $ver)
@@ -2152,14 +2411,25 @@ function Install-WsStep10 {
   Write-WsSay ('  ' + (M 'a_instalar'))
   # O uv traz o seu proprio Python (--managed-python): nao depende de nenhum Python do sistema.
   # As variaveis que o proibiriam sao retiradas so deste processo, nunca globalmente.
-  $r = Invoke-WsProcess $script:UvExe @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force') -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv
-  if ($r.ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
+  $uvArgs = @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force')
+  $uvEnv = @{}
+  $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv
+  if ($r.ExitCode -ne 0) {
+    # Certificado da empresa: o passo 0 so testa a api.anthropic.com, e um proxy pode inspecionar so o github.com (o
+    # Python do uv) ou o pypi.org. Repete uma vez com os certificados do Windows (o uv usa os seus por defeito).
+    if (($r.StdOut + ' ' + $r.StdErr) -notmatch 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed') { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
+    if (@('true', '1') -contains [string]$env:UV_SYSTEM_CERTS) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
+    Write-WsLog 'uv: certificate error, retrying with UV_SYSTEM_CERTS=true'
+    $uvEnv['UV_SYSTEM_CERTS'] = 'true'
+    $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv
+    if ($r.ExitCode -ne 0) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
+  }
   # The distribution changed its name? Take the old one out of uv (only the program: the data stays).
   if ($dist -ne 'memoria') {
     $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
     if ($l.StdOut -match '(?m)^memoria v?[0-9]') {
       [void](Invoke-WsProcess $script:UvExe @('tool', 'uninstall', 'memoria') -TimeoutSec 300)
-      [void](Invoke-WsProcess $script:UvExe @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force') -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv)
+      [void](Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv)
     }
   }
   Register-WsExtra 'app' $dist '' '' ''
@@ -2169,7 +2439,8 @@ function Install-WsStep10 {
   Add-WsUserPath $bin
   # Primeiro o MCP (e o que o workshop usa), depois a configuracao e o atalho (que so pode dar um aviso).
   if (-not (Register-WsMemoryMcp $exe)) { Set-WsFail 'E-MEM-03' ('claude mcp add ' + $script:McpName); return $false }
-  Write-WsMemoryConfig
+  # O config.json e o atalho nao impedem o resto: sem eles a app, o MCP e o selftest continuam.
+  if (-not (Write-WsMemoryConfig)) { Write-WsLog 'config.json not written: memories folder not writable' }
   [void](New-WsMemoryShortcut (Get-WsMemoryGui $bin $exe))
   if (Invoke-WsMemorySelftest $exe $ver) {
     $g = Invoke-WsProcess $exe @('selftest', '--gui', '--timeout', '30') -TimeoutSec 120 -Environment @{ PYTHONUTF8 = '1' }
@@ -2199,18 +2470,23 @@ function Register-WsMemoryMcp {
 }
 
 function Write-WsMemoryConfig {
-  $dir = Get-WsMemoryHome
-  New-Item -ItemType Directory -Path $dir -Force | Out-Null
-  $f = Join-Path $dir 'config.json'
-  $cfg = [ordered]@{}
-  if (Test-Path -LiteralPath $f) {
-    try { $old = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json; foreach ($p in $old.PSObject.Properties) { $cfg[$p.Name] = $p.Value } } catch { }
-  }
-  $cfg['MEMORY_APP_REPO_URL'] = $script:C.MEMORY_APP_REPO_URL
-  $cfg['RELEASE_DOWNLOAD_URL'] = $script:C.RELEASE_DOWNLOAD_URL
-  $cfg['PYTHON_VERSION'] = $script:C.PYTHON_VERSION
-  if ($script:UvExe) { $cfg['UV'] = $script:UvExe }
-  [IO.File]::WriteAllText($f, (($cfg | ConvertTo-Json) + "`n"), $script:Utf8NoBom)
+  # <pasta dos dados>\config.json com as chaves que a app usa para se atualizar. Sem escrita na pasta (de outro
+  # utilizador, um ficheiro, so de leitura) devolve $false: o erro vai para o log do passo, nunca para o ecra.
+  try {
+    $dir = Get-WsMemoryHome
+    New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
+    $f = Join-Path $dir 'config.json'
+    $cfg = [ordered]@{}
+    if (Test-Path -LiteralPath $f) {
+      try { $old = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json; foreach ($p in $old.PSObject.Properties) { $cfg[$p.Name] = $p.Value } } catch { }
+    }
+    $cfg['MEMORY_APP_REPO_URL'] = $script:C.MEMORY_APP_REPO_URL
+    $cfg['RELEASE_DOWNLOAD_URL'] = $script:C.RELEASE_DOWNLOAD_URL
+    $cfg['PYTHON_VERSION'] = $script:C.PYTHON_VERSION
+    if ($script:UvExe) { $cfg['UV'] = $script:UvExe }
+    [IO.File]::WriteAllText($f, (($cfg | ConvertTo-Json) + "`n"), $script:Utf8NoBom)
+    return $true
+  } catch { Add-WsStepLog ('config.json: ' + $_.Exception.Message); return $false }
 }
 
 # =============================================================== PASSO 11 - Claude Desktop (opcional)
@@ -2312,7 +2588,8 @@ function Invoke-WsHelper {
   Write-WsSay ''
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
-  $excerpt = Protect-WsText (($script:StepLog.ToString() -split "`n" | Select-Object -Last 80) -join "`n") $script:Literals
+  # As linhas "[claude-code:...]" sao do proprio Claude Code (stderr) e levavam o diagnostico a inventar problemas.
+  $excerpt = Protect-WsText ((@($script:StepLog.ToString() -split "`n" | Where-Object { $_ -notmatch '^\[claude-code:' }) | Select-Object -Last 80) -join "`n") $script:Literals
   $prompt = "You are a technical support assistant for the setup of a Claude Code workshop.`n" +
     "Answer in plain English, with short sentences, for someone with no experience.`n" +
     "Give the likely cause in 1 to 3 sentences and up to 4 PowerShell commands (Windows) the person can run to fix it.`n" +
@@ -2353,11 +2630,25 @@ function Invoke-WsDoctor {
     $w = ($s.Avisos | ForEach-Object { $_ -join ' ' }) -join '; '
     $lines += ('Step {0} ({1}): {2} {3} {4}' -f $n, $script:Titles[$n], $s.Estado, $f, $w)
   }
-  $tail = ''
-  try { $tail = Protect-WsText ((Get-Content -LiteralPath $script:LogFile -Tail 120 -Encoding UTF8) -join "`n") $script:Literals } catch { }
+  # A causa de uma falha esta na saida da instalacao que falhou, que pode ser de uma execucao anterior (o -Doctor nao
+  # instala) e ficar muito antes das ultimas 120 linhas. As linhas "[claude-code:...]" (stderr do proprio Claude
+  # Code) ficam de fora: levavam o diagnostico a inventar um problema.
+  $all = @()
+  try { $all = @(Get-Content -LiteralPath $script:LogFile -Encoding UTF8 -ErrorAction Stop) } catch { $all = @() }
+  $blocks = @()
+  foreach ($n in $script:T.Keys) {
+    if (@('falta', 'falhou', 'naoexec', 'aviso') -notcontains $script:T[$n].Estado) { continue }
+    $b = @(Get-WsLastStepOutput $n $all | Where-Object { $_ -notmatch '^\[claude-code:' } | Select-Object -Last 30)
+    if ($b.Count -gt 0) { $blocks += ('--- step {0} ({1}) ---' -f $n, $script:Titles[$n]); $blocks += $b }
+  }
+  $prev = Protect-WsText ($blocks -join "`n") $script:Literals
+  $tail = Protect-WsText ((@($all | Select-Object -Last 120) | Where-Object { $_ -notmatch '^\[claude-code:' }) -join "`n") $script:Literals
   $prompt = "You are a support assistant for the setup of a Claude Code workshop (Windows). Answer in plain English, short sentences, for someone with no experience.`n" +
-    "Make a full diagnosis: what is wrong, why, and the exact steps (with PowerShell commands) in order. Never suggest commands as administrator or showing API keys.`n`n" +
-    (Get-WsVersionsLine) + "`n`n" + ($lines -join "`n") + "`n`nLog excerpt:`n" + $tail
+    "Make a full diagnosis: what is wrong, why, and the exact steps (with PowerShell commands) in order. Never suggest commands as administrator or showing API keys.`n" +
+    "You cannot use tools, run commands or read files: answer now, only from the information below.`n`n" +
+    (Get-WsVersionsLine) + "`n`n" + ($lines -join "`n") +
+    "`n`nLast recorded install output of each step with a problem (it may come from an earlier run):`n" + $prev +
+    "`n`nLog excerpt:`n" + $tail
   $o = Invoke-WsClaudeHelper $prompt ''
   if ($o -and $o.Resposta) { Write-WsSay $o.Resposta; Write-WsSay ('  ' + (M 'doctor_custo' @{ USD = $o.Custo.Texto })) 'DarkGray'; Write-WsLog ('doctor: cost ' + $o.Custo.Texto) }
   else { Write-WsSay ('  ' + (M 'helper_falhou')) }
@@ -2377,11 +2668,12 @@ function Write-WsSummary {
   $lines += ''
   if ($sum.Faltam -eq 0) {
     if ($script:Mode -eq 'install') { $lines += (M 'final_pronto') } else { $lines += (M 'final_check_ok') }
-    if ($sum.Avisos -gt 0) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
   } else {
     if ($sum.Faltam -eq 1) { $lines += (M 'final_falta1' @{ LISTA = $sum.Lista }) } else { $lines += (M 'final_faltam' @{ N = $sum.Faltam; LISTA = $sum.Lista }) }
     $lines += (M 'final_voltar')
   }
+  # Os avisos contam-se sempre, tambem quando falta algum passo.
+  if ($sum.Avisos -gt 0) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
   Write-WsSay ''
   Write-WsSay ('-' * 64)
   foreach ($l in $lines) { Write-WsSay $l }
@@ -2547,6 +2839,111 @@ function Save-WsSelf {
   }
 }
 
+function Update-WsSelf {
+  # A correr da copia guardada (%USERPROFILE%\.workshop-claude\setup-windows.ps1): se a release (a mesma tag) tem
+  # outro setup-windows.ps1, confirmado pelo SHA256SUMS e com os valores injetados, a copia e substituida e o
+  # Invoke-WsMain corre a nova (Invoke-WsUpdatedSelf). Sem rede, ou com qualquer duvida, fica a copia local. Sem
+  # isto, uma correcao publicada com a mesma tag nunca chegava a quem corre a copia guardada.
+  param([string]$Self = $PSCommandPath)
+  $dst = Join-Path $script:WsHome 'setup-windows.ps1'
+  if ($script:Dev -or $script:ReExec -or -not $Self -or -not (Test-Path -LiteralPath $dst)) { return $false }
+  try { if ((Resolve-Path -LiteralPath $Self -ErrorAction Stop).Path -ne (Resolve-Path -LiteralPath $dst -ErrorAction Stop).Path) { return $false } } catch { return $false }
+  $sums = Join-Path $script:Tmp 'SHA256SUMS.self'
+  if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'workshop' 'SHA256SUMS') $sums -Auth -TimeoutSec 30)) { Write-WsLog 'saved copy: no SHA256SUMS from the release, keeping it'; return $false }
+  $want = Get-WsSumFor $sums 'setup-windows.ps1'
+  if (-not $want -or $want -eq (Get-WsSha256 $dst)) { return $false }
+  $new = Join-Path $script:Tmp 'setup-windows.new.ps1'
+  if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'workshop' 'setup-windows.ps1') $new -Auth -TimeoutSec 120)) { return $false }
+  if ((Get-WsSha256 $new) -ne $want) { return $false }
+  # So uma copia da release (com os valores injetados) substitui a guardada.
+  $text = ''
+  try { $text = [IO.File]::ReadAllText($new) } catch { return $false }
+  if ($text -notmatch "(?m)^\`$script:WsInjKitSha256 = '[0-9a-f]{64}'") { Write-WsLog 'saved copy: the release file has no injected values, keeping the copy'; return $false }
+  # Um ficheiro novo, com os bytes da release (sem o Zone.Identifier, como no Save-WsSelf).
+  try { [IO.File]::WriteAllBytes($dst, [IO.File]::ReadAllBytes($new)) } catch { Write-WsLog ('saved copy not updated: ' + $_.Exception.Message); return $false }
+  Write-WsLog ('saved setup-windows.ps1 updated from the release (' + $want + '): running the new copy')
+  return $true
+}
+
+function Invoke-WsUpdatedSelf {
+  # Corre a copia nova com as mesmas opcoes e devolve o codigo de saida dela. E outro processo, com outro PID: o
+  # .lock sai antes (senao a copia nova via um PowerShell vivo com o lock e recusava), e WS_REEXEC=1 impede-a de
+  # se atualizar outra vez.
+  param([string]$Lock)
+  Remove-Item -LiteralPath $Lock -Force -ErrorAction SilentlyContinue
+  $self = Get-WsSelfArgs $script:Params
+  $env:WS_REEXEC = '1'
+  $code = 1
+  try { & (Get-WsWinPowerShell) -NoProfile -ExecutionPolicy Bypass -File (Join-Path $script:WsHome 'setup-windows.ps1') @self | Out-Default; $code = $LASTEXITCODE }
+  finally { Remove-Item Env:WS_REEXEC -ErrorAction SilentlyContinue }
+  return $code
+}
+
+function Get-WsLockProc {
+  # O processo com o PID do .lock, para o Test-WsLockHeld: @{ Name; StartTicks } (0 se a hora nao se le), ou $null.
+  param([string]$Id)
+  $n = ([string]$Id).Trim() -as [int]
+  if (-not $n) { return $null }
+  $gp = Get-Process -Id $n -ErrorAction SilentlyContinue
+  if (-not $gp) { return $null }
+  $ticks = 0
+  try { $ticks = $gp.StartTime.ToUniversalTime().Ticks } catch { $ticks = 0 }
+  return @{ Name = $gp.ProcessName; StartTicks = $ticks }
+}
+
+function New-WsLockFile {
+  # Cria o .lock so se ainda nao existe (CreateNew: de duas janelas ao mesmo tempo so uma fica com ele), com o PID
+  # e a hora de arranque deste processo. Devolve $false se ja existe (ou nao se consegue criar).
+  param([string]$Lock)
+  $fs = $null
+  try { $fs = [IO.File]::Open($Lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read) } catch { return $false }
+  try {
+    $t = 0
+    try { $t = (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks } catch { $t = 0 }
+    $txt = [string]$PID
+    if ($t -gt 0) { $txt += "`r`n" + $t }
+    $b = [Text.Encoding]::ASCII.GetBytes($txt + "`r`n")
+    $fs.Write($b, 0, $b.Length)
+  } finally { $fs.Dispose() }
+  return $true
+}
+
+function Enter-WsLock {
+  # Fica com o .lock deste setup. Um .lock velho (janela fechada, reinicio, PID reutilizado: Test-WsLockHeld) sai e
+  # passa para este. Ocupado: diz quem o tem (mensagem lock_ativo do catalogo) e devolve $false.
+  param([string]$Lock)
+  for ($i = 0; $i -lt 3; $i++) {
+    if (New-WsLockFile $Lock) { return $true }
+    if (-not (Test-Path -LiteralPath $Lock)) { continue }
+    $txt = ''
+    try { $txt = [IO.File]::ReadAllText($Lock) } catch { $txt = '' }
+    $since = '?'; $age = 0
+    try { $li = Get-Item -LiteralPath $Lock -Force -ErrorAction Stop; $since = $li.LastWriteTime.ToString('HH:mm'); $age = ((Get-Date) - $li.LastWriteTime).TotalSeconds } catch { }
+    $first = ([string](($txt -split "`r?`n") | Select-Object -First 1)).Trim()
+    if (Test-WsLockHeld $txt (Get-WsLockProc $first) $PID) {
+      Write-WsLog ('lock held by PID ' + $first)
+      Write-WsSay (M 'lock_ativo' @{ PID = $first; HORA = $since }) 'Yellow'
+      return $false
+    }
+    # Sem PID ha menos de 10 s: outro setup acabou de criar o .lock e ainda esta a escrever o PID.
+    if (-not $txt.Trim() -and $age -lt 10) { Write-WsSay (M 'lock_ativo' @{ PID = '?'; HORA = $since }) 'Yellow'; return $false }
+    Write-WsLog ('stale lock removed (that setup is no longer running): ' + $txt.Trim().Replace("`r`n", ' '))
+    Remove-Item -LiteralPath $Lock -Force -ErrorAction SilentlyContinue
+  }
+  Write-WsSay (M 'lock_ativo' @{ PID = '?'; HORA = '?' }) 'Yellow'
+  return $false
+}
+
+function Exit-WsLock {
+  # So apaga o .lock se for deste setup: uma segunda janela que foi recusada (ou a copia nova do Update-WsSelf) nao
+  # tira o lock a quem o tem.
+  param([string]$Lock)
+  try {
+    $first = ([string](Get-Content -LiteralPath $Lock -TotalCount 1 -ErrorAction Stop)).Trim()
+    if (($first -as [int]) -eq $PID) { Remove-Item -LiteralPath $Lock -Force -ErrorAction Stop }
+  } catch { }
+}
+
 function Invoke-WsRelaunch {
   # O setup so corre bem no Windows PowerShell 5.1 de 64 bits, numa consola:
   # - PowerShell ISE: sem consola, os logins (claude, gh, acli) ficavam a espera para sempre -> nova janela;
@@ -2612,6 +3009,10 @@ function Invoke-WsMain {
   $script:StepLog = New-Object System.Text.StringBuilder
   $script:AuthOk = $false; $script:NetApiOk = $true; $script:CaPem = ''; $script:Proxy = ''; $script:NoProxy = ''; $script:OsBuild = 99999; $script:Arch = 'x64'
   $script:Blocked = ''; $script:GpoBlocks = $false; $script:ProxyAuth = $false; $script:GitBashMissing = $false; $script:GitBashTried = $false
+  $script:PermBad = @()
+  # WS_REEXEC=1: esta e a copia nova que o Update-WsSelf acabou de descarregar (nao se atualiza outra vez).
+  $script:ReExec = ($env:WS_REEXEC -eq '1')
+  Remove-Item Env:WS_REEXEC -ErrorAction SilentlyContinue
 
   if (-not (Initialize-WsConfig)) { Write-Host 'This script must come from the release (with the injected values) or run inside the repository.'; return 2 }
   Initialize-WsFill
@@ -2619,7 +3020,21 @@ function Invoke-WsMain {
   $again = Invoke-WsRelaunch $o
   if ($null -ne $again) { return $again }
 
-  New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+  try { New-Item -ItemType Directory -Path $script:WsHome -Force -ErrorAction Stop | Out-Null } catch { }
+  # %USERPROFILE%\.workshop-claude sem escrita (de outro utilizador, de uma execucao como administrador, ou um
+  # ficheiro): sem ela nao ha lock, log nem copia guardada. Mostra-se o comando que resolve, e para aqui.
+  if (-not (Test-Path -LiteralPath $script:WsHome -PathType Container) -or -not (Test-WsDirWritable $script:WsHome)) {
+    Write-WsCode 'E-PERM-01' (Format-WsHomePath $script:WsHome $script:UserHome) '  '
+    $fix = Get-WsPermFix $script:WsHome
+    if ($fix) { Write-Host ('  ' + (M 'perm_corrigir' @{ CMD = $fix })) }
+    return 1
+  }
+  # setup.log de outro utilizador ou so de leitura: fica de lado, com outro nome, e comeca-se um novo.
+  if (Test-Path -LiteralPath $script:LogFile) {
+    try { [IO.File]::AppendAllText($script:LogFile, '') } catch {
+      try { Rename-Item -LiteralPath $script:LogFile -NewName ('setup.log.unwritable-' + (Get-Date -Format 'yyyyMMddHHmmss')) -ErrorAction Stop } catch { }
+    }
+  }
   $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('ws-setup-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
   New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
   Initialize-WsLang
@@ -2630,31 +3045,14 @@ function Invoke-WsMain {
 
   # O .lock tem o PID e a hora de arranque: um setup fechado a forca (ou um PID reutilizado) nao bloqueia o seguinte.
   $lock = Join-Path $script:WsHome '.lock'
-  if (Test-Path -LiteralPath $lock) {
-    $txt = ''
-    try { $txt = [IO.File]::ReadAllText($lock) } catch { $txt = '' }
-    $first = ([string](($txt -split "`r?`n") | Select-Object -First 1)).Trim()
-    $proc = $null
-    if ($first -match '^\d+$') {
-      $gp = Get-Process -Id ([int]$first) -ErrorAction SilentlyContinue
-      if ($gp) {
-        $ticks = 0
-        try { $ticks = $gp.StartTime.ToUniversalTime().Ticks } catch { $ticks = 0 }
-        $proc = @{ Name = $gp.ProcessName; StartTicks = $ticks }
-      }
-    }
-    if (Test-WsLockHeld $txt $proc) {
-      Write-WsSay (M 'ja_a_correr' @{ PID = $first; LOCK = $lock }) 'Yellow'
-      Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue
-      return 1
-    }
-    Write-WsLog ('old lock ignored (that setup is no longer running): ' + $txt.Replace("`r`n", ' '))
+  if (-not (Enter-WsLock $lock)) {
+    Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue
+    return 1
   }
-  $myTicks = 0
-  try { $myTicks = (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks } catch { $myTicks = 0 }
-  [IO.File]::WriteAllText($lock, ([string]$PID + "`r`n" + $myTicks))
   try {
-    [IO.File]::AppendAllText($script:LogFile, ("`r`n==================== {0} - mode {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
+    # A copia guardada desatualizada (a mesma tag republicada): corre a da release, com as mesmas opcoes.
+    if ($script:Mode -ne 'uninstall' -and (Update-WsSelf)) { return (Invoke-WsUpdatedSelf $lock) }
+    [IO.File]::AppendAllText($script:LogFile,("`r`n==================== {0} - mode {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
     Write-WsSay (M 'titulo') 'White'
     switch ($script:Mode) {
       'uninstall' { Write-WsSay (M 'modo_desinstalar' @{ MANIFEST = (Join-Path $script:WsHome 'manifest.json') }); return (Invoke-WsUninstall) }
@@ -2689,7 +3087,7 @@ function Invoke-WsMain {
     if ($faltam -gt 0) { return 1 }
     return 0
   } finally {
-    Remove-Item -LiteralPath $lock -Force -ErrorAction SilentlyContinue
+    Exit-WsLock $lock
     Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue
   }
 }
