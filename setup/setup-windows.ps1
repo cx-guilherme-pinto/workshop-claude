@@ -1137,7 +1137,8 @@ function Get-WsWinPowerShell {
   return 'powershell.exe'
 }
 
-function Get-WsUv { $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; $p = Join-Path $script:UserHome '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; return $null }
+# Primeiro o uv do workshop (~\.local\bin\uv.exe): um uv antigo mais a frente no PATH nao serve (ver Test-WsStep5).
+function Get-WsUv { $p = Join-Path $script:UserHome '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; return $null }
 function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; if (Test-Path -LiteralPath $p) { return $p }; return $null }
 
 function Get-WsGit {
@@ -1201,9 +1202,12 @@ function Test-WsStep0 {
     if ($v) { $uvEnv[$k] = $v }
   }
   foreach ($b in (Get-WsUvPythonBlockers $uvEnv)) { Set-WsWarn 'E-CFG-07' ($b + '=' + $uvEnv[$b]) }
-  foreach ($pair in @(@('ANTHROPIC_API_KEY', 'E-CFG-02'), @('ANTHROPIC_BASE_URL', 'E-CFG-03'), @('CLAUDE_CODE_USE_BEDROCK', 'E-CFG-04'), @('CLAUDE_CODE_USE_VERTEX', 'E-CFG-04'))) {
-    if ([Environment]::GetEnvironmentVariable($pair[0]) -or (Get-WsUserEnvRaw $pair[0])) { Set-WsWarn $pair[1] $pair[0] }
-  }
+  # Chaves da API e cloud (Bedrock, Vertex, Foundry), no ambiente ou no "env" das definicoes do Claude Code. So os
+  # nomes (e o ficheiro), nunca os valores. O ANTHROPIC_BASE_URL ve-se depois da rede (Test-WsGateway).
+  $keys = Get-WsEnvKeys -User
+  if ($keys) { Set-WsWarn 'E-CFG-02' $keys }
+  $cloud = Get-WsCloudWhere
+  if ($cloud) { Set-WsWarn 'E-CFG-04' $cloud }
 
   try {
     $drive = Get-PSDrive -Name ($script:UserHome.Substring(0, 1)) -ErrorAction Stop
@@ -1226,10 +1230,63 @@ function Test-WsStep0 {
   Test-WsProxy
   Test-WsTls
   Test-WsNetwork
+  Test-WsGateway
   Set-WsDetail ($script:OsText + ' - ' + $script:Lang + ' - ' + (M 's0_rede_ok' @{ OK = $script:NetOk; TOTAL = $script:NetTotal }))
   return $true
 }
 function Install-WsStep0 { return (Test-WsStep0) }
+
+function Test-WsTruthy { param([string]$V) return ($V -match '^(1|true|yes|on)$') }
+
+function Get-WsSettingsEnv {
+  # Valor de uma variavel no bloco "env" das definicoes do Claude Code (as do utilizador e as geridas pela empresa,
+  # que e como as empresas ligam o Bedrock ou um gateway). Devolve @(valor, ficheiro) ou $null.
+  # O valor pode ser uma chave: nunca se mostra nem vai para o log. Um JSON booleano chega como 'True'.
+  param([string]$Name)
+  $files = @()
+  if ($script:ClaudeDir) { $files += (Join-Path $script:ClaudeDir 'settings.json') }
+  foreach ($base in @($env:ProgramFiles, $env:ProgramData)) {
+    if (-not $base) { continue }
+    $files += (Join-Path $base 'ClaudeCode\managed-settings.json')
+    $dropIn = Join-Path $base 'ClaudeCode\managed-settings.d'
+    if (Test-Path -LiteralPath $dropIn) { foreach ($d in (Get-ChildItem -LiteralPath $dropIn -Filter '*.json' -ErrorAction SilentlyContinue | Sort-Object Name)) { $files += $d.FullName } }
+  }
+  foreach ($f in $files) {
+    if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+    try { $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+    if ($j -and $j.env -and ($j.env.PSObject.Properties.Name -contains $Name)) { $v = [string]$j.env.$Name; if ($v) { return @($v, $f) } }
+  }
+  return $null
+}
+
+function Get-WsEnvKeys {
+  # Chaves da API que passam a frente do login: no ambiente deste processo (que o Claude herda) ou no "env" das
+  # definicoes. -User: tambem as variaveis do utilizador no registo (as de um terminal novo). So os nomes, nunca os
+  # valores: "ANTHROPIC_API_KEY" ou "ANTHROPIC_API_KEY (ficheiro)", separados por ', '; '' se nao houver.
+  param([switch]$User)
+  $out = @()
+  foreach ($k in @('ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY')) {
+    $v = [Environment]::GetEnvironmentVariable($k)
+    if (-not $v -and $User) { $v = Get-WsUserEnvRaw $k }
+    if ($v) { $out += $k; continue }
+    $s = Get-WsSettingsEnv $k
+    if ($s) { $out += ('{0} ({1})' -f $k, $s[1]) }
+  }
+  return ($out -join ', ')
+}
+
+function Get-WsCloudWhere {
+  # Claude Code configurado para uma cloud (Bedrock, Vertex, Foundry): o login do Console e ignorado e, sem as
+  # credenciais da cloud, os pedidos nunca acabam. Devolve "VARIAVEL (shell)" ou "VARIAVEL (ficheiro)", ou $null.
+  $names = @('CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY')
+  foreach ($n in $names) {
+    $v = [Environment]::GetEnvironmentVariable($n)
+    if (-not $v) { $v = Get-WsUserEnvRaw $n }
+    if (Test-WsTruthy $v) { return ('{0} (shell)' -f $n) }
+  }
+  foreach ($n in $names) { $s = Get-WsSettingsEnv $n; if ($s -and (Test-WsTruthy $s[0])) { return ('{0} ({1})' -f $n, $s[1]) } }
+  return $null
+}
 
 function Read-WsGpoKey {
   # Valores da Group Policy do Windows PowerShell (vista de 64 bits, tambem num PowerShell de 32 bits ou no 7).
@@ -1403,6 +1460,55 @@ function Test-WsNetwork {
   }
 }
 
+function Test-WsGateway {
+  # Gateway da empresa (ANTHROPIC_BASE_URL: no ambiente, nas variaveis do utilizador ou no "env" das definicoes):
+  # aviso e, se nao responder, $script:GwDown. Nesse caso o teste final, o ajudante e o -Doctor nao chamam o Claude
+  # (esperariam minutos pelas novas tentativas e o erro apontaria para o api.anthropic.com, que pode estar bem).
+  # Corre depois do Test-WsNetwork: o proxy ja esta configurado.
+  $script:GwUrl = ''; $script:GwDown = $false
+  $src = ''
+  $u = [Environment]::GetEnvironmentVariable('ANTHROPIC_BASE_URL')
+  if (-not $u) { $u = Get-WsUserEnvRaw 'ANTHROPIC_BASE_URL' }
+  if (-not $u) { $s = Get-WsSettingsEnv 'ANTHROPIC_BASE_URL'; if ($s) { $u = $s[0]; $src = ' (' + $s[1] + ')' } }
+  if (-not $u) { return }
+  $script:GwUrl = [string]$u
+  Set-WsWarn 'E-CFG-03' ('ANTHROPIC_BASE_URL' + $src)
+  if (-not (Test-WsGatewayUp $script:GwUrl)) { $script:GwDown = $true; Set-WsWarn 'E-AUTH-05' (Get-WsGatewayShow $script:GwUrl) }
+}
+
+function Test-WsGatewayUp {
+  # $false = o gateway nao responde. O URL nunca vai para o log (pode ter utilizador e password).
+  param([string]$Url)
+  try {
+    $null = Invoke-WebRequest -UseBasicParsing -Uri $Url -Method Get -TimeoutSec 10 -UserAgent $script:UA -ErrorAction Stop
+    Write-WsLog 'gateway: HTTP answer'
+    return $true
+  } catch {
+    $i = Get-WsWebErrorInfo $_.Exception
+    Write-WsLog ('gateway: {0} HTTP {1}' -f $i.Status, $i.Http)
+    return (Test-WsGatewayAnswer $i.Status $i.Http)
+  }
+}
+
+function Test-WsGatewayAnswer {
+  # Estado de um pedido ao gateway (Get-WsWebErrorInfo) -> responde? Qualquer resposta HTTP conta (mesmo 401 ou 404);
+  # so a falta de ligacao (DNS, recusada, sem resposta) ou um 502/503/504 de um proxy pelo meio conta como em baixo.
+  # Um erro de TLS (certificado da empresa) conta como vivo, como no Mac: sem falsos alarmes.
+  param([string]$Status, [int]$Http)
+  if ($Http -gt 0) { return (@(502, 503, 504) -notcontains $Http) }
+  return (@('NameResolutionFailure', 'ProxyNameResolutionFailure', 'ConnectFailure', 'Timeout') -notcontains $Status)
+}
+
+function Get-WsGatewayShow {
+  # URL do gateway para mostrar: so esquema://host:porta/ (sem caminho, utilizador nem password).
+  param([string]$Url)
+  if (-not $Url) { return '' }
+  try { $u = [Uri]$Url; if ($u.IsAbsoluteUri -and $u.Authority) { return ('{0}://{1}/' -f $u.Scheme, $u.Authority) } } catch { }
+  # Um URL que o [Uri] nao le: tira tudo ate ao ultimo '@' (nunca mostra uma password, mesmo com '/') e o caminho.
+  $t = $Url -replace '^([A-Za-z][A-Za-z0-9+.-]*://)?.*@', '$1'
+  return ($t -replace '^([A-Za-z][A-Za-z0-9+.-]*://)?([^/?#]*).*$', '$1$2/')
+}
+
 # =============================================================== PASSO 1 - git
 
 function Set-WsGitBash {
@@ -1483,7 +1589,53 @@ function Install-WsGitForWindows {
 
 # =============================================================== PASSO 2 - Claude Code
 
+function Test-WsStrictJson {
+  # O texto e JSON valido com as regras do JSON.parse do Claude Code (sem virgulas a mais nem comentarios)?
+  # $true, $false, ou $null quando nao ha um leitor estrito (o ConvertFrom-Json aceita virgulas a mais, e falha com
+  # chaves que so diferem nas maiusculas, normais nos caminhos dos projetos do ~\.claude.json).
+  # PowerShell 7: System.Text.Json. Windows PowerShell 5.1: Windows.Data.Json (WinRT, do Windows 10).
+  param([string]$Text)
+  $t = ([string]$Text).TrimStart([char]0xFEFF)
+  $jd = $null
+  try { Add-Type -AssemblyName System.Text.Json -ErrorAction Stop; $jd = 'System.Text.Json.JsonDocument' -as [type] } catch { $jd = $null }
+  if ($jd) {
+    try {
+      $o = New-Object ('System.Text.Json.JsonDocumentOptions' -as [type])
+      $o.MaxDepth = 512
+      $d = $jd::Parse($t, $o); $d.Dispose(); return $true
+    } catch { return $false }
+  }
+  $wj = $null
+  try { $wj = [Type]::GetType('Windows.Data.Json.JsonValue, Windows.Data.Json, ContentType=WindowsRuntime', $false) } catch { $wj = $null }
+  if (-not $wj) { try { $wj = 'Windows.Data.Json.JsonValue, Windows.Data.Json, ContentType=WindowsRuntime' -as [type] } catch { $wj = $null } }
+  if (-not $wj) { try { $wj = [scriptblock]::Create('[Windows.Data.Json.JsonValue, Windows.Data.Json, ContentType = WindowsRuntime]').Invoke()[0] } catch { $wj = $null } }
+  if ($wj) { try { $null = $wj::Parse($t); return $true } catch { return $false } }
+  return $null
+}
+
+function Test-WsClaudeJson {
+  # ~\.claude.json invalido (ex.: uma virgula a mais de uma edicao a mao): o instalador oficial e o "claude auth status"
+  # trocam-no por um ficheiro novo, e os servidores MCP da pessoa so ficam numa copia em ~\.claude\backups.
+  # Por isso verifica-se antes de qualquer comando do Claude Code (os passos 3, 7 e 12 dependem deste).
+  # Vazio, so espacos ou sem leitor estrito: passa (nunca bloqueia por o setup nao o conseguir ler).
+  $dir = $env:CLAUDE_CONFIG_DIR
+  if (-not $dir) { $dir = $script:UserHome }
+  if (-not $dir) { return $true }
+  $f = Join-Path $dir '.claude.json'
+  if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { return $true }
+  $t = ''
+  try { $t = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) } catch { Write-WsLog ('.claude.json not read: ' + $_.Exception.Message); return $true }
+  if ([string]::IsNullOrWhiteSpace($t.TrimStart([char]0xFEFF))) { return $true }
+  $ok = Test-WsStrictJson $t
+  if ($null -eq $ok) { Write-WsLog '.claude.json: no strict JSON parser here, not checked'; return $true }
+  if ($ok) { return $true }
+  Write-WsLog ('not valid JSON: ' + $f)
+  Set-WsFail 'E-CC-04' $f
+  return $false
+}
+
 function Test-WsStep2 {
+  if (-not (Test-WsClaudeJson)) { return $false }
   $c = Get-WsClaude
   if (-not $c) { return $false }
   $r = Invoke-WsProcess $c @('--version') -TimeoutSec 120
@@ -1499,11 +1651,17 @@ function Test-WsStep2 {
 }
 
 function Install-WsStep2 {
+  if (-not (Test-WsClaudeJson)) { return $false }
   Write-WsSay ('  ' + (M 'a_instalar'))
   $f = Join-Path $script:Tmp 'claude-install.ps1'
   if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) $script:C.CLAUDE_INSTALL_PS1_URL; return $false }
   $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, $script:C.CLAUDE_CODE_VERSION) -TimeoutSec 1800
-  if ($r.ExitCode -ne 0) { Set-WsFail 'E-CC-01' 'install.ps1'; return $false }
+  if ($r.ExitCode -ne 0) {
+    # Rede de seguranca: o Claude Code achou o ~\.claude.json corrompido, guardou-o e escreveu um novo.
+    $m = [regex]::Match(([string]$r.StdOut + "`n" + [string]$r.StdErr), '[Bb]acked up to:\s*(\S[^\r\n]*)')
+    if ($m.Success) { Set-WsFail 'E-CC-04' $m.Groups[1].Value.Trim() } else { Set-WsFail 'E-CC-01' 'install.ps1' }
+    return $false
+  }
   Add-WsUserPath (Join-Path $script:UserHome '.local\bin')
   $c = Join-Path $script:UserHome '.local\bin\claude.exe'
   if (-not (Test-Path -LiteralPath $c)) { Set-WsFail 'E-CC-01' $c; return $false }
@@ -1518,18 +1676,59 @@ function Install-WsStep2 {
 
 # =============================================================== PASSO 3 - login
 
+# Codigos de saida de um login cancelado: 0xC000013A (STATUS_CONTROL_C_EXIT: Ctrl-C ou a janela fechada) e 130.
+$script:LoginCancelCodes = @(-1073741510, 130)
+
+function Invoke-WsLogin {
+  # Corre um login interativo (claude, gh, acli) numa janela de consola sua. Um Ctrl-C la, ou fechar essa janela,
+  # termina so o login: o setup continua e verifica o login como sempre. Na mesma consola, o Ctrl-C parava o setup
+  # inteiro (so o finally corria: sem os outros passos nem o resumo).
+  # Sem -Wait: no Windows PowerShell 5.1 o -Wait espera tambem pelos filhos, e o browser que o login abre pode ser
+  # um deles (o setup ficava a espera ate a pessoa fechar o browser). Espera-se so por este processo, aos bocados
+  # (como no Invoke-WsProcess), para um Ctrl-C na janela do setup ainda chegar ao PowerShell.
+  param([string]$Exe, [string[]]$Arguments)
+  $p = $null
+  try {
+    $line = ConvertTo-WsArgLine $Arguments
+    if ($line) { $p = Start-Process -FilePath $Exe -ArgumentList $line -PassThru -ErrorAction Stop }
+    else { $p = Start-Process -FilePath $Exe -PassThru -ErrorAction Stop }
+  } catch {
+    $bc = Get-WsBlockedCode $_.Exception -AccessDenied
+    if ($bc) { $script:Blocked = $Exe; Write-WsLog ('  -> blocked by the computer security (Win32 {0})' -f $bc) }
+    Write-WsLog ('login did not start: {0}' -f $_.Exception.Message)
+    return
+  }
+  if (-not $p) { Write-WsLog 'login did not start'; return }
+  try { $null = $p.Handle } catch { }   # sem isto o ExitCode de um Start-Process -PassThru (sem -Wait) fica vazio
+  $done = $false
+  try {
+    try { while (-not $p.WaitForExit(500)) { } } catch { Write-WsLog ('login: ' + $_.Exception.Message) }
+    $done = $true
+  } finally {
+    if (-not $done) { Stop-WsProcessTree $p; Write-WsLog '  -> login stopped (Ctrl-C in the setup window)' }
+  }
+  $code = $null
+  try { $code = $p.ExitCode } catch { }
+  if ($null -eq $code) { return }
+  if ($code -ne 0) { Write-WsLog ('login exit {0}' -f $code) }
+  if ($script:LoginCancelCodes -contains [int]$code) { Write-WsLog 'login cancelled (Ctrl-C)'; Add-WsNote (M 'login_cancelado') }
+}
+
 function Read-WsAuth {
   $r = Invoke-WsProcess $script:ClaudeExe @('auth', 'status') -TimeoutSec 120
   $j = $null
   try { $j = $r.StdOut | ConvertFrom-Json } catch { }
-  $a = @{ Logged = $false; Method = ''; Source = ''; Sub = ''; Org = '' }
+  $a = @{ Logged = $false; Method = ''; Source = ''; Sub = ''; Org = ''; Provider = '' }
   if ($j) {
     $a.Logged = [bool]$j.loggedIn; $a.Method = [string]$j.authMethod
     if ($j.PSObject.Properties.Name -contains 'apiKeySource') { $a.Source = [string]$j.apiKeySource }
     if ($j.PSObject.Properties.Name -contains 'subscriptionType') { $a.Sub = [string]$j.subscriptionType }
     if ($j.PSObject.Properties.Name -contains 'orgName') { $a.Org = [string]$j.orgName }
+    if ($j.PSObject.Properties.Name -contains 'apiProvider') { $a.Provider = [string]$j.apiProvider }
   }
-  Write-WsLog ('auth: loggedIn={0} authMethod={1} apiKeySource={2} subscriptionType={3}' -f $a.Logged, $a.Method, $a.Source, $a.Sub)
+  # Versoes sem "apiProvider": o metodo "third_party" e uma cloud (Bedrock, Vertex ou Foundry).
+  if (-not $a.Provider -and $a.Method -eq 'third_party') { $a.Provider = 'third_party' }
+  Write-WsLog ('auth: loggedIn={0} authMethod={1} apiKeySource={2} subscriptionType={3} apiProvider={4}' -f $a.Logged, $a.Method, $a.Source, $a.Sub, $a.Provider)
   return $a
 }
 
@@ -1544,19 +1743,37 @@ function Get-WsAuthKind {
 function Test-WsStep3 {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
   $script:Auth = Read-WsAuth
+  # Bedrock, Vertex ou Foundry (no ambiente ou no "env" das definicoes): o login do Console e ignorado e, sem as
+  # credenciais da cloud, o "claude -p" nunca acaba. O passo falha (o teste final fica por correr) com a origem.
+  $script:AuthCloud = ''
+  if ($script:Auth.Provider -and $script:Auth.Provider -ne 'firstParty') {
+    $w = Get-WsCloudWhere
+    if (-not $w) { $w = 'managed settings' }
+    $script:AuthCloud = $script:Auth.Provider + ': ' + $w
+    Set-WsDetail (M 's3_outro' @{ METODO = $script:Auth.Provider })
+    Set-WsFail 'E-CFG-04' $script:AuthCloud
+    return $false
+  }
   switch (Get-WsAuthKind $script:Auth) {
     'console' { $o = $script:Auth.Org; if (-not $o) { $o = 'Console' }; Set-WsDetail (M 's3_console' @{ EMAIL = $o }); $script:AuthOk = $true; return $true }
     'assinatura' {
       if ($script:Mode -eq 'install' -and -not $script:AuthAsked) { return $false }
       Set-WsDetail (M 's3_outro' @{ METODO = ('claude.ai ({0})' -f $script:Auth.Sub) }); Set-WsWarn 'E-AUTH-02' $script:Auth.Sub; $script:AuthOk = $true; return $true
     }
-    'outro' { Set-WsDetail (M 's3_outro' @{ METODO = $script:Auth.Method }); Set-WsWarn 'E-AUTH-03' $script:Auth.Method; $script:AuthOk = $true; return $true }
+    'outro' {
+      $m = $script:Auth.Method; if (-not $m) { $m = '?' }
+      # A origem (ANTHROPIC_API_KEY, apiKeyHelper...) diz mais do que o metodo; so o nome, nunca o valor.
+      $src = $script:Auth.Source; if (-not $src) { $src = $script:Auth.Method }
+      Set-WsDetail (M 's3_outro' @{ METODO = $m }); Set-WsWarn 'E-AUTH-03' $src; $script:AuthOk = $true; return $true
+    }
   }
   Set-WsFail 'E-AUTH-01' ''
   return $false
 }
 
 function Install-WsStep3 {
+  # Com uma cloud configurada, o login do Console seria ignorado: nao o oferecer.
+  if ($script:AuthCloud) { Set-WsFail 'E-CFG-04' $script:AuthCloud; return $false }
   $kind = Get-WsAuthKind $script:Auth
   $script:AuthAsked = $true
   if ($kind -eq 'assinatura') {
@@ -1568,9 +1785,8 @@ function Install-WsStep3 {
   }
   if (-not (Test-WsInteractive)) { Set-WsFail 'E-AUTH-01' ''; return $false }
   Write-WsLog '$ claude auth login --console (interactive)'
-  # "| Out-Default" nos logins: o programa fica com a consola (ve o teclado e mostra o URL e o codigo). Sem isso a
-  # saida era capturada pelo [bool](& Install-WsStep3) do Invoke-WsStep e a pessoa nao via nada.
-  & $script:ClaudeExe auth login --console | Out-Default
+  # Numa janela sua (Invoke-WsLogin): um Ctrl-C ou fechar a janela cancela so o login.
+  Invoke-WsLogin $script:ClaudeExe @('auth', 'login', '--console')
   return (Test-WsStep3)
 }
 
@@ -1655,13 +1871,36 @@ function Install-WsStep4 {
 # =============================================================== PASSO 5 - uv
 
 function Test-WsStep5 {
-  $uv = Get-WsUv
-  if (-not $uv) { return $false }
-  $r = Invoke-WsProcess $uv @('--version') -TimeoutSec 60
-  if ($r.ExitCode -ne 0) { return $false }
-  $script:UvExe = $uv
-  $script:UvVer = Get-WsVersionOf $r.StdOut
-  if ((Compare-WsVersion $script:UvVer '0.5') -lt 0) { return $false }
+  # O uv usa-se sempre pelo caminho ($script:UvExe): primeiro o do workshop (~\.local\bin\uv.exe), depois o do PATH.
+  # Um uv antigo primeiro no PATH (pipx, scoop, um instalador antigo) nao serve: o passo 10 precisa de
+  # "uv tool install --managed-python" (UV_MIN_VERSION no repos.conf). Se so houver um antigo, o passo instala o do workshop.
+  $min = $script:C.UV_MIN_VERSION
+  if (-not $min) { $min = '0.6.8' }
+  $script:UvExe = $null
+  $first = $null
+  $c = Get-Command uv -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($c) { $first = $c.Source }
+  $seen = @()
+  foreach ($uv in @((Join-Path $script:UserHome '.local\bin\uv.exe'), $first)) {
+    if (-not $uv -or $seen -contains $uv -or -not (Test-Path -LiteralPath $uv)) { continue }
+    $seen += $uv
+    $r = Invoke-WsProcess $uv @('--version') -TimeoutSec 60
+    if ($r.ExitCode -ne 0) { continue }
+    $ver = Get-WsVersionOf $r.StdOut
+    if ((Compare-WsVersion $ver $min) -lt 0) { Write-WsLog ('uv too old: {0} ({1} < {2})' -f $uv, $ver, $min); continue }
+    $script:UvExe = $uv
+    $script:UvVer = $ver
+    break
+  }
+  if (-not $script:UvExe) { return $false }
+  if ($first -and $first -ne $script:UvExe) {
+    $r = Invoke-WsProcess $first @('--version') -TimeoutSec 60
+    $txt = ([string]$r.StdOut).Trim()
+    if ($r.ExitCode -ne 0 -or (Compare-WsVersion (Get-WsVersionOf $txt) $min) -lt 0) {
+      if (-not $txt) { $txt = '?' }
+      Set-WsWarn 'E-UV-02' ('{0}: {1}' -f $first, $txt)
+    }
+  }
   Set-WsDetail (M 's5_ja' @{ VERSAO = $script:UvVer })
   return $true
 }
@@ -1679,44 +1918,90 @@ function Install-WsStep5 {
 
 # =============================================================== PASSO 6 - gh
 
+# Limite (segundos) dos comandos do gh e do acli que falam com os servidores: sem VPN ou com um proxy parado nunca
+# acabariam (e um "sem resposta" nao e "sem login").
+$script:TmoGh = 25
+
+function Get-WsGhHosts {
+  # Servidores com login no gh (as chaves de topo do hosts.yml), para dizer qual nao respondeu. 'github.com' se nao houver.
+  # A pasta do gh no Windows: GH_CONFIG_DIR, XDG_CONFIG_HOME\gh, ou %APPDATA%\GitHub CLI.
+  $d = $env:GH_CONFIG_DIR
+  if (-not $d -and $env:XDG_CONFIG_HOME) { $d = Join-Path $env:XDG_CONFIG_HOME 'gh' }
+  if (-not $d -and $env:APPDATA) { $d = Join-Path $env:APPDATA 'GitHub CLI' }
+  $h = @()
+  if ($env:GH_HOST) { $h += $env:GH_HOST }
+  if ($d) {
+    $f = Join-Path $d 'hosts.yml'
+    try {
+      if (Test-Path -LiteralPath $f -PathType Leaf) {
+        foreach ($m in [regex]::Matches([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8), '(?m)^([A-Za-z0-9][A-Za-z0-9.:-]*):')) { if ($h -notcontains $m.Groups[1].Value) { $h += $m.Groups[1].Value } }
+      }
+    } catch { }
+  }
+  if ($h.Count -eq 0) { return 'github.com' }
+  return ($h -join ' ')
+}
+
 function Test-WsStep6 {
-  $gh = Get-Command gh -ErrorAction SilentlyContinue
+  # -Exe: depois de instalar, o gh que o setup acabou de por (e nao o primeiro do PATH, que pode estar estragado).
+  param([string]$Exe)
   $exe = $null
-  if ($gh -and $gh.CommandType -eq 'Application') { $exe = $gh.Source }
-  elseif (Test-Path -LiteralPath (Join-Path $script:WsHome 'bin\gh.exe')) { $exe = Join-Path $script:WsHome 'bin\gh.exe' }
+  if ($Exe) { if (Test-Path -LiteralPath $Exe) { $exe = $Exe } }
+  else {
+    $gh = Get-Command gh -ErrorAction SilentlyContinue
+    if ($gh -and $gh.CommandType -eq 'Application') { $exe = $gh.Source }
+    elseif (Test-Path -LiteralPath (Join-Path $script:WsHome 'bin\gh.exe')) { $exe = Join-Path $script:WsHome 'bin\gh.exe' }
+  }
   if (-not $exe) { return $false }
   $r = Invoke-WsProcess $exe @('--version') -TimeoutSec 60
   if ($r.ExitCode -ne 0) { return $false }
   $script:GhExe = $exe
   $script:GhVer = Get-WsVersionOf $r.StdOut
   Set-WsDetail (M 's6_ja' @{ VERSAO = $script:GhVer })
-  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh).
-  $st = Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60
-  if ($st.ExitCode -ne 0) {
-    if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhAsked -and (Test-WsInteractive)) {
-      $script:GhAsked = $true
-      if (Read-WsYesNo (M 's6_pergunta_login') $true) {
-        Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
-        & $exe auth login --hostname github.com --git-protocol https --web | Out-Default
-      }
-    }
-    if ((Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60).ExitCode -ne 0) {
-      $script:GhSemLogin = $true
-      Set-WsDetail ''
-      Set-WsFail 'E-GH-02' ''
-      return $false
+  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh). O "gh auth status" fala com cada
+  # servidor do hosts.yml: com limite de tempo, e -2 (sem resposta) e a rede, nao o login.
+  $rc = (Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
+  if ($rc -ne 0 -and $rc -ne -2 -and $script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhAsked -and (Test-WsInteractive)) {
+    $script:GhAsked = $true
+    if (Read-WsYesNo (M 's6_pergunta_login') $true) {
+      Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
+      Invoke-WsLogin $exe @('auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web')
+      $rc = (Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
     }
   }
-  $script:GhSemLogin = $false
+  if ($rc -eq -2) {
+    # Sem resposta: o problema e a rede (VPN, proxy), nao o login. Nao perguntar nem voltar a instalar.
+    Write-WsLog ('gh auth status: no answer in {0} s' -f $script:TmoGh)
+    $script:GhSemLogin = $true; $script:GhSemRede = $true
+    Set-WsDetail ''
+    Set-WsFail 'E-GH-03' (Get-WsGhHosts)
+    return $false
+  }
+  if ($rc -ne 0) {
+    $script:GhSemLogin = $true
+    Set-WsDetail ''
+    Set-WsFail 'E-GH-02' ''
+    return $false
+  }
+  $script:GhSemLogin = $false; $script:GhSemRede = $false
   # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
-  if ($script:Mode -eq 'install') { $null = Invoke-WsProcess $exe @('auth', 'setup-git') -TimeoutSec 60 }
+  if ($script:Mode -eq 'install') { $null = Invoke-WsProcess $exe @('auth', 'setup-git') -TimeoutSec $script:TmoGh }
   return $true
 }
 
 function Install-WsStep6 {
+  # O GitHub nao respondeu (VPN, proxy): descarregar outra vez nao ajuda.
+  if ($script:GhSemRede) { Set-WsFail 'E-GH-03' (Get-WsGhHosts); return $false }
   # Ja instalado, so falta o login: nao voltar a descarregar.
   if ($script:GhSemLogin -and $script:GhExe) { Set-WsFail 'E-GH-02' ''; return $false }
-  if ((Test-WsWinget) -and (Invoke-WsWinget 'GitHub.cli')) { if (Test-WsStep6) { return $true }; if ($script:GhSemLogin) { return $false } }
+  if ((Test-WsWinget) -and (Invoke-WsWinget 'GitHub.cli')) {
+    # O gh que o winget acabou de por (o Invoke-WsWinget ja recarregou o PATH): o melhor que se sabe.
+    $w = ''
+    $c = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($c) { $w = $c.Source }
+    if (Test-WsStep6 -Exe $w) { return $true }
+    if ($script:GhSemLogin) { return $false }
+  }
   $a = 'amd64'
   if ($script:Arch -eq 'arm64') { $a = 'arm64' }
   $file = 'gh_{0}_windows_{1}.zip' -f $script:C.GH_VERSION, $a
@@ -1736,9 +2021,11 @@ function Install-WsStep6 {
   New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'bin') -Force | Out-Null
   Copy-Item -LiteralPath $src.FullName -Destination (Join-Path $script:WsHome 'bin\gh.exe') -Force
   Add-WsUserPath (Join-Path $script:WsHome 'bin')
-  if (Test-WsStep6) { return $true }
+  # Pelo caminho: um gh estragado mais a frente no PATH nao faz o passo culpar o download.
+  $mine = Join-Path $script:WsHome 'bin\gh.exe'
+  if (Test-WsStep6 -Exe $mine) { return $true }
   if ($script:GhSemLogin) { return $false }
-  Set-WsFail 'E-GH-01' 'gh --version'; return $false
+  Set-WsFail 'E-GH-01' ($mine + ' --version'); return $false
 }
 
 # =============================================================== PASSO 7 - Jira: MCP Atlassian + Atlassian CLI (reserva)
@@ -1753,9 +2040,12 @@ function Get-WsAcli {
 
 function Test-WsAcliLogin {
   # Ha dois logins no acli: o global (acli auth login, Jira + Confluence) e o so do Jira (acli jira auth login).
+  # Com limite de tempo (sem VPN ou com um proxy parado, o acli espera pela rede); sem resposta, nao tenta o segundo.
   param([string]$Exe)
-  if ((Invoke-WsProcess $Exe @('auth', 'status') -TimeoutSec 60).ExitCode -eq 0) { return $true }
-  return ((Invoke-WsProcess $Exe @('jira', 'auth', 'status') -TimeoutSec 60).ExitCode -eq 0)
+  $rc = (Invoke-WsProcess $Exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
+  if ($rc -eq 0) { return $true }
+  if ($rc -eq -2) { Write-WsLog ('acli auth status: no answer in {0} s' -f $script:TmoGh); return $false }
+  return ((Invoke-WsProcess $Exe @('jira', 'auth', 'status') -TimeoutSec $script:TmoGh).ExitCode -eq 0)
 }
 
 function Test-WsAcli {
@@ -1776,11 +2066,29 @@ function Test-WsAcli {
     $script:AcliAsked = $true
     if (Read-WsYesNo (M 's7_pergunta_acli') $true) {
       Write-WsLog '$ acli auth login (interactive)'
-      & $exe auth login | Out-Default
+      Invoke-WsLogin $exe @('auth', 'login')
     }
   }
   if (-not (Test-WsAcliLogin $exe)) { Add-WsNote (M 's7_acli_login') }
   return $true
+}
+
+function Get-WsMcpField {
+  # Um campo da saida do "claude mcp get" (linhas "  Command: ..." e "  URL: ..."); '' se nao houver.
+  # O codigo de saida so diz que o registo existe, mesmo que aponte para um programa ou URL que ja nao serve.
+  param([string]$Out, [string]$Field)
+  $m = [regex]::Match([string]$Out, '(?m)^[ \t]*' + [regex]::Escape($Field) + ':[ \t]*(.*?)[ \t]*\r?$')
+  if ($m.Success) { return $m.Groups[1].Value.Trim('"') }
+  return ''
+}
+
+function Test-WsAtlassianMcp {
+  # O registo atlassian (saida do "claude mcp get") aponta para o MCP do workshop? Um antigo (o SSE .../v1/sse, ou um
+  # servidor local como o mcp-remote) nao serve. Sem nenhum destes campos na saida, nao da para comparar: aceita.
+  param([string]$Out)
+  $u = Get-WsMcpField $Out 'URL'
+  if ($u) { return ($u -eq $script:C.ATLASSIAN_MCP_URL) }
+  return (-not (Get-WsMcpField $Out 'Command'))
 }
 
 function Test-WsStep7 {
@@ -1788,6 +2096,7 @@ function Test-WsStep7 {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
   $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
+  if (-not (Test-WsAtlassianMcp $r.StdOut)) { Set-WsFail 'E-MCP-01' ('atlassian: ' + (Get-WsMcpField $r.StdOut 'URL') + (Get-WsMcpField $r.StdOut 'Command')); return $false }
   Set-WsDetail (M 's7_ja')
   Add-WsNote (M 's7_oauth')
   $script:TodoMcp = $true
@@ -1823,12 +2132,23 @@ function Install-WsAcli {
 function Install-WsStep7 {
   $script:T['7'].Notas = @()   # o Test volta a escrever as notas
   $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
+  # Um registo atlassian antigo (ex.: o SSE .../v1/sse) e trocado pelo do workshop, com uma nota a dizer qual era.
+  if ($g.ExitCode -eq 0 -and -not (Test-WsAtlassianMcp $g.StdOut)) {
+    $old = (Get-WsMcpField $g.StdOut 'URL') + (Get-WsMcpField $g.StdOut 'Command')
+    if (-not $old) { $old = '?' }
+    if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', 'atlassian') -TimeoutSec 120).ExitCode -ne 0 -and
+      (Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', 'atlassian') -TimeoutSec 120).ExitCode -ne 0) {
+      Set-WsFail 'E-MCP-01' 'claude mcp remove atlassian'; return $false
+    }
+    Add-WsNote (M 's7_substituido' @{ ANTIGO = $old })
+    $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
+  }
   if ($g.ExitCode -ne 0) {
     $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--transport', 'http', '--scope', 'user', 'atlassian', $script:C.ATLASSIAN_MCP_URL) -TimeoutSec 120
     if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
     Register-WsExtra 'mcp' 'atlassian' '' '' ''
-    $l = Invoke-WsProcess $script:ClaudeExe @('mcp', 'list') -TimeoutSec 180
-    if ($l.StdOut -notmatch '(?m)^atlassian') { Set-WsFail 'E-MCP-01' 'claude mcp list'; return $false }
+    # "mcp get" e nao "mcp list": o list verifica todos os servidores da pessoa (lento se algum nao responder).
+    if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MCP-01' 'claude mcp get atlassian'; return $false }
   }
   if (-not (Get-WsAcli)) { $null = Install-WsAcli }
   return (Test-WsStep7 -AcliTried)
@@ -2105,7 +2425,7 @@ function Test-WsStep10 {
   $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
   if ($l.StdOut -notmatch ('(?m)^(agent-memory|agent_memory|memoria) v?' + [regex]::Escape($ver) + '(\s|$)')) { Set-WsFail 'E-MEM-03' ('version ' + $ver); return $false }
   if ($script:ClaudeExe) {
-    if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
+    if (-not (Test-WsMemoryMcp $exe)) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
   }
   if (-not (Test-Path -LiteralPath (Join-Path (Get-WsMemoryHome) 'config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
   if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) {
@@ -2114,6 +2434,27 @@ function Test-WsStep10 {
   if (-not (Get-WsWebView2Version)) { Set-WsWarn 'E-MEM-04' '' }
   [void](Invoke-WsMemorySelftest $exe $ver)
   return $true
+}
+
+function Test-WsMcpCommand {
+  # A saida do "claude mcp get" aponta para este programa? A linha "Command:" igual (sem distinguir maiusculas, como
+  # os caminhos do Windows; "\\" conta como "\"). Sem essa linha (outro formato), basta o caminho aparecer na saida.
+  param([string]$Out, [string]$Exe)
+  if (-not $Exe) { return $false }
+  $o = ([string]$Out).Replace('\\', '\')
+  $c = Get-WsMcpField $o 'Command'
+  if ($c) { return ($c -eq $Exe) }
+  return ($o.IndexOf($Exe, [StringComparison]::OrdinalIgnoreCase) -ge 0)
+}
+
+function Test-WsMemoryMcp {
+  # O registo MCP "agent-memory" aponta para este programa? O "claude mcp get" sai com 0 para qualquer registo, mesmo
+  # um que aponte para um programa que ja nao existe (ex.: de uma versao antiga ou de outro utilizador). Um registo
+  # antigo "memoria" tambem fica por arrumar (o Register-WsMemoryMcp tira-o).
+  param([string]$Exe)
+  $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
+  if ($g.ExitCode -ne 0 -or -not (Test-WsMcpCommand $g.StdOut $Exe)) { return $false }
+  return ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -ne 0)
 }
 
 function Install-WsWebView2 {
@@ -2189,7 +2530,9 @@ function Register-WsMemoryMcp {
   }
   $cur = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
   if ($cur.ExitCode -eq 0) {
-    if (([string]$cur.StdOut).Replace('\\', '\').Contains($Exe)) { return $true }
+    if (Test-WsMcpCommand $cur.StdOut $Exe) { return $true }
+    $c = (Get-WsMcpField $cur.StdOut 'Command').Replace('\\', '\')
+    if ($c) { Add-WsNote (M 's10_mcp_substituido' @{ ANTIGO = $c }) }
     [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', $script:McpName) -TimeoutSec 120)
   }
   $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', $script:McpName, '--', $Exe, 'mcp') -TimeoutSec 120
@@ -2262,10 +2605,20 @@ function Test-WsStep12 {
   return (Install-WsStep12)
 }
 
+# Limites (segundos) das chamadas ao Claude: sem resposta, o Claude Code tenta outra vez durante minutos.
+$script:TmoSmoke = 90
+$script:TmoHelper = 90
+$script:TmoDoctor = 180
+
 function Install-WsStep12 {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
+  $gw = Get-WsGatewayShow $script:GwUrl
+  # O gateway da empresa nao respondeu no passo 0: o Claude ficaria minutos a tentar outra vez.
+  if ($script:GwDown) { Set-WsFail 'E-AUTH-05' $gw; return $false }
+  Write-WsSay ('  ' + (M 's12_a_testar' @{ SEG = $script:TmoSmoke }))
   $t0 = Get-Date
-  $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '') -WorkingDirectory $script:Tmp -TimeoutSec 300
+  # Sem servidores MCP (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo e nao espera por MCPs.
+  $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '', '--strict-mcp-config') -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
   $secs = [int]((Get-Date) - $t0).TotalSeconds
   $o = Read-WsResult $r.StdOut
   Write-WsLog ('final test: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
@@ -2274,13 +2627,27 @@ function Install-WsStep12 {
     if ($null -eq $o.Custo.Usd) { Add-WsNote (M 's12_custo_desconhecido') }
     return $true
   }
+  if ($r.ExitCode -eq -2) {
+    if ($gw) { Set-WsFail 'E-AUTH-05' $gw } else { Set-WsFail 'E-SMOKE-01' ('no answer in {0} s' -f $script:TmoSmoke) }
+    return $false
+  }
   $all = $r.StdErr + ' ' + $o.Resposta
   if ($all -match 'credit balance|billing') { Set-WsFail 'E-SMOKE-02' '' }
   elseif ($all -match '429|rate_limit|[Rr]ate limit') { Set-WsFail 'E-SMOKE-03' '' }
   elseif ($all -match 'not_found_error|[Ii]nvalid model|model:') { Set-WsFail 'E-SMOKE-04' 'claude-haiku-5-5' }
   elseif ($all -match 'certificate|CERT_|SELF_SIGNED') { Set-WsFail 'E-NET-04' '' }
-  elseif ($all -match 'ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|fetch failed|[Uu]nable to connect') { Set-WsFail 'E-NET-05' '' }
-  elseif ($all -match '[Nn]ot logged in|/login|authentication_error|[Ii]nvalid API key') { Set-WsFail 'E-AUTH-01' '' }
+  elseif ($all -match 'ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|fetch failed|[Uu]nable to connect') {
+    # Com ANTHROPIC_BASE_URL o Claude nem fala com o api.anthropic.com: o que falha e o gateway.
+    if ($gw) { Set-WsFail 'E-AUTH-05' $gw } else { Set-WsFail 'E-NET-05' '' }
+  }
+  elseif ($all -match '[Nn]ot logged in|/login|authentication_error|[Ii]nvalid API key|[Ii]nvalid auth token|[Ii]nvalid bearer|[Ff]ailed to authenticate') {
+    # Uma chave nas variaveis (ou um apiKeyHelper) passa a frente do login: voltar a fazer login nao resolve.
+    # O Claude herda o ambiente deste processo: so esse e o "env" das definicoes contam. So os nomes, nunca os valores.
+    $keys = Get-WsEnvKeys
+    $src = [string]$script:Auth.Source
+    if (-not $keys -and $src -and @('none', '/login managed key') -notcontains $src) { $keys = $src }
+    if ($keys) { Set-WsFail 'E-AUTH-04' $keys } else { Set-WsFail 'E-AUTH-01' '' }
+  }
   else { Set-WsFail 'E-SMOKE-01' ('exit ' + $r.ExitCode) }
   return $false
 }
@@ -2294,10 +2661,14 @@ function Get-WsVersionsLine {
 }
 
 function Invoke-WsClaudeHelper {
-  param([string]$Prompt, [string]$Schema)
-  $a = @('-p', '--model', 'claude-haiku-5-5', '--tools', '', '--disallowedTools', 'mcp__*', '--output-format', 'json')
+  # Com limite de tempo e sem servidores MCP (--strict-mcp-config), como o teste final. Com o gateway da empresa em
+  # baixo (passo 0) nem tenta: esperaria minutos.
+  param([string]$Prompt, [string]$Schema, [int]$TimeoutSec = $script:TmoHelper)
+  if ($script:GwDown) { return $null }
+  if ($TimeoutSec -le 0) { $TimeoutSec = 90 }
+  $a = @('-p', '--model', 'claude-haiku-5-5', '--tools', '', '--strict-mcp-config', '--disallowedTools', 'mcp__*', '--output-format', 'json')
   if ($Schema) { $a += @('--json-schema', $Schema) }
-  $r = Invoke-WsProcess $script:ClaudeExe $a -StdinText $Prompt -WorkingDirectory $script:Tmp -TimeoutSec 300
+  $r = Invoke-WsProcess $script:ClaudeExe $a -StdinText $Prompt -WorkingDirectory $script:Tmp -TimeoutSec $TimeoutSec
   if ($r.ExitCode -ne 0) { return $null }
   return (Read-WsResult $r.StdOut)
 }
@@ -2306,9 +2677,11 @@ function Invoke-WsHelper {
   # Depois de um passo falhar: oferece a analise do Claude. Devolve $true se valer a pena repetir o passo.
   param([string]$N)
   if (-not $script:AuthOk) { return $false }
+  if ($script:GwDown) { return $false }
   $code = $script:T[$N].Falha[0]
-  # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui.
-  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02') { return $false }
+  # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui. O GitHub sem resposta
+  # (E-GH-03) ja tem a causa certa.
+  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02' -or $code -eq 'E-GH-03') { return $false }
   Write-WsSay ''
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
@@ -2345,7 +2718,7 @@ function Invoke-WsDoctor {
   $any = $false
   foreach ($n in $script:T.Keys) { if (@('falta', 'falhou', 'naoexec', 'aviso') -contains $script:T[$n].Estado) { $any = $true } }
   if (-not $any) { Write-WsSay ('  ' + (M 'doctor_sem_falhas')); return }
-  if (-not $script:AuthOk -or -not $script:NetApiOk) { Write-WsSay ('  ' + (M 'doctor_sem_claude')); return }
+  if (-not $script:AuthOk -or -not $script:NetApiOk -or $script:GwDown) { Write-WsSay ('  ' + (M 'doctor_sem_claude')); return }
   $lines = @()
   foreach ($n in $script:T.Keys) {
     $s = $script:T[$n]
@@ -2358,7 +2731,7 @@ function Invoke-WsDoctor {
   $prompt = "You are a support assistant for the setup of a Claude Code workshop (Windows). Answer in plain English, short sentences, for someone with no experience.`n" +
     "Make a full diagnosis: what is wrong, why, and the exact steps (with PowerShell commands) in order. Never suggest commands as administrator or showing API keys.`n`n" +
     (Get-WsVersionsLine) + "`n`n" + ($lines -join "`n") + "`n`nLog excerpt:`n" + $tail
-  $o = Invoke-WsClaudeHelper $prompt ''
+  $o = Invoke-WsClaudeHelper $prompt '' -TimeoutSec $script:TmoDoctor
   if ($o -and $o.Resposta) { Write-WsSay $o.Resposta; Write-WsSay ('  ' + (M 'doctor_custo' @{ USD = $o.Custo.Texto })) 'DarkGray'; Write-WsLog ('doctor: cost ' + $o.Custo.Texto) }
   else { Write-WsSay ('  ' + (M 'helper_falhou')) }
 }
@@ -2411,7 +2784,10 @@ function Invoke-WsUninstall {
   if ($script:KitSrc) { $iu = Join-Path $script:KitSrc 'installer\install-user.mjs' }
   if (-not $iu -or -not (Test-Path -LiteralPath $iu)) { Write-WsCode 'E-KIT-01' '' '  '; return 1 }
   $script:ClaudeExe = Get-WsClaude
-  $script:UvExe = Get-WsUv
+  # O uv do workshop (Test-WsStep5), mesmo com um antigo primeiro no PATH; sem nenhum bom, o melhor que houver.
+  $script:Cur = '5'
+  [void](Test-WsStep5)
+  if (-not $script:UvExe) { $script:UvExe = Get-WsUv }
   $ex = Invoke-WsProcess $script:NodeExe @($iu, 'extras')
   foreach ($l in ($ex.StdOut -split "`r?`n")) {
     if (-not $l) { continue }

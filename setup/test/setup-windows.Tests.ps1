@@ -450,9 +450,10 @@ Describe 'chaos G9-windows: o Windows PowerShell de 64 bits (F2)' {
   It 'o outro PowerShell escreve na consola (nao fica capturado) e os logins tambem' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
     $text | Should -Match '-File \$PSCommandPath @self \| Out-Default'
-    $text | Should -Match '& \$script:ClaudeExe auth login --console \| Out-Default'
-    $text | Should -Match '& \$exe auth login --hostname github\.com --git-protocol https --web \| Out-Default'
-    $text | Should -Match '& \$exe auth login \| Out-Default'
+    # Os logins correm numa janela sua (chaos G4: Invoke-WsLogin), e nunca capturados.
+    $text | Should -Match "Invoke-WsLogin \`$script:ClaudeExe @\('auth', 'login', '--console'\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web'\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login'\)"
   }
   It 'erros de download do PowerShell 5.1 e 7 dao o codigo certo' {
     $w = [System.Net.WebException]::new('dns', [System.Net.WebExceptionStatus]::NameResolutionFailure)
@@ -723,7 +724,9 @@ Describe 'chaos G9-windows: app Agent Memory sem atalho (F10)' {
     Mock Invoke-WsProcess {
       $a = @($Arguments) -join ' '
       if ($a -eq 'tool list') { return @{ ExitCode = 0; StdOut = "agent-memory v0.5.0`n- agent-memory.exe" } }
-      if ($a -like 'mcp get*') { if ($script:McpOk) { return @{ ExitCode = 0; StdOut = '' } } else { return @{ ExitCode = 1; StdOut = '' } } }
+      # chaos G4: o registo tem de apontar para este programa, e sem o registo antigo "memoria".
+      if ($a -eq 'mcp get memoria') { return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp get*') { if ($script:McpOk) { return @{ ExitCode = 0; StdOut = "agent-memory:`n  Type: stdio`n  Command: C:\u\.local\bin\agent-memory.exe`n  Args: mcp" } } else { return @{ ExitCode = 1; StdOut = '' } } }
       return @{ ExitCode = 0; StdOut = '' }
     }
   }
@@ -804,5 +807,500 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $gone | Should -BeTrue
     $h.IsCompleted | Should -BeTrue
     $ps.Dispose()
+  }
+}
+
+Describe 'chaos G4-auth-tools' {
+  BeforeEach {
+    $script:T = New-WsStateTable; $script:Cur = '0'; $script:Mode = 'install'; $script:Sim = $false
+    $script:UA = 'test'; $script:Blocked = ''; $script:AuthOk = $false; $script:NetApiOk = $true
+    $script:ClaudeDir = Join-Path $TestDrive 'claude'
+    $script:UserHome = Join-Path $TestDrive 'home'
+    New-Item -ItemType Directory -Path $script:ClaudeDir, $script:UserHome -Force | Out-Null
+    Remove-Item -LiteralPath (Join-Path $script:ClaudeDir 'settings.json') -Force -ErrorAction SilentlyContinue
+    $script:GwDown = $false; $script:GwUrl = ''; $script:AuthCloud = ''; $script:Auth = $null
+    $script:GhSemRede = $false; $script:GhSemLogin = $false; $script:GhAsked = $false; $script:GhExe = $null; $script:AcliAsked = $false
+    $script:KeepEnv = @{}
+    foreach ($k in @('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY',
+        'CLAUDE_CONFIG_DIR', 'GH_CONFIG_DIR', 'GH_HOST', 'XDG_CONFIG_HOME', 'APPDATA', 'ProgramFiles', 'ProgramData')) {
+      $script:KeepEnv[$k] = [Environment]::GetEnvironmentVariable($k)
+      [Environment]::SetEnvironmentVariable($k, $null)
+    }
+    Mock Get-WsUserEnvRaw { return $null }
+    Mock Write-WsSay { }
+    function New-FakeProcess([int]$Exit) {
+      $p = [pscustomobject]@{ ExitCode = $Exit; Handle = [IntPtr]::Zero; HasExited = $true; Id = 0 }
+      $p | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($ms) return $true }
+      return $p
+    }
+  }
+  AfterEach {
+    foreach ($k in $script:KeepEnv.Keys) { [Environment]::SetEnvironmentVariable($k, $script:KeepEnv[$k]) }
+  }
+
+  It 'login numa janela sua: um Ctrl-C la so cancela o login (nota) e nada vai para a saida do passo' {
+    $script:Cur = '3'
+    Mock Start-Process { $script:Sp = @{ File = $FilePath; Args = @($ArgumentList) -join ' '; Wait = [bool]$Wait }; return (New-FakeProcess $script:SpExit) }
+    $script:SpExit = -1073741510
+    @(Invoke-WsLogin 'C:\u\claude.exe' @('auth', 'login', '--console')).Count | Should -Be 0
+    $script:Sp.File | Should -BeExactly 'C:\u\claude.exe'
+    $script:Sp.Args | Should -BeExactly 'auth login --console'
+    $script:Sp.Wait | Should -BeFalse -Because 'o -Wait do 5.1 esperava tambem pelo browser'
+    $script:T['3'].Notas | Should -Contain (M 'login_cancelado')
+    $script:T = New-WsStateTable; $script:SpExit = 0
+    Invoke-WsLogin 'gh.exe' @('auth', 'login', '--hostname', 'github.com')
+    $script:T['3'].Notas.Count | Should -Be 0
+    Mock Start-Process { throw [ComponentModel.Win32Exception]::new(1260) }
+    { Invoke-WsLogin 'acli.exe' @('auth', 'login') } | Should -Not -Throw
+    $script:Blocked | Should -BeExactly 'acli.exe'
+  }
+
+  It 'um Ctrl-C na janela do setup a meio do login: o login termina e o setup para como antes (o finally corre)' {
+    if (-not (Test-Path -LiteralPath '/bin/sh')) { Set-ItResult -Skipped -Because 'so em macOS/Linux'; return }
+    $pidFile = Join-Path $TestDrive 'login.pid'
+    $ps = [PowerShell]::Create()
+    [void]$ps.AddScript({
+        param($Setup, $PidFile, $Log)
+        $env:WS_NO_MAIN = '1'
+        . $Setup
+        $script:LogFile = $Log
+        Invoke-WsLogin '/bin/sh' @('-c', ('echo $$ > ' + $PidFile + '; exec sleep 60'))
+        'continuou'
+      }).AddArgument((Join-Path $script:Root 'setup/setup-windows.ps1')).AddArgument($pidFile).AddArgument((Join-Path $TestDrive 'login.log'))
+    $h = $ps.BeginInvoke()
+    for ($i = 0; $i -lt 100 -and -not (Test-Path -LiteralPath $pidFile); $i++) { Start-Sleep -Milliseconds 100 }
+    $child = [int]([IO.File]::ReadAllText($pidFile).Trim())
+    Start-Sleep -Milliseconds 300
+    $t0 = Get-Date
+    $ps.Stop()
+    ((Get-Date) - $t0).TotalSeconds | Should -BeLessThan 5
+    $gone = $false
+    for ($i = 0; $i -lt 30 -and -not $gone; $i++) { $gone = -not (Get-Process -Id $child -ErrorAction SilentlyContinue); if (-not $gone) { Start-Sleep -Milliseconds 100 } }
+    $gone | Should -BeTrue
+    $h.IsCompleted | Should -BeTrue
+    $out = @(); try { $out = @($ps.EndInvoke($h)) } catch { }
+    $out -contains 'continuou' | Should -BeFalse
+    $ps.Dispose()
+  }
+
+  It 'os logins do claude, gh e acli usam o Invoke-WsLogin; com uma cloud configurada nao se oferece o login' {
+    $script:Cur = '3'; $script:ClaudeExe = 'C:\u\claude.exe'
+    $script:Auth = @{ Logged = $false; Method = ''; Source = ''; Sub = ''; Org = ''; Provider = '' }
+    Mock Read-WsYesNo { return $true }
+    Mock Test-WsInteractive { return $true }
+    Mock Invoke-WsLogin { $script:Login = $Exe + ' ' + (@($Arguments) -join ' ') }
+    Mock Test-WsStep3 { return $true }
+    Install-WsStep3 | Should -BeTrue
+    $script:Login | Should -BeExactly 'C:\u\claude.exe auth login --console'
+    $script:AuthCloud = 'bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    Install-WsStep3 | Should -BeFalse
+    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    Should -Invoke Invoke-WsLogin -Times 1 -Exactly
+    # acli (reserva do MCP)
+    $script:Cur = '7'; $script:Login = ''
+    Mock Get-WsAcli { return 'acli.exe' }
+    Mock Invoke-WsProcess { if ((@($Arguments) -join ' ') -eq '--version') { return @{ ExitCode = 0; StdOut = 'acli version 1.3.0' } }; return @{ ExitCode = 1; StdOut = '' } }
+    Test-WsAcli $true | Should -BeTrue
+    $script:Login | Should -BeExactly 'acli.exe auth login'
+  }
+
+  It 'chaves da API: so os nomes (do ambiente, do registo com -User, ou do "env" das definicoes com o ficheiro)' {
+    $env:ANTHROPIC_API_KEY = 'sk-ant-api03-SEGREDO'
+    Get-WsEnvKeys | Should -BeExactly 'ANTHROPIC_API_KEY'
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_AUTH_TOKEN":"tok-SEGREDO","CLAUDE_CODE_USE_BEDROCK":true,"AWS_REGION":"eu-west-1"}}')
+    $k = Get-WsEnvKeys
+    $k | Should -BeExactly ('ANTHROPIC_AUTH_TOKEN ({0}), ANTHROPIC_API_KEY' -f $sf)
+    $k | Should -Not -Match 'SEGREDO'
+    Mock Get-WsUserEnvRaw { if ($Name -eq 'ANTHROPIC_AUTH_TOKEN') { return 'x' }; return $null }
+    Get-WsEnvKeys -User | Should -BeExactly 'ANTHROPIC_AUTH_TOKEN, ANTHROPIC_API_KEY'
+    Remove-Item Env:ANTHROPIC_API_KEY
+    [IO.File]::WriteAllText($sf, '{"env":{}}')
+    Get-WsEnvKeys | Should -BeExactly ''
+  }
+
+  It 'cloud (Bedrock, Vertex, Foundry): verdadeiro na shell ou no "env" das definicoes (o JSON true tambem conta)' {
+    foreach ($v in @('1', 'true', 'True', 'YES', 'on')) { Test-WsTruthy $v | Should -BeTrue -Because $v }
+    foreach ($v in @('0', 'false', '', 'no', 'off')) { Test-WsTruthy $v | Should -BeFalse -Because $v }
+    Get-WsCloudWhere | Should -BeNullOrEmpty
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"CLAUDE_CODE_USE_BEDROCK":true}}')
+    (Get-WsSettingsEnv 'CLAUDE_CODE_USE_BEDROCK') -join '|' | Should -BeExactly ('True|' + $sf)
+    Get-WsSettingsEnv 'NADA' | Should -BeNullOrEmpty
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_BEDROCK ({0})' -f $sf)
+    $env:CLAUDE_CODE_USE_VERTEX = '0'
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_BEDROCK ({0})' -f $sf)
+    $env:CLAUDE_CODE_USE_FOUNDRY = '1'
+    Get-WsCloudWhere | Should -BeExactly 'CLAUDE_CODE_USE_FOUNDRY (shell)'
+    Remove-Item Env:CLAUDE_CODE_USE_FOUNDRY
+    [IO.File]::WriteAllText($sf, '{"env":{"CLAUDE_CODE_USE_BEDROCK":true,}')
+    Get-WsSettingsEnv 'CLAUDE_CODE_USE_BEDROCK' | Should -BeNullOrEmpty -Because 'um settings.json que nao se le e ignorado'
+    $pf = Join-Path $TestDrive 'pf'
+    New-Item -ItemType Directory -Path $pf -Force | Out-Null
+    $mf = Join-Path $pf 'ClaudeCode\managed-settings.json'
+    New-Item -ItemType Directory -Path (Split-Path $mf) -Force | Out-Null
+    [IO.File]::WriteAllText($mf, '{"env":{"CLAUDE_CODE_USE_VERTEX":"1"}}')
+    $env:ProgramFiles = $pf
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_VERTEX ({0})' -f $mf)
+  }
+
+  It 'passo 3: com Bedrock/Vertex/Foundry o passo falha com a origem (E-CFG-04) e o login fica por fazer' {
+    $script:Cur = '3'; $script:ClaudeExe = 'claude.exe'
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:AuthJson } }
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'bedrock'
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'third_party'
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","apiKeySource":"/login managed key","orgName":"ACME"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'firstParty'
+    Test-WsStep3 | Should -BeTrue
+    $script:AuthCloud | Should -BeExactly ''
+    $script:T = New-WsStateTable; $script:AuthOk = $false
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
+    $env:CLAUDE_CODE_USE_BEDROCK = '1'
+    Test-WsStep3 | Should -BeFalse
+    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    $script:AuthOk | Should -BeFalse
+    Remove-Item Env:CLAUDE_CODE_USE_BEDROCK
+    $script:T = New-WsStateTable
+    Test-WsStep3 | Should -BeFalse
+    $script:AuthCloud | Should -BeExactly 'bedrock: managed settings'
+    # outro metodo: o aviso mostra a origem (o nome da variavel), nunca o valor
+    $script:T = New-WsStateTable
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"api_key","apiKeySource":"ANTHROPIC_API_KEY"}'
+    Test-WsStep3 | Should -BeTrue
+    $script:T['3'].Avisos[0] -join '|' | Should -BeExactly 'E-AUTH-03|ANTHROPIC_API_KEY'
+  }
+
+  It 'gateway (ANTHROPIC_BASE_URL): o que conta como em baixo e o URL que se mostra' {
+    foreach ($c in @(@('NameResolutionFailure', 0), @('ProxyNameResolutionFailure', 0), @('ConnectFailure', 0), @('Timeout', 0), @('ProtocolError', 502), @('', 503), @('ProtocolError', 504))) {
+      Test-WsGatewayAnswer $c[0] $c[1] | Should -BeFalse -Because ($c -join ' ')
+    }
+    foreach ($c in @(@('ProtocolError', 401), @('ProtocolError', 404), @('', 407), @('TrustFailure', 0), @('SecureChannelFailure', 0), @('ReceiveFailure', 0), @('', 0))) {
+      Test-WsGatewayAnswer $c[0] $c[1] | Should -BeTrue -Because ($c -join ' ')
+    }
+    Get-WsGatewayShow 'https://ana:SEGREDO@gw.empresa.pt:8443/v1/messages?x=1' | Should -BeExactly 'https://gw.empresa.pt:8443/'
+    Get-WsGatewayShow 'http://localhost:4000' | Should -BeExactly 'http://localhost:4000/'
+    Get-WsGatewayShow 'ht tp://ana:SEG/REDO@gw/x' | Should -Not -Match 'SEG'
+    Get-WsGatewayShow '' | Should -BeExactly ''
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('dns', [System.Net.WebExceptionStatus]::NameResolutionFailure) }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeFalse
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('tls', [System.Net.WebExceptionStatus]::TrustFailure) }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeTrue
+    Mock Invoke-WebRequest { return 'ok' }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeTrue
+  }
+
+  It 'passo 0: gateway que nao responde = E-CFG-03 + E-AUTH-05 (sem a password) e $script:GwDown' {
+    $env:ANTHROPIC_BASE_URL = 'https://ana:SEGREDO@gw.empresa.pt/v1'
+    Mock Test-WsGatewayUp { return $false }
+    Test-WsGateway
+    $script:GwDown | Should -BeTrue
+    ($script:T['0'].Avisos | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-CFG-03|ANTHROPIC_BASE_URL;E-AUTH-05|https://gw.empresa.pt/'
+    $script:T = New-WsStateTable
+    Remove-Item Env:ANTHROPIC_BASE_URL
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_BASE_URL":"http://localhost:4000"}}')
+    Mock Test-WsGatewayUp { return $true }
+    Test-WsGateway
+    $script:GwDown | Should -BeFalse
+    $script:GwUrl | Should -BeExactly 'http://localhost:4000'
+    ($script:T['0'].Avisos | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly ('E-CFG-03|ANTHROPIC_BASE_URL ({0})' -f $sf)
+    Remove-Item -LiteralPath $sf
+    $script:T = New-WsStateTable
+    Test-WsGateway
+    $script:GwUrl | Should -BeExactly ''
+    $script:T['0'].Avisos.Count | Should -Be 0
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $body = $text.Substring($text.IndexOf('function Test-WsStep0'))
+    $body = $body.Substring(0, $body.IndexOf('function Install-WsStep0'))
+    $body | Should -Not -Match "@\('ANTHROPIC_API_KEY', 'E-CFG-02'\)"
+    $body | Should -Match 'Get-WsEnvKeys -User'
+    $body | Should -Match 'Get-WsCloudWhere'
+    $body.LastIndexOf('Test-WsGateway') | Should -BeGreaterThan $body.IndexOf('Test-WsNetwork')
+  }
+
+  It 'passo 12: 90 s, sem MCP, e o codigo certo para o gateway, a chave rejeitada e o login' {
+    $script:Cur = '12'; $script:ClaudeExe = 'claude.exe'; $script:Tmp = $TestDrive
+    $script:Auth = @{ Source = '/login managed key' }
+    $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Mock Invoke-WsProcess { $script:SmokeArgs = @($Arguments); $script:SmokeTmo = $TimeoutSec; return $script:SmokeR }
+    function Get-Smoke([int]$Exit, [string]$Err) {
+      $script:SmokeR = @{ ExitCode = $Exit; StdOut = ''; StdErr = $Err }; $script:SmokeArgs = $null
+      $script:T = New-WsStateTable
+      $null = Install-WsStep12
+      return ($script:T['12'].Falha -join '|')
+    }
+    Get-Smoke -2 'timeout' | Should -BeExactly 'E-SMOKE-01|no answer in 90 s'
+    $script:SmokeTmo | Should -Be 90
+    $script:SmokeArgs | Should -Contain '--strict-mcp-config'
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape((M 's12_a_testar' @{ SEG = 90 })))
+    Get-Smoke 1 'Error: connect ECONNREFUSED 1.2.3.4:443' | Should -BeExactly 'E-NET-05|'
+    $script:GwUrl = 'https://ana:SEGREDO@gw.empresa.pt/v1'
+    Get-Smoke -2 'timeout' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    Get-Smoke 1 'Error: getaddrinfo ENOTFOUND gw.empresa.pt' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    $script:GwDown = $true
+    Get-Smoke 0 '' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    $script:SmokeArgs | Should -BeNullOrEmpty -Because 'com o gateway em baixo o Claude nao e chamado'
+    $script:GwDown = $false; $script:GwUrl = ''
+    $env:ANTHROPIC_API_KEY = 'sk-ant-api03-SEGREDO'
+    Get-Smoke 1 'API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}' | Should -BeExactly 'E-AUTH-04|ANTHROPIC_API_KEY'
+    Remove-Item Env:ANTHROPIC_API_KEY
+    Get-Smoke 1 'Invalid API key - Please run /login' | Should -BeExactly 'E-AUTH-01|'
+    $script:Auth = @{ Source = 'apiKeyHelper' }
+    Get-Smoke 1 'Failed to authenticate. API Error: 401' | Should -BeExactly 'E-AUTH-04|apiKeyHelper'
+    $script:Auth = @{ Source = 'none' }
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_AUTH_TOKEN":"tok-SEGREDO"}}')
+    Get-Smoke 1 'Invalid bearer token' | Should -BeExactly ('E-AUTH-04|ANTHROPIC_AUTH_TOKEN ({0})' -f $sf)
+  }
+
+  It 'ajudante e -Doctor: sem MCP, com limite, e nada com o gateway em baixo ou o GitHub sem resposta' {
+    $script:ClaudeExe = 'claude.exe'; $script:Tmp = $TestDrive
+    Mock Invoke-WsProcess { $script:HArgs = @($Arguments); $script:HTmo = $TimeoutSec; return @{ ExitCode = 1; StdOut = ''; StdErr = '' } }
+    Invoke-WsClaudeHelper 'p' '' | Should -BeNullOrEmpty
+    $script:HArgs | Should -Contain '--strict-mcp-config'
+    $script:HTmo | Should -Be 90
+    $null = Invoke-WsClaudeHelper 'p' '' -TimeoutSec 180
+    $script:HTmo | Should -Be 180
+    $script:GwDown = $true; $script:HArgs = $null
+    Invoke-WsClaudeHelper 'p' '' | Should -BeNullOrEmpty
+    $script:HArgs | Should -BeNullOrEmpty
+    $script:AuthOk = $true
+    Mock Read-WsYesNo { return $true }
+    $script:T['8'].Falha = @('E-KIT-03', '')
+    Invoke-WsHelper '8' | Should -BeFalse
+    $script:GwDown = $false
+    $script:T['6'].Falha = @('E-GH-03', 'github.com')
+    Invoke-WsHelper '6' | Should -BeFalse
+    Should -Invoke Read-WsYesNo -Times 0 -Exactly
+    $script:T['6'].Estado = 'falhou'; $script:GwDown = $true; $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Invoke-WsDoctor
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape((M 'doctor_sem_claude')))
+    Should -Invoke Invoke-WsProcess -Times 2 -Exactly
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match 'Invoke-WsClaudeHelper \$prompt '''' -TimeoutSec \$script:TmoDoctor'
+  }
+
+  It 'passo 6: o "gh auth status" sem resposta e a rede (E-GH-03), sem perguntar o login nem descarregar outra vez' {
+    $script:Cur = '6'; $script:WsHome = Join-Path $TestDrive 'ws'
+    $gh = Join-Path $TestDrive 'gh.exe'; Set-Content -LiteralPath $gh -Value 'x'
+    $cfg = Join-Path $TestDrive 'ghcfg'; New-Item -ItemType Directory -Path $cfg -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $cfg 'hosts.yml'), "github.com:`n    user: ana`n    git_protocol: https`nghe.empresa.pt:`n    users:`n        ana:`n")
+    Get-WsGhHosts | Should -BeExactly 'github.com' -Because 'sem hosts.yml'
+    $env:GH_CONFIG_DIR = $cfg
+    Get-WsGhHosts | Should -BeExactly 'github.com ghe.empresa.pt'
+    $env:GH_HOST = 'ghe.empresa.pt'
+    Get-WsGhHosts | Should -BeExactly 'ghe.empresa.pt github.com'
+    Remove-Item Env:GH_HOST
+    $script:Status = @(-2); $script:StatusN = 0; $script:Calls = @()
+    Mock Test-WsInteractive { return $true }
+    Mock Read-WsYesNo { return $true }
+    Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
+    Mock Invoke-WsDownload { return $true }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += ('{0} ({1})' -f $a, $TimeoutSec)
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'gh version 2.102.0 (2026-09-30)' } }
+      if ($a -eq 'auth status') { $i = [math]::Min($script:StatusN, $script:Status.Count - 1); $script:StatusN++; return @{ ExitCode = $script:Status[$i]; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    Test-WsStep6 -Exe $gh | Should -BeFalse
+    $script:T['6'].Falha -join '|' | Should -BeExactly 'E-GH-03|github.com ghe.empresa.pt'
+    $script:GhSemRede | Should -BeTrue
+    $script:Calls | Should -Contain 'auth status (25)'
+    Should -Invoke Read-WsYesNo -Times 0 -Exactly
+    $script:T = New-WsStateTable
+    Install-WsStep6 | Should -BeFalse
+    $script:T['6'].Falha[0] | Should -Be 'E-GH-03'
+    Should -Invoke Invoke-WsDownload -Times 0 -Exactly
+    Test-WsStep6 -Exe (Join-Path $TestDrive 'nao-ha.exe') | Should -BeFalse
+  }
+
+  It 'passo 6: sem login, o "auth status" so se repete depois de tentar o login (pelo Invoke-WsLogin)' {
+    $script:Cur = '6'; $script:WsHome = Join-Path $TestDrive 'ws'
+    $gh = Join-Path $TestDrive 'gh.exe'; Set-Content -LiteralPath $gh -Value 'x'
+    Mock Test-WsInteractive { return $true }
+    Mock Read-WsYesNo { return $true }
+    Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += ('{0} ({1})' -f $a, $TimeoutSec)
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'gh version 2.102.0 (2026-09-30)' } }
+      if ($a -eq 'auth status') { $i = [math]::Min($script:StatusN, $script:Status.Count - 1); $script:StatusN++; return @{ ExitCode = $script:Status[$i]; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $script:Sim = $true; $script:Status = @(1); $script:StatusN = 0; $script:Calls = @()
+    Test-WsStep6 -Exe $gh | Should -BeFalse
+    $script:T['6'].Falha[0] | Should -Be 'E-GH-02'
+    @($script:Calls | Where-Object { $_ -like 'auth status*' }).Count | Should -Be 1
+    $script:Sim = $false; $script:Status = @(1, 0); $script:StatusN = 0; $script:Calls = @(); $script:T = New-WsStateTable
+    Test-WsStep6 -Exe $gh | Should -BeTrue
+    $script:Login | Should -BeExactly 'auth login --hostname github.com --git-protocol https --web'
+    $script:Calls | Should -Contain 'auth setup-git (25)'
+    $script:GhSemLogin | Should -BeFalse
+  }
+
+  It 'acli: sem resposta no primeiro "auth status", nao tenta o segundo' {
+    $script:Calls = @()
+    Mock Invoke-WsProcess { $script:Calls += ('{0} ({1})' -f (@($Arguments) -join ' '), $TimeoutSec); return @{ ExitCode = $script:AcliRc; StdOut = '' } }
+    $script:AcliRc = -2
+    Test-WsAcliLogin 'acli.exe' | Should -BeFalse
+    $script:Calls -join ';' | Should -BeExactly 'auth status (25)'
+    $script:AcliRc = 1; $script:Calls = @()
+    Test-WsAcliLogin 'acli.exe' | Should -BeFalse
+    $script:Calls -join ';' | Should -BeExactly 'auth status (25);jira auth status (25)'
+  }
+
+  It 'MCP: le os campos do "claude mcp get" e compara o atlassian com o do workshop' {
+    $out = "atlassian:`r`n  Scope: User config (available in all your projects)`r`n  Status: Connected`r`n  Type: sse`r`n  URL: https://mcp.atlassian.com/v1/sse`r`n`r`nTo remove this server, run: claude mcp remove ""atlassian"" -s user`r`n"
+    Get-WsMcpField $out 'URL' | Should -BeExactly 'https://mcp.atlassian.com/v1/sse'
+    Get-WsMcpField $out 'Command' | Should -BeExactly ''
+    Get-WsMcpField "x:`n  Command:`n  Args: mcp" 'Command' | Should -BeExactly '' -Because 'um campo vazio nao apanha a linha seguinte'
+    $script:C = @{ ATLASSIAN_MCP_URL = 'https://mcp.atlassian.com/v1/mcp' }
+    Test-WsAtlassianMcp $out | Should -BeFalse
+    Test-WsAtlassianMcp $out.Replace('/v1/sse', '/v1/mcp') | Should -BeTrue
+    Test-WsAtlassianMcp "atlassian:`n  Type: stdio`n  Command: npx`n  Args: -y mcp-remote https://mcp.atlassian.com/v1/sse" | Should -BeFalse
+    Test-WsAtlassianMcp 'atlassian: (formato novo)' | Should -BeTrue -Because 'sem URL nem Command nao da para comparar'
+  }
+
+  It 'passo 7: um registo atlassian antigo e trocado (com nota), e confirma-se com "mcp get" e nao "mcp list"' {
+    $script:Cur = '7'; $script:Sim = $true; $script:ClaudeExe = 'claude.exe'
+    $script:C = @{ ATLASSIAN_MCP_URL = 'https://mcp.exemplo/v1/mcp' }
+    $script:McpUrl = 'https://mcp.exemplo/v1/sse'; $script:RmFail = $false; $script:Calls = @()
+    Mock Register-WsExtra { }
+    Mock Get-WsAcli { return 'acli.exe' }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += $a
+      if ($a -eq 'mcp get atlassian') { if ($script:McpUrl) { return @{ ExitCode = 0; StdOut = ("atlassian:`r`n  Scope: User config`r`n  Type: http`r`n  URL: " + $script:McpUrl + "`r`n") } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp remove*') { if ($script:RmFail) { return @{ ExitCode = 1; StdOut = '' } }; $script:McpUrl = ''; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a -like 'mcp add *') { $script:McpUrl = @($Arguments)[-1]; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'acli version 1.3.0' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $script:Mode = 'check'
+    Test-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha -join '|' | Should -BeExactly 'E-MCP-01|atlassian: https://mcp.exemplo/v1/sse'
+    $script:Mode = 'install'; $script:T = New-WsStateTable
+    Install-WsStep7 | Should -BeTrue
+    $script:Calls | Should -Contain 'mcp remove --scope user atlassian'
+    $script:Calls | Should -Contain 'mcp add --transport http --scope user atlassian https://mcp.exemplo/v1/mcp'
+    $script:Calls | Should -Not -Contain 'mcp list'
+    $script:T['7'].Notas | Should -Contain (M 's7_substituido' @{ ANTIGO = 'https://mcp.exemplo/v1/sse' })
+    $script:T['7'].Falha | Should -BeNullOrEmpty
+    $script:T = New-WsStateTable; $script:McpUrl = 'https://mcp.exemplo/v1/sse'; $script:RmFail = $true; $script:Calls = @()
+    Install-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha -join '|' | Should -BeExactly 'E-MCP-01|claude mcp remove atlassian'
+    $script:Calls | Should -Contain 'mcp remove atlassian'
+  }
+
+  It 'passo 10: o registo agent-memory tem de apontar para este programa, e o antigo "memoria" sai' {
+    Test-WsMcpCommand "agent-memory:`r`n  Command: C:\\Users\\Ana\\.local\\bin\\agent-memory.exe`r`n  Args: mcp" 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeTrue
+    Test-WsMcpCommand "agent-memory:`n  Command: C:\Users\bruno\.local\bin\memoria.exe`n  Args: mcp" 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeFalse
+    Test-WsMcpCommand 'agent-memory: C:\Users\ana\.local\bin\agent-memory.exe mcp - Connected' 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeTrue
+    Test-WsMcpCommand '' 'C:\x.exe' | Should -BeFalse
+    $script:Cur = '10'; $script:ClaudeExe = 'claude.exe'; $script:Calls = @()
+    $script:Reg = @{ 'agent-memory' = 'C:\old\memoria.exe'; memoria = 'C:\old\memoria.exe' }
+    Mock Register-WsExtra { }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments); $script:Calls += ($a -join ' ')
+      if ($a[1] -eq 'get') { if ($script:Reg.ContainsKey($a[2])) { return @{ ExitCode = 0; StdOut = ($a[2] + ":`n  Type: stdio`n  Command: " + $script:Reg[$a[2]] + "`n  Args: mcp") } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a[1] -eq 'remove') { $script:Reg.Remove($a[-1]); return @{ ExitCode = 0; StdOut = '' } }
+      if ($a[1] -eq 'add') { $script:Reg[$a[4]] = $a[6]; return @{ ExitCode = 0; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $exe = 'C:\u\.local\bin\agent-memory.exe'
+    Test-WsMemoryMcp $exe | Should -BeFalse
+    Register-WsMemoryMcp $exe | Should -BeTrue
+    $script:Reg.ContainsKey('memoria') | Should -BeFalse
+    $script:Reg['agent-memory'] | Should -BeExactly $exe
+    $script:T['10'].Notas | Should -Contain (M 's10_mcp_substituido' @{ ANTIGO = 'C:\old\memoria.exe' })
+    Test-WsMemoryMcp $exe | Should -BeTrue
+    $script:Reg['memoria'] = 'C:\old\memoria.exe'
+    Test-WsMemoryMcp $exe | Should -BeFalse -Because 'o registo antigo "memoria" ainda esta la'
+  }
+
+  It 'JSON estrito como o do Claude Code: uma virgula a mais falha; o BOM e chaves so com maiusculas diferentes passam' {
+    $r = Test-WsStrictJson '{"a":1,}'
+    $r | Should -BeOfType [bool] -Because 'sem leitor estrito o setup nao verifica o ~\.claude.json (no 5.1: Windows.Data.Json)'
+    $r | Should -BeFalse
+    Test-WsStrictJson '{"a":[1,2,],"b":1}' | Should -BeFalse
+    Test-WsStrictJson '{"a":1} // nota' | Should -BeFalse
+    Test-WsStrictJson (([string][char]0xFEFF) + '{"a":1}') | Should -BeTrue
+    Test-WsStrictJson '{"projects":{"C:/Users/ana/p":{"x":1},"c:/Users/ana/p":{"x":2}}}' | Should -BeTrue
+  }
+
+  It 'passo 2: um ~\.claude.json invalido para o setup antes de qualquer comando do Claude Code (E-CC-04)' {
+    $script:Cur = '2'; $script:Tmp = $TestDrive
+    $f = Join-Path $script:UserHome '.claude.json'
+    [IO.File]::WriteAllText($f, '{"mcpServers":{"x":{"type":"http"}},}')
+    Mock Get-WsClaude { return 'claude.exe' }
+    Mock Invoke-WsDownload { return $true }
+    Test-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly ('E-CC-04|' + $f)
+    Should -Invoke Get-WsClaude -Times 0 -Exactly
+    $script:T = New-WsStateTable
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha[0] | Should -Be 'E-CC-04'
+    Should -Invoke Invoke-WsDownload -Times 0 -Exactly
+    [IO.File]::WriteAllBytes($f, [byte[]](@(0xEF, 0xBB, 0xBF) + [Text.Encoding]::ASCII.GetBytes('{"a":1}')))
+    Test-WsClaudeJson | Should -BeTrue
+    [IO.File]::WriteAllText($f, "  `r`n")
+    Test-WsClaudeJson | Should -BeTrue
+    Remove-Item -LiteralPath $f
+    Test-WsClaudeJson | Should -BeTrue
+    $cd = Join-Path $TestDrive 'cfgdir'; New-Item -ItemType Directory -Path $cd -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $cd '.claude.json'), '{,}')
+    $env:CLAUDE_CONFIG_DIR = $cd
+    $script:T = New-WsStateTable
+    Test-WsClaudeJson | Should -BeFalse
+    $script:T['2'].Falha[1] | Should -BeExactly (Join-Path $cd '.claude.json')
+  }
+
+  It 'passo 2: se o instalador oficial ja trocou o ~\.claude.json, mostra a copia (E-CC-04) e nao E-CC-01' {
+    $script:Cur = '2'; $script:Tmp = $TestDrive
+    $script:C = @{ CLAUDE_INSTALL_PS1_URL = 'https://claude.exemplo/install.ps1'; CLAUDE_CODE_VERSION = '2.1.292' }
+    Mock Invoke-WsDownload { return $true }
+    Mock Get-WsWinPowerShell { return 'powershell.exe' }
+    Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = "Installing...`r`nClaude configuration file at C:\u\.claude.json is corrupted. Backed up to: C:\u\.claude\backups\.claude.json.corrupted.1760000000000`r`nDone"; StdErr = '' } }
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly 'E-CC-04|C:\u\.claude\backups\.claude.json.corrupted.1760000000000'
+    $script:T = New-WsStateTable
+    Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = 'boom'; StdErr = '' } }
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly 'E-CC-01|install.ps1'
+  }
+
+  It 'passo 5: o uv do workshop primeiro; um uv antigo primeiro no PATH so da o aviso E-UV-02' {
+    $script:Cur = '5'
+    $script:C = @{ UV_MIN_VERSION = '0.6.8' }
+    $local = Join-Path $script:UserHome '.local\bin\uv.exe'
+    New-Item -ItemType Directory -Path (Split-Path $local) -Force | Out-Null
+    Set-Content -LiteralPath $local -Value 'x'
+    $script:OldUv = Join-Path $TestDrive 'old-uv.exe'; Set-Content -LiteralPath $script:OldUv -Value 'x'
+    $script:Versions = @{ $local = 'uv 0.13.1 (abc 2026-09-01)'; $script:OldUv = 'uv 0.4.30' }
+    Mock Get-Command { return [pscustomobject]@{ Source = $script:OldUv } } -ParameterFilter { $Name -eq 'uv' }
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:Versions[$FilePath] } }
+    Test-WsStep5 | Should -BeTrue
+    $script:UvExe | Should -BeExactly $local
+    $script:UvVer | Should -BeExactly '0.13.1'
+    $script:T['5'].Avisos[0] -join '|' | Should -BeExactly ('E-UV-02|' + $script:OldUv + ': uv 0.4.30')
+    Get-WsUv | Should -BeExactly $local
+    # so o antigo: o passo instala o do workshop
+    Remove-Item -LiteralPath $local
+    $script:T = New-WsStateTable
+    Test-WsStep5 | Should -BeFalse
+    $script:UvExe | Should -BeNullOrEmpty
+    # um uv bom no PATH serve, sem aviso; sem UV_MIN_VERSION o minimo e 0.6.8
+    $script:Versions[$script:OldUv] = 'uv 0.7.2'
+    $script:T = New-WsStateTable
+    Test-WsStep5 | Should -BeTrue
+    $script:UvExe | Should -BeExactly $script:OldUv
+    $script:T['5'].Avisos.Count | Should -Be 0
+    $script:C = @{}; $script:Versions[$script:OldUv] = 'uv 0.6.7'
+    Test-WsStep5 | Should -BeFalse
   }
 }
