@@ -4,7 +4,14 @@
 
 Para a sessão do Claude que continua o trabalho na máquina da empresa, onde há Jira, Confluence e GitHub corporativo, mas não o Gitea de desenvolvimento. Escrito a 16 out. 2026, no fim da construção.
 
-Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-25: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
+Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-26: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
+
+## Atualização, 17 out. 2026 (v1.0.0-rc.2)
+
+- **Testes de caos (D-26):** 155 cenários de ambientes estragados num Mac real, cada um num HOME isolado, em três rondas. Ronda 1: 56 falhas e mais 12 problemas do Windows numa revisão estática. Ronda 2: nenhuma voltou; 46 novas (categorias novas), todas corrigidas. Ronda 3: limpa.
+- **Testes agora:** 601 testes bash, 239 Pester (o Pester e o PSScriptAnalyzer correm num PowerShell 7.4.6 portátil, sem Docker) e 370 da app. **Nunca correu num Windows real**: a primeira lista de verificações é a [`WINDOWS-CHECKLIST.md`](WINDOWS-CHECKLIST.md).
+- **Inglês:** a apresentação inglesa usa media em inglês (vídeo do swarm, poster, pesquisa na memória); o vídeo completo da demo em inglês (`tools/record/out/demo-en-20261017/demo-completa.en.mp4`, fora do git) não tem nenhuma palavra em português. Replays do plano B: `presenter-replay/arena` (pt) e `presenter-replay/arena-en`.
+- **Releases:** a `v1.0.0-rc.2` e a Agent Memory `v0.5.0` estão construídas localmente; publicar precisa do "sim" do organizador.
 
 ## De onde vem isto
 

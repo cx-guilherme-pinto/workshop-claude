@@ -4,7 +4,14 @@
 
 For the Claude session that continues the work on the company machine, which has Jira, Confluence and corporate GitHub but not the development Gitea. Written on 16 Oct 2026, at the end of the build.
 
-Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-25: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
+Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-26: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
+
+## Update, 17 Oct 2026 (v1.0.0-rc.2)
+
+- **Chaos tests (D-26):** 155 broken-environment scenarios on a real Mac, each in an isolated HOME, in three rounds. Round 1: 56 failures plus 12 Windows problems from a static review. Round 2: none of them came back; 46 new ones (new categories), all fixed. Round 3: clean.
+- **Tests now:** 601 bash tests, 239 Pester tests (Pester and PSScriptAnalyzer run on a portable PowerShell 7.4.6, without Docker), app 370 tests. Still **never run on real Windows**: the first check list is [`WINDOWS-CHECKLIST.md`](WINDOWS-CHECKLIST.md).
+- **English:** the English deck uses English media (swarm video, poster, memory search); the full English demo video (`tools/record/out/demo-en-20261017/demo-completa.en.mp4`, not in git) has no Portuguese word. Plan B replays: `presenter-replay/arena` (pt) and `presenter-replay/arena-en`.
+- **Releases:** `v1.0.0-rc.2` and Agent Memory `v0.5.0` are built locally; publishing needs the organizer's "yes".
 
 ## Where this comes from
 
