@@ -1340,7 +1340,7 @@ Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern CLAUDE_COD
 Comando (Windows):
 
 ```
-Get-Content "$env:USERPROFILE\.claude\settings.json" -Raw | ConvertFrom-Json
+node -e "JSON.parse(require('fs').readFileSync(process.env.USERPROFILE + '/.claude/settings.json', 'utf8')); console.log('JSON OK')"
 ```
 
 <a id="windows-e-cfg-06"></a>
