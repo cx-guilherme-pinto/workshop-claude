@@ -57,6 +57,18 @@ const principal = (() => {
   }
 })();
 if (principal) {
-  const porta = Number(process.env.PORTA || 3100);
-  criarServidor().listen(porta, '127.0.0.1', () => console.log(`Biblioteca em http://127.0.0.1:${porta}`));
+  const bruto = (process.env.PORTA ?? '').trim();
+  const porta = bruto === '' ? 3100 : Number(bruto);
+  if (!Number.isInteger(porta) || porta < 0 || porta > 65535) {
+    console.error(`Porta inválida na variável PORTA: "${process.env.PORTA}". Usa um número de 1 a 65535 (por exemplo PORTA=3101 npm start) ou apaga a variável PORTA.`);
+    process.exit(2);
+  }
+  const srv = criarServidor();
+  srv.on('error', (e) => {
+    console.error(e.code === 'EADDRINUSE'
+      ? `A porta ${porta} já está em uso${bruto ? ' (PORTA está definida no teu ambiente)' : ''}: experimenta PORTA=${porta < 65535 ? porta + 1 : 3101} npm start`
+      : `Não consegui arrancar o servidor: ${e.message}`);
+    process.exit(1);
+  });
+  srv.listen(porta, '127.0.0.1', () => console.log(`Biblioteca em http://127.0.0.1:${srv.address().port}`));
 }

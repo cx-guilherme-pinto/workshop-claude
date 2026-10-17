@@ -319,12 +319,18 @@ export async function currentSnapshot(root = ROOT) {
     return emptySnapshot(root, 'invalid_plan');
   }
   const c = m.paths(root);
-  const f = normalizeSnapshot(m.snapshot(c, plan));
-  for (const t of f.tasks) {
-    const st = m.readState ? m.readState(c, t.id) || {} : {};
-    t.start = st.start ?? st.inicio ?? null;
-    t.end = st.end ?? st.fim ?? null;
-    if (t.group_type === 'card') t.exists = existsSync(join(root, 'cards', t.id, 'card.js'));
+  // A broken state file (a `null`, a cut line) must not freeze the page: it shows an empty board instead.
+  let f;
+  try {
+    f = normalizeSnapshot(m.snapshot(c, plan));
+    for (const t of f.tasks) {
+      const st = m.readState ? m.readState(c, t.id) || {} : {};
+      t.start = st.start ?? st.inicio ?? null;
+      t.end = st.end ?? st.fim ?? null;
+      if (t.group_type === 'card') t.exists = existsSync(join(root, 'cards', t.id, 'card.js'));
+    }
+  } catch {
+    return emptySnapshot(root, 'unreadable_state');
   }
   f.budget = budget(root);
   return f;
@@ -522,14 +528,14 @@ export function start({ port = 3000, root = ROOT, attempts = 20 } = {}) {
     let current = port;
     let n = 0;
     const listen = async () => {
-      while (port !== 0 && n < attempts && (await portTaken(current))) {
+      while (port !== 0 && n < attempts && current < 65535 && (await portTaken(current))) {
         n++;
         current++;
       }
       srv.listen(current, '127.0.0.1');
     };
     const onError = (e) => {
-      if (e.code === 'EADDRINUSE' && port !== 0 && n < attempts) {
+      if (e.code === 'EADDRINUSE' && port !== 0 && n < attempts && current < 65535) {
         n++;
         current++;
         listen().catch(stop);

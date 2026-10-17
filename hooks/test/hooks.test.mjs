@@ -231,3 +231,15 @@ test('pricing.json: English keys, and the older Portuguese keys give the same pr
   const t = { input: 150000, output: 1000, cache_write_5m: 0, cache_write_1h: 0, cache_read: 0 };
   assert.equal(requestCost(t, 'haiku', velho).usd, requestCost(t, 'haiku', pricing).usd);
 });
+
+test('chaos R4: a null line in usage.jsonl is skipped, and an append after a cut line starts on a new line', async () => {
+  const { readJsonl } = await import('../lib/transcript.mjs');
+  const { appendJsonl } = await import('../lib/workshop.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'ws-usage-'));
+  const f = join(dir, 'usage.jsonl');
+  writeFileSync(f, 'null\n42\n{"tipo":"principal","sessao":"s","custo_usd":1}\n{"tipo":"subag');
+  appendJsonl(f, { tipo: 'subagente', agent_id: 'a1', custo_usd: 2 });
+  const regs = readJsonl(f);
+  assert.deepEqual(regs.map((r) => r.tipo), ['principal', 'subagente']);
+  assert.doesNotThrow(() => totals([null, 7, ...regs]));
+});

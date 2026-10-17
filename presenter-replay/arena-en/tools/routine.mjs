@@ -7,7 +7,7 @@
 //   node tools/routine.mjs --install --yes    installs it (default time 09:00; --time HH:MM)
 //   node tools/routine.mjs --remove --yes     removes it
 //
-// (--instalar, --remover, --sim and --hora still work.)
+// (--instalar, --remover and --hora still work. --sim means a dry run, as in reset.mjs: it never means "yes".)
 import { writeFileSync, existsSync, unlinkSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir, platform } from 'node:os';
@@ -17,7 +17,10 @@ import { ARENA as PROJ, arenaTexts } from './engine.mjs';
 // Texts in the Arena's language; outside an assembled Arena, Portuguese.
 const T = await arenaTexts({
   pt: {
-    invalidTime: 'hora inválida (usa HH:MM)',
+    invalidTime: 'hora inválida (usa HH:MM, de 00:00 a 23:59)',
+    nothingChangedRemove: '(Nada foi alterado. Junta --yes para remover.)',
+    notInstalled: 'Não está instalada: nada a remover.',
+    failedWin: (code) => `O schtasks falhou (código ${code}): a tarefa não ficou instalada.`,
     remove: (cmd) => `Remover: ${cmd}`,
     removed: 'Removida.',
     installMac: (plist, time, cmd) => `Instalar ${plist} (todos os dias às ${time}):\n  ${cmd}`,
@@ -28,7 +31,10 @@ const T = await arenaTexts({
     linux: (cmd) => `Linux: acrescenta ao crontab -e:\n  ${cmd}`,
   },
   en: {
-    invalidTime: 'invalid time (use HH:MM)',
+    invalidTime: 'invalid time (use HH:MM, from 00:00 to 23:59)',
+    nothingChangedRemove: '(Nothing was changed. Add --yes to remove.)',
+    notInstalled: 'Not installed: nothing to remove.',
+    failedWin: (code) => `schtasks failed (code ${code}): the task was not installed.`,
     remove: (cmd) => `Remove: ${cmd}`,
     removed: 'Removed.',
     installMac: (plist, time, cmd) => `Install ${plist} (every day at ${time}):\n  ${cmd}`,
@@ -46,11 +52,13 @@ const opt = (ks, d) => {
   for (const k of ks) if (a.includes(k)) return a[a.indexOf(k) + 1];
   return d;
 };
-const yes = has('--yes', '--sim');
+// '--sim' is the old pt alias of --dry-run (reset.mjs reads it so): here too it must never mean "yes".
+const dry = has('--dry-run', '--sim');
+const yes = has('--yes') && !dry;
 const install = has('--install', '--instalar');
 const remove = has('--remove', '--remover');
 const time = String(opt(['--time', '--hora'], '09:00')).match(/^(\d{1,2}):(\d{2})$/);
-if (!time) {
+if (!time || Number(time[1]) > 23 || Number(time[2]) > 59) {
   console.error(T.invalidTime);
   process.exit(2);
 }
@@ -63,7 +71,8 @@ if (platform() === 'darwin') {
   const agents = join(homedir(), 'Library', 'LaunchAgents');
   const plist = join(agents, `${LABEL}.plist`);
   const oldPlist = join(agents, `${OLD_LABEL}.plist`);
-  const cmd = `cd "${PROJ}" && mkdir -p .workshop/routine && claude -p "${prompt}" --output-format json > ".workshop/routine/$(date +%F).json" 2>&1`;
+  // Single quotes: a path with $, ` or " (or an apostrophe, escaped) reaches cd as it is.
+  const cmd = `cd '${PROJ.replace(/'/g, "'\\''")}' && mkdir -p .workshop/routine && claude -p "${prompt}" --output-format json > ".workshop/routine/$(date +%F).json" 2>&1`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -80,7 +89,8 @@ if (platform() === 'darwin') {
       spawnSync('launchctl', ['unload', p]);
       unlinkSync(p);
     }
-    if (found.length) console.log(T.removed);
+    if (!yes) console.log(T.nothingChangedRemove);
+    else console.log(found.length ? T.removed : T.notInstalled);
   } else if (install) {
     console.log(T.installMac(plist, time[0], cmd));
     if (yes) {
@@ -107,13 +117,17 @@ if (platform() === 'darwin') {
     if (yes) {
       spawnSync('schtasks', ['/Delete', '/TN', tn, '/F'], { stdio: 'inherit' });
       spawnSync('schtasks', ['/Delete', '/TN', oldTn, '/F'], { stdio: 'ignore' });
-    }
+    } else console.log(T.nothingChangedRemove);
   } else if (install) {
     console.log(T.installWin(tn, hhmm, tr));
     if (yes) {
       // The task installed by an older kit, under its old name, would run the review a second time.
       spawnSync('schtasks', ['/Delete', '/TN', oldTn, '/F'], { stdio: 'ignore' });
-      spawnSync('schtasks', ['/Create', '/SC', 'DAILY', '/TN', tn, '/TR', tr, '/ST', hhmm, '/F'], { stdio: 'inherit' });
+      const r = spawnSync('schtasks', ['/Create', '/SC', 'DAILY', '/TN', tn, '/TR', tr, '/ST', hhmm, '/F'], { stdio: 'inherit' });
+      if (r.status !== 0) {
+        console.error(T.failedWin(r.status ?? r.error?.code));
+        process.exit(1);
+      }
     } else console.log(T.nothingChanged);
   } else {
     console.log(T.runs(hhmm, tr));

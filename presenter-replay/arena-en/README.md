@@ -7,7 +7,7 @@ A game of short security challenges. It is the demo project of the Claude Code w
 You need Node 22 or newer. There are no dependencies to install.
 
 ```
-node server.js            # http://localhost:3000 (if the port is taken, it uses the next one)
+node server.js            # prints the address: usually http://localhost:3000 (if the port is taken, it uses the next one)
 node server.js --port 4000
 node --test               # all the tests
 ```

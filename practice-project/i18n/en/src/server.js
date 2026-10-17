@@ -57,6 +57,18 @@ const isMain = (() => {
   }
 })();
 if (isMain) {
-  const port = Number(process.env.PORT || 3100);
-  createLibraryServer().listen(port, '127.0.0.1', () => console.log(`Library at http://127.0.0.1:${port}`));
+  const raw = (process.env.PORT ?? '').trim();
+  const port = raw === '' ? 3100 : Number(raw);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`Invalid port in the PORT variable: "${process.env.PORT}". Use a number from 1 to 65535 (e.g. PORT=3101 npm start) or unset PORT.`);
+    process.exit(2);
+  }
+  const srv = createLibraryServer();
+  srv.on('error', (e) => {
+    console.error(e.code === 'EADDRINUSE'
+      ? `Port ${port} is already in use${raw ? ' (PORT is set in your environment)' : ''}: try PORT=${port < 65535 ? port + 1 : 3101} npm start`
+      : `Could not start the server: ${e.message}`);
+    process.exit(1);
+  });
+  srv.listen(port, '127.0.0.1', () => console.log(`Library at http://127.0.0.1:${srv.address().port}`));
 }

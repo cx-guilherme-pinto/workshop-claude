@@ -35,6 +35,8 @@ const TEXTOS = {
     revisao: 'Revisão (Opus)',
     problemas: (n, altas) => ` · ${n} problemas (${altas} graves)`,
     semVeredito: 'ainda não há veredito (.workshop/verdict.json)',
+    vereditoInvalido: (f) => `veredito ilegível ou inválido (${f}): volta a correr a revisão`,
+    vereditoDesconhecido: (v, f) => `veredito desconhecido "${v}" (${f}): só approved, approved_with_reservations ou rejected`,
     colunas: ['| verificação | estado | detalhe |', '|---|---|---|'],
     ok: '✅ ok',
     bloqueia: '❌ bloqueia',
@@ -59,6 +61,8 @@ const TEXTOS = {
     revisao: 'Review (Opus)',
     problemas: (n, altas) => ` · ${n} ${n === 1 ? 'issue' : 'issues'} (${altas} high)`,
     semVeredito: 'no verdict yet (.workshop/verdict.json)',
+    vereditoInvalido: (f) => `unreadable or invalid verdict (${f}): run the review again`,
+    vereditoDesconhecido: (v, f) => `unknown verdict "${v}" (${f}): only approved, approved_with_reservations or rejected`,
     colunas: ['| check | status | detail |', '|---|---|---|'],
     ok: '✅ ok',
     bloqueia: '❌ blocks',
@@ -93,28 +97,52 @@ function ignorados(dir, extra = []) {
 
 // The reviewer's verdict, in the English format ({verdict, summary, issues: [{severity, ...}]}) or the older
 // Portuguese one ({veredito, resumo, problemas: [{gravidade, ...}]}), from verdict.json or veredito.json.
-export function lerVeredito(dir) {
-  for (const n of ['verdict.json', 'veredito.json']) {
-    const f = join(dir, '.workshop', n);
-    if (!existsSync(f)) continue;
-    let v = {};
-    try {
-      v = JSON.parse(readFileSync(f, 'utf8'));
-    } catch {
-      /* invalid */
-    }
-    const problemas = v.issues ?? v.problems ?? v.problemas ?? [];
-    return {
-      ficheiro: `.workshop/${n}`,
-      veredito: v.verdict ?? v.veredito ?? null,
-      resumo: v.summary ?? v.resumo ?? '',
-      problemas: (Array.isArray(problemas) ? problemas : []).map((p) => ({ ...p, gravidade: p?.severity ?? p?.gravidade ?? null })),
-    };
+// A file that cannot be read (empty, cut off, `null`, not JSON...) comes back with invalido: true and never
+// counts as an approval. A ```json fence and a BOM around the JSON are tolerated. When both files exist,
+// the newer one wins (and the gate names it).
+function lerUmVeredito(dir, n) {
+  const f = join(dir, '.workshop', n);
+  if (!existsSync(f)) return null;
+  const ficheiro = `.workshop/${n}`;
+  let mtime = 0;
+  try {
+    mtime = statSync(f).mtimeMs;
+  } catch {
+    /* no date */
   }
-  return null;
+  let v = null;
+  try {
+    const txt = readFileSync(f, 'utf8').replace(/^﻿/, '').trim().replace(/^```[\w-]*[ \t]*\r?\n?([\s\S]*?)\r?\n?\s*```$/, '$1');
+    v = JSON.parse(txt);
+  } catch {
+    v = null;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { ficheiro, mtime, invalido: true, veredito: null, resumo: '', problemas: [] };
+  const problemas = v.issues ?? v.problems ?? v.problemas ?? [];
+  const ver = v.verdict ?? v.veredito;
+  const res = v.summary ?? v.resumo;
+  return {
+    ficheiro,
+    mtime,
+    veredito: typeof ver === 'string' && ver.trim() ? ver.trim().toLowerCase() : null,
+    resumo: typeof res === 'string' ? res : '',
+    problemas: (Array.isArray(problemas) ? problemas : []).map((p) => {
+      const o = p && typeof p === 'object' ? p : {};
+      return { ...o, gravidade: String(o.severity ?? o.gravidade ?? '').trim().toLowerCase() || null };
+    }),
+  };
 }
-const REPROVADO = new Set(['rejected', 'reprovado']);
-const GRAVE = new Set(['high', 'alta']);
+export function lerVeredito(dir) {
+  const lidos = ['verdict.json', 'veredito.json'].map((n) => lerUmVeredito(dir, n)).filter(Boolean);
+  if (!lidos.length) return null;
+  const v = lidos.sort((a, b) => b.mtime - a.mtime)[0];
+  return { ...v, ambos: lidos.length > 1 };
+}
+// Allow-list (the reviewer's contract: approved | approved_with_reservations | rejected): any other word,
+// or no word at all, blocks.
+const APROVADO = new Set(['approved', 'approved_with_reservations', 'aprovado', 'aprovado_com_ressalvas']);
+const CONHECIDO = new Set([...APROVADO, 'rejected', 'reprovado']);
+const GRAVE = new Set(['high', 'critical', 'blocker', 'alta', 'critica', 'crítica', 'grave', 'bloqueante']);
 
 // `l` ('pt'|'en') is optional: it defaults to the kit language.
 export function gate(dir, { base = null, teste = null, ignorar = [], l = lingua() } = {}) {
@@ -154,7 +182,14 @@ export function gate(dir, { base = null, teste = null, ignorar = [], l = lingua(
   const v = lerVeredito(dir);
   if (v) {
     const altas = v.problemas.filter((p) => GRAVE.has(p.gravidade)).length;
-    checks.push({ nome: T.revisao, ok: !REPROVADO.has(v.veredito) && altas === 0, bloqueia: true, detalhe: `${v.veredito || '?'}${v.problemas.length ? T.problemas(v.problemas.length, altas) : ''}${v.resumo ? ' · ' + v.resumo : ''}` });
+    // The file is named when it is not the usual one, or when both exist (the newer one was used).
+    const qual = v.ambos || v.ficheiro !== '.workshop/verdict.json' ? ` (${v.ficheiro})` : '';
+    const detalhe = v.invalido
+      ? T.vereditoInvalido(v.ficheiro)
+      : !CONHECIDO.has(v.veredito)
+        ? T.vereditoDesconhecido(v.veredito ?? '?', v.ficheiro)
+        : `${v.veredito}${v.problemas.length ? T.problemas(v.problemas.length, altas) : ''}${v.resumo ? ' · ' + v.resumo : ''}${qual}`;
+    checks.push({ nome: T.revisao, ok: !v.invalido && APROVADO.has(v.veredito) && altas === 0, bloqueia: true, detalhe });
   } else {
     checks.push({ nome: T.revisao, ok: false, bloqueia: false, detalhe: T.semVeredito });
   }

@@ -84,7 +84,9 @@ const fTarefa = primeiroQueExiste(join(ws, 'task.md'), join(ws, 'tarefa.md'));
 const tarefaMd = existsSync(fTarefa) ? readFileSync(fTarefa, 'utf8') : '';
 // /task-intake writes the section as "## Acceptance criteria"; older versions wrote it in Portuguese.
 const criterios = (/## (?:Acceptance criteria|Critérios de aceitação)\s*\n([\s\S]*?)(\n## |$)/i.exec(tarefaMd) || [])[1]?.trim() || '';
-const veredito = lerVeredito(dir);
+// An unreadable verdict file is left out of the PR text (the gate already blocks on it).
+const lido = lerVeredito(dir);
+const veredito = lido && !lido.invalido && lido.veredito ? lido : null;
 const prBody = `## ${tarefa.title || r.plano.projeto}
 
 ${tarefa.url ? `${T.origem}: ${tarefa.url}\n` : ''}

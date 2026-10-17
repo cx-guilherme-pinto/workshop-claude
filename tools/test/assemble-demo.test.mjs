@@ -246,3 +246,94 @@ test('chaos G5: an interrupted copy (incomplete marker) is rebuilt; --force keep
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// ---------- chaos round 2 (R4-arena): /demo-reset after the participant's own work; tools/routine.mjs ----------
+
+test("chaos R4: reset.mjs saves the participant's commits, edits and files first, and a locked index changes nothing", () => {
+  const base = mkdtempSync(join(tmpdir(), "arena-reset-Zé d'Ávila-"));
+  try {
+    const dest = join(base, 'demo-project');
+    const r = montarProc(base, ['--dest', dest, '--language', 'en']);
+    assert.equal(r.status, 0, r.stderr);
+    const g = (...a) => r.git('-c', 'user.name=T', '-c', 'user.email=t@t.invalid', ...a);
+    writeFileSync(join(dest, 'README.md'), ler(join(dest, 'README.md')) + '\nmy tweak\n');
+    g('commit', '-qam', 'my tweak');
+    writeFileSync(join(dest, 'server.js'), ler(join(dest, 'server.js')) + '// my edit\n');
+    writeFileSync(join(dest, 'NOTES.md'), 'my notes\n');
+    mkdirSync(join(dest, 'my experiments'));
+    writeFileSync(join(dest, 'my experiments', 'x é.js'), 'x\n');
+    mkdirSync(join(dest, '.workshop', 'status'), { recursive: true });
+    writeFileSync(join(dest, '.workshop', 'run.json'), '{}');
+    const reset = (...a) => spawnSync(process.execPath, ['tools/reset.mjs', ...a], { cwd: dest, encoding: 'utf8', env: r.env });
+    // The dry run names them.
+    let p = reset('--dry-run');
+    assert.equal(p.status, 0, p.stderr);
+    assert.match(p.stdout, /1 commit\(s\) after arena-start[^\n]*\n {2}\w+ my tweak\n/);
+    assert.match(p.stdout, /changed files in git[^\n]*\n {2}server\.js\n/);
+    assert.match(p.stdout, /your own files outside git[^\n]*\n {2}NOTES\.md\n {2}my experiments\/x é\.js\n/);
+    // A stale .git/index.lock: refused, and nothing moved.
+    writeFileSync(join(dest, '.git', 'index.lock'), '');
+    p = reset();
+    assert.equal(p.status, 1);
+    assert.match(p.stderr, /^Refused: another git is using the Arena \(\.git\/index\.lock\)/);
+    assert.ok(existsSync(join(dest, '.workshop', 'run.json')));
+    assert.ok(!existsSync(join(dest, '.workshop', 'history')));
+    rmSync(join(dest, '.git', 'index.lock'));
+    // The reset: the work is saved, then the Arena is clean.
+    p = reset();
+    assert.equal(p.status, 0, p.stderr);
+    const [stamp] = readdirSync(join(dest, '.workshop', 'history'));
+    const h = join(dest, '.workshop', 'history', stamp);
+    assert.match(ler(join(h, 'changes.patch')), /\+\/\/ my edit/);
+    assert.match(ler(join(h, 'commits.patch')), /my tweak/);
+    assert.equal(ler(join(h, 'untracked', 'NOTES.md')), 'my notes\n');
+    assert.equal(ler(join(h, 'untracked', 'my experiments', 'x é.js')), 'x\n');
+    assert.ok(existsSync(join(h, 'run.json')));
+    assert.equal(g('rev-parse', '-q', '--verify', `refs/heads/my-work-${stamp}`).status, 0);
+    assert.match(p.stdout, new RegExp(`Your work is saved in \\.workshop/history/${stamp}/ \\(changes\\.patch, commits\\.patch, untracked/\\) and in the branch my-work-${stamp}\\.`));
+    assert.equal(g('status', '--porcelain', '--untracked-files=all').stdout, '');
+    assert.ok(!existsSync(join(dest, 'NOTES.md')));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('chaos R4: routine.mjs: --sim is a dry run (never "yes"), the time is checked, and the plist quotes the path', { skip: process.platform !== 'darwin' && 'launchd only' }, () => {
+  const base = mkdtempSync(join(tmpdir(), "arena-routine-Zé d'Ávila-"));
+  try {
+    const dest = join(base, 'demo-project');
+    const r = montarProc(base, ['--dest', dest, '--language', 'en', '--no-git']);
+    assert.equal(r.status, 0, r.stderr);
+    const bin = join(base, 'bin');
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'launchctl'), `#!/bin/sh\necho "$*" >> "${join(base, 'launchctl.log')}"\n`, { mode: 0o755 });
+    const home = join(base, 'home');
+    const env = { ...r.env, HOME: home, PATH: `${bin}:${process.env.PATH}` };
+    const routine = (...a) => spawnSync(process.execPath, ['tools/routine.mjs', ...a], { cwd: dest, encoding: 'utf8', env });
+    const plist = join(home, 'Library', 'LaunchAgents', 'workshop.arena-review.plist');
+    for (const a of [['--install', '--sim'], ['--instalar', '--sim'], ['--install', '--sim', '--yes']]) {
+      const p = routine(...a);
+      assert.equal(p.status, 0, p.stderr);
+      assert.match(p.stdout, /Nothing was changed\. Add --yes to install\./, a.join(' '));
+      assert.ok(!existsSync(plist), a.join(' '));
+    }
+    for (const t of ['25:99', '23:60', '24:00']) {
+      const p = routine('--install', '--time', t, '--yes');
+      assert.equal(p.status, 2, t);
+      assert.match(p.stderr, /invalid time \(use HH:MM, from 00:00 to 23:59\)/);
+      assert.ok(!existsSync(plist), t);
+    }
+    assert.match(routine('--remove').stdout, /Nothing was changed\. Add --yes to remove\./);
+    assert.match(routine('--remove', '--yes').stdout, /Not installed: nothing to remove\./);
+    const p = routine('--install', '--time', '07:05', '--yes');
+    assert.equal(p.status, 0, p.stderr);
+    const xml = ler(plist);
+    assert.match(xml, /<key>Hour<\/key><integer>7<\/integer><key>Minute<\/key><integer>5<\/integer>/);
+    // (the path may come back through /private on the Mac)
+    assert.match(xml, /<string>cd '[^<]*Zé d'\\''Ávila-[^/<]*\/demo-project' &amp;&amp; mkdir/);
+    assert.match(routine('--remove', '--yes').stdout, /Removed\./);
+    assert.ok(!existsSync(plist));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

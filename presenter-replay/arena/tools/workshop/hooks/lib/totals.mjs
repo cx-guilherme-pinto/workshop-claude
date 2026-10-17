@@ -12,6 +12,7 @@ export function totals(records) {
   const lastMain = new Map();
   const subsPorAgente = new Map();
   for (const r of records) {
+    if (!r || typeof r !== 'object') continue; // uma linha `null` no usage.jsonl
     if (r.tipo === 'principal') lastMain.set(r.sessao, r);
     else if (r.tipo === 'subagente') subsPorAgente.set(r.agent_id || `${r.ts}-${r.tarefa}`, r);
   }

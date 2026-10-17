@@ -353,3 +353,145 @@ test('init-workshop, explore and dashboard: English output keys and options', ()
   assert.equal(d.status, 0, d.stderr);
   assert.match(d.stdout, /^Swarm p · mode participant · /m);
 });
+
+// ---------- chaos round 2 (R4-arena): corrupt verdicts, hostile tests, concurrent runs, broken state ----------
+
+test('chaos R4: a verdict that cannot be read, or says anything but an approval, never passes the gate', async () => {
+  const { utimesSync } = await import('node:fs');
+  const casos = {
+    fenced: '```json\n{"verdict":"rejected","issues":[{"severity":"high"}]}\n```\n',
+    truncated: '{"verdict":"approved","summary":"cut',
+    upper: '{"verdict":"REJECTED","issues":[{"severity":"HIGH"}]}',
+    unknown: '{"verdict":"changes_requested","issues":[{"severity":"critical"}]}',
+    null: 'null',
+    empty: '',
+    array: '[]',
+  };
+  for (const [nome, txt] of Object.entries(casos)) {
+    const dir = mkdtempSync(join(tmpdir(), 'ws-verdict-chaos-'));
+    mkdirSync(join(dir, '.workshop'), { recursive: true });
+    writeFileSync(join(dir, '.workshop', 'verdict.json'), txt);
+    let g;
+    assert.doesNotThrow(() => (g = gate(dir, { l: 'en' })), nome);
+    assert.equal(g.bloqueado, true, nome);
+    assert.match(gateMd(g, 'en'), /^GATE: REJECTED/m, nome);
+    const rev = g.checks.find((c) => c.nome === 'Review (Opus)');
+    if (['truncated', 'null', 'empty', 'array'].includes(nome)) assert.match(rev.detalhe, /unreadable or invalid verdict \(\.workshop\/verdict\.json\)/, nome);
+  }
+  // Both files: the newer one wins, and its name is shown.
+  const dir = mkdtempSync(join(tmpdir(), 'ws-verdict-both-'));
+  mkdirSync(join(dir, '.workshop'), { recursive: true });
+  writeFileSync(join(dir, '.workshop', 'verdict.json'), '{"verdict":"approved"}');
+  utimesSync(join(dir, '.workshop', 'verdict.json'), new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+  writeFileSync(join(dir, '.workshop', 'veredito.json'), '{"veredito":"reprovado"}');
+  const g = gate(dir, { l: 'en' });
+  assert.equal(g.bloqueado, true);
+  assert.match(g.checks.find((c) => c.nome === 'Review (Opus)').detalhe, /\(\.workshop\/veredito\.json\)$/);
+  // A well-formed approval (fenced, upper-case, with spaces) still passes.
+  writeFileSync(join(dir, '.workshop', 'veredito.json'), '```json\n{"veredito":" Approved ","problemas":[{"gravidade":"LOW"}]}\n```');
+  assert.equal(gate(dir, { l: 'en' }).bloqueado, false);
+});
+
+test('chaos R4: grade counts a card test that ran none of its own tests as red, and kills a test that never ends', async () => {
+  const { semTestesProprios, resumirSaida } = await import('../grade.mjs');
+  const t = { id: 'pw-03', grupo_tipo: 'cartao', teste: ['node', '--test', 'cards/pw-03/card.test.js'] };
+  const spec = '✔ cards/pw-03/card.test.js (31.4ms)\nℹ tests 1\nℹ pass 1\nℹ fail 0\n';
+  const tap = 'TAP version 13\n# Subtest: cards/pw-03/card.test.js\nok 1 - cards/pw-03/card.test.js\n1..1\n# tests 1\n# pass 1\n# fail 0\n';
+  const trocado = '✔ fine (0.1ms)\nℹ pass 1\nℹ fail 0\n';
+  const bom = 'ok 1 - pw-03: card.js exists and loads\nok 2 - pw-03: follows the contract\n# pass 2\n# fail 0\n';
+  for (const out of [spec, tap, trocado]) assert.equal(semTestesProprios(t, out, resumirSaida(out)), 'cards/pw-03/card.test.js', out);
+  assert.equal(semTestesProprios(t, bom, resumirSaida(bom)), null);
+  assert.equal(semTestesProprios({ ...t, teste: ['node', '-e', 'process.exit(0)'] }, '', resumirSaida('')), null, 'only node --test');
+  // For real: an emptied test file, and a test that loops forever (its child process is killed too).
+  const p = projeto([
+    { id: 'vazio', teste: ['node', '--test', 'vazio.test.js'] },
+    { id: 'ciclo', teste: ['node', '--test', 'ciclo.test.js'], timeout_s: 3 },
+  ]);
+  writeFileSync(join(p.dir, 'vazio.test.js'), '');
+  writeFileSync(join(p.dir, 'ciclo.test.js'), "import test from 'node:test';\ntest('ciclo: x', () => { for (;;) {} });\n");
+  const plano = lerPlano(p.plano);
+  const inicio = Date.now();
+  const [a, b] = await Promise.all(plano.tarefas.map((x) => avaliar(p.dir, plano, x, { l: 'en' })));
+  assert.equal(a.estado, 'vermelho');
+  assert.match(a.teste.excerto, /^vazio\.test\.js ran none of the task's tests/);
+  assert.equal(b.estado, 'vermelho');
+  assert.equal(b.teste.esgotado, true);
+  assert.match(b.teste.excerto, /^\[timed out: 3s\]/);
+  assert.ok(Date.now() - inicio < 20000);
+  if (process.platform !== 'win32') {
+    await new Promise((r) => setTimeout(r, 300));
+    const ps = spawnSync('ps', ['-ax', '-o', 'command='], { encoding: 'utf8' }).stdout;
+    assert.ok(!ps.split('\n').some((l) => l.includes(p.dir) || (l.includes('ciclo.test.js') && l.includes('--test'))), 'no test process left behind');
+  }
+});
+
+test('chaos R4: a grade that finishes after next-wave relaunched the task keeps the newer attempt', async () => {
+  const p = projeto([{ id: 'lento', teste: ['node', '-e', 'setTimeout(() => process.exit(1), 1500)'] }]);
+  await proximaOnda({ projeto: p.dir, plano: p.plano });
+  const plano = lerPlano(p.plano);
+  const c = caminhos(p.dir);
+  const avaliacao = avaliar(p.dir, plano, plano.tarefas[0]);
+  await new Promise((r) => setTimeout(r, 300));
+  const { gravarEstado, lerEstado } = await import('../lib/state.mjs');
+  gravarEstado(c, { ...lerEstado(c, 'lento'), tentativa: 2, agente: 'worker-02' });
+  const st = await avaliacao;
+  assert.equal(st.estado, 'em_curso');
+  assert.equal(estado(p.dir, 'lento').agente, 'worker-02');
+});
+
+test('chaos R4: two next-wave at once: the second stops with a clear message; a stale lock is replaced', async () => {
+  const p = projeto([{ id: 'a', teste: ['node', '-e', 'setTimeout(() => process.exit(0), 800)'] }]);
+  await proximaOnda({ projeto: p.dir, plano: p.plano }); // a is now em_curso: the next call grades it (slowly)
+  const primeiro = proximaOnda({ projeto: p.dir, plano: p.plano, l: 'en' });
+  await new Promise((r) => setTimeout(r, 200));
+  await assert.rejects(proximaOnda({ projeto: p.dir, plano: p.plano, l: 'en' }), /^Error: another next-wave is already running in this project \(pid \d+\)/);
+  await primeiro;
+  assert.ok(!existsSync(join(p.dir, '.workshop', 'next-wave.lock')));
+  writeFileSync(join(p.dir, '.workshop', 'next-wave.lock'), JSON.stringify({ pid: 2 ** 22 + 12345, started: '2026-01-01T00:00:00Z' }));
+  const r = await proximaOnda({ projeto: p.dir, plano: p.plano, l: 'en' });
+  assert.equal(r.pendentes, 0);
+  const ev = readFileSync(join(p.dir, '.workshop', 'events.jsonl'), 'utf8');
+  assert.equal(ev.split('\n').filter((l) => l.includes('"tipo":"inicio"')).length, 1);
+});
+
+test('chaos R4: broken or stale state files give clear messages, never a crash or a phantom green', async () => {
+  const { lerEstado, lerJsonl, fotografia, evento } = await import('../lib/state.mjs');
+  // A plan with a trailing comma is invalid (with the position), not "not found".
+  const p = projeto([{ id: 'a', teste: OK }, { id: 'b', teste: OK }]);
+  const bom = readFileSync(p.plano, 'utf8');
+  writeFileSync(p.plano, bom.replace(/}$/, ',}'));
+  assert.throws(() => lerPlano(p.plano, 'en'), /^Error: Invalid plan: .*plan\.json \(.*position \d+.*\)\. Fix the file or plan again/);
+  writeFileSync(p.plano, bom);
+  await proximaOnda({ projeto: p.dir, plano: p.plano });
+  const c = caminhos(p.dir);
+  // 0 bytes, `null`, an unknown state: "to do" + corrupto, and next-wave stops naming the file.
+  for (const txt of ['', 'null', '{"estado":"???"}']) {
+    writeFileSync(join(c.status, 'a.json'), txt);
+    assert.equal(lerEstado(c, 'a').estado, 'por_fazer');
+    assert.ok(lerEstado(c, 'a').corrupto);
+    assert.doesNotThrow(() => fotografia(c, lerPlano(p.plano)));
+    await assert.rejects(proximaOnda({ projeto: p.dir, plano: p.plano, l: 'en' }), /unreadable state file\(s\): .*a\.json\. Delete it/);
+  }
+  writeFileSync(join(c.status, 'a.json'), JSON.stringify({ tarefa: 'a', estado: 'em_curso', tentativa: 1, agente: 'worker-01' }));
+  // A `null` usage line and a cut events line.
+  writeFileSync(c.usage, 'null\n42\n{"tipo":"principal","sessao":"s","custo_usd":0.5}\n');
+  assert.equal(lerJsonl(c.usage).length, 1);
+  assert.equal(fotografia(c, lerPlano(p.plano)).custo.total, 0.5);
+  writeFileSync(c.eventos, '{"ts":"x","tipo":"est');
+  evento(c, { tipo: 'teste' });
+  assert.deepEqual(lerJsonl(c.eventos).map((e) => e.tipo), ['teste']);
+  // A new plan over an old finished run starts a new run (the old states go to .workshop/history/).
+  for (const id of ['a', 'b']) writeFileSync(join(c.status, `${id}.json`), JSON.stringify({ tarefa: id, estado: 'verde', tentativa: 1 }));
+  writeFileSync(c.run, JSON.stringify({ inicio: '2026-01-01T10:00:00.000Z', fim: '2026-01-01T11:00:00.000Z', lote: 4, contador: { worker: 9 } }));
+  const novo = JSON.parse(bom);
+  novo.criado_em = new Date().toISOString();
+  writeFileSync(p.plano, JSON.stringify(novo));
+  const r = await proximaOnda({ projeto: p.dir, plano: p.plano, l: 'en' });
+  assert.deepEqual(r.lote.map((t) => t.id), ['a', 'b']);
+  assert.match(r.chamadas[0].description, /^worker-01 /);
+  assert.equal(r.run.fim, null);
+  assert.ok(existsSync(join(p.dir, '.workshop', 'history')));
+  // A plan with no tasks says so.
+  const vazio = projeto([]);
+  assert.match(textoOnda(await proximaOnda({ projeto: vazio.dir, plano: vazio.plano, l: 'en' }), 'en'), /^The plan has no tasks[\s\S]*STATE: DONE/m);
+});

@@ -16,8 +16,8 @@ export const SEGREDOS = [
 ];
 
 export const CODIGO_PERIGOSO = [
-  [/\beval\s*\(/, 'eval('],
-  [/\bnew\s+Function\s*\(/, 'new Function('],
+  [/\beval\s*\(/, 'eval()'],
+  [/\bnew\s+Function\s*\(/, 'new Function()'],
   [/\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML\s*\(|document\.write\s*\(/, { pt: 'HTML a partir de dados (XSS)', en: 'HTML built from data (XSS)' }],
   [/dangerouslySetInnerHTML/, 'dangerouslySetInnerHTML'],
   [/\b(exec|execSync)\s*\(\s*`[^`]*\$\{/, { pt: 'comando de shell com interpolação', en: 'shell command with interpolation' }],

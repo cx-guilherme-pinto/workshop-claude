@@ -235,7 +235,7 @@ export const T = {
     method: 'Method not allowed.\n',
     badRequest: 'Bad request.\n',
     internalError: 'Internal error.\n',
-    invalidPort: (v) => `Invalid port: ${v}`,
+    invalidPort: (v) => `Invalid port: ${v} (from --port or the PORT variable; use a number from 1 to 65535, e.g. --port 3001)`,
     portBusy: (asked, port) => `Port ${asked} is already used by another program; using ${port}. Open the addresses below (not localhost:${asked}).`,
     arena: (url) => `Security Arena:  ${url}`,
     status: (url) => `Swarm status:    ${url}`,

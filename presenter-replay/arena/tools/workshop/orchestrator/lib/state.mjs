@@ -5,7 +5,7 @@
 // written by validate-plan) or the older Portuguese one (tarefas, depende, grupo_tipo, onda...).
 // readPlan() turns both into the same internal shape, so the rest of the orchestrator, the hooks and
 // the Arena (/api/status, /status) keep reading the same snapshot.
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, appendFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync, appendFileSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
 import { lingua, textos } from '../../hooks/lib/language.mjs';
 
@@ -76,7 +76,8 @@ export function lerJsonl(f) {
   for (const l of readFileSync(f, 'utf8').split('\n')) {
     if (!l.trim()) continue;
     try {
-      out.push(JSON.parse(l));
+      const j = JSON.parse(l);
+      if (j && typeof j === 'object' && !Array.isArray(j)) out.push(j); // a `null` or a number is not a record
     } catch {
       /* ignore a partial line */
     }
@@ -84,8 +85,30 @@ export function lerJsonl(f) {
   return out;
 }
 
+// Appends one line; if the file ends in a cut line (a crash, a hand edit), starts on a new line first,
+// so the new record is not glued onto the broken one and lost.
+export function anexarLinha(f, linha) {
+  let antes = '';
+  try {
+    const s = statSync(f);
+    if (s.size) {
+      const fd = openSync(f, 'r');
+      const b = Buffer.alloc(1);
+      try {
+        readSync(fd, b, 0, 1, s.size - 1);
+      } finally {
+        closeSync(fd);
+      }
+      if (b[0] !== 10) antes = '\n';
+    }
+  } catch {
+    /* new file */
+  }
+  appendFileSync(f, antes + linha + '\n', 'utf8');
+}
+
 export function evento(c, ev) {
-  appendFileSync(c.eventos, JSON.stringify({ ts: new Date().toISOString(), ...ev }) + '\n', 'utf8');
+  anexarLinha(c.eventos, JSON.stringify({ ts: new Date().toISOString(), ...ev }));
 }
 
 // ---------- plan schema (English keys or the older Portuguese ones) ----------
@@ -174,19 +197,28 @@ export function normalizarPlano(p) {
 const ERROS_PLANO = {
   pt: {
     falta: (c) => `plan not found — não há plano em ${c}. Corre primeiro o planeamento (/demo-plan ou /task-plan).`,
-    invalido: (c) => `Plano inválido: ${c}`,
+    invalido: (c, d) => `Plano inválido: ${c}${d ? ` (${d})` : ''}. Corrige o ficheiro ou volta a planear (/demo-plan ou /task-plan).`,
   },
   en: {
     falta: (c) => `plan not found — no plan at ${c}. Run the planning step first (/demo-plan or /task-plan).`,
-    invalido: (c) => `Invalid plan: ${c}`,
+    invalido: (c, d) => `Invalid plan: ${c}${d ? ` (${d})` : ''}. Fix the file or plan again (/demo-plan or /task-plan).`,
   },
 };
 
 export function lerPlano(caminho, l = lingua()) {
-  const bruto = lerJson(caminho);
-  if (!bruto) throw new Error(textos(ERROS_PLANO, l).falta(caminho));
+  const E = textos(ERROS_PLANO, l);
+  if (!existsSync(caminho)) throw new Error(E.falta(caminho));
+  // A plan that exists but does not parse (a hand edit with a trailing comma...) is "invalid", with the
+  // position of the error, not "not found" (which sent the participant back to planning).
+  let bruto;
+  try {
+    bruto = JSON.parse(readFileSync(caminho, 'utf8').replace(/^\uFEFF/, ''));
+  } catch (e) {
+    throw new Error(E.invalido(caminho, e.message));
+  }
+  if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) throw new Error(E.invalido(caminho));
   const p = normalizarPlano(bruto);
-  if (p.v !== 1 || !Array.isArray(p.tarefas)) throw new Error(textos(ERROS_PLANO, l).invalido(caminho));
+  if (p.v !== 1 || !Array.isArray(p.tarefas)) throw new Error(E.invalido(caminho));
   // Expand "*cartoes" ("*cards") and "*todas" ("*all") in the dependencies.
   const ids = p.tarefas.map((t) => t.id);
   const doGrupo = (g) => p.tarefas.filter((t) => t.grupo_tipo === g).map((t) => t.id);
@@ -202,11 +234,20 @@ export function lerPlano(caminho, l = lingua()) {
   return p;
 }
 
+// A status file that is empty, cut off, `null` or without a known state comes back as "to do" with
+// corrupto: <file>, so next-wave can stop and name it (instead of relaunching the task without a word)
+// and the snapshot does not crash.
 export function lerEstado(c, id) {
-  return lerJson(join(c.status, `${id}.json`), { tarefa: id, estado: 'por_fazer', tentativa: 0 });
+  const f = join(c.status, `${id}.json`);
+  const vazio = { tarefa: id, estado: 'por_fazer', tentativa: 0 };
+  if (!existsSync(f)) return vazio;
+  const j = lerJson(f, null);
+  if (j && typeof j === 'object' && !Array.isArray(j) && ESTADOS.includes(j.estado)) return j;
+  return { ...vazio, corrupto: f };
 }
 
 export function gravarEstado(c, st) {
+  delete st.corrupto;
   st.atualizado = new Date().toISOString();
   escreverJson(join(c.status, `${st.tarefa}.json`), st);
   evento(c, { tipo: 'estado', tarefa: st.tarefa, estado: st.estado, tentativa: st.tentativa, agente: st.agente, modelo: st.modelo });
@@ -224,6 +265,7 @@ export function usageUnico(registos) {
   const subs = new Map();
   const out = [];
   for (const r of registos) {
+    if (!r || typeof r !== 'object') continue;
     if (r.tipo === 'subagente') subs.set(r.agent_id || `${r.ts}-${r.tarefa}`, r);
     else out.push(r);
   }
@@ -267,7 +309,7 @@ export function fotografia(c, plano) {
   const contagem = Object.fromEntries(ESTADOS.map((e) => [e, tarefas.filter((t) => t.estado === e).length]));
   const subagentes = [...porTarefa.values()].reduce((s, a) => s + a.custo, 0) + semTarefa;
   const principal = [...custoPrincipal.values()].reduce((s, v) => s + v, 0);
-  const run = lerJson(c.run, {});
+  const run = lerJson(c.run, {}) || {};
   return {
     gerado_em: new Date().toISOString(),
     modo: plano.modo,
@@ -298,6 +340,7 @@ export const readPointer = lerPonteiro;
 export const writeJson = escreverJson;
 export const readJsonl = lerJsonl;
 export const logEvent = evento;
+export const appendLine = anexarLinha;
 export const normalizePlan = normalizarPlano;
 export const readPlan = lerPlano;
 export const readState = lerEstado;

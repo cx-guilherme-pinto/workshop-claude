@@ -15,6 +15,7 @@
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { openSync, writeSync, closeSync, readFileSync, unlinkSync, statSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import { caminhos, garantirPastas, lerPlano, todosEstados, gravarEstado, lerJson, escreverJson, evento, fotografia, resolverNoProjeto } from './lib/state.mjs';
 import { avaliarVarias } from './grade.mjs';
 import { tabelaMarkdown, linhaResumo, usd, tempo } from './lib/table.mjs';
@@ -37,6 +38,9 @@ const TEXTOS = {
     lanca: 'Lança AGORA estas chamadas, todas na MESMA mensagem, cada uma com a ferramenta Agent e os campos exatamente como estão (subagent_type, description, prompt e, se existir, isolation):',
     bloqueado: 'STATE: BLOCKED — há tarefas por terminar mas nenhuma está pronta (dependências falhadas?).',
     fim: (v, f, dur, custo) => `STATE: DONE · ${v} verdes, ${f} falhadas · duração ${dur} · custo ${custo}`,
+    semTarefas: 'O plano não tem tarefas: volta a planear (/demo-plan ou /task-plan).',
+    ocupado: (pid) => `outro next-wave já está a correr neste projeto (pid ${pid}): espera que termine e volta a correr este comando. Se nenhum estiver a correr, apaga .workshop/next-wave.lock.`,
+    corrupto: (fs) => `ficheiro(s) de estado ilegível(is): ${fs}. Apaga-o(s) para refazer essa(s) tarefa(s), ou recomeça (/demo-reset na Arena).`,
   },
   en: {
     falhou: (n) => `Attempt ${n} failed. Test excerpt:`,
@@ -49,6 +53,9 @@ const TEXTOS = {
     lanca: 'Launch these calls NOW, all in the SAME message, each one with the Agent tool and the fields exactly as they are (subagent_type, description, prompt and, if present, isolation):',
     bloqueado: 'STATE: BLOCKED — some tasks are not finished but none is ready (failed dependencies?).',
     fim: (v, f, dur, custo) => `STATE: DONE · ${v} green, ${f} failed · duration ${dur} · cost ${custo}`,
+    semTarefas: 'The plan has no tasks: plan again (/demo-plan or /task-plan).',
+    ocupado: (pid) => `another next-wave is already running in this project (pid ${pid}): wait for it to finish, then run this command again. If none is running, delete .workshop/next-wave.lock.`,
+    corrupto: (fs) => `unreadable state file(s): ${fs}. Delete it to redo that task, or start over (/demo-reset in the Arena).`,
   },
 };
 
@@ -75,10 +82,88 @@ function prompt(t, st, agente, tentativa, plano, l) {
   return linhas.join('\n');
 }
 
-// `l` ('pt'|'en') is optional: it defaults to the kit language.
-export async function proximaOnda({ projeto, plano: caminhoPlano, max, l = lingua() }) {
-  const c = caminhos(projeto);
+// One next-wave per project at a time (the swarm started from two terminals, or a re-run while one is still
+// grading): both would read the same state and launch the same batch twice. The second one stops at once
+// (waiting would make it grade the tasks the first one has just launched, before their subagents ran).
+// A lock whose process is gone, or older than LOCK_MAX_H (a reboot, a reused pid), is stale and is replaced.
+const LOCK_MAX_H = 3;
+function trancar(c, l) {
+  const lock = join(c.ws, 'next-wave.lock');
+  for (let i = 0; i < 2; i++) {
+    try {
+      const fd = openSync(lock, 'wx');
+      writeSync(fd, JSON.stringify({ pid: process.pid, started: new Date().toISOString() }));
+      closeSync(fd);
+      return () => {
+        try {
+          unlinkSync(lock);
+        } catch {
+          /* already gone */
+        }
+      };
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      let pid = 0;
+      let idadeS = 0;
+      try {
+        pid = Number(JSON.parse(readFileSync(lock, 'utf8')).pid) || 0;
+      } catch {
+        /* being written, or broken */
+      }
+      try {
+        idadeS = (Date.now() - statSync(lock).mtimeMs) / 1000;
+      } catch {
+        /* gone meanwhile */
+      }
+      let vivo = !pid && idadeS < 10; // just created, the pid is not written yet
+      if (pid) {
+        try {
+          process.kill(pid, 0);
+          vivo = true;
+        } catch (k) {
+          vivo = k.code === 'EPERM';
+        }
+      }
+      if (vivo && idadeS < LOCK_MAX_H * 3600) throw new Error(textos(TEXTOS, l).ocupado(pid || '?'));
+      try {
+        unlinkSync(lock);
+      } catch {
+        /* someone else removed it */
+      }
+    }
+  }
+  throw new Error(textos(TEXTOS, l).ocupado('?'));
+}
+
+// A plan newer than the current run (planned again, e.g. to change mode) starts a new run: the old states,
+// run.json, events and verdict go to .workshop/history/<date>/ (usage.jsonl stays, so the spend still counts).
+// Without this, the old greens of 3 days ago showed up as done in the new plan.
+function arquivarExecucao(c) {
+  const destino = join(c.ws, 'history', new Date().toISOString().replace(/[:.]/g, '-'));
+  mkdirSync(destino, { recursive: true });
+  for (const n of ['status', 'run.json', 'events.jsonl', 'verdict.json', 'veredito.json', 'gate.json']) {
+    const f = join(c.ws, n);
+    if (existsSync(f)) renameSync(f, join(destino, n));
+  }
   garantirPastas(c);
+}
+
+// `l` ('pt'|'en') is optional: it defaults to the kit language.
+export async function proximaOnda(o) {
+  const l = o.l ?? lingua();
+  const c = caminhos(o.projeto);
+  garantirPastas(c);
+  const soltar = trancar(c, l);
+  try {
+    return await proximaOndaSemLock({ ...o, l });
+  } finally {
+    soltar();
+  }
+}
+
+async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l }) {
+  const c = caminhos(projeto);
+  const T = textos(TEXTOS, l);
   const plano = lerPlano(caminhoPlano, l);
   const cfg = plano.config || {};
   const maxTent = cfg.max_tentativas ?? 3;
@@ -86,16 +171,27 @@ export async function proximaOnda({ projeto, plano: caminhoPlano, max, l = lingu
 
   // Pointer, so the hooks know how to grade this project's tasks.
   escreverJson(c.ponteiro, { plan: caminhoPlano, grade: join(AQUI, 'grade.mjs'), node: process.execPath });
-  const run = lerJson(c.run, {});
+  let run = lerJson(c.run, {});
+  if (!run || typeof run !== 'object' || Array.isArray(run)) run = {};
+  const planoNovo = run.inicio && plano.criado_em && Date.parse(plano.criado_em) > Date.parse(run.inicio);
+  if (planoNovo) {
+    arquivarExecucao(c);
+    run = {};
+  }
   if (!run.inicio) {
     run.inicio = new Date().toISOString();
+    run.fim = null;
     run.lote = 0;
     run.contador = {};
     evento(c, { tipo: 'inicio', modo: plano.modo, total: plano.tarefas.length });
   }
+  run.contador ||= {};
 
   // 1. Grade the previous batch (everything left "working").
   let estados = todosEstados(c, plano);
+  // A status file that cannot be read: stop and name it, instead of relaunching that task as attempt 1.
+  const maus = [...estados.values()].filter((s) => s.corrupto).map((s) => s.corrupto);
+  if (maus.length) throw new Error(T.corrupto(maus.join(', ')));
   const loteAnterior = plano.tarefas.filter((t) => estados.get(t.id).estado === 'em_curso');
   if (loteAnterior.length) await avaliarVarias(projeto, plano, loteAnterior);
   estados = todosEstados(c, plano);
@@ -167,6 +263,7 @@ export function textoOnda({ f, loteAnterior, lote, chamadas, pendentes, run }, l
   } else if (pendentes > 0) {
     out.push(T.bloqueado);
   } else {
+    if (f.total === 0) out.push(T.semTarefas, '');
     const dur = run.inicio && run.fim ? (Date.parse(run.fim) - Date.parse(run.inicio)) / 1000 : null;
     out.push(T.fim(f.contagem.verde, f.contagem.falhou, tempo(dur), usd(f.custo.total, l)));
   }

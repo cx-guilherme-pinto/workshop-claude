@@ -1,5 +1,5 @@
 // Utilitarios partilhados pelos hooks: ler stdin, localizar .workshop/, escrever eventos.
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, realpathSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,8 +31,26 @@ export function workshopDir(input) {
   return d;
 }
 
+// Se o ficheiro acabar numa linha cortada (um crash, uma edicao a mao), comeca numa linha nova:
+// senao o registo novo ficava colado a linha partida e perdia-se.
 export function appendJsonl(file, obj) {
-  appendFileSync(file, JSON.stringify(obj) + '\n', 'utf8');
+  let antes = '';
+  try {
+    const s = statSync(file);
+    if (s.size) {
+      const fd = openSync(file, 'r');
+      const b = Buffer.alloc(1);
+      try {
+        readSync(fd, b, 0, 1, s.size - 1);
+      } finally {
+        closeSync(fd);
+      }
+      if (b[0] !== 10) antes = '\n';
+    }
+  } catch {
+    /* ficheiro novo */
+  }
+  appendFileSync(file, antes + JSON.stringify(obj) + '\n', 'utf8');
 }
 
 export function readJsonSafe(file, fallback) {

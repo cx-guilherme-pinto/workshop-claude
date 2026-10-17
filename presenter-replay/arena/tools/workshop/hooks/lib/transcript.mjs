@@ -10,7 +10,8 @@ export function readJsonl(path) {
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!line.trim()) continue;
     try {
-      out.push(JSON.parse(line));
+      const j = JSON.parse(line);
+      if (j && typeof j === 'object' && !Array.isArray(j)) out.push(j); // um `null` ou um numero nao e um registo
     } catch {
       /* linha parcial ou invalida: ignorar */
     }

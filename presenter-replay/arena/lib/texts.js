@@ -235,7 +235,7 @@ export const T = {
     method: 'Método não permitido.\n',
     badRequest: 'Pedido inválido.\n',
     internalError: 'Erro interno.\n',
-    invalidPort: (v) => `Porta inválida: ${v}`,
+    invalidPort: (v) => `Porta inválida: ${v} (vem de --port ou da variável PORT; usa um número de 1 a 65535, por exemplo --port 3001)`,
     portBusy: (asked, port) => `A porta ${asked} já está a ser usada por outro programa; uso a ${port}. Abre os endereços abaixo (não o localhost:${asked}).`,
     arena: (url) => `Arena de Segurança:  ${url}`,
     status: (url) => `Estado do swarm:     ${url}`,

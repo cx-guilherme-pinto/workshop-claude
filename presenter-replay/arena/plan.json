@@ -2,7 +2,7 @@
   "v": 1,
   "project": "security-arena",
   "mode": "presenter",
-  "created_at": "2026-10-17T12:04:00.374Z",
+  "created_at": "2026-10-17T14:23:15.554Z",
   "main_model": "claude-sonnet-5-5",
   "config": {
     "max_parallel": 16,
