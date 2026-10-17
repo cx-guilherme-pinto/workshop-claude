@@ -307,13 +307,15 @@ function Get-WsNetWarnings {
   # o E-NET-05 ("define o HTTPS_PROXY") so confundia, e o detalhe e o proxy (-ProxyShow), nao a lista de servidores.
   # -ProxyWarned: o Test-WsProxy ja avisou que o proxy nao responde (o E-NET-03 nao se repete).
   param([string[]]$Fails, [string[]]$Codes, [bool]$ApiOk, [string]$ProxyShow, [bool]$ProxyWarned)
+  # Um aviso por codigo, com os servidores desse codigo (o primeiro vai para os comandos do aviso).
   $out = @()
   if (@($Fails).Count -eq 0) { return , $out }
-  $list = (@($Fails) -join ', ')
   $u = @($Codes | Where-Object { $_ } | Sort-Object -Unique)
   if (-not $ApiOk -and ($u -notcontains 'E-NET-03')) { $out += , @('E-NET-05', 'api.anthropic.com') }
   foreach ($c in $u) {
-    $d = $list
+    $hs = @()
+    for ($i = 0; $i -lt @($Fails).Count; $i++) { if (@($Codes)[$i] -eq $c) { $hs += @($Fails)[$i] } }
+    $d = ($hs -join ', ')
     if ($c -eq 'E-NET-03') {
       if ($ProxyWarned) { continue }
       if ($ProxyShow) { $d = $ProxyShow }
@@ -865,7 +867,15 @@ function Get-WsPermLine {
     $t = $l
     if ($UserHome) { $t = [regex]::Replace($t, [regex]::Escape($UserHome.TrimEnd('\', '/')) + '(?![A-Za-z0-9_.-])', '~', 'IgnoreCase') }
     $t = $t.Trim()
-    return $t.Substring(0, [Math]::Min(160, $t.Length))
+    if ($t.Length -le 160) { return $t }
+    # cortada no fim da ultima frase antes dos 160 caracteres, senao na ultima palavra (se ficarem pelo menos 80),
+    # e nao a meio de uma palavra
+    $t = $t.Substring(0, 160)
+    $i = $t.LastIndexOf('. ')
+    if ($i -gt 0) { return $t.Substring(0, $i + 1) }
+    $i = $t.LastIndexOf(' ')
+    if ($i -ge 76) { return $t.Substring(0, $i) + ' ...' }
+    return $t
   }
   return ''
 }
@@ -1129,11 +1139,12 @@ function Invoke-WsDownload {
   param([string]$Url, [string]$OutFile, [switch]$Auth, [int]$TimeoutSec = 600)
   $part = $OutFile + '.part'
   Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
-  $script:DlHttp = 0; $script:DlStatus = ''; $script:DlHost = ''; $script:DlPartial = $false
+  $script:DlHttp = 0; $script:DlStatus = ''; $script:DlHost = ''; $script:DlPartial = $false; $script:DlUrlHost = ''
   Write-WsLog ('download: {0}' -f $Url)
   $headers = @{}
   $hostName = ''; $urlHost = ''
   try { $hostName = ([Uri]$Url).Authority; $urlHost = ([Uri]$Url).Host } catch { }
+  $script:DlUrlHost = $urlHost
   if ($Auth -and $env:REPO_TOKEN -and ($hostName -eq $script:Fill.REPO_HOST -or $hostName -eq $script:Fill.MEMORY_HOST)) {
     $headers['Authorization'] = 'token ' + $env:REPO_TOKEN
   }
@@ -1183,12 +1194,28 @@ function Invoke-WsDownload {
 
 function Get-WsDlCode { return (Get-WsNetCode $script:DlStatus $script:DlHttp) }
 
+function Test-WsHostKnown {
+  # Um dos servidores do workshop (NET_CHECK_HOSTS e os dos repositorios)? Um redirecionamento para outro e um filtro.
+  param([string]$HostName)
+  if (-not $HostName) { return $false }
+  $h = ($HostName -split ':')[0]
+  $known = @([string]$script:C.NET_CHECK_HOSTS -split '\s+') + @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)
+  return (@($known | Where-Object { $_ -and $_ -ieq $h }).Count -gt 0)
+}
+
 function Get-WsDlDetail {
-  # Detalhe de um download falhado (depois do Invoke-WsDownload): o servidor final, se o pedido foi redirecionado
-  # (e esse que o IT tem de libertar), o que falhou e o codigo HTTP (>= 400) ou "veio uma pagina web".
+  # Detalhe de um download falhado (depois do Invoke-WsDownload): comeca sempre pelo servidor que o IT tem de libertar
+  # (o final, se o pedido foi redirecionado para outro servidor do workshop; senao o do URL), depois o que falhou e o
+  # codigo HTTP (>= 400) ou "veio uma pagina web". Um redirecionamento para outro servidor (a pagina de bloqueio de um
+  # filtro) vai no fim, como "redirecionado para".
   param([string]$What)
   $d = $What
-  if ($script:DlHost) { $d = $script:DlHost + ' - ' + $d }
+  $h = [string]$script:DlHost; $u = [string]$script:DlUrlHost
+  if ($h -and (Test-WsHostKnown $h)) { $d = $h + ' - ' + $d }
+  else {
+    if ($h) { $d = $d + ' - ' + (M 'dl_redirigido' @{ HOST = $h }) }
+    if ($u -and $d -and -not $d.Contains('://') -and -not $d.StartsWith($u + ' ')) { $d = $u + ' - ' + $d }
+  }
   if ($script:DlStatus -eq 'HtmlPage') { $d = $d + ' - ' + (M 'dl_html') }
   elseif ($script:DlHttp -ge 400) { $d = $d + ' - HTTP ' + $script:DlHttp }
   return $d
@@ -1325,6 +1352,26 @@ function Get-WsStateLabel {
   return $State
 }
 
+function Get-WsHintHost {
+  # Servidor que falhou (o primeiro do detalhe: "host - url ..." ou "host1, host2"), para os comandos do E-NET-01/02.
+  param([string]$Detail)
+  $h = ([string]$Detail).Trim()
+  $h = ($h -split '\s+')[0].TrimEnd(',')
+  $h = $h -replace '^[A-Za-z][A-Za-z0-9+.-]*://', ''
+  $h = ($h -split '[/:?]')[0]
+  if ($h -match '^[A-Za-z0-9.-]*\.[A-Za-z0-9-]*[A-Za-z]$') { return $h }
+  return 'api.anthropic.com'
+}
+
+function Get-WsHintUrl {
+  # URL para testar esse servidor. A raiz do claude.ai e do downloads.claude.ai responde 403 a quem nao e um browser
+  # mesmo numa rede aberta: para esses testa-se o instalador.
+  param([string]$Detail)
+  $h = Get-WsHintHost $Detail
+  if ($h -eq 'claude.ai' -or $h -eq 'downloads.claude.ai') { return [string]$script:C.CLAUDE_INSTALL_PS1_URL }
+  return ('https://' + $h + '/')
+}
+
 function Write-WsCode {
   param([string]$Code, [string]$Detail, [string]$Indent)
   $e = Get-WsErr $Code
@@ -1337,7 +1384,11 @@ function Write-WsCode {
   foreach ($f in $e.fazer) { Write-WsSay ($Indent + '  - ' + (Format-WsFill $f)) }
   # Nos comandos PS> a pasta dos projetos vai como $env:USERPROFILE (o PowerShell nao expande %USERPROFILE%);
   # sem aspas continua a ser um so argumento, mesmo com espacos no nome. As frases ficam com %USERPROFILE%.
-  foreach ($c in $e.windows) { Write-WsSay ($Indent + '    PS> ' + (Format-WsFill $c @{ PROJETOS = '$env:USERPROFILE\workshop-claude' })) 'Cyan' }
+  # O servidor que falhou (E-NET-01/02) e a pasta do projeto (E-DEMO-03) vem do detalhe.
+  $leaf = ''
+  if ($Detail) { $leaf = ($Detail -split '[\\/]')[-1] }
+  $fv = @{ PROJETOS = '$env:USERPROFILE\workshop-claude'; HOST = (Get-WsHintHost $Detail); URL = (Get-WsHintUrl $Detail); NOME = $leaf }
+  foreach ($c in $e.windows) { Write-WsSay ($Indent + '    PS> ' + (Format-WsFill $c $fv)) 'Cyan' }
   Write-WsSay ($Indent + (M 'codigo' @{ CODIGO = $Code })) 'DarkGray'
 }
 
@@ -1817,8 +1868,7 @@ function Test-WsPermScan {
   if ($env:APPDATA) { $dirs += (Join-Path $env:APPDATA 'GitHub CLI') }
   # Uma partilha de rede sem ligacao demora a responder: essas ficam para o Test-WsRoamingAppData.
   $dirs = @($dirs | Where-Object { $_ -and -not (Test-WsNetworkPath $_ (Get-WsDriveType $_)) })
-  $cj = Join-Path $h '.claude.json'
-  if ($env:CLAUDE_CONFIG_DIR) { $cj = Join-Path $env:CLAUDE_CONFIG_DIR '.claude.json' }
+  $cj = Get-WsClaudeJson
   $files = @($cj, (Join-Path $script:ClaudeDir 'settings.json'), $script:LogFile, (Join-Path $script:WsHome 'manifest.json'))
   $bad = Get-WsPermProblems $dirs $files
   if ($bad.Count -eq 0) { return }
@@ -1833,6 +1883,15 @@ function Test-WsPermScan {
   Set-WsWarn 'E-PERM-01' ($show -join ' ')
   $u = Get-WsUserName
   foreach ($b in $bad) { Add-WsNote (M 'perm_corrigir' @{ CMD = (Get-WsPermFixCmd $b.Path $b.Kind $u) }) }
+}
+
+function Get-WsClaudeJson {
+  # O ~/.claude.json do Claude Code (os registos MCP), ou o da pasta CLAUDE_CONFIG_DIR.
+  if ($env:CLAUDE_CONFIG_DIR) { return (Join-Path $env:CLAUDE_CONFIG_DIR '.claude.json') }
+  $h = $script:UserHome
+  if (-not $h) { $h = $env:USERPROFILE }
+  if (-not $h) { return '' }
+  return (Join-Path $h '.claude.json')
 }
 
 function Test-WsPermBlocked {
@@ -2048,7 +2107,17 @@ function Test-WsNetwork {
     $h = $j[0]; $req = $j[1]; $ar = $j[2]
     $okH = $false; $st = ''; $http = 0
     if ($ar.AsyncWaitHandle.WaitOne(13000)) {
-      try { $r = $req.EndGetResponse($ar); $http = [int]$r.StatusCode; $r.Close(); $okH = $true }
+      try {
+        $r = $req.EndGetResponse($ar); $http = [int]$r.StatusCode; $okH = $true
+        # O instalador do claude.ai: um 3xx so conta se for para um servidor do workshop (com a rede aberta,
+        # downloads.claude.ai), senao e a pagina de bloqueio de um filtro (Forcepoint, Websense).
+        if ($h -eq $cprobe -and $http -ge 300 -and $http -lt 400) {
+          $lh = ''
+          try { $lh = ([Uri]::new([Uri]$h, [string]$r.Headers['Location'])).Host } catch { }
+          if (-not (Test-WsHostKnown $lh)) { $okH = $false; $st = 'HtmlPage'; Write-WsLog ('network: {0} redirected to {1}' -f $h, $lh) }
+        }
+        $r.Close()
+      }
       catch [System.Net.WebException] {
         $st = [string]$_.Exception.Status
         if ($_.Exception.Response) { try { $http = [int]$_.Exception.Response.StatusCode } catch { }; $_.Exception.Response.Close(); if ($http -ne 407) { $okH = $true } }
@@ -2740,6 +2809,8 @@ function Test-WsAtlassianMcp {
 function Test-WsStep7 {
   param([switch]$AcliTried)
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
+  # Um .claude.json sem leitura parece vazio ao "claude mcp get" (so "No MCP server named"): e E-PERM-01, nao E-MCP-01.
+  if (Test-WsPermBlocked @(Get-WsClaudeJson)) { return $false }
   $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
   if (-not (Test-WsAtlassianMcp $r.StdOut)) { Set-WsFail 'E-MCP-01' ('atlassian: ' + (Get-WsMcpField $r.StdOut 'URL') + (Get-WsMcpField $r.StdOut 'Command')); return $false }
@@ -2778,6 +2849,7 @@ function Install-WsAcli {
 
 function Install-WsStep7 {
   $script:T['7'].Notas = @()   # o Test volta a escrever as notas
+  if (Test-WsPermBlocked @(Get-WsClaudeJson)) { return $false }
   $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   # Um registo atlassian antigo (ex.: o SSE .../v1/sse) e trocado pelo do workshop, com uma nota a dizer qual era.
   if ($g.ExitCode -eq 0 -and -not (Test-WsAtlassianMcp $g.StdOut)) {
@@ -2812,6 +2884,9 @@ function Invoke-WsInstallUser {
 function Read-WsInstallUserOutput {
   param([string]$Text)
   $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false; $err = ''; $det = ''; $de = ''; $para = ''
+  # S8SoLingua: so falta mudar a lingua (WORKSHOP_LANG diferente da instalada); S8De/S8Para: de qual para qual
+  $soLingua = $false; $outra = $false
+  $script:S8SoLingua = $false; $script:S8De = ''; $script:S8Para = ''
   foreach ($kv in (ConvertFrom-WsTsv $Text)) {
     switch ($kv[0]) {
       'skills' { $skills = $kv[1] }
@@ -2828,7 +2903,9 @@ function Read-WsInstallUserOutput {
         # "lingua do kit (pt -> en)" ou "language do Claude (European Portuguese -> Brazilian Portuguese)";
         # a segunda vem depois e fica (a mais especifica).
         $mm = [regex]::Match([string]$kv[1], '^(lingua do kit|language do Claude) \((.+) -> (.+)\)$')
+        if (-not $mm.Success) { $outra = $true }
         if ($mm.Success) {
+          $soLingua = $true
           $de = $mm.Groups[2].Value; $para = $mm.Groups[3].Value
           if ($mm.Groups[1].Value -eq 'lingua do kit') {
             if (($de -eq 'pt' -or $de -eq 'en') -and ($para -eq 'pt' -or $para -eq 'en')) { $de = M ('lingua_' + $de); $para = M ('lingua_' + $para) } else { $de = '' }
@@ -2840,6 +2917,8 @@ function Read-WsInstallUserOutput {
       'anteriores' { Add-WsNote (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) }) }
     }
   }
+  $script:S8SoLingua = ($soLingua -and -not $outra -and -not $err)
+  $script:S8De = $de; $script:S8Para = $para
   # settings.json com erro: o caminho e onde esta o erro (linha e coluna, ou o campo) ficam no ecra, sem o
   # "0 skills, 0 agents".
   if ($err) {
@@ -2850,7 +2929,11 @@ function Read-WsInstallUserOutput {
   }
   Set-WsDetail (M 's8_ja' @{ SKILLS = $skills; AGENTES = $agentes })
   # Em -Check/-Doctor, a lingua instalada diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio: diz-se qual e.
-  if ($de -and $script:Mode -ne 'install') { Add-WsNote (M 's8_lingua_muda' @{ DE = $de; PARA = $para }) }
+  if ($de -and $script:Mode -ne 'install') {
+    $cmd = "`$env:WORKSHOP_LANG='" + $script:Lang + "'; "
+    if ($script:Fill) { $cmd += $script:Fill['ONE_LINER_WINDOWS'] }
+    Add-WsNote (M 's8_lingua_muda' @{ DE = $de; PARA = $para; CMD = $cmd })
+  }
   if (-not $temLingua) { return }
   if (-not $kit) { $kit = $script:LangKit }
   $kitName = M ('lingua_' + $kit)
@@ -2864,7 +2947,9 @@ function Test-WsStep8 {
   Sync-WsExtras
   $r = Invoke-WsInstallUser 'verificar'
   Read-WsInstallUserOutput $r.StdOut
-  return ($r.ExitCode -eq 0)
+  if ($r.ExitCode -eq 0) { return $true }
+  # -Check/-Doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
+  return ($script:Mode -ne 'install' -and $script:S8SoLingua)
 }
 
 function Install-WsStep8 {
@@ -2872,12 +2957,15 @@ function Install-WsStep8 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   # O detalhe e as notas sao os desta instalacao (o Test do passo ja os tinha escrito uma vez).
   $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @()
+  # a mudanca de lingua que o Test viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
+  $de = $script:S8De; $para = $script:S8Para
   $r = Invoke-WsInstallUser 'instalar'
   Read-WsInstallUserOutput $r.StdOut
   # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
   if ($r.ExitCode -ne 0) { $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @() }
   if ($r.ExitCode -eq 3) { if (-not $script:T['8'].Falha) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json') }; return $false }
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-KIT-03' ('install-user ({0})' -f $r.ExitCode); return $false }
+  if ($de) { Add-WsNote (M 's8_lingua_mudou' @{ DE = $de; PARA = $para }) }
   Sync-WsExtras
   return $true
 }
@@ -2955,6 +3043,19 @@ function Invoke-WsStep9Migrate {
     $r = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $demo) + @('tag', 'arena-start', 'arena-inicial')) -TimeoutSec 60
     if ($r.ExitCode -eq 0) { Write-WsLog 'demo-project: tag arena-start added (from arena-inicial)' }
   }
+  # Montagem interrompida entre o commit do kit e a tag: com a marca final, so o commit do kit e nada alterado, a
+  # Arena e a do kit e ganha a tag (sem ela parecia historico da pessoa, E-DEMO-04).
+  $mf = Join-Path $demo '.arena-kit.json'
+  $txt = ''
+  if (Test-Path -LiteralPath $mf -PathType Leaf) { try { $txt = [IO.File]::ReadAllText($mf) } catch { $txt = '' } }
+  if ($txt -and $txt -notmatch '"status"\s*:\s*"incomplete"' -and (Test-Path -LiteralPath (Join-Path $demo '.git')) -and -not (Test-WsGitTag $demo 'refs/tags/arena-start')) {
+    $n = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $demo) + @('rev-list', '--count', 'HEAD')) -TimeoutSec 60
+    $st = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $demo) + @(('--work-tree=' + $demo), 'status', '--porcelain', '--untracked-files=all')) -TimeoutSec 60
+    if ($n.ExitCode -eq 0 -and ([string]$n.StdOut).Trim() -eq '1' -and $st.ExitCode -eq 0 -and -not ([string]$st.StdOut).Trim()) {
+      $r = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $demo) + @('tag', 'arena-start', 'HEAD')) -TimeoutSec 60
+      if ($r.ExitCode -eq 0) { Write-WsLog 'demo-project: tag arena-start added (interrupted assembly)' }
+    }
+  }
   $old = Join-Path $script:Proj $script:PracticeDirOld
   $new = Join-Path $script:Proj $script:PracticeDir
   if (-not (Test-Path -LiteralPath $new) -and (Test-Path -LiteralPath (Join-Path $old '.sandbox-kit.json'))) {
@@ -2966,8 +3067,14 @@ function Test-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   $demo = Join-Path $script:Proj 'demo-project'
   $sb = Join-Path $script:Proj $script:PracticeDir
+  # Ao instalar, as migracoes (arena-inicial -> arena-start, a pasta do projeto de treino) vem antes do estado: sem
+  # elas uma Arena antiga e intacta parecia historico da pessoa (E-DEMO-04). No -Check, que nao muda nada, a tag
+  # antiga conta como a nova (o /demo-reset dessa Arena usa a arena-inicial).
+  $arenaRef = 'refs/tags/arena-start'
+  if ($script:Mode -eq 'install') { Invoke-WsStep9Migrate }
+  elseif ((Test-Path -LiteralPath (Join-Path $demo '.git')) -and -not (Test-WsGitTag $demo $arenaRef)) { $arenaRef = 'refs/tags/arena-inicial' }
   # Uma Arena com historico proprio (commits, sem a tag arena-start) e um aviso e fica como esta.
-  switch (Get-WsProjState $demo '.arena-kit.json' 'refs/tags/arena-start') {
+  switch (Get-WsProjState $demo '.arena-kit.json' $arenaRef) {
     'ok' { }
     'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $demo) }
     default { Set-WsFail 'E-DEMO-01' $demo; return $false }
@@ -3212,6 +3319,8 @@ function Test-WsStep10 {
   $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
   if ($l.StdOut -notmatch ('(?m)^(agent-memory|agent_memory|memoria) v?' + [regex]::Escape($ver) + '(\s|$)')) { Set-WsFail 'E-MEM-03' ('version ' + $ver); return $false }
   if ($script:ClaudeExe) {
+    # .claude.json sem leitura: o "mcp get" falha como se a app nao estivesse registada (reinstalar nao resolve)
+    if (Test-WsPermBlocked @(Get-WsClaudeJson)) { return $false }
     if (-not (Test-WsMemoryMcp $exe)) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
   }
   # O config.json e o atalho sao extras: ao instalar refazem-se aqui, sem reinstalar a app (que falhava da mesma
@@ -3268,6 +3377,7 @@ function Install-WsWebView2 {
 }
 
 function Install-WsStep10 {
+  if ($script:ClaudeExe -and (Test-WsPermBlocked @(Get-WsClaudeJson))) { return $false }
   $ver = $script:C.MEMORY_APP_VERSION.TrimStart('v')
   $d = Join-Path $script:Tmp 'agent-memory'
   Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
@@ -3591,7 +3701,8 @@ function Write-WsSummary {
     $lines += (M 'final_voltar')
   }
   # Os avisos contam-se sempre, tambem quando falta algum passo.
-  if ($sum.Avisos -gt 0) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
+  if ($sum.Avisos -eq 1) { $lines += (M 'final_aviso1') }
+  elseif ($sum.Avisos -gt 1) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
   Write-WsSay ''
   Write-WsSay ('-' * 64)
   foreach ($l in $lines) { Write-WsSay $l }
@@ -3665,6 +3776,13 @@ function Invoke-WsUninstall {
       'anteriores' { Write-WsSay ('  ' + (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) })) }
       'erro' { Write-WsSay ('  ' + $kv[1]) 'Red' }
     }
+  }
+  # O codigo de saida do desinstalar conta: com o settings.json por repor, o resto fica (kit-src incluido, para repetir).
+  if ($r.ExitCode -ne 0) {
+    Write-WsLog ('install-user desinstalar: saida ' + $r.ExitCode)
+    Write-WsSay ''
+    Write-WsSay (M 'desinst_incompleto' @{ LOG = $script:LogFile }) 'Red'
+    return 1
   }
   Remove-Item -LiteralPath (Join-Path $script:WsHome 'kit-src') -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath (Join-Path $script:WsHome 'extras-pendentes.tsv') -Force -ErrorAction SilentlyContinue

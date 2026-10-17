@@ -99,7 +99,9 @@ function bloco(cmds) {
 export function renderTroubleshooting(msgs, vars, { hosts = [], lingua = 'pt' } = {}) {
   const T = TXT[lingua];
   if (!T) throw new Error(`renderTroubleshooting: lingua desconhecida: ${lingua}`);
-  const f = (t) => fillUpper(t, vars);
+  // HOST, URL, FICHEIRO e NOME: o setup poe o servidor, o ficheiro ou a pasta que falhou; nos docs fica um exemplo.
+  const ex = { HOST: 'api.anthropic.com', URL: 'https://api.anthropic.com', FICHEIRO: '~/.zshrc', NOME: 'demo-project' };
+  const f = (t) => fillUpper(t, { ...ex, ...vars });
   const erros = msgs.erros;
   const codes = Object.keys(erros);
   const L = [];

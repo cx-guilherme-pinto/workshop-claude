@@ -404,8 +404,16 @@ export function desinstalar(flags, env = process.env) {
   if (s) {
     const atual = sha256File(P.settings);
     if (atual && atual === s.sha256_escrito) {
-      if (s.backup_original && existsSync(s.backup_original)) copyFileSync(s.backup_original, P.settings);
-      else if (!s.existia) rmSync(P.settings, { force: true });
+      // writeAtomic, nao copyFileSync: um settings.json so de leitura (444, ex.: Nix) troca-se por rename
+      try {
+        if (s.backup_original && existsSync(s.backup_original)) writeAtomic(P.settings, readFileSync(s.backup_original));
+        else if (!s.existia) rmSync(P.settings, { force: true });
+      } catch (e) {
+        // Os hooks e a statusline apontam para o kit: sem repor o settings.json nao se apaga mais nada
+        // (nem o manifest, para a pessoa poder repetir depois de corrigir).
+        out('erro', `settings: ${e.message}`);
+        return 5;
+      }
       out('settings', 'reposto');
     } else if (atual) {
       mkdirSync(P.backupDir, { recursive: true });

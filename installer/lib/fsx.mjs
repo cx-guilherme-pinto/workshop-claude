@@ -61,10 +61,11 @@ function writeAtomicAt(file, data) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, data);
-  // as mesmas permissoes (um settings.json 600 continua 600)
+  // as mesmas permissoes (um settings.json 600 continua 600), mas sempre com escrita para o dono: um 444 (Nix)
+  // copiado tal e qual impedia a proxima escrita, ex.: a desinstalacao
   if (process.platform !== 'win32') {
     try {
-      chmodSync(tmp, statSync(file).mode & 0o777);
+      chmodSync(tmp, (statSync(file).mode & 0o777) | 0o200);
     } catch {
       // ficheiro novo
     }

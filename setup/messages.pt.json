@@ -38,6 +38,7 @@
     "a_descarregar_app": "A descarregar a app Agent Memory…",
     "a_descarregar_mb": "Ainda a descarregar… {MB} MB até agora.",
     "dl_html": "veio uma página web em vez do ficheiro",
+    "dl_redirigido": "redirecionado para {HOST}",
     "a_verificar_rede": "A testar a ligação a {N} domínios…",
     "sn": "[S/n]",
     "ns": "[s/N]",
@@ -55,6 +56,7 @@
     "final_pronto": "Está tudo pronto para o workshop.",
     "final_faltam": "Faltam {N} passos: {LISTA}.",
     "final_falta1": "Falta 1 passo: {LISTA}.",
+    "final_aviso1": "Há 1 aviso acima. Não impede o workshop, mas lê-o.",
     "final_avisos": "Há {N} avisos acima. Não impedem o workshop, mas lê-os.",
     "final_voltar": "Depois de corrigires, corre outra vez o mesmo comando. Os passos feitos são saltados.",
     "final_voltar_check": "Isto foi só uma verificação: não instalei nem alterei nada. Corrige o que está acima, ou corre o setup sem --check para instalar o que falta. Depois volta a verificar.",
@@ -88,9 +90,10 @@
     "desinst_projeto_mantido": "Projeto mantido porque tem alterações tuas: {CAMINHO}. Apaga-o à mão se quiseres.",
     "desinst_editado": "Tinhas alterado {NOME}: a tua cópia ficou guardada em {PASTA}.",
     "desinst_fim": "Desinstalação concluída. Ficaram o git, o Claude Code, o Node, o uv, o gh e os backups em {BACKUP}.",
+    "desinst_incompleto": "A desinstalação parou antes do fim, por isso deixei o resto como estava (kit, skills, manifest.json). Vê {LOG}, corrige o problema e corre o mesmo comando outra vez.",
     "desinst_sem_manifest": "Não encontrei {MANIFEST}. Não há nada do workshop para desfazer.",
     "s0_so": "Sistema: {SO}",
-    "s0_lingua": "Língua da máquina: {LINGUA}",
+    "s0_lingua": "Língua: {LINGUA}",
     "s0_lingua_ignorada": "WORKSHOP_LANG={VALOR} não é uma das línguas do workshop (pt-BR, pt-PT, en, hi ou he): ignorei-o e usei {LINGUA}.",
     "s0_lingua_guardada": "Mantive a língua escolhida na instalação ({LINGUA}); este computador está em {MAQUINA}. Para a mudares, corre o setup outra vez com WORKSHOP_LANG (pt-BR, pt-PT, en, hi ou he; vê \"Línguas\" no README).",
     "s0_gerido": "Definições do Claude Code geridas pela empresa: {CAMINHO}. É normal nos portáteis da empresa. Se algum passo do workshop for bloqueado, mostra o código E-CFG-01 à equipa de TI.",
@@ -131,7 +134,8 @@
     "s8_lingua_nossa": "O Claude responde em {NOME} (definição \"language\" do Claude Code). Textos do workshop: {KIT}.",
     "s8_lingua_tua": "Já tinhas uma definição \"language\" ({NOME}): mantive-a. Textos do workshop: {KIT}.",
     "s8_lingua_nenhuma": "Sem definição \"language\" para {LINGUA}: o Claude responde na língua em que escreves. Textos do workshop: {KIT}.",
-    "s8_lingua_muda": "Língua instalada aqui: {DE}. Esta execução pede {PARA} (WORKSHOP_LANG): não há nada estragado. Corre o setup completo (sem --check) para a mudares.",
+    "s8_lingua_muda": "Língua instalada aqui: {DE}. Esta execução pede {PARA} (WORKSHOP_LANG): não há nada estragado. Para a mudares, corre: {CMD}",
+    "s8_lingua_mudou": "Língua mudada de {DE} para {PARA}, porque o WORKSHOP_LANG o pediu.",
     "s8_editado": "Tinhas alterado {NOME}: a tua cópia ficou guardada em {PASTA} e a versão do kit voltou ao seu lugar.",
     "s8_anteriores": "As versões anteriores das skills e dos agentes do kit ficaram guardadas em {PASTA}, caso tenhas alterado alguma.",
     "s9_ja": "{PROJETOS}",
@@ -200,10 +204,10 @@
         "Em alternativa, usa outra rede (por exemplo, o hotspot do telemóvel) e volta a correr o setup."
       ],
       "mac": [
-        "curl -sS -o /dev/null -w '%{http_code}\\n' https://api.anthropic.com"
+        "curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\\n' {URL}"
       ],
       "windows": [
-        "Invoke-WebRequest -UseBasicParsing -Method Head https://api.anthropic.com"
+        "Invoke-WebRequest -UseBasicParsing -Method Head {URL}"
       ]
     },
     "E-NET-02": {
@@ -215,10 +219,10 @@
         "Experimenta outra rede e volta a correr o setup."
       ],
       "mac": [
-        "dscacheutil -q host -a name api.anthropic.com"
+        "dscacheutil -q host -a name {HOST}"
       ],
       "windows": [
-        "Resolve-DnsName api.anthropic.com"
+        "Resolve-DnsName {HOST}"
       ]
     },
     "E-NET-03": {
@@ -1022,10 +1026,10 @@
         "Muda o nome da pasta (ou apaga-a, se não precisares dela) e volta a correr o setup."
       ],
       "mac": [
-        "mv {PROJETOS} {PROJETOS}-antigo"
+        "mv {PROJETOS}/{NOME} {PROJETOS}/{NOME}-antigo"
       ],
       "windows": [
-        "Rename-Item {PROJETOS} workshop-claude-antigo"
+        "Rename-Item {PROJETOS}\\{NOME} {NOME}-antigo"
       ]
     },
     "E-DEMO-04": {
@@ -1166,27 +1170,27 @@
     "E-PROF-01": {
       "titulo": "O setup não conseguiu pôr as pastas do workshop num perfil do shell",
       "so": "mac",
-      "causa": "Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava. Os outros ficheiros de perfil foram atualizados.",
+      "causa": "Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava.",
       "fazer": [
         "Acrescenta a primeira linha abaixo ao fim do ficheiro indicado pelo setup (ou do ficheiro dos teus dotfiles para onde ele aponta) e abre um terminal novo.",
         "Se o ficheiro não é só de leitura de propósito, vê-o com o segundo comando, dá-te permissão para o ler e alterar (ou pede a quem gere o teu Mac) e volta a correr o setup."
       ],
       "mac": [
         "export PATH=\"$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH\"",
-        "ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+        "ls -lO {FICHEIRO}"
       ],
       "windows": []
     },
     "E-PROF-02": {
       "titulo": "Um perfil do shell tem um bloco do workshop incompleto",
       "so": "mac",
-      "causa": "O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha. Os outros ficheiros de perfil foram atualizados.",
+      "causa": "O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha.",
       "fazer": [
         "Abre o ficheiro indicado pelo setup e apaga as linhas antigas do workshop: a linha do marcador e as linhas do PATH a seguir. Mantém as tuas linhas.",
         "Depois volta a correr o setup."
       ],
       "mac": [
-        "grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+        "grep -n workshop-claude {FICHEIRO}"
       ],
       "windows": []
     },
