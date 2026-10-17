@@ -1,8 +1,8 @@
 # Cartão cs-03 — A password no registo
 
-- **Categoria:** codigo-seguro
+- **Categoria:** secure-code
 - **Dificuldade:** 1
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 

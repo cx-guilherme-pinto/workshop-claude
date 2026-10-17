@@ -1,8 +1,8 @@
 # Cartão rd-02 — Por onde passa o teu tráfego
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

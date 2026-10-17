@@ -1,58 +1,59 @@
-// DOM seguro da app: so createElement, textContent e atributos de uma lista.
-// Igual ao h() de templates/common.js, mais href (so caminhos deste servidor) e aria-current.
-// Nunca HTML a partir de texto.
+// Safe DOM for the app: only createElement, textContent and attributes from a list.
+// The same as h() in templates/common.js, plus href (only paths of this server) and aria-current.
+// Never HTML built from text.
+import { T } from '/lib/texts.js';
 
-const PERMITIDOS = new Set([
+const ALLOWED = new Set([
   'class', 'id', 'role', 'type', 'name', 'value', 'tabindex', 'for', 'placeholder', 'title',
   'hidden', 'disabled', 'lang', 'autocomplete', 'spellcheck', 'maxlength', 'inputmode', 'href', 'datetime',
 ]);
 
-// So ligacoes internas: "#/..." ou "/..." (nunca "//outro-sitio" nem esquemas).
-function hrefSeguro(v) {
+// Internal links only: "#/..." or "/..." (never "//another-site" or schemes).
+function safeHref(v) {
   const s = String(v);
-  const interno = s.startsWith('#') || (s.startsWith('/') && !s.startsWith('//'));
-  if (!interno) throw new Error(`ligacao nao permitida: ${s}`);
+  const internal = s.startsWith('#') || (s.startsWith('/') && !s.startsWith('//'));
+  if (!internal) throw new Error(T.card.linkNotAllowed(s));
   return s;
 }
 
-function definir(no, nome, valor) {
-  const ok = PERMITIDOS.has(nome) || /^aria-[a-z]+$/.test(nome) || /^data-[a-z][a-z0-9-]*$/.test(nome);
-  if (!ok) throw new Error(`atributo nao permitido: ${nome}`);
-  no.setAttribute(nome, nome === 'href' ? hrefSeguro(valor) : String(valor));
+function set(node, name, value) {
+  const ok = ALLOWED.has(name) || /^aria-[a-z]+$/.test(name) || /^data-[a-z][a-z0-9-]*$/.test(name);
+  if (!ok) throw new Error(T.card.attributeNotAllowed(name));
+  node.setAttribute(name, name === 'href' ? safeHref(value) : String(value));
 }
 
-// el('a', { class: 'x', href: '#/', on: { click: fn } }, 'texto', filho)
-export function el(tag, props = {}, ...filhos) {
-  const no = document.createElement(tag);
+// el('a', { class: 'x', href: '#/', on: { click: fn } }, 'text', child)
+export function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (v === undefined || v === null || v === false) continue;
     if (k === 'on') {
-      for (const [ev, fn] of Object.entries(v)) no.addEventListener(ev, fn);
+      for (const [ev, fn] of Object.entries(v)) node.addEventListener(ev, fn);
     } else if (k === 'text') {
-      no.textContent = String(v);
+      node.textContent = String(v);
     } else if (k === 'attrs') {
-      for (const [a, av] of Object.entries(v)) if (av !== undefined && av !== null && av !== false) definir(no, a, av === true ? '' : av);
+      for (const [a, av] of Object.entries(v)) if (av !== undefined && av !== null && av !== false) set(node, a, av === true ? '' : av);
     } else {
-      definir(no, k, v === true ? '' : v);
+      set(node, k, v === true ? '' : v);
     }
   }
-  juntar(no, filhos);
-  return no;
+  append(node, children);
+  return node;
 }
 
-export function juntar(no, filhos) {
-  for (const f of filhos.flat(Infinity)) {
-    if (f === undefined || f === null || f === false) continue;
-    no.appendChild(typeof f === 'string' || typeof f === 'number' ? document.createTextNode(String(f)) : f);
+export function append(node, children) {
+  for (const c of children.flat(Infinity)) {
+    if (c === undefined || c === null || c === false) continue;
+    node.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
   }
-  return no;
+  return node;
 }
 
-// Reinicia uma animacao CSS (troca de estado de um quadrado, por exemplo).
-export function reanimar(no, classe) {
-  no.classList.remove(classe);
-  void no.offsetWidth;
-  no.classList.add(classe);
+// Restarts a CSS animation (a square changing state, for example).
+export function replay(node, cls) {
+  node.classList.remove(cls);
+  void node.offsetWidth;
+  node.classList.add(cls);
 }
 
-export const ID_VALIDO = /^[a-z0-9][a-z0-9-]{0,63}$/;
+export const VALID_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;

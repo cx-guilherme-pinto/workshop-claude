@@ -1,17 +1,17 @@
-// Teste pre-escrito para a tarefa lib-hash (ver specs/lib-hash.md).
+// Teste pré-escrito para a tarefa lib-hash (ver specs/lib-hash.md).
 import { test, assert, readSource } from './testkit.js';
-import { problemasDeSeguranca } from './seguranca.js';
+import { securityProblems } from './security.js';
 
 let mod = null;
-let erroImport = null;
+let importError = null;
 try {
   mod = await import('./hash.js');
 } catch (e) {
-  erroImport = e;
+  importError = e;
 }
 
 test('lib/hash.js existe e carrega', () => {
-  assert.ok(mod, `lib/hash.js nao existe ou tem um erro: ${erroImport?.message}`);
+  assert.ok(mod, `lib/hash.js não existe ou tem um erro: ${importError?.message}`);
 });
 
 if (mod) {
@@ -30,23 +30,23 @@ if (mod) {
     assert.equal(mod.sha256Hex('x'.repeat(1000)), '44f8354494a5ba03ba1792a8d3e9c534c47a9181980fde7a3f44b06ef2ae7c7f');
   });
 
-  test('cesar: desloca letras e preserva o resto', () => {
-    assert.equal(mod.cesar('ATAQUE AO MEIO-DIA', 3), 'DWDTXH DR PHLR-GLD');
-    assert.equal(mod.cesar('DWDTXH DR PHLR-GLD', -3), 'ATAQUE AO MEIO-DIA');
-    assert.equal(mod.cesar('xyz', 3), 'abc');
-    assert.equal(mod.cesar('Abc, 123!', 29), 'Def, 123!');
-    assert.equal(mod.cesar('Olá', 1), 'Pmá');
+  test('caesar: desloca letras e preserva o resto', () => {
+    assert.equal(mod.caesar('ATAQUE AO MEIO-DIA', 3), 'DWDTXH DR PHLR-GLD');
+    assert.equal(mod.caesar('DWDTXH DR PHLR-GLD', -3), 'ATAQUE AO MEIO-DIA');
+    assert.equal(mod.caesar('xyz', 3), 'abc');
+    assert.equal(mod.caesar('Abc, 123!', 29), 'Def, 123!');
+    assert.equal(mod.caesar('Olá', 1), 'Pmá');
   });
 
   test('base64: ida e volta com acentos', () => {
-    assert.equal(mod.paraBase64('Arena'), 'QXJlbmE=');
-    assert.equal(mod.deBase64('QXJlbmE='), 'Arena');
-    assert.equal(mod.deBase64(mod.paraBase64('Segurança à séria ✓')), 'Segurança à séria ✓');
+    assert.equal(mod.toBase64('Arena'), 'QXJlbmE=');
+    assert.equal(mod.fromBase64('QXJlbmE='), 'Arena');
+    assert.equal(mod.fromBase64(mod.toBase64('Segurança à séria ✓')), 'Segurança à séria ✓');
   });
 
   test('fonte segura', async () => {
     const src = await readSource('./hash.js', import.meta.url);
-    assert.deepEqual(problemasDeSeguranca(src), []);
+    assert.deepEqual(securityProblems(src), []);
     assert.ok(!/node:crypto|crypto\.subtle|require\(/.test(src), 'sem node:crypto, crypto.subtle nem require');
   });
 }

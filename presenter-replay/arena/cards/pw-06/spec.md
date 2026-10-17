@@ -2,7 +2,7 @@
 
 - **Categoria:** passwords
 - **Dificuldade:** 2
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ A Empresa Atlas publicou esta política. Que regras vão contra as boas prática
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

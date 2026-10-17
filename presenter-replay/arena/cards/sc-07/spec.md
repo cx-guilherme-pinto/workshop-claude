@@ -1,8 +1,8 @@
 # Cartão sc-07 — O segredo no registo do CI
 
-- **Categoria:** segredos-cloud
+- **Categoria:** cloud-secrets
 - **Dificuldade:** 2
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Este pipeline de CI corre em cada push. Que passo expõe um segredo?
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

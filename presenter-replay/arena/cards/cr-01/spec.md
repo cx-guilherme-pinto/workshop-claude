@@ -1,8 +1,8 @@
 # Cartão cr-01 — Decifra a mensagem de César
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 1
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 - **Depende de:** lib-hash
 
 ## Conceito
@@ -17,7 +17,7 @@ Intercetaste uma mensagem cifrada com a cifra de César, com deslocamento 3. O q
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "Mensagem intercetada",
   "lines": [
     "DWDTXH DR PHLR-GLD"
@@ -29,7 +29,7 @@ Intercetaste uma mensagem cifrada com a cifra de César, com deslocamento 3. O q
 
 Lógica do `check` (em vez de `accept`):
 
-O validate tem de usar a função cesar de ../../lib/hash.js: a resposta certa é cesar('DWDTXH DR PHLR-GLD', -3). Compara com normalizar() dos dois lados, para maiúsculas e acentos não contarem.
+O validate tem de usar a função caesar de ../../lib/hash.js: a resposta certa é caesar('DWDTXH DR PHLR-GLD', -3). Compara com normalize() dos dois lados, para maiúsculas e acentos não contarem.
 
 Exemplo de resposta certa: `Ataque ao meio-dia`
 

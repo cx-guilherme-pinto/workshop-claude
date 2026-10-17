@@ -1,8 +1,8 @@
 # Cartão cr-02 — O cookie em Base64
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 1
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 - **Depende de:** lib-hash
 
 ## Conceito
@@ -17,7 +17,7 @@ Este cookie parece cifrado, mas está só em Base64. O que diz depois de descodi
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "Cookie guardado no browser",
   "lines": [
     "sessao=cGFwZWw9bGVpdG9y"
@@ -31,7 +31,7 @@ Campo `placeholder`: `Texto descodificado`
 
 Lógica do `check` (em vez de `accept`):
 
-O validate tem de usar a função deBase64 de ../../lib/hash.js: a resposta certa é deBase64('cGFwZWw9bGVpdG9y'). Compara com normalizar() dos dois lados.
+O validate tem de usar a função fromBase64 de ../../lib/hash.js: a resposta certa é fromBase64('cGFwZWw9bGVpdG9y'). Compara com normalize() dos dois lados.
 
 Exemplo de resposta certa: `papel=leitor`
 

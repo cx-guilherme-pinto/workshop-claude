@@ -1,8 +1,8 @@
 # Cartão cr-10 — Números ao acaso a sério
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

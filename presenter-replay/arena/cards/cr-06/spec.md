@@ -1,8 +1,8 @@
 # Cartão cr-06 — Uma letra muda tudo
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 - **Depende de:** lib-hash
 
 ## Conceito
@@ -17,7 +17,7 @@ Estes dois textos só diferem numa maiúscula. Quantos dos 10 primeiros caracter
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "SHA-256",
   "lines": [
     "Atlas → 9dee1c0ed39ef4e2686f974b5d574531fa5091be91e7ea72875e763278293ad4",

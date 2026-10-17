@@ -1,13 +1,12 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'es-01',
   title: 'O pedido urgente do diretor',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Fraude do CEO: alguém finge ser um chefe para pedir uma transferência urgente e secreta.',
   prompt: 'Este email chegou à contabilidade da Empresa Atlas. O que fazes?',
-  explanation: 'Urgência, segredo e um endereço de fora da empresa são os sinais clássicos. Confirma sempre por um canal que já conheces, nunca pelo que vem na mensagem.',
   scenario: {
     kind: 'email',
     label: 'Email recebido',
@@ -24,4 +23,5 @@ export default escolha({
     { id: 'd', text: 'Peço a um colega para fazer a transferência' },
   ],
   answer: 'b',
+  explanation: 'Urgência, segredo e um endereço de fora da empresa são os sinais clássicos. Confirma sempre por um canal que já conheces, nunca pelo que vem na mensagem.',
 });

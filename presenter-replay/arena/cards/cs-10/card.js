@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'cs-10',
   title: 'Versões fixas',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 2,
   concept: 'O lockfile fixa as versões exatas de todas as dependências, incluindo as indiretas.',
   prompt: 'No npm, que ficheiro fixa as versões exatas de todas as dependências instaladas?',

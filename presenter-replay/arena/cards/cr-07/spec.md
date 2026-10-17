@@ -1,8 +1,8 @@
 # Cartão cr-07 — Da chave mais fraca à mais forte
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 1
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

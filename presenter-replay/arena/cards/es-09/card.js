@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'es-09',
   title: 'O fornecedor mudou de banco',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 2,
-  concept: 'Uma mudança de IBAN com pressa e sem confirmação é um sinal de fraude.',
+  concept: 'Fraude do IBAN: um email pede para pagar a uma conta nova e evita qualquer confirmação.',
   prompt: 'Este email parece vir de um fornecedor habitual. Que linhas são sinais de fraude?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'De: Fornecedor Atlas <contas@atlas-fornecimentos.test>',
     'Bom dia, segue a fatura de outubro.',

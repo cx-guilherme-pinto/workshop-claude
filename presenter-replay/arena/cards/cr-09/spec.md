@@ -1,8 +1,8 @@
 # Cartão cr-09 — O S do HTTPS
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 1
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

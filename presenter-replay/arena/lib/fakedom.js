@@ -1,6 +1,6 @@
-// DOM minimo para testar o render() dos cartoes em Node, sem dependencias.
-// Suporta so o que os templates usam: createElement, createTextNode, append,
-// textContent, setAttribute, classList, dataset, eventos e querySelectorAll simples.
+// Minimal DOM to test the cards' render() in Node, with no dependencies.
+// Supports only what the templates use: createElement, createTextNode, append,
+// textContent, setAttribute, classList, dataset, events and simple querySelectorAll.
 
 class ClassList {
   constructor() {
@@ -170,7 +170,7 @@ function fakeEvent(type, extra = {}) {
   };
 }
 
-// Seletores simples: "tag", ".classe", "#id", "[attr]", "[attr=valor]" e combinacoes sem espacos.
+// Simple selectors: "tag", ".class", "#id", "[attr]", "[attr=value]" and combinations without spaces.
 function matchSimple(n, sel) {
   if (!sel || n.nodeType !== 1) return false;
   const re = /([a-zA-Z][\w-]*)|\.([\w-]+)|#([\w-]+)|\[([\w-]+)(?:=["']?([^"'\]]*)["']?)?\]/g;

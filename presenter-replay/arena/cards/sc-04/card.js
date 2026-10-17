@@ -1,13 +1,12 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'sc-04',
   title: 'Do acesso mínimo ao total',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 1,
   concept: 'Menor privilégio: cada conta ou serviço recebe só o acesso de que precisa.',
   prompt: 'Ordena estas permissões sobre um bucket, da mais restrita à mais ampla.',
-  explanation: 'Se um serviço for comprometido, o atacante fica só com o que esse serviço podia fazer. Começa pelo acesso mínimo e alarga só quando for preciso.',
   items: [
     { id: 'a', text: 'Administrar toda a conta da cloud' },
     { id: 'b', text: 'Ler e escrever em todo o bucket' },
@@ -15,4 +14,5 @@ export default ordenar({
     { id: 'd', text: 'Ler todo o bucket' },
   ],
   answer: ['c', 'd', 'b', 'a'],
+  explanation: 'Se um serviço for comprometido, o atacante fica só com o que esse serviço podia fazer. Começa pelo acesso mínimo e alarga só quando for preciso.',
 });

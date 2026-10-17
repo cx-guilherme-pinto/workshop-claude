@@ -1,8 +1,8 @@
 # Cartão rd-08 — Onde ligar as câmaras baratas
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

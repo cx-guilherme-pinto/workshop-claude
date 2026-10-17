@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="Desafios curtos sobre segurança, feitos e testados por um enxame de agentes Claude.">
+  <meta name="description" content="Desafios curtos sobre segurança, feitos e testados por um swarm de agentes Claude.">
   <title>Arena de Segurança</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -12,29 +12,29 @@
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <a class="saltar" href="#conteudo">Saltar para o conteúdo</a>
-  <header class="barra">
-    <a class="marca" href="#/">Arena de Segurança</a>
-    <nav class="navegacao" aria-label="Principal">
-      <a href="#/" data-nav="inicio">Desafios</a>
-      <a href="#/pontuacao" data-nav="pontuacao">Pontuação</a>
-      <a href="/estado">Estado do enxame</a>
+  <a class="skip-link" href="#content">Saltar para o conteúdo</a>
+  <header class="top-bar">
+    <a class="brand" href="#/">Arena de Segurança</a>
+    <nav class="nav" aria-label="Principal">
+      <a href="#/" data-nav="home">Desafios</a>
+      <a href="#/score" data-nav="score">Pontuação</a>
+      <a href="/status">Estado do swarm</a>
     </nav>
   </header>
-  <main id="conteudo" tabindex="-1">
+  <main id="content" tabindex="-1">
     <noscript>
-      <section class="aviso">
-        <h1 class="titulo-secao">A Arena precisa de JavaScript</h1>
+      <section class="notice">
+        <h1 class="section-title">A Arena precisa de JavaScript</h1>
         <p>Os desafios são módulos ES carregados por esta página. Ativa o JavaScript e recarrega.</p>
       </section>
     </noscript>
   </main>
-  <footer class="rodape">
+  <footer class="footer">
     <div>
-      <p class="rodape-marca">Arena de Segurança</p>
-      <p class="rodape-texto">Projeto demo do workshop Claude Code. Cada cartão é um módulo com testes, escrito por um agente.</p>
+      <p class="footer-brand">Arena de Segurança</p>
+      <p class="footer-text">Projeto demo do workshop Claude Code. Cada cartão é um módulo com testes, escrito por um agente.</p>
     </div>
-    <button class="botao botao-pequeno" type="button" id="apagar-progresso">Apagar o meu progresso</button>
+    <button class="button button-small" type="button" id="delete-progress">Apagar o meu progresso</button>
   </footer>
 </body>
 </html>

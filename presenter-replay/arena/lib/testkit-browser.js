@@ -1,63 +1,66 @@
-// Implementacao minima de test()/assert para correr os testes dos cartoes no browser.
-// Os resultados ficam em globalThis.__arenaResultados, lidos pelo botao "Correr testes".
+// Minimal test()/assert implementation to run the card tests in the browser.
+// The results go to globalThis.__arenaResults, read by the "Run tests" button.
+import { T } from './texts.js';
 
-const resultados = (globalThis.__arenaResultados ||= []);
-const pendentes = (globalThis.__arenaPendentes ||= []);
+const M = T.tests;
 
-function falha(msg) {
+const results = (globalThis.__arenaResults ||= []);
+const pending = (globalThis.__arenaPending ||= []);
+
+function fail(msg) {
   const e = new Error(msg);
   e.name = 'AssertionError';
   throw e;
 }
 
-function igualProfundo(a, b) {
+function deepEqual(a, b) {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   const ka = Object.keys(a);
   const kb = Object.keys(b);
   if (ka.length !== kb.length) return false;
-  return ka.every((k) => igualProfundo(a[k], b[k]));
+  return ka.every((k) => deepEqual(a[k], b[k]));
 }
 
 export const assert = {
-  ok: (v, msg) => v || falha(msg || 'esperado verdadeiro'),
-  equal: (a, b, msg) => Object.is(a, b) || falha(msg || `esperado ${JSON.stringify(b)}, recebido ${JSON.stringify(a)}`),
-  notEqual: (a, b, msg) => !Object.is(a, b) || falha(msg || `nao devia ser ${JSON.stringify(b)}`),
-  deepEqual: (a, b, msg) => igualProfundo(a, b) || falha(msg || `esperado ${JSON.stringify(b)}, recebido ${JSON.stringify(a)}`),
-  match: (s, re, msg) => re.test(s) || falha(msg || `${JSON.stringify(s)} nao corresponde a ${re}`),
-  fail: (msg) => falha(msg || 'falhou'),
+  ok: (v, msg) => v || fail(msg || M.expectedTruthy),
+  equal: (a, b, msg) => Object.is(a, b) || fail(msg || M.expected(JSON.stringify(b), JSON.stringify(a))),
+  notEqual: (a, b, msg) => !Object.is(a, b) || fail(msg || M.shouldNotBe(JSON.stringify(b))),
+  deepEqual: (a, b, msg) => deepEqual(a, b) || fail(msg || M.expected(JSON.stringify(b), JSON.stringify(a))),
+  match: (s, re, msg) => re.test(s) || fail(msg || M.doesNotMatch(JSON.stringify(s), re)),
+  fail: (msg) => fail(msg || M.failed),
   throws: (fn, msg) => {
     try {
       fn();
     } catch {
       return;
     }
-    falha(msg || 'esperava uma excecao');
+    fail(msg || M.expectedException);
   },
 };
 
-export function test(nome, fn) {
+export function test(name, fn) {
   const p = (async () => {
-    const inicio = performance.now();
+    const start = performance.now();
     try {
       await fn();
-      resultados.push({ nome, ok: true, ms: performance.now() - inicio });
+      results.push({ name, ok: true, ms: performance.now() - start });
     } catch (e) {
-      resultados.push({ nome, ok: false, ms: performance.now() - inicio, erro: String(e?.message || e) });
+      results.push({ name, ok: false, ms: performance.now() - start, error: String(e?.message || e) });
     }
   })();
-  pendentes.push(p);
+  pending.push(p);
   return p;
 }
 
 export async function readSource(rel, base) {
   const r = await fetch(new URL(rel, base), { cache: 'no-store' });
-  if (!r.ok) throw new Error(`nao foi possivel ler ${rel} (${r.status})`);
+  if (!r.ok) throw new Error(M.couldNotRead(rel, r.status));
   return r.text();
 }
 
-export function novoContentor() {
+export function newContainer() {
   const c = document.createElement('div');
   c.hidden = true;
   document.body.appendChild(c);

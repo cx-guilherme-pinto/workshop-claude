@@ -1,8 +1,8 @@
 # Cartão cr-04 — Hashes repetidos na fuga
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 - **Depende de:** lib-hash
 
 ## Conceito
@@ -17,7 +17,7 @@ Numa fuga, as passwords estavam guardadas com SHA-256 sem salt. Que dois utiliza
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "Tabela roubada",
   "lines": [
     "ana: 1e3d55f96ef8725c64a70777ef8c59e3d6d5f401bd19aa2652667ab1520e377c",

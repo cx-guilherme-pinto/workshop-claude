@@ -1,13 +1,12 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'cr-08',
   title: 'Guardar passwords: do pior ao melhor',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
   concept: 'Passwords guardam-se com um hash lento e com salt, feito de propósito para custar a testar.',
   prompt: 'Ordena estas formas de guardar passwords, da pior à melhor.',
-  explanation: 'O SHA-256 é rápido de mais: uma placa gráfica testa milhares de milhões de palpites por segundo. Usa Argon2id, scrypt ou bcrypt, que são lentos de propósito.',
   items: [
     { id: 'a', text: 'SHA-256 com salt' },
     { id: 'b', text: 'Texto simples' },
@@ -15,4 +14,5 @@ export default ordenar({
     { id: 'd', text: 'MD5 sem salt' },
   ],
   answer: ['b', 'd', 'a', 'c'],
+  explanation: 'O SHA-256 é rápido de mais: uma placa gráfica testa milhares de milhões de palpites por segundo. Usa Argon2id, scrypt ou bcrypt, que são lentos de propósito.',
 });

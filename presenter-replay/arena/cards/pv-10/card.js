@@ -1,13 +1,12 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'pv-10',
   title: 'Quem vê a tua publicação?',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 1,
-  concept: 'Cada nível de partilha alarga quem vê o que publicas. O mais restrito é o mais privado.',
+  concept: 'Cada nível de partilha alarga quem vê o que publicas; o mais restrito é o mais privado.',
   prompt: 'Ordena as opções de partilha, da mais privada à mais pública.',
-  explanation: 'Amigos de amigos podem ser milhares de desconhecidos. Escolhe Amigos por omissão e revê as publicações antigas.',
   items: [
     { id: 'a', text: 'Amigos' },
     { id: 'b', text: 'Só eu' },
@@ -15,4 +14,5 @@ export default ordenar({
     { id: 'd', text: 'Amigos de amigos' },
   ],
   answer: ['b', 'a', 'd', 'c'],
+  explanation: 'Amigos de amigos podem ser milhares de desconhecidos. Escolhe Amigos por omissão e revê as publicações antigas.',
 });

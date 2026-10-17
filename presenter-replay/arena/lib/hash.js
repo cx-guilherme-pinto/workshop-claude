@@ -1,8 +1,6 @@
-// Utilitário partilhado de criptografia (ver specs/lib-hash.md).
-// Sem dependências: funciona igual no Node e no browser.
-// Não usa módulos nativos de criptografia, porque validate() é síncrono.
+// Reference solution (NOT part of the kit). Proves that lib/hash.test.js can be satisfied.
 
-const K = [
+const K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
   0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -11,123 +9,60 @@ const K = [
   0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
   0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-];
+]);
 
-const H0 = [
-  0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
-];
+const rotr = (x, n) => (x >>> n) | (x << (32 - n));
 
-const ALFABETO = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function rotr(x, n) {
-  return (x >>> n) | (x << (32 - n));
-}
-
-export function sha256Hex(texto) {
-  const bytes = new TextEncoder().encode(String(texto));
-  const bitLen = bytes.length * 8;
-  const total = ((bytes.length + 9 + 63) >> 6) << 6;
-  const buf = new Uint8Array(total);
-  buf.set(bytes);
-  buf[bytes.length] = 0x80;
+export function sha256Hex(text) {
+  const data = new TextEncoder().encode(String(text));
+  const bits = data.length * 8;
+  const size = Math.ceil((data.length + 9) / 64) * 64;
+  const buf = new Uint8Array(size);
+  buf.set(data);
+  buf[data.length] = 0x80;
   const view = new DataView(buf.buffer);
-  view.setUint32(total - 8, Math.floor(bitLen / 0x100000000));
-  view.setUint32(total - 4, bitLen >>> 0);
-
-  const H = H0.slice();
+  view.setUint32(size - 8, Math.floor(bits / 0x100000000));
+  view.setUint32(size - 4, bits >>> 0);
+  const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
   const W = new Uint32Array(64);
-
-  for (let off = 0; off < total; off += 64) {
-    for (let i = 0; i < 16; i++) W[i] = view.getUint32(off + i * 4);
-    for (let i = 16; i < 64; i++) {
-      const s0 = rotr(W[i - 15], 7) ^ rotr(W[i - 15], 18) ^ (W[i - 15] >>> 3);
-      const s1 = rotr(W[i - 2], 17) ^ rotr(W[i - 2], 19) ^ (W[i - 2] >>> 10);
-      W[i] = (W[i - 16] + s0 + W[i - 7] + s1) >>> 0;
+  for (let o = 0; o < size; o += 64) {
+    for (let t = 0; t < 16; t++) W[t] = view.getUint32(o + t * 4);
+    for (let t = 16; t < 64; t++) {
+      const s0 = rotr(W[t - 15], 7) ^ rotr(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+      const s1 = rotr(W[t - 2], 17) ^ rotr(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+      W[t] = (W[t - 16] + s0 + W[t - 7] + s1) >>> 0;
     }
-
-    let a = H[0], b = H[1], c = H[2], d = H[3];
-    let e = H[4], f = H[5], g = H[6], h = H[7];
-
-    for (let i = 0; i < 64; i++) {
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let t = 0; t < 64; t++) {
       const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
       const ch = (e & f) ^ (~e & g);
-      const t1 = (h + S1 + ch + K[i] + W[i]) >>> 0;
+      const t1 = (h + S1 + ch + K[t] + W[t]) >>> 0;
       const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const t2 = (S0 + maj) >>> 0;
-      h = g;
-      g = f;
-      f = e;
-      e = (d + t1) >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (t1 + t2) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
     }
-
-    H[0] = (H[0] + a) >>> 0;
-    H[1] = (H[1] + b) >>> 0;
-    H[2] = (H[2] + c) >>> 0;
-    H[3] = (H[3] + d) >>> 0;
-    H[4] = (H[4] + e) >>> 0;
-    H[5] = (H[5] + f) >>> 0;
-    H[6] = (H[6] + g) >>> 0;
-    H[7] = (H[7] + h) >>> 0;
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
   }
-
-  return H.map((x) => x.toString(16).padStart(8, '0')).join('');
+  return Array.from(H, (x) => x.toString(16).padStart(8, '0')).join('');
 }
 
-function deslocarLetra(codigo, base, deslocamento) {
-  return base + (((codigo - base + deslocamento) % 26) + 26) % 26;
+export function caesar(text, shift) {
+  const n = ((Number(shift) % 26) + 26) % 26;
+  return String(text).replace(/[a-zA-Z]/g, (ch) => {
+    const base = ch <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((ch.charCodeAt(0) - base + n) % 26) + base);
+  });
 }
 
-export function cesar(texto, deslocamento) {
-  const d = ((Math.trunc(Number(deslocamento)) % 26) + 26) % 26;
-  let out = '';
-  for (const ch of String(texto)) {
-    const c = ch.codePointAt(0);
-    if (c >= 65 && c <= 90) {
-      out += String.fromCharCode(deslocarLetra(c, 65, d));
-    } else if (c >= 97 && c <= 122) {
-      out += String.fromCharCode(deslocarLetra(c, 97, d));
-    } else {
-      out += ch;
-    }
-  }
-  return out;
+export function toBase64(text) {
+  const bytes = new TextEncoder().encode(String(text));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
 
-export function paraBase64(texto) {
-  const bytes = new TextEncoder().encode(String(texto));
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const temB1 = i + 1 < bytes.length;
-    const temB2 = i + 2 < bytes.length;
-    const b0 = bytes[i];
-    const b1 = temB1 ? bytes[i + 1] : 0;
-    const b2 = temB2 ? bytes[i + 2] : 0;
-    const n = (b0 << 16) | (b1 << 8) | b2;
-    out += ALFABETO[(n >> 18) & 63];
-    out += ALFABETO[(n >> 12) & 63];
-    out += temB1 ? ALFABETO[(n >> 6) & 63] : '=';
-    out += temB2 ? ALFABETO[n & 63] : '=';
-  }
-  return out;
-}
-
-export function deBase64(b64) {
-  const limpo = String(b64).replace(/[^A-Za-z0-9+\/]/g, '');
-  const bytes = [];
-  let acc = 0;
-  let bits = 0;
-  for (const ch of limpo) {
-    acc = ((acc << 6) | ALFABETO.indexOf(ch)) & 0xffff;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((acc >> bits) & 0xff);
-    }
-  }
-  return new TextDecoder().decode(new Uint8Array(bytes));
+export function fromBase64(b64) {
+  const bin = atob(String(b64));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }

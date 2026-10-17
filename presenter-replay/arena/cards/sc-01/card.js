@@ -1,13 +1,12 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'sc-01',
   title: 'A chave no código',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 1,
   concept: 'Segredos escritos no código acabam no git e em todas as cópias do repositório.',
   prompt: 'Este ficheiro de configuração vai para o repositório. Que linha expõe um segredo?',
-  explanation: 'Quem tiver acesso ao repositório, ou a uma cópia antiga dele, fica com a chave. Lê-a de uma variável de ambiente ou de um cofre de segredos, como em process.env.API_KEY.',
   language: 'js',
   segments: [
     'const config = {',
@@ -18,4 +17,5 @@ export default clicaErro({
     '};',
   ],
   answer: [3],
+  explanation: 'Quem tiver acesso ao repositório, ou a uma cópia antiga dele, fica com a chave. Lê-a de uma variável de ambiente ou de um cofre de segredos, como em process.env.API_KEY.',
 });

@@ -1,8 +1,8 @@
 # Cartão cr-08 — Guardar passwords: do pior ao melhor
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

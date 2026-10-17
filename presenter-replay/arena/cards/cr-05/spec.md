@@ -1,8 +1,8 @@
 # Cartão cr-05 — Hash ou cifra?
 
-- **Categoria:** criptografia
+- **Categoria:** cryptography
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

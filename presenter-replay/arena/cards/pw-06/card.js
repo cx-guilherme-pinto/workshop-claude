@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'pw-06',
   title: 'A política de passwords tem regras más',
   category: 'passwords',
   difficulty: 2,
   concept: 'Mudanças forçadas e dicas de password tornam as passwords mais fracas, não mais fortes.',
   prompt: 'A Empresa Atlas publicou esta política. Que regras vão contra as boas práticas atuais?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Mínimo de 12 caracteres.',
     'Obrigatório mudar a password a cada 30 dias.',

@@ -2,7 +2,7 @@
 
 - **Categoria:** phishing
 - **Dificuldade:** 3
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

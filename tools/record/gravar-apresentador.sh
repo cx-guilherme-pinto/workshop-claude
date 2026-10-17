@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Gravacao do "preview do enxame" (modo apresentador, 100 agentes). SO PARA O ORGANIZADOR.
-# Corre uma execucao real, grava a pagina /estado e o terminal, e gera:
+# Corre uma execucao real, grava a pagina /status e o terminal, e gera:
 #   out/<id>/enxame.mp4 (tempo real), enxame-acelerado.mp4 (60-90 s), enxame.gif,
 #   e copia para presenter-replay/ o events.jsonl, snapshot.json e a Arena final (para o modo replay).
+# GRAVAR_LINGUA=en grava em ingles: Arena, terminal e media com o sufixo .en (slides/media/*.en.*) e a
+# Arena do replay em presenter-replay/arena-en/ (a portuguesa fica em presenter-replay/arena/).
 #
 # Requisitos (so nesta maquina): brew install ffmpeg asciinema agg ; cd tools/record && npm install && npx playwright install chromium
 set -euo pipefail
@@ -14,12 +16,15 @@ main() {
   local OUT="$REC/out/$ID"; mkdir -p "$OUT"
   local ARENA="$OUT/arena"
   local NODE; NODE="$(command -v node)"
-  local MAX="${ARENA_MAX_PARALELO:-16}"
+  local MAX="${ARENA_MAX_PARALLEL:-${ARENA_MAX_PARALELO:-16}}"
+  local LG="${GRAVAR_LINGUA:-pt}" SUF="" DEST="$KIT/presenter-replay/arena"
+  if [ "$LG" = en ]; then SUF=".en"; DEST="$KIT/presenter-replay/arena-en"; fi
+  export GRAVAR_LINGUA="$LG"
   local PORTA="${PORTA:-3555}"
   for c in ffmpeg asciinema agg; do command -v "$c" >/dev/null || { echo "falta $c (brew install $c)"; exit 1; }; done
 
-  "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --lingua "${GRAVAR_LINGUA:-pt}" >/dev/null  # D-20: GRAVAR_LINGUA=en grava a Arena em ingles
-  # Servidor da Arena para a pagina /estado.
+  "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --language "$LG" >/dev/null  # D-20: GRAVAR_LINGUA=en grava a Arena em ingles
+  # Servidor da Arena para a pagina /status.
   ( cd "$ARENA" && "$NODE" server.js --porta "$PORTA" > "$OUT/server.log" 2>&1 ) &
   local SRV=$!
   # shellcheck disable=SC2064 # o PID e expandido ja, de proposito
@@ -27,12 +32,12 @@ main() {
   sleep 2
 
   # Gravador do browser (em paralelo com o enxame).
-  ( cd "$REC" && "$NODE" record-estado.mjs --url "http://127.0.0.1:$PORTA/estado" --projeto "$ARENA" --out "$OUT" ) &
+  ( cd "$REC" && "$NODE" record-estado.mjs --url "http://127.0.0.1:$PORTA/status" --projeto "$ARENA" --out "$OUT" ) &
   local REC_PID=$!
 
   # A sessao completa, gravada no terminal (asciinema) com o tradutor do stream-json.
   local T0; T0="$(date +%s)"
-  ARENA_MAX_PARALELO="$MAX" asciinema rec --overwrite --window-size 110x34 -c "bash '$REC/sessao.sh' '$ARENA' '$OUT'" "$OUT/terminal.cast"
+  ARENA_MAX_PARALLEL="$MAX" ARENA_MAX_PARALELO="$MAX" asciinema rec --overwrite --window-size 110x34 -c "bash '$REC/sessao.sh' '$ARENA' '$OUT'" "$OUT/terminal.cast"
   local T1; T1="$(date +%s)"
   wait $REC_PID || true
 
@@ -51,19 +56,20 @@ main() {
 
   # Dados para o modo replay e a Arena final.
   mkdir -p "$KIT/presenter-replay"
-  rm -rf "$KIT/presenter-replay/arena" && cp -R "$ARENA" "$KIT/presenter-replay/arena"
-  rm -rf "$KIT/presenter-replay/arena/.git" "$KIT/presenter-replay/arena/.claude"  # sem caminhos locais no repo
-  mkdir -p "$KIT/presenter-replay/arena/replays/gravacao"
-  cp "$ARENA/.workshop/events.jsonl" "$KIT/presenter-replay/arena/replays/gravacao/events.jsonl"
+  rm -rf "$DEST" && cp -R "$ARENA" "$DEST"
+  rm -rf "$DEST/.git" "$DEST/.claude"  # sem caminhos locais no repo
+  mkdir -p "$DEST/replays/recording"
+  cp "$ARENA/.workshop/events.jsonl" "$DEST/replays/recording/events.jsonl"
   ( cd "$ARENA" && "$NODE" -e '
-      import("./tools/workshop/orquestrador/lib/estado.mjs").then(m => {
+      import("./tools/workshop/orchestrator/lib/state.mjs").then(m => {
         const c = m.caminhos(process.cwd()); const p = m.lerPlano("plan.json");
         require("fs").writeFileSync(process.argv[1], JSON.stringify(m.fotografia(c, p), null, 2));
-      });' "$KIT/presenter-replay/arena/replays/gravacao/snapshot.json" )
-  cp "$OUT/enxame-acelerado.mp4" "$KIT/slides/media/enxame-acelerado.mp4" 2>/dev/null || { mkdir -p "$KIT/slides/media"; cp "$OUT/enxame-acelerado.mp4" "$KIT/slides/media/"; }
-  cp "$OUT/estado-final.png" "$KIT/slides/media/estado-final.png"
-  cp "$OUT/arena.png" "$KIT/slides/media/arena.png"
-  "$NODE" "$ARENA/tools/workshop/orquestrador/report.mjs" --projeto "$ARENA" --json > "$OUT/relatorio.json"
+      });' "$DEST/replays/recording/snapshot.json" )
+  mkdir -p "$KIT/slides/media"
+  cp "$OUT/enxame-acelerado.mp4" "$KIT/slides/media/enxame-acelerado$SUF.mp4"
+  cp "$OUT/estado-final.png" "$KIT/slides/media/estado-final$SUF.png"
+  cp "$OUT/arena.png" "$KIT/slides/media/arena$SUF.png"
+  "$NODE" "$ARENA/tools/workshop/orchestrator/report.mjs" --project "$ARENA" --json > "$OUT/report.json"
   # Conta como uma das execucoes do benchmark do modo apresentador.
   "$NODE" "$KIT/benchmark/collect.mjs" --run "$OUT" --id "$ID-apresentador-gravado" --modo apresentador --duracao $((T1 - T0)) --csv "$KIT/benchmark/results.csv" --isolado 0
   echo "Gravação: $OUT (duração real ${DUR}s, acelerado ${FATOR}×)"

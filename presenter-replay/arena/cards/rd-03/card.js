@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'rd-03',
   title: 'Sempre HTTPS',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'O HSTS obriga o browser a usar HTTPS num site, mesmo que se escreva http://.',
   prompt: 'Que mecanismo diz ao browser para usar sempre HTTPS num site, mesmo que escrevas http:// na barra?',

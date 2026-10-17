@@ -1,27 +1,19 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 import { sha256Hex } from '../../lib/hash.js';
 
-// Quantas das 10 primeiras posições têm o mesmo carácter nos dois hashes.
-function coincidencias(a, b) {
-  let total = 0;
-  for (let i = 0; i < 10; i++) {
-    if (a[i] === b[i]) total++;
-  }
-  return total;
-}
+const MAIUSCULA = sha256Hex('Atlas');
+const MINUSCULA = sha256Hex('atlas');
+const IGUAIS = [...MAIUSCULA.slice(0, 10)].filter((ch, i) => ch === MINUSCULA[i]).length;
 
-const CONTAGEM = String(coincidencias(sha256Hex('Atlas'), sha256Hex('atlas')));
-
-export default resposta({
+export default answer({
   id: 'cr-06',
   title: 'Uma letra muda tudo',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
-  concept: 'Mudar um só carácter na entrada muda o hash todo.',
+  concept: 'Efeito avalanche: mudar um só carácter na entrada muda o hash todo.',
   prompt: 'Estes dois textos só diferem numa maiúscula. Quantos dos 10 primeiros caracteres dos dois hashes são iguais, na mesma posição?',
-  explanation: 'Num bom hash, cada carácter muda com a mesma probabilidade, por isso as coincidências são acaso. É isto que impede adivinhar a entrada a partir de hashes parecidos.',
   scenario: {
-    kind: 'texto',
+    kind: 'text',
     label: 'SHA-256',
     lines: [
       'Atlas → 9dee1c0ed39ef4e2686f974b5d574531fa5091be91e7ea72875e763278293ad4',
@@ -29,5 +21,6 @@ export default resposta({
     ],
   },
   placeholder: 'Um número',
-  check: (normalizada) => normalizada === CONTAGEM,
+  check: (n) => n === String(IGUAIS),
+  explanation: 'Num bom hash, cada carácter muda com a mesma probabilidade, por isso as coincidências são acaso. É isto que impede adivinhar a entrada a partir de hashes parecidos.',
 });

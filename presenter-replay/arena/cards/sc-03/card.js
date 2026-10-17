@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'sc-03',
   title: 'O .env fica de fora',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 1,
   concept: 'O ficheiro .env com segredos nunca entra no repositório; partilha-se só um .env.example sem valores.',
   prompt: 'Que ficheiro do git diz que ficheiros, como o .env, nunca devem entrar no repositório?',

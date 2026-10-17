@@ -1,12 +1,47 @@
-// Calculo de custo a partir do "usage" da API e do pricing.json.
-// Sem dependencias. Usado pelos hooks, pela statusline e pelos relatorios.
+// Cost from the API "usage" and pricing.json.
+// No dependencies. Used by the hooks, the statusline and the reports.
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lingua } from './language.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-// Procura o pricing.json: variavel WORKSHOP_PRICING, ao lado dos hooks, ou na raiz do kit.
+// pricing.json has English keys (models, name, long_prompt.above_tokens, budget.target_usd/cap_usd,
+// checked_on). Older copies used Portuguese keys (modelos, nome, prompt_longo.acima_de_tokens,
+// orcamento.alvo_usd/teto_usd, consultado_em): they are turned into the English shape here.
+export function normalizePricing(p) {
+  if (!p || typeof p !== 'object') return p;
+  if (p.models && !p.modelos) return p;
+  const lp = (m) => {
+    const l = m.long_prompt ?? m.prompt_longo;
+    if (!l) return undefined;
+    const { acima_de_tokens, ...rest } = l;
+    return { ...rest, above_tokens: l.above_tokens ?? acima_de_tokens };
+  };
+  const models = Object.fromEntries(
+    Object.entries(p.models ?? p.modelos ?? {}).map(([k, m]) => {
+      const { nome, prompt_longo, ...rest } = m;
+      const out = { ...rest, name: m.name ?? nome };
+      const l = lp(m);
+      if (l) out.long_prompt = l;
+      return [k, out];
+    }),
+  );
+  const b = p.budget ?? p.orcamento ?? {};
+  return {
+    source: p.source ?? p.fonte,
+    checked_on: p.checked_on ?? p.consultado_em,
+    currency: p.currency ?? p.moeda,
+    unit: p.unit ?? p.unidade,
+    note: p.note ?? p.nota,
+    models,
+    aliases: p.aliases ?? {},
+    budget: { target_usd: b.target_usd ?? b.alvo_usd, cap_usd: b.cap_usd ?? b.teto_usd },
+  };
+}
+
+// Finds pricing.json: the WORKSHOP_PRICING variable, next to the hooks, or at the root of the kit.
 export function loadPricing(explicitPath) {
   const candidates = [
     explicitPath,
@@ -15,18 +50,19 @@ export function loadPricing(explicitPath) {
     join(HERE, '..', '..', 'pricing.json'),
   ].filter(Boolean);
   for (const p of candidates) {
-    if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf8'));
+    if (existsSync(p)) return normalizePricing(JSON.parse(readFileSync(p, 'utf8')));
   }
-  throw new Error('pricing.json nao encontrado');
+  throw new Error(lingua() === 'pt' ? 'pricing.json não encontrado' : 'pricing.json not found');
 }
 
-// Normaliza um ID de modelo ("claude-haiku-5-5-20261001", "haiku", "claude-haiku-5-5[1m]")
-// para a chave do pricing.json. Devolve null se for desconhecido.
+// Normalises a model ID ("claude-haiku-5-5-20261001", "haiku", "claude-haiku-5-5[1m]")
+// to the pricing.json key. Returns null if it is unknown.
 export function resolveModel(model, pricing) {
   if (!model) return null;
+  pricing = normalizePricing(pricing);
   const m = String(model).toLowerCase().replace(/\[.*\]$/, '');
   if (pricing.aliases?.[m]) return pricing.aliases[m];
-  const keys = Object.keys(pricing.modelos).sort((a, b) => b.length - a.length);
+  const keys = Object.keys(pricing.models).sort((a, b) => b.length - a.length);
   return keys.find((k) => m === k || m.startsWith(k + '-') || m.startsWith(k + '@')) ?? null;
 }
 
@@ -57,13 +93,14 @@ export function addTokens(a, b) {
   return r;
 }
 
-// Custo de UM pedido (o escalao de prompt longo do Haiku depende do tamanho do pedido).
+// Cost of ONE request (Haiku's long-prompt tier depends on the size of the request).
 export function requestCost(tokens, model, pricing) {
+  pricing = normalizePricing(pricing);
   const key = resolveModel(model, pricing);
   if (!key) return { usd: null, model: key };
-  let p = pricing.modelos[key];
+  let p = pricing.models[key];
   const prompt = tokens.input + tokens.cache_write_5m + tokens.cache_write_1h + tokens.cache_read;
-  if (p.prompt_longo && prompt > p.prompt_longo.acima_de_tokens) p = { ...p, ...p.prompt_longo };
+  if (p.long_prompt && prompt > p.long_prompt.above_tokens) p = { ...p, ...p.long_prompt };
   const usd =
     (tokens.input * p.input +
       tokens.output * p.output +
@@ -74,14 +111,16 @@ export function requestCost(tokens, model, pricing) {
   return { usd, model: key };
 }
 
-// Formata dolares no estilo portugues: "US$ 0,0123" para valores pequenos, "US$ 1,23" para os outros.
-export function fmtUsd(v) {
+// Formats dollars in the kit language: "US$ 0,0123" / "US$ 1,23" in Portuguese, "US$ 0.0123" / "US$ 1.23" in English.
+// 4 decimals for small values, 2 for the others. `l` ('pt'|'en') is optional (tests).
+export function fmtUsd(v, l = lingua()) {
   if (v === null || v === undefined || Number.isNaN(v)) return 'US$ ?';
-  const digits = Math.abs(v) < 0.1 ? 4 : 2;
-  return 'US$ ' + v.toFixed(digits).replace('.', ',');
+  const s = v.toFixed(Math.abs(v) < 0.1 ? 4 : 2);
+  return 'US$ ' + (l === 'pt' ? s.replace('.', ',') : s);
 }
 
 export function modelName(model, pricing) {
+  pricing = normalizePricing(pricing);
   const key = resolveModel(model, pricing);
-  return key ? pricing.modelos[key].nome : String(model || '?');
+  return key ? pricing.models[key].name : String(model || '?');
 }

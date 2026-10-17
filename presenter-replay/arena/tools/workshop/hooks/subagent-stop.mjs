@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Hook SubagentStop: mede o custo real de cada subagente a partir do seu transcript
-// e regista-o em .workshop/usage.jsonl. Nunca bloqueia (sai sempre com 0).
+// SubagentStop hook: measures the real cost of each subagent from its transcript
+// and records it in .workshop/usage.jsonl. It never blocks (it always exits with 0).
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -46,11 +46,12 @@ runHook('subagent-stop', async (input) => {
     custo_usd: rec.custo_usd,
     duracao_s: durS,
   });
-  // Avaliacao imediata (so para o quadrado mudar de cor ja): corre o avaliador em segundo plano,
-  // sem esperar. O resultado oficial volta a ser confirmado pelo next-wave no fim do lote.
-  const ponteiro = readJsonSafe(join(ws, 'orquestrador.json'), null);
-  if (ponteiro?.grade && rec.tarefa && existsSync(ponteiro.grade)) {
-    const child = spawn(ponteiro.node || process.execPath, [ponteiro.grade, '--projeto', projectDir(input), '--plano', ponteiro.plano, '--agente', rec.agente, rec.tarefa], {
+  // Immediate grading (only so the square changes colour right away): runs the grader in the background,
+  // without waiting. The official result is confirmed again by next-wave at the end of the batch.
+  const ponteiro = readJsonSafe(join(ws, 'orchestrator.json'), null) || readJsonSafe(join(ws, 'orquestrador.json'), null);
+  const plano = ponteiro?.plan || ponteiro?.plano;
+  if (ponteiro?.grade && plano && rec.tarefa && existsSync(ponteiro.grade)) {
+    const child = spawn(ponteiro.node || process.execPath, [ponteiro.grade, '--project', projectDir(input), '--plan', plano, '--agent', rec.agente, rec.tarefa], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,

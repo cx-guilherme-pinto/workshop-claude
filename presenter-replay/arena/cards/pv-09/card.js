@@ -1,9 +1,9 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'pv-09',
   title: 'Dados pessoais no URL',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'Dados pessoais no URL ficam no histórico e nos registos dos servidores por onde o pedido passa.',
   prompt: 'Este link foi gerado por uma loja depois do registo. Que partes não deviam estar no URL?',

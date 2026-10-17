@@ -1,2061 +1,2057 @@
 {
   "v": 1,
-  "projeto": "arena-de-seguranca",
-  "modo": "apresentador",
-  "criado_em": "2026-10-16T14:32:22.310Z",
-  "modelo_principal": "claude-sonnet-5-5",
+  "project": "security-arena",
+  "mode": "presenter",
+  "created_at": "2026-10-17T11:02:59.064Z",
+  "main_model": "claude-sonnet-5-5",
   "config": {
-    "max_paralelo": 8,
-    "max_tentativas": 3,
-    "escalar_para": "implementer"
+    "max_parallel": 16,
+    "max_attempts": 3,
+    "escalate_to": "implementer"
   },
-  "agentes": {
+  "agents": {
     "worker": {
-      "modelo": "claude-haiku-5-5"
+      "model": "claude-haiku-5-5"
     },
     "implementer": {
-      "modelo": "claude-sonnet-5-5"
+      "model": "claude-sonnet-5-5"
     },
     "integrator": {
-      "modelo": "claude-sonnet-5-5"
+      "model": "claude-sonnet-5-5"
     },
     "reviewer": {
-      "modelo": "claude-opus-5-5"
+      "model": "claude-opus-5-5"
     },
     "planner": {
-      "modelo": "claude-opus-5-5"
+      "model": "claude-opus-5-5"
+    },
+    "memory-extractor": {
+      "model": "claude-haiku-5-5"
     }
   },
-  "ajustes": {
-    "justificacao": "Mantenho o paralelismo por defeito de 8 em vez de 16: a memória não tem lições sobre erros 429, mas 105 tarefas a 16 em simultâneo aumentam o risco de limites de taxa sem ganho proporcional. Os cartões são unidades pequenas e independentes, adequadas a Haiku, e a 3.ª tentativa já escala automaticamente para Sonnet, o que cobre os casos difíceis sem custo à partida. Não promovo nenhum cartão: mesmo os de criptografia que usam lib-hash só consomem uma biblioteca já pronta, e o risco real está em lib-hash, não nos cartões. As páginas e a integração ficam em Sonnet e a revisão em Opus, onde o raciocínio transversal compensa o custo.",
-    "riscos": [
-      "Os cartões cr-01, cr-02, cr-03, cr-04 e cr-06 dependem de lib-hash: se lib-hash falhar ou mudar de API, estes 5 cartões bloqueiam ou partem em cascata.",
-      "Sobreposição de temas (ph-07 vs ph-06, web-01 vs cs-06, pw-07 vs pw-03, cr-08 vs pw-04) pode gerar conteúdo duplicado ou contraditório entre agentes independentes.",
-      "Com 100 cartões em Haiku, a consistência de formato e de tom pode variar e só ser detetada tarde, na integração ou na revisão em Opus.",
-      "Os cartões de código (web-*, cs-*) mostram exemplos vulneráveis: risco de exemplos tecnicamente errados ou de código inseguro copiável sem aviso claro."
-    ],
-    "aplicados": [
-      "paralelismo: 8"
-    ]
-  },
-  "tarefas": [
+  "adjustments": null,
+  "support_estimate": [
+    "planner",
+    "memory-extractor"
+  ],
+  "tasks": [
     {
       "id": "lib-hash",
-      "titulo": "Utilitário de criptografia lib/hash.js",
-      "onda": 1,
-      "agente": "worker",
+      "title": "Utilitário de criptografia lib/hash.js",
+      "group": "support",
+      "group_type": "lib",
+      "wave": 1,
+      "agent": "worker",
       "spec": "specs/lib-hash.md",
-      "teste": [
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "lib/hash.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "lib/hash.js"
       ],
-      "depende": [],
-      "grupo": "suporte",
-      "grupo_tipo": "lib",
-      "instrucoes": "Implementa lib/hash.js conforme specs/lib-hash.md.\nVerifica: node --test lib/hash.test.js\nResponde com uma única linha: \"OK lib-hash\" ou \"FALHOU lib-hash: <motivo>\"."
+      "instructions": "Implementa lib/hash.js conforme specs/lib-hash.md.\nVerifica: node --test lib/hash.test.js\nResponde com uma única linha: \"OK lib-hash\" ou \"FAILED lib-hash: <motivo>\"."
     },
     {
       "id": "pw-01",
-      "titulo": "Qual é a password mais forte?",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Qual é a password mais forte?",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-01 (\"Qual é a password mais forte?\").\n1. Lê cards/pw-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-01/card.test.js\nResponde com uma única linha: \"OK pw-01\" ou \"FALHOU pw-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-01 (\"Qual é a password mais forte?\").\n1. Lê cards/pw-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-01/card.test.js\nResponde com uma única linha: \"OK pw-01\" ou \"FAILED pw-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-02",
-      "titulo": "Do segundo fator mais forte ao mais fraco",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Do segundo fator mais forte ao mais fraco",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-02 (\"Do segundo fator mais forte ao mais fraco\").\n1. Lê cards/pw-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-02/card.test.js\nResponde com uma única linha: \"OK pw-02\" ou \"FALHOU pw-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-02 (\"Do segundo fator mais forte ao mais fraco\").\n1. Lê cards/pw-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-02/card.test.js\nResponde com uma única linha: \"OK pw-02\" ou \"FAILED pw-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-03",
-      "titulo": "Uma password, milhares de contas",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Uma password, milhares de contas",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-03 (\"Uma password, milhares de contas\").\n1. Lê cards/pw-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-03/card.test.js\nResponde com uma única linha: \"OK pw-03\" ou \"FALHOU pw-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-03 (\"Uma password, milhares de contas\").\n1. Lê cards/pw-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-03/card.test.js\nResponde com uma única linha: \"OK pw-03\" ou \"FAILED pw-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-04",
-      "titulo": "Como guardar 80 passwords?",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Como guardar 80 passwords?",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-04 (\"Como guardar 80 passwords?\").\n1. Lê cards/pw-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-04/card.test.js\nResponde com uma única linha: \"OK pw-04\" ou \"FALHOU pw-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-04 (\"Como guardar 80 passwords?\").\n1. Lê cards/pw-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-04/card.test.js\nResponde com uma única linha: \"OK pw-04\" ou \"FAILED pw-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-05",
-      "titulo": "Os três tipos de fator",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Os três tipos de fator",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-05 (\"Os três tipos de fator\").\n1. Lê cards/pw-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-05/card.test.js\nResponde com uma única linha: \"OK pw-05\" ou \"FALHOU pw-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-05 (\"Os três tipos de fator\").\n1. Lê cards/pw-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-05/card.test.js\nResponde com uma única linha: \"OK pw-05\" ou \"FAILED pw-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-06",
-      "titulo": "A política de passwords tem regras más",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A política de passwords tem regras más",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-06 (\"A política de passwords tem regras más\").\n1. Lê cards/pw-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-06/card.test.js\nResponde com uma única linha: \"OK pw-06\" ou \"FALHOU pw-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-06 (\"A política de passwords tem regras más\").\n1. Lê cards/pw-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-06/card.test.js\nResponde com uma única linha: \"OK pw-06\" ou \"FAILED pw-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-07",
-      "titulo": "Como funciona o credential stuffing",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Como funciona o credential stuffing",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-07 (\"Como funciona o credential stuffing\").\n1. Lê cards/pw-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-07/card.test.js\nResponde com uma única linha: \"OK pw-07\" ou \"FALHOU pw-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-07 (\"Como funciona o credential stuffing\").\n1. Lê cards/pw-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-07/card.test.js\nResponde com uma única linha: \"OK pw-07\" ou \"FAILED pw-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-08",
-      "titulo": "O teu email apareceu numa fuga",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O teu email apareceu numa fuga",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-08 (\"O teu email apareceu numa fuga\").\n1. Lê cards/pw-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-08/card.test.js\nResponde com uma única linha: \"OK pw-08\" ou \"FALHOU pw-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-08 (\"O teu email apareceu numa fuga\").\n1. Lê cards/pw-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-08/card.test.js\nResponde com uma única linha: \"OK pw-08\" ou \"FAILED pw-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-09",
-      "titulo": "A pergunta de segurança",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A pergunta de segurança",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-09 (\"A pergunta de segurança\").\n1. Lê cards/pw-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-09/card.test.js\nResponde com uma única linha: \"OK pw-09\" ou \"FALHOU pw-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-09 (\"A pergunta de segurança\").\n1. Lê cards/pw-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-09/card.test.js\nResponde com uma única linha: \"OK pw-09\" ou \"FAILED pw-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "pw-10",
-      "titulo": "Entrar sem password",
-      "grupo": "passwords",
-      "grupo_nome": "Passwords",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Entrar sem password",
+      "group": "passwords",
+      "group_name": "Passwords",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pw-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pw-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão pw-10 (\"Entrar sem password\").\n1. Lê cards/pw-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-10/card.test.js\nResponde com uma única linha: \"OK pw-10\" ou \"FALHOU pw-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pw-10 (\"Entrar sem password\").\n1. Lê cards/pw-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pw-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pw-10/card.test.js\nResponde com uma única linha: \"OK pw-10\" ou \"FAILED pw-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-01",
-      "titulo": "Qual é o site verdadeiro?",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Qual é o site verdadeiro?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-01 (\"Qual é o site verdadeiro?\").\n1. Lê cards/ph-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-01/card.test.js\nResponde com uma única linha: \"OK ph-01\" ou \"FALHOU ph-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-01 (\"Qual é o site verdadeiro?\").\n1. Lê cards/ph-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-01/card.test.js\nResponde com uma única linha: \"OK ph-01\" ou \"FAILED ph-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-02",
-      "titulo": "O que denuncia este email?",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O que denuncia este email?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-02 (\"O que denuncia este email?\").\n1. Lê cards/ph-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-02/card.test.js\nResponde com uma única linha: \"OK ph-02\" ou \"FALHOU ph-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-02 (\"O que denuncia este email?\").\n1. Lê cards/ph-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-02/card.test.js\nResponde com uma única linha: \"OK ph-02\" ou \"FAILED ph-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-03",
-      "titulo": "O anexo disfarçado",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O anexo disfarçado",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-03 (\"O anexo disfarçado\").\n1. Lê cards/ph-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-03/card.test.js\nResponde com uma única linha: \"OK ph-03\" ou \"FALHOU ph-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-03 (\"O anexo disfarçado\").\n1. Lê cards/ph-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-03/card.test.js\nResponde com uma única linha: \"OK ph-03\" ou \"FAILED ph-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-04",
-      "titulo": "O nome não prova nada",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O nome não prova nada",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-04 (\"O nome não prova nada\").\n1. Lê cards/ph-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-04/card.test.js\nResponde com uma única linha: \"OK ph-04\" ou \"FALHOU ph-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-04 (\"O nome não prova nada\").\n1. Lê cards/ph-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-04/card.test.js\nResponde com uma única linha: \"OK ph-04\" ou \"FAILED ph-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-05",
-      "titulo": "O QR colado no parquímetro",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O QR colado no parquímetro",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-05 (\"O QR colado no parquímetro\").\n1. Lê cards/ph-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-05/card.test.js\nResponde com uma única linha: \"OK ph-05\" ou \"FALHOU ph-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-05 (\"O QR colado no parquímetro\").\n1. Lê cards/ph-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-05/card.test.js\nResponde com uma única linha: \"OK ph-05\" ou \"FAILED ph-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-06",
-      "titulo": "Lê o URL pela ordem certa",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Lê o URL pela ordem certa",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-06 (\"Lê o URL pela ordem certa\").\n1. Lê cards/ph-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-06/card.test.js\nResponde com uma única linha: \"OK ph-06\" ou \"FALHOU ph-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-06 (\"Lê o URL pela ordem certa\").\n1. Lê cards/ph-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-06/card.test.js\nResponde com uma única linha: \"OK ph-06\" ou \"FAILED ph-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-07",
-      "titulo": "O link mente",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O link mente",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-07 (\"O link mente\").\n1. Lê cards/ph-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-07/card.test.js\nResponde com uma única linha: \"OK ph-07\" ou \"FALHOU ph-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-07 (\"O link mente\").\n1. Lê cards/ph-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-07/card.test.js\nResponde com uma única linha: \"OK ph-07\" ou \"FAILED ph-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-08",
-      "titulo": "Ativar o conteúdo?",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Ativar o conteúdo?",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-08 (\"Ativar o conteúdo?\").\n1. Lê cards/ph-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-08/card.test.js\nResponde com uma única linha: \"OK ph-08\" ou \"FALHOU ph-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-08 (\"Ativar o conteúdo?\").\n1. Lê cards/ph-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-08/card.test.js\nResponde com uma única linha: \"OK ph-08\" ou \"FAILED ph-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-09",
-      "titulo": "Phishing por SMS",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Phishing por SMS",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-09 (\"Phishing por SMS\").\n1. Lê cards/ph-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-09/card.test.js\nResponde com uma única linha: \"OK ph-09\" ou \"FALHOU ph-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-09 (\"Phishing por SMS\").\n1. Lê cards/ph-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-09/card.test.js\nResponde com uma única linha: \"OK ph-09\" ou \"FAILED ph-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "ph-10",
-      "titulo": "A app pede acesso ao teu email",
-      "grupo": "phishing",
-      "grupo_nome": "Phishing",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A app pede acesso ao teu email",
+      "group": "phishing",
+      "group_name": "Phishing",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/ph-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/ph-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão ph-10 (\"A app pede acesso ao teu email\").\n1. Lê cards/ph-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-10/card.test.js\nResponde com uma única linha: \"OK ph-10\" ou \"FALHOU ph-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão ph-10 (\"A app pede acesso ao teu email\").\n1. Lê cards/ph-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/ph-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/ph-10/card.test.js\nResponde com uma única linha: \"OK ph-10\" ou \"FAILED ph-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-01",
-      "titulo": "Encontra a injeção SQL",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Encontra a injeção SQL",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-01 (\"Encontra a injeção SQL\").\n1. Lê cards/web-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-01/card.test.js\nResponde com uma única linha: \"OK web-01\" ou \"FALHOU web-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-01 (\"Encontra a injeção SQL\").\n1. Lê cards/web-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-01/card.test.js\nResponde com uma única linha: \"OK web-01\" ou \"FAILED web-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-02",
-      "titulo": "Encontra o XSS",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Encontra o XSS",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-02 (\"Encontra o XSS\").\n1. Lê cards/web-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-02/card.test.js\nResponde com uma única linha: \"OK web-02\" ou \"FALHOU web-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-02 (\"Encontra o XSS\").\n1. Lê cards/web-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-02/card.test.js\nResponde com uma única linha: \"OK web-02\" ou \"FAILED web-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-03",
-      "titulo": "O formulário escondido",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O formulário escondido",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-03 (\"O formulário escondido\").\n1. Lê cards/web-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-03/card.test.js\nResponde com uma única linha: \"OK web-03\" ou \"FALHOU web-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-03 (\"O formulário escondido\").\n1. Lê cards/web-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-03/card.test.js\nResponde com uma única linha: \"OK web-03\" ou \"FAILED web-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-04",
-      "titulo": "As faturas dos outros",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "As faturas dos outros",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-04 (\"As faturas dos outros\").\n1. Lê cards/web-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-04/card.test.js\nResponde com uma única linha: \"OK web-04\" ou \"FALHOU web-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-04 (\"As faturas dos outros\").\n1. Lê cards/web-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-04/card.test.js\nResponde com uma única linha: \"OK web-04\" ou \"FAILED web-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-05",
-      "titulo": "Para onde vais depois do login?",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Para onde vais depois do login?",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-05 (\"Para onde vais depois do login?\").\n1. Lê cards/web-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-05/card.test.js\nResponde com uma única linha: \"OK web-05\" ou \"FALHOU web-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-05 (\"Para onde vais depois do login?\").\n1. Lê cards/web-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-05/card.test.js\nResponde com uma única linha: \"OK web-05\" ou \"FAILED web-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-06",
-      "titulo": "De onde podem vir os scripts?",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "De onde podem vir os scripts?",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-06 (\"De onde podem vir os scripts?\").\n1. Lê cards/web-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-06/card.test.js\nResponde com uma única linha: \"OK web-06\" ou \"FALHOU web-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-06 (\"De onde podem vir os scripts?\").\n1. Lê cards/web-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-06/card.test.js\nResponde com uma única linha: \"OK web-06\" ou \"FAILED web-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-07",
-      "titulo": "O cookie de sessão bem configurado",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O cookie de sessão bem configurado",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-07 (\"O cookie de sessão bem configurado\").\n1. Lê cards/web-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-07/card.test.js\nResponde com uma única linha: \"OK web-07\" ou \"FALHOU web-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-07 (\"O cookie de sessão bem configurado\").\n1. Lê cards/web-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-07/card.test.js\nResponde com uma única linha: \"OK web-07\" ou \"FAILED web-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-08",
-      "titulo": "A sessão do princípio ao fim",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A sessão do princípio ao fim",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-08 (\"A sessão do princípio ao fim\").\n1. Lê cards/web-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-08/card.test.js\nResponde com uma única linha: \"OK web-08\" ou \"FALHOU web-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-08 (\"A sessão do princípio ao fim\").\n1. Lê cards/web-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-08/card.test.js\nResponde com uma única linha: \"OK web-08\" ou \"FAILED web-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-09",
-      "titulo": "O site dentro de um iframe",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O site dentro de um iframe",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-09 (\"O site dentro de um iframe\").\n1. Lê cards/web-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-09/card.test.js\nResponde com uma única linha: \"OK web-09\" ou \"FALHOU web-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-09 (\"O site dentro de um iframe\").\n1. Lê cards/web-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-09/card.test.js\nResponde com uma única linha: \"OK web-09\" ou \"FAILED web-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "web-10",
-      "titulo": "O CORS demasiado aberto",
-      "grupo": "web",
-      "grupo_nome": "Web (XSS, SQLi, CSRF)",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O CORS demasiado aberto",
+      "group": "web",
+      "group_name": "Web (XSS, SQLi, CSRF)",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/web-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/web-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão web-10 (\"O CORS demasiado aberto\").\n1. Lê cards/web-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-10/card.test.js\nResponde com uma única linha: \"OK web-10\" ou \"FALHOU web-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão web-10 (\"O CORS demasiado aberto\").\n1. Lê cards/web-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/web-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/web-10/card.test.js\nResponde com uma única linha: \"OK web-10\" ou \"FAILED web-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-01",
-      "titulo": "Duas redes no café",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Duas redes no café",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-01 (\"Duas redes no café\").\n1. Lê cards/rd-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-01/card.test.js\nResponde com uma única linha: \"OK rd-01\" ou \"FALHOU rd-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-01 (\"Duas redes no café\").\n1. Lê cards/rd-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-01/card.test.js\nResponde com uma única linha: \"OK rd-01\" ou \"FAILED rd-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-02",
-      "titulo": "Por onde passa o teu tráfego",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Por onde passa o teu tráfego",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-02 (\"Por onde passa o teu tráfego\").\n1. Lê cards/rd-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-02/card.test.js\nResponde com uma única linha: \"OK rd-02\" ou \"FALHOU rd-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-02 (\"Por onde passa o teu tráfego\").\n1. Lê cards/rd-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-02/card.test.js\nResponde com uma única linha: \"OK rd-02\" ou \"FAILED rd-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-03",
-      "titulo": "Sempre HTTPS",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Sempre HTTPS",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-03 (\"Sempre HTTPS\").\n1. Lê cards/rd-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-03/card.test.js\nResponde com uma única linha: \"OK rd-03\" ou \"FALHOU rd-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-03 (\"Sempre HTTPS\").\n1. Lê cards/rd-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-03/card.test.js\nResponde com uma única linha: \"OK rd-03\" ou \"FAILED rd-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-04",
-      "titulo": "O que acontece ao abrir um site HTTPS",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O que acontece ao abrir um site HTTPS",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-04 (\"O que acontece ao abrir um site HTTPS\").\n1. Lê cards/rd-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-04/card.test.js\nResponde com uma única linha: \"OK rd-04\" ou \"FALHOU rd-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-04 (\"O que acontece ao abrir um site HTTPS\").\n1. Lê cards/rd-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-04/card.test.js\nResponde com uma única linha: \"OK rd-04\" ou \"FAILED rd-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-05",
-      "titulo": "O que uma VPN não faz",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O que uma VPN não faz",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-05 (\"O que uma VPN não faz\").\n1. Lê cards/rd-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-05/card.test.js\nResponde com uma única linha: \"OK rd-05\" ou \"FALHOU rd-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-05 (\"O que uma VPN não faz\").\n1. Lê cards/rd-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-05/card.test.js\nResponde com uma única linha: \"OK rd-05\" ou \"FAILED rd-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-06",
-      "titulo": "Portas a mais na firewall",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Portas a mais na firewall",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-06 (\"Portas a mais na firewall\").\n1. Lê cards/rd-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-06/card.test.js\nResponde com uma única linha: \"OK rd-06\" ou \"FALHOU rd-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-06 (\"Portas a mais na firewall\").\n1. Lê cards/rd-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-06/card.test.js\nResponde com uma única linha: \"OK rd-06\" ou \"FAILED rd-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-07",
-      "titulo": "DNS que ninguém lê",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "DNS que ninguém lê",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-07 (\"DNS que ninguém lê\").\n1. Lê cards/rd-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-07/card.test.js\nResponde com uma única linha: \"OK rd-07\" ou \"FALHOU rd-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-07 (\"DNS que ninguém lê\").\n1. Lê cards/rd-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-07/card.test.js\nResponde com uma única linha: \"OK rd-07\" ou \"FAILED rd-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-08",
-      "titulo": "Onde ligar as câmaras baratas",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Onde ligar as câmaras baratas",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-08 (\"Onde ligar as câmaras baratas\").\n1. Lê cards/rd-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-08/card.test.js\nResponde com uma única linha: \"OK rd-08\" ou \"FALHOU rd-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-08 (\"Onde ligar as câmaras baratas\").\n1. Lê cards/rd-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-08/card.test.js\nResponde com uma única linha: \"OK rd-08\" ou \"FAILED rd-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-09",
-      "titulo": "O router mal configurado",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O router mal configurado",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-09 (\"O router mal configurado\").\n1. Lê cards/rd-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-09/card.test.js\nResponde com uma única linha: \"OK rd-09\" ou \"FALHOU rd-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-09 (\"O router mal configurado\").\n1. Lê cards/rd-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-09/card.test.js\nResponde com uma única linha: \"OK rd-09\" ou \"FAILED rd-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "rd-10",
-      "titulo": "Aviso de certificado",
-      "grupo": "redes",
-      "grupo_nome": "Redes",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Aviso de certificado",
+      "group": "networks",
+      "group_name": "Redes",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/rd-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/rd-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão rd-10 (\"Aviso de certificado\").\n1. Lê cards/rd-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-10/card.test.js\nResponde com uma única linha: \"OK rd-10\" ou \"FALHOU rd-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão rd-10 (\"Aviso de certificado\").\n1. Lê cards/rd-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-10/card.test.js\nResponde com uma única linha: \"OK rd-10\" ou \"FAILED rd-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-01",
-      "titulo": "A calculadora curiosa",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A calculadora curiosa",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-01 (\"A calculadora curiosa\").\n1. Lê cards/pv-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-01/card.test.js\nResponde com uma única linha: \"OK pv-01\" ou \"FALHOU pv-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-01 (\"A calculadora curiosa\").\n1. Lê cards/pv-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-01/card.test.js\nResponde com uma única linha: \"OK pv-01\" ou \"FAILED pv-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-02",
-      "titulo": "A foto diz onde estás",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A foto diz onde estás",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-02 (\"A foto diz onde estás\").\n1. Lê cards/pv-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-02/card.test.js\nResponde com uma única linha: \"OK pv-02\" ou \"FALHOU pv-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-02 (\"A foto diz onde estás\").\n1. Lê cards/pv-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-02/card.test.js\nResponde com uma única linha: \"OK pv-02\" ou \"FAILED pv-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-03",
-      "titulo": "A imagem de 1 píxel",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A imagem de 1 píxel",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-03 (\"A imagem de 1 píxel\").\n1. Lê cards/pv-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-03/card.test.js\nResponde com uma única linha: \"OK pv-03\" ou \"FALHOU pv-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-03 (\"A imagem de 1 píxel\").\n1. Lê cards/pv-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-03/card.test.js\nResponde com uma única linha: \"OK pv-03\" ou \"FAILED pv-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-04",
-      "titulo": "Levar os dados contigo",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Levar os dados contigo",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-04 (\"Levar os dados contigo\").\n1. Lê cards/pv-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-04/card.test.js\nResponde com uma única linha: \"OK pv-04\" ou \"FALHOU pv-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-04 (\"Levar os dados contigo\").\n1. Lê cards/pv-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-04/card.test.js\nResponde com uma única linha: \"OK pv-04\" ou \"FAILED pv-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-05",
-      "titulo": "Dados a mais na newsletter",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Dados a mais na newsletter",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-05 (\"Dados a mais na newsletter\").\n1. Lê cards/pv-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-05/card.test.js\nResponde com uma única linha: \"OK pv-05\" ou \"FALHOU pv-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-05 (\"Dados a mais na newsletter\").\n1. Lê cards/pv-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-05/card.test.js\nResponde com uma única linha: \"OK pv-05\" ou \"FAILED pv-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-06",
-      "titulo": "Pedir os teus dados a uma empresa",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Pedir os teus dados a uma empresa",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-06 (\"Pedir os teus dados a uma empresa\").\n1. Lê cards/pv-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-06/card.test.js\nResponde com uma única linha: \"OK pv-06\" ou \"FALHOU pv-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-06 (\"Pedir os teus dados a uma empresa\").\n1. Lê cards/pv-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-06/card.test.js\nResponde com uma única linha: \"OK pv-06\" ou \"FAILED pv-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-07",
-      "titulo": "Sem cookies e ainda te reconhecem",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Sem cookies e ainda te reconhecem",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-07 (\"Sem cookies e ainda te reconhecem\").\n1. Lê cards/pv-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-07/card.test.js\nResponde com uma única linha: \"OK pv-07\" ou \"FALHOU pv-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-07 (\"Sem cookies e ainda te reconhecem\").\n1. Lê cards/pv-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-07/card.test.js\nResponde com uma única linha: \"OK pv-07\" ou \"FAILED pv-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-08",
-      "titulo": "A foto do cartão de embarque",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A foto do cartão de embarque",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-08 (\"A foto do cartão de embarque\").\n1. Lê cards/pv-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-08/card.test.js\nResponde com uma única linha: \"OK pv-08\" ou \"FALHOU pv-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-08 (\"A foto do cartão de embarque\").\n1. Lê cards/pv-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-08/card.test.js\nResponde com uma única linha: \"OK pv-08\" ou \"FAILED pv-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-09",
-      "titulo": "Dados pessoais no URL",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Dados pessoais no URL",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-09 (\"Dados pessoais no URL\").\n1. Lê cards/pv-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-09/card.test.js\nResponde com uma única linha: \"OK pv-09\" ou \"FALHOU pv-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-09 (\"Dados pessoais no URL\").\n1. Lê cards/pv-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-09/card.test.js\nResponde com uma única linha: \"OK pv-09\" ou \"FAILED pv-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "pv-10",
-      "titulo": "Quem vê a tua publicação?",
-      "grupo": "privacidade",
-      "grupo_nome": "Privacidade",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Quem vê a tua publicação?",
+      "group": "privacy",
+      "group_name": "Privacidade",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/pv-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/pv-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão pv-10 (\"Quem vê a tua publicação?\").\n1. Lê cards/pv-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-10/card.test.js\nResponde com uma única linha: \"OK pv-10\" ou \"FALHOU pv-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão pv-10 (\"Quem vê a tua publicação?\").\n1. Lê cards/pv-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-10/card.test.js\nResponde com uma única linha: \"OK pv-10\" ou \"FAILED pv-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-01",
-      "titulo": "O pedido urgente do diretor",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O pedido urgente do diretor",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-01 (\"O pedido urgente do diretor\").\n1. Lê cards/es-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-01/card.test.js\nResponde com uma única linha: \"OK es-01\" ou \"FALHOU es-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-01 (\"O pedido urgente do diretor\").\n1. Lê cards/es-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-01/card.test.js\nResponde com uma única linha: \"OK es-01\" ou \"FAILED es-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-02",
-      "titulo": "Seguras a porta?",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Seguras a porta?",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-02 (\"Seguras a porta?\").\n1. Lê cards/es-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-02/card.test.js\nResponde com uma única linha: \"OK es-02\" ou \"FALHOU es-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-02 (\"Seguras a porta?\").\n1. Lê cards/es-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-02/card.test.js\nResponde com uma única linha: \"OK es-02\" ou \"FAILED es-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-03",
-      "titulo": "O banco ao telefone",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O banco ao telefone",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-03 (\"O banco ao telefone\").\n1. Lê cards/es-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-03/card.test.js\nResponde com uma única linha: \"OK es-03\" ou \"FALHOU es-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-03 (\"O banco ao telefone\").\n1. Lê cards/es-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-03/card.test.js\nResponde com uma única linha: \"OK es-03\" ou \"FAILED es-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-04",
-      "titulo": "15 pedidos de aprovação",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "15 pedidos de aprovação",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-04 (\"15 pedidos de aprovação\").\n1. Lê cards/es-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-04/card.test.js\nResponde com uma única linha: \"OK es-04\" ou \"FALHOU es-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-04 (\"15 pedidos de aprovação\").\n1. Lê cards/es-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-04/card.test.js\nResponde com uma única linha: \"OK es-04\" ou \"FAILED es-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-05",
-      "titulo": "A história da migração",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A história da migração",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-05 (\"A história da migração\").\n1. Lê cards/es-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-05/card.test.js\nResponde com uma única linha: \"OK es-05\" ou \"FALHOU es-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-05 (\"A história da migração\").\n1. Lê cards/es-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-05/card.test.js\nResponde com uma única linha: \"OK es-05\" ou \"FAILED es-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-06",
-      "titulo": "As fases de um ataque de engenharia social",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "As fases de um ataque de engenharia social",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-06 (\"As fases de um ataque de engenharia social\").\n1. Lê cards/es-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-06/card.test.js\nResponde com uma única linha: \"OK es-06\" ou \"FALHOU es-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-06 (\"As fases de um ataque de engenharia social\").\n1. Lê cards/es-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-06/card.test.js\nResponde com uma única linha: \"OK es-06\" ou \"FAILED es-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-07",
-      "titulo": "A pen USB no parque",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A pen USB no parque",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-07 (\"A pen USB no parque\").\n1. Lê cards/es-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-07/card.test.js\nResponde com uma única linha: \"OK es-07\" ou \"FALHOU es-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-07 (\"A pen USB no parque\").\n1. Lê cards/es-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-07/card.test.js\nResponde com uma única linha: \"OK es-07\" ou \"FAILED es-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-08",
-      "titulo": "Phishing feito à medida",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Phishing feito à medida",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-08 (\"Phishing feito à medida\").\n1. Lê cards/es-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-08/card.test.js\nResponde com uma única linha: \"OK es-08\" ou \"FALHOU es-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-08 (\"Phishing feito à medida\").\n1. Lê cards/es-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-08/card.test.js\nResponde com uma única linha: \"OK es-08\" ou \"FAILED es-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-09",
-      "titulo": "O fornecedor mudou de banco",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O fornecedor mudou de banco",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-09 (\"O fornecedor mudou de banco\").\n1. Lê cards/es-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-09/card.test.js\nResponde com uma única linha: \"OK es-09\" ou \"FALHOU es-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-09 (\"O fornecedor mudou de banco\").\n1. Lê cards/es-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-09/card.test.js\nResponde com uma única linha: \"OK es-09\" ou \"FAILED es-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "es-10",
-      "titulo": "O golpe do número novo",
-      "grupo": "engenharia-social",
-      "grupo_nome": "Engenharia social",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O golpe do número novo",
+      "group": "social-engineering",
+      "group_name": "Engenharia social",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/es-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/es-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão es-10 (\"O golpe do número novo\").\n1. Lê cards/es-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-10/card.test.js\nResponde com uma única linha: \"OK es-10\" ou \"FALHOU es-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão es-10 (\"O golpe do número novo\").\n1. Lê cards/es-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/es-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/es-10/card.test.js\nResponde com uma única linha: \"OK es-10\" ou \"FAILED es-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-01",
-      "titulo": "Decifra a mensagem de César",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [
+      "title": "Decifra a mensagem de César",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
         "lib-hash"
       ],
-      "teste": [
+      "test": [
         "node",
         "--test",
         "cards/cr-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-01 (\"Decifra a mensagem de César\").\n1. Lê cards/cr-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-01/card.test.js\nResponde com uma única linha: \"OK cr-01\" ou \"FALHOU cr-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-01 (\"Decifra a mensagem de César\").\n1. Lê cards/cr-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-01/card.test.js\nResponde com uma única linha: \"OK cr-01\" ou \"FAILED cr-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-02",
-      "titulo": "O cookie em Base64",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [
+      "title": "O cookie em Base64",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
         "lib-hash"
       ],
-      "teste": [
+      "test": [
         "node",
         "--test",
         "cards/cr-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-02 (\"O cookie em Base64\").\n1. Lê cards/cr-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-02/card.test.js\nResponde com uma única linha: \"OK cr-02\" ou \"FALHOU cr-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-02 (\"O cookie em Base64\").\n1. Lê cards/cr-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-02/card.test.js\nResponde com uma única linha: \"OK cr-02\" ou \"FAILED cr-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-03",
-      "titulo": "Qual é o ficheiro verdadeiro?",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [
+      "title": "Qual é o ficheiro verdadeiro?",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
         "lib-hash"
       ],
-      "teste": [
+      "test": [
         "node",
         "--test",
         "cards/cr-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-03 (\"Qual é o ficheiro verdadeiro?\").\n1. Lê cards/cr-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-03/card.test.js\nResponde com uma única linha: \"OK cr-03\" ou \"FALHOU cr-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-03 (\"Qual é o ficheiro verdadeiro?\").\n1. Lê cards/cr-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-03/card.test.js\nResponde com uma única linha: \"OK cr-03\" ou \"FAILED cr-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-04",
-      "titulo": "Hashes repetidos na fuga",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [
+      "title": "Hashes repetidos na fuga",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
         "lib-hash"
       ],
-      "teste": [
+      "test": [
         "node",
         "--test",
         "cards/cr-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-04 (\"Hashes repetidos na fuga\").\n1. Lê cards/cr-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-04/card.test.js\nResponde com uma única linha: \"OK cr-04\" ou \"FALHOU cr-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-04 (\"Hashes repetidos na fuga\").\n1. Lê cards/cr-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-04/card.test.js\nResponde com uma única linha: \"OK cr-04\" ou \"FAILED cr-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-05",
-      "titulo": "Hash ou cifra?",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Hash ou cifra?",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cr-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-05 (\"Hash ou cifra?\").\n1. Lê cards/cr-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-05/card.test.js\nResponde com uma única linha: \"OK cr-05\" ou \"FALHOU cr-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-05 (\"Hash ou cifra?\").\n1. Lê cards/cr-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-05/card.test.js\nResponde com uma única linha: \"OK cr-05\" ou \"FAILED cr-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-06",
-      "titulo": "Uma letra muda tudo",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [
+      "title": "Uma letra muda tudo",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [
         "lib-hash"
       ],
-      "teste": [
+      "test": [
         "node",
         "--test",
         "cards/cr-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-06 (\"Uma letra muda tudo\").\n1. Lê cards/cr-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-06/card.test.js\nResponde com uma única linha: \"OK cr-06\" ou \"FALHOU cr-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-06 (\"Uma letra muda tudo\").\n1. Lê cards/cr-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-06/card.test.js\nResponde com uma única linha: \"OK cr-06\" ou \"FAILED cr-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-07",
-      "titulo": "Da chave mais fraca à mais forte",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Da chave mais fraca à mais forte",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cr-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-07 (\"Da chave mais fraca à mais forte\").\n1. Lê cards/cr-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-07/card.test.js\nResponde com uma única linha: \"OK cr-07\" ou \"FALHOU cr-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-07 (\"Da chave mais fraca à mais forte\").\n1. Lê cards/cr-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-07/card.test.js\nResponde com uma única linha: \"OK cr-07\" ou \"FAILED cr-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-08",
-      "titulo": "Guardar passwords: do pior ao melhor",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Guardar passwords: do pior ao melhor",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cr-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-08 (\"Guardar passwords: do pior ao melhor\").\n1. Lê cards/cr-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-08/card.test.js\nResponde com uma única linha: \"OK cr-08\" ou \"FALHOU cr-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-08 (\"Guardar passwords: do pior ao melhor\").\n1. Lê cards/cr-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-08/card.test.js\nResponde com uma única linha: \"OK cr-08\" ou \"FAILED cr-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-09",
-      "titulo": "O S do HTTPS",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O S do HTTPS",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cr-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-09 (\"O S do HTTPS\").\n1. Lê cards/cr-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-09/card.test.js\nResponde com uma única linha: \"OK cr-09\" ou \"FALHOU cr-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-09 (\"O S do HTTPS\").\n1. Lê cards/cr-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-09/card.test.js\nResponde com uma única linha: \"OK cr-09\" ou \"FAILED cr-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-10",
-      "titulo": "Números ao acaso a sério",
-      "grupo": "criptografia",
-      "grupo_nome": "Criptografia básica",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Números ao acaso a sério",
+      "group": "cryptography",
+      "group_name": "Criptografia básica",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cr-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cr-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão cr-10 (\"Números ao acaso a sério\").\n1. Lê cards/cr-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-10/card.test.js\nResponde com uma única linha: \"OK cr-10\" ou \"FALHOU cr-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cr-10 (\"Números ao acaso a sério\").\n1. Lê cards/cr-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-10/card.test.js\nResponde com uma única linha: \"OK cr-10\" ou \"FAILED cr-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-01",
-      "titulo": "A chave no código",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A chave no código",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-01 (\"A chave no código\").\n1. Lê cards/sc-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-01/card.test.js\nResponde com uma única linha: \"OK sc-01\" ou \"FALHOU sc-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-01 (\"A chave no código\").\n1. Lê cards/sc-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-01/card.test.js\nResponde com uma única linha: \"OK sc-01\" ou \"FAILED sc-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-02",
-      "titulo": "Apaguei a chave no commit seguinte",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Apaguei a chave no commit seguinte",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-02 (\"Apaguei a chave no commit seguinte\").\n1. Lê cards/sc-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-02/card.test.js\nResponde com uma única linha: \"OK sc-02\" ou \"FALHOU sc-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-02 (\"Apaguei a chave no commit seguinte\").\n1. Lê cards/sc-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-02/card.test.js\nResponde com uma única linha: \"OK sc-02\" ou \"FAILED sc-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-03",
-      "titulo": "O .env fica de fora",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O .env fica de fora",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-03 (\"O .env fica de fora\").\n1. Lê cards/sc-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-03/card.test.js\nResponde com uma única linha: \"OK sc-03\" ou \"FALHOU sc-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-03 (\"O .env fica de fora\").\n1. Lê cards/sc-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-03/card.test.js\nResponde com uma única linha: \"OK sc-03\" ou \"FAILED sc-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-04",
-      "titulo": "Do acesso mínimo ao total",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Do acesso mínimo ao total",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-04 (\"Do acesso mínimo ao total\").\n1. Lê cards/sc-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-04/card.test.js\nResponde com uma única linha: \"OK sc-04\" ou \"FALHOU sc-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-04 (\"Do acesso mínimo ao total\").\n1. Lê cards/sc-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-04/card.test.js\nResponde com uma única linha: \"OK sc-04\" ou \"FAILED sc-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-05",
-      "titulo": "O bucket público",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O bucket público",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-05 (\"O bucket público\").\n1. Lê cards/sc-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-05/card.test.js\nResponde com uma única linha: \"OK sc-05\" ou \"FALHOU sc-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-05 (\"O bucket público\").\n1. Lê cards/sc-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-05/card.test.js\nResponde com uma única linha: \"OK sc-05\" ou \"FAILED sc-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-06",
-      "titulo": "A vida de um segredo",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A vida de um segredo",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-06 (\"A vida de um segredo\").\n1. Lê cards/sc-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-06/card.test.js\nResponde com uma única linha: \"OK sc-06\" ou \"FALHOU sc-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-06 (\"A vida de um segredo\").\n1. Lê cards/sc-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-06/card.test.js\nResponde com uma única linha: \"OK sc-06\" ou \"FAILED sc-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-07",
-      "titulo": "O segredo no registo do CI",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O segredo no registo do CI",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-07 (\"O segredo no registo do CI\").\n1. Lê cards/sc-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-07/card.test.js\nResponde com uma única linha: \"OK sc-07\" ou \"FALHOU sc-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-07 (\"O segredo no registo do CI\").\n1. Lê cards/sc-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-07/card.test.js\nResponde com uma única linha: \"OK sc-07\" ou \"FAILED sc-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-08",
-      "titulo": "A conta root da cloud",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A conta root da cloud",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-08 (\"A conta root da cloud\").\n1. Lê cards/sc-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-08/card.test.js\nResponde com uma única linha: \"OK sc-08\" ou \"FALHOU sc-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-08 (\"A conta root da cloud\").\n1. Lê cards/sc-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-08/card.test.js\nResponde com uma única linha: \"OK sc-08\" ou \"FAILED sc-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-09",
-      "titulo": "O segredo na imagem",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O segredo na imagem",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-09 (\"O segredo na imagem\").\n1. Lê cards/sc-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-09/card.test.js\nResponde com uma única linha: \"OK sc-09\" ou \"FALHOU sc-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-09 (\"O segredo na imagem\").\n1. Lê cards/sc-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-09/card.test.js\nResponde com uma única linha: \"OK sc-09\" ou \"FAILED sc-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-10",
-      "titulo": "Como a app chega à base de dados",
-      "grupo": "segredos-cloud",
-      "grupo_nome": "Segredos e cloud",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Como a app chega à base de dados",
+      "group": "cloud-secrets",
+      "group_name": "Segredos e cloud",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/sc-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/sc-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão sc-10 (\"Como a app chega à base de dados\").\n1. Lê cards/sc-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-10/card.test.js\nResponde com uma única linha: \"OK sc-10\" ou \"FALHOU sc-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão sc-10 (\"Como a app chega à base de dados\").\n1. Lê cards/sc-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-10/card.test.js\nResponde com uma única linha: \"OK sc-10\" ou \"FAILED sc-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-01",
-      "titulo": "Do bloqueio mais fraco ao mais forte",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Do bloqueio mais fraco ao mais forte",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-01 (\"Do bloqueio mais fraco ao mais forte\").\n1. Lê cards/mb-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-01/card.test.js\nResponde com uma única linha: \"OK mb-01\" ou \"FALHOU mb-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-01 (\"Do bloqueio mais fraco ao mais forte\").\n1. Lê cards/mb-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-01/card.test.js\nResponde com uma única linha: \"OK mb-01\" ou \"FAILED mb-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-02",
-      "titulo": "O jogo pago de graça",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O jogo pago de graça",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-02 (\"O jogo pago de graça\").\n1. Lê cards/mb-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-02/card.test.js\nResponde com uma única linha: \"OK mb-02\" ou \"FALHOU mb-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-02 (\"O jogo pago de graça\").\n1. Lê cards/mb-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-02/card.test.js\nResponde com uma única linha: \"OK mb-02\" ou \"FAILED mb-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-03",
-      "titulo": "A app de limpeza quer acessibilidade",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A app de limpeza quer acessibilidade",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-03 (\"A app de limpeza quer acessibilidade\").\n1. Lê cards/mb-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-03/card.test.js\nResponde com uma única linha: \"OK mb-03\" ou \"FALHOU mb-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-03 (\"A app de limpeza quer acessibilidade\").\n1. Lê cards/mb-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-03/card.test.js\nResponde com uma única linha: \"OK mb-03\" ou \"FAILED mb-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-04",
-      "titulo": "A atualização pendente",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A atualização pendente",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-04 (\"A atualização pendente\").\n1. Lê cards/mb-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-04/card.test.js\nResponde com uma única linha: \"OK mb-04\" ou \"FALHOU mb-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-04 (\"A atualização pendente\").\n1. Lê cards/mb-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-04/card.test.js\nResponde com uma única linha: \"OK mb-04\" ou \"FAILED mb-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-05",
-      "titulo": "Como se rouba um número de telemóvel",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Como se rouba um número de telemóvel",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-05 (\"Como se rouba um número de telemóvel\").\n1. Lê cards/mb-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-05/card.test.js\nResponde com uma única linha: \"OK mb-05\" ou \"FALHOU mb-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-05 (\"Como se rouba um número de telemóvel\").\n1. Lê cards/mb-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-05/card.test.js\nResponde com uma única linha: \"OK mb-05\" ou \"FAILED mb-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-06",
-      "titulo": "Perdeste o telemóvel",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Perdeste o telemóvel",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-06 (\"Perdeste o telemóvel\").\n1. Lê cards/mb-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-06/card.test.js\nResponde com uma única linha: \"OK mb-06\" ou \"FALHOU mb-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-06 (\"Perdeste o telemóvel\").\n1. Lê cards/mb-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-06/card.test.js\nResponde com uma única linha: \"OK mb-06\" ou \"FAILED mb-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-07",
-      "titulo": "A app pronta para a loja?",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A app pronta para a loja?",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-07 (\"A app pronta para a loja?\").\n1. Lê cards/mb-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-07/card.test.js\nResponde com uma única linha: \"OK mb-07\" ou \"FALHOU mb-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-07 (\"A app pronta para a loja?\").\n1. Lê cards/mb-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-07/card.test.js\nResponde com uma única linha: \"OK mb-07\" ou \"FAILED mb-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-08",
-      "titulo": "Carregar no aeroporto",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Carregar no aeroporto",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-08 (\"Carregar no aeroporto\").\n1. Lê cards/mb-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-08/card.test.js\nResponde com uma única linha: \"OK mb-08\" ou \"FALHOU mb-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-08 (\"Carregar no aeroporto\").\n1. Lê cards/mb-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-08/card.test.js\nResponde com uma única linha: \"OK mb-08\" ou \"FAILED mb-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-09",
-      "titulo": "Gerir os telemóveis da empresa",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Gerir os telemóveis da empresa",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-09 (\"Gerir os telemóveis da empresa\").\n1. Lê cards/mb-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-09/card.test.js\nResponde com uma única linha: \"OK mb-09\" ou \"FALHOU mb-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-09 (\"Gerir os telemóveis da empresa\").\n1. Lê cards/mb-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-09/card.test.js\nResponde com uma única linha: \"OK mb-09\" ou \"FAILED mb-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "mb-10",
-      "titulo": "O que se vê no ecrã bloqueado",
-      "grupo": "mobile",
-      "grupo_nome": "Dispositivos móveis",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O que se vê no ecrã bloqueado",
+      "group": "mobile",
+      "group_name": "Dispositivos móveis",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/mb-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/mb-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão mb-10 (\"O que se vê no ecrã bloqueado\").\n1. Lê cards/mb-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-10/card.test.js\nResponde com uma única linha: \"OK mb-10\" ou \"FALHOU mb-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão mb-10 (\"O que se vê no ecrã bloqueado\").\n1. Lê cards/mb-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/mb-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/mb-10/card.test.js\nResponde com uma única linha: \"OK mb-10\" ou \"FAILED mb-10: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-01",
-      "titulo": "Encontra o path traversal",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Encontra o path traversal",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-01/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-01/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-01 (\"Encontra o path traversal\").\n1. Lê cards/cs-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-01/card.test.js\nResponde com uma única linha: \"OK cs-01\" ou \"FALHOU cs-01: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-01 (\"Encontra o path traversal\").\n1. Lê cards/cs-01/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-01/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-01/card.test.js\nResponde com uma única linha: \"OK cs-01\" ou \"FAILED cs-01: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-02",
-      "titulo": "Validar a idade",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Validar a idade",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-02/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-02/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-02 (\"Validar a idade\").\n1. Lê cards/cs-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-02/card.test.js\nResponde com uma única linha: \"OK cs-02\" ou \"FALHOU cs-02: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-02 (\"Validar a idade\").\n1. Lê cards/cs-02/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-02/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-02/card.test.js\nResponde com uma única linha: \"OK cs-02\" ou \"FAILED cs-02: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-03",
-      "titulo": "A password no registo",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A password no registo",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-03/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-03/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-03 (\"A password no registo\").\n1. Lê cards/cs-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-03/card.test.js\nResponde com uma única linha: \"OK cs-03\" ou \"FALHOU cs-03: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-03 (\"A password no registo\").\n1. Lê cards/cs-03/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-03/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-03/card.test.js\nResponde com uma única linha: \"OK cs-03\" ou \"FAILED cs-03: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-04",
-      "titulo": "A calculadora com eval",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "A calculadora com eval",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-04/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-04/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-04 (\"A calculadora com eval\").\n1. Lê cards/cs-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-04/card.test.js\nResponde com uma única linha: \"OK cs-04\" ou \"FALHOU cs-04: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-04 (\"A calculadora com eval\").\n1. Lê cards/cs-04/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-04/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-04/card.test.js\nResponde com uma única linha: \"OK cs-04\" ou \"FAILED cs-04: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-05",
-      "titulo": "Corrigir uma dependência vulnerável",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Corrigir uma dependência vulnerável",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-05/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-05/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-05 (\"Corrigir uma dependência vulnerável\").\n1. Lê cards/cs-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-05/card.test.js\nResponde com uma única linha: \"OK cs-05\" ou \"FALHOU cs-05: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-05 (\"Corrigir uma dependência vulnerável\").\n1. Lê cards/cs-05/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-05/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-05/card.test.js\nResponde com uma única linha: \"OK cs-05\" ou \"FAILED cs-05: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-06",
-      "titulo": "Valores separados do SQL",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Valores separados do SQL",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-06/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-06/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-06 (\"Valores separados do SQL\").\n1. Lê cards/cs-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-06/card.test.js\nResponde com uma única linha: \"OK cs-06\" ou \"FALHOU cs-06: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-06 (\"Valores separados do SQL\").\n1. Lê cards/cs-06/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-06/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-06/card.test.js\nResponde com uma única linha: \"OK cs-06\" ou \"FAILED cs-06: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-07",
-      "titulo": "O erro que conta demais",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "O erro que conta demais",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-07/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-07/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-07 (\"O erro que conta demais\").\n1. Lê cards/cs-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-07/card.test.js\nResponde com uma única linha: \"OK cs-07\" ou \"FALHOU cs-07: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-07 (\"O erro que conta demais\").\n1. Lê cards/cs-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-07/card.test.js\nResponde com uma única linha: \"OK cs-07\" ou \"FAILED cs-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-08",
-      "titulo": "Tentativas sem limite",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Tentativas sem limite",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-08/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-08/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-08 (\"Tentativas sem limite\").\n1. Lê cards/cs-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-08/card.test.js\nResponde com uma única linha: \"OK cs-08\" ou \"FALHOU cs-08: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-08 (\"Tentativas sem limite\").\n1. Lê cards/cs-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-08/card.test.js\nResponde com uma única linha: \"OK cs-08\" ou \"FAILED cs-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-09",
-      "titulo": "Encontra a injeção de comandos",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Encontra a injeção de comandos",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-09/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-09/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-09 (\"Encontra a injeção de comandos\").\n1. Lê cards/cs-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-09/card.test.js\nResponde com uma única linha: \"OK cs-09\" ou \"FALHOU cs-09: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-09 (\"Encontra a injeção de comandos\").\n1. Lê cards/cs-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-09/card.test.js\nResponde com uma única linha: \"OK cs-09\" ou \"FAILED cs-09: <motivo em poucas palavras>\"."
     },
     {
       "id": "cs-10",
-      "titulo": "Versões fixas",
-      "grupo": "codigo-seguro",
-      "grupo_nome": "Código seguro",
-      "grupo_tipo": "cartao",
-      "onda": 1,
-      "agente": "worker",
-      "depende": [],
-      "teste": [
+      "title": "Versões fixas",
+      "group": "secure-code",
+      "group_name": "Código seguro",
+      "group_type": "card",
+      "wave": 1,
+      "agent": "worker",
+      "depends_on": [],
+      "test": [
         "node",
         "--test",
         "cards/cs-10/card.test.js"
       ],
-      "ficheiros": [
+      "files": [
         "cards/cs-10/card.js"
       ],
-      "instrucoes": "Constrói o cartão cs-10 (\"Versões fixas\").\n1. Lê cards/cs-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-10/card.test.js\nResponde com uma única linha: \"OK cs-10\" ou \"FALHOU cs-10: <motivo em poucas palavras>\"."
+      "instructions": "Constrói o cartão cs-10 (\"Versões fixas\").\n1. Lê cards/cs-10/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cs-10/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cs-10/card.test.js\nResponde com uma única linha: \"OK cs-10\" ou \"FAILED cs-10: <motivo em poucas palavras>\"."
     },
     {
-      "id": "pagina-categoria",
-      "titulo": "Página de categoria",
-      "onda": 2,
-      "agente": "implementer",
-      "spec": "specs/pagina-categoria.md",
-      "teste": [
+      "id": "category-page",
+      "title": "Página de categoria",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/category-page.md",
+      "depends_on": [
+        "*cards"
+      ],
+      "test": [
         "node",
         "--test",
-        "pages/categoria.test.js"
+        "pages/category.test.js"
       ],
-      "ficheiros": [
-        "pages/categoria.js"
+      "files": [
+        "pages/category.js"
       ],
-      "depende": [
-        "*cartoes"
-      ],
-      "grupo": "paginas",
-      "grupo_tipo": "pagina",
-      "instrucoes": "Implementa pages/categoria.js conforme specs/pagina-categoria.md. Segue DESIGN.md.\nVerifica: node --test pages/categoria.test.js\nResponde com uma única linha: \"OK pagina-categoria\" ou \"FALHOU pagina-categoria: <motivo>\"."
+      "instructions": "Implementa pages/category.js conforme specs/category-page.md. Segue DESIGN.md.\nVerifica: node --test pages/category.test.js\nResponde com uma única linha: \"OK category-page\" ou \"FAILED category-page: <motivo>\"."
     },
     {
-      "id": "tabela-pontuacao",
-      "titulo": "Tabela de pontuação",
-      "onda": 2,
-      "agente": "implementer",
-      "spec": "specs/tabela-pontuacao.md",
-      "teste": [
+      "id": "score-table",
+      "title": "Tabela de pontuação",
+      "group": "pages",
+      "group_type": "page",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/score-table.md",
+      "depends_on": [
+        "*cards"
+      ],
+      "test": [
         "node",
         "--test",
-        "pages/pontuacao.test.js"
+        "pages/score.test.js"
       ],
-      "ficheiros": [
-        "pages/pontuacao.js"
+      "files": [
+        "pages/score.js"
       ],
-      "depende": [
-        "*cartoes"
-      ],
-      "grupo": "paginas",
-      "grupo_tipo": "pagina",
-      "instrucoes": "Implementa pages/pontuacao.js conforme specs/tabela-pontuacao.md. Segue DESIGN.md.\nVerifica: node --test pages/pontuacao.test.js\nResponde com uma única linha: \"OK tabela-pontuacao\" ou \"FALHOU tabela-pontuacao: <motivo>\"."
+      "instructions": "Implementa pages/score.js conforme specs/score-table.md. Segue DESIGN.md.\nVerifica: node --test pages/score.test.js\nResponde com uma única linha: \"OK score-table\" ou \"FAILED score-table: <motivo>\"."
     },
     {
-      "id": "integracao",
-      "titulo": "Integração e suite completa",
-      "onda": 3,
-      "agente": "integrator",
-      "spec": "specs/integracao.md",
-      "teste": [
-        "node",
-        "tools/check-integracao.mjs"
+      "id": "integration",
+      "title": "Integração e suite completa",
+      "group": "integration",
+      "group_type": "integration",
+      "wave": 3,
+      "agent": "integrator",
+      "spec": "specs/integration.md",
+      "depends_on": [
+        "category-page",
+        "score-table",
+        "*cards"
       ],
-      "ficheiros": [
+      "test": [
+        "node",
+        "tools/check-integration.mjs"
+      ],
+      "files": [
         "public/",
         "pages/"
       ],
-      "depende": [
-        "pagina-categoria",
-        "tabela-pontuacao",
-        "*cartoes"
-      ],
-      "grupo": "integracao",
-      "grupo_tipo": "integracao",
-      "instrucoes": "Integração final. Segue specs/integracao.md.\nCorre a suite completa: node --test\nResponde com uma única linha: \"OK integracao\" ou \"FALHOU integracao: <motivo>\"."
+      "instructions": "Integração final. Segue specs/integration.md.\nCorre a suite completa: node --test\nResponde com uma única linha: \"OK integration\" ou \"FAILED integration: <motivo>\"."
     },
     {
-      "id": "revisao",
-      "titulo": "Revisão de segurança e qualidade",
-      "onda": 4,
-      "agente": "reviewer",
-      "spec": "specs/revisao.md",
-      "preparar": [
+      "id": "review",
+      "title": "Revisão de segurança e qualidade",
+      "group": "review",
+      "group_type": "review",
+      "wave": 4,
+      "agent": "reviewer",
+      "spec": "specs/review.md",
+      "depends_on": [
+        "integration"
+      ],
+      "test": {
+        "json_file": ".workshop/verdict.json",
+        "field": "verdict"
+      },
+      "files": [
+        ".workshop/verdict.json"
+      ],
+      "prepare": [
         "node",
         "tools/review-digest.mjs"
       ],
-      "teste": {
-        "ficheiro_json": ".workshop/veredito.json",
-        "campo": "veredito"
-      },
-      "ficheiros": [
-        ".workshop/veredito.json"
-      ],
-      "depende": [
-        "integracao"
-      ],
-      "grupo": "revisao",
-      "grupo_tipo": "revisao",
-      "instrucoes": "Revisão de segurança e qualidade. Segue specs/revisao.md.\nLê primeiro .workshop/revisao-resumo.md (já gerado). Escreve o veredito em .workshop/veredito.json.\nResponde com uma única linha: \"OK revisao: <veredito>\"."
+      "instructions": "Revisão de segurança e qualidade. Segue specs/review.md.\nLê primeiro .workshop/review-summary.md (já gerado). Escreve o veredito em .workshop/verdict.json.\nResponde com uma única linha: \"OK review: <verdict>\"."
     }
   ]
 }
