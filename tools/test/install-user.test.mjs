@@ -138,8 +138,17 @@ test('settings.json invalido: sai com 3 e nao toca em nada', () => {
     const r = run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]);
     assert.equal(r.status, 3);
     assert.deepEqual(r.get('erro'), ['E-CFG-05']);
+    assert.deepEqual(r.get('erro_detalhe'), ['not valid JSON at line 1, column 9: a comma after the last item. JSON does not allow it']);
     assert.equal(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'), '{ "a": 1, }');
     assert.ok(!existsSync(join(home, '.workshop-claude', 'kit')));
+    // --check: o mesmo erro, com o mesmo detalhe (antes so dizia E-CFG-05)
+    const v = run(home, ['verificar', '--node', process.execPath, '--kit-src', kit]);
+    assert.deepEqual(v.get('erro_detalhe'), ['not valid JSON at line 1, column 9: a comma after the last item. JSON does not allow it']);
+    // tipo errado ("hooks": []) tambem no --check
+    writeFileSync(join(home, '.claude', 'settings.json'), '{ "hooks": [] }');
+    const h = run(home, ['verificar', '--node', process.execPath, '--kit-src', kit]);
+    assert.deepEqual(h.get('erro'), ['E-CFG-05']);
+    assert.deepEqual(h.get('erro_detalhe'), ['"hooks" must be an object { "Stop": [ ... ] }, not a list or text']);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

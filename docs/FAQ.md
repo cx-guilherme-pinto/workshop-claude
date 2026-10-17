@@ -15,8 +15,12 @@ Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, inst
 **Can I run the script twice?**
 Yes. It detects what is already done and skips those steps (⏭️). If it failed halfway, running it again continues from there.
 
+**The setup says it is already running.**
+Another window is running it, or it is paused there (someone pressed Ctrl+Z and the window shows "suspended"). The message says which. Wait for it to finish, type `fg` and press Enter in the paused window, or close that window, then run the same command again. A setup that was killed (for example, when the laptop shut down) does not block the next one.
+
 **I installed an earlier version of the kit. Do I need to do anything?**
 Run the setup again. It updates what the earlier version installed, with the names the kit uses now: the memory MCP server becomes `agent-memory`, and the practice project moves to `~/workshop-claude/practice-project` (only if that folder does not exist yet; nothing is deleted). Your notes stay where they are and the app keeps using them. The old commands still work.
+The first time, use the one-line command (`curl … | bash`) rather than `bash ~/.workshop-claude/setup-mac.sh`: the copy saved by an early release can stop at the first question with "zsh: suspended (tty input)". If that happens, type `fg` and press Enter, or close the window and use the one-line command. From this release on, the saved copy updates itself from the release.
 
 **I'm behind a company proxy.**
 The script detects the system proxy and, if your company inspects HTTPS traffic, exports the company certificates and configures Claude Code, Node and uv to use them. Proxies that only accept NTLM or Kerberos are not supported. In that case, talk to IT or use another network.

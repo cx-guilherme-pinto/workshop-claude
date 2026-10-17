@@ -24,24 +24,71 @@ export function isOurs(cmd) {
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
+// message: para o log. detail: o que o setup mostra no ecra (em ingles, sem citar o ficheiro, que pode ter
+// tokens no "env"): onde esta o erro e porque.
 export class SettingsError extends Error {
-  constructor(message, code = 'E-CFG-05') {
+  constructor(message, code = 'E-CFG-05', detail = '') {
     super(message);
     this.code = code;
+    this.detail = detail;
   }
+}
+
+// Onde esta o erro de JSON, em "line L, column C: ...". Os dois erros mais comuns em ficheiros editados a mao
+// (comentarios e virgula depois do ultimo elemento, que o VS Code aceita) sao procurados aqui, porque a mensagem
+// do Node nao da a linha nesses casos e cita o texto do ficheiro.
+export function jsonErrorDetail(text, err) {
+  const at = (i) => {
+    const b = text.slice(0, i);
+    return `line ${b.split('\n').length}, column ${i - b.lastIndexOf('\n')}`;
+  };
+  const trailing = /\s*[}\]]/y;
+  let inStr = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (c === '\\') i++;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '/' && (text[i + 1] === '/' || text[i + 1] === '*')) return `${at(i)}: a comment. JSON does not allow // or /* */ comments`;
+    else if (c === ',') {
+      trailing.lastIndex = i + 1;
+      if (trailing.test(text)) return `${at(i)}: a comma after the last item. JSON does not allow it`;
+    }
+  }
+  const m = /position (\d+)/.exec(err?.message || '');
+  return m ? at(Number(m[1])) : 'the file ends too early or has an invalid character';
 }
 
 // Le o texto do settings.json. Vazio ou so espacos conta como {}.
 export function parseSettings(text) {
   if (text === null || text === undefined || String(text).trim() === '') return {};
+  const t = String(text).replace(/^﻿/, '');
   let v;
   try {
-    v = JSON.parse(String(text).replace(/^﻿/, ''));
+    v = JSON.parse(t);
   } catch (e) {
-    throw new SettingsError(`settings.json is not valid JSON: ${e.message}`);
+    throw new SettingsError(`settings.json is not valid JSON: ${e.message}`, 'E-CFG-05', `not valid JSON at ${jsonErrorDetail(t, e)}`);
   }
-  if (!isObj(v)) throw new SettingsError('settings.json must be a JSON object');
+  if (!isObj(v)) throw new SettingsError('settings.json must be a JSON object', 'E-CFG-05', 'the whole file must be one object { ... }');
   return v;
+}
+
+// Campos que o workshop altera, com o tipo certo (o mesmo para instalar e para o --check).
+export function checkShape(s) {
+  if (s.hooks !== undefined && !isObj(s.hooks)) {
+    throw new SettingsError('"hooks" in settings.json is not an object', 'E-CFG-05', '"hooks" must be an object { "Stop": [ ... ] }, not a list or text');
+  }
+  for (const [event] of HOOKS) {
+    if (isObj(s.hooks) && s.hooks[event] !== undefined && !Array.isArray(s.hooks[event])) {
+      throw new SettingsError(`"hooks.${event}" in settings.json is not a list`, 'E-CFG-05', `"hooks.${event}" must be a list [ ... ]`);
+    }
+  }
+  if (s.env !== undefined && !isObj(s.env)) {
+    throw new SettingsError('"env" in settings.json is not an object', 'E-CFG-05', '"env" must be an object { "NAME": "value" }');
+  }
 }
 
 export function expectedEntries({ node, kitDir }) {
@@ -74,13 +121,10 @@ export function mergeSettings(current, opts, prevRecord = null) {
   };
   const exp = expectedEntries({ node, kitDir });
 
-  if (s.hooks !== undefined && !isObj(s.hooks)) throw new SettingsError('"hooks" in settings.json is not an object');
+  checkShape(s);
   s.hooks = s.hooks || {};
   for (const { event, command: cmd } of exp.hooks) {
     const file = cmd.split('/').pop(); // ex.: stop.mjs" (com a aspa final)
-    if (s.hooks[event] !== undefined && !Array.isArray(s.hooks[event])) {
-      throw new SettingsError(`"hooks.${event}" in settings.json is not a list`);
-    }
     let groups = s.hooks[event] || [];
     let found = false;
     const emptied = new Set();
@@ -121,7 +165,6 @@ export function mergeSettings(current, opts, prevRecord = null) {
     warnings.push('E-CFG-06');
   }
 
-  if (s.env !== undefined && !isObj(s.env)) throw new SettingsError('"env" in settings.json is not an object');
   s.env = s.env || {};
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined || v === null || v === '') continue;
@@ -189,6 +232,7 @@ export function unmergeSettings(current, record = {}) {
 
 // Verifica se o settings atual tem o que o workshop precisa (para o --check).
 export function checkSettings(current, opts) {
+  if (isObj(current)) checkShape(current);
   const exp = expectedEntries(opts);
   const faltam = [];
   for (const { event, command: cmd } of exp.hooks) {

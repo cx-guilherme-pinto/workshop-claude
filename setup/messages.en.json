@@ -123,6 +123,10 @@
     "s12_ok": "Reply \"{RESPOSTA}\" in {SEG} s · cost {USD}",
     "s12_custo_desconhecido": "model has no price in pricing.json",
     "interrompido": "Interrupted. Run the same command again: steps already done are skipped.",
+    "lock_ativo": "The setup is already running in another window (PID {PID}, since {HORA}). Wait for it to finish, or close that window, then run the same command again.",
+    "lock_parado": "The setup is paused in a Terminal window, maybe this one (PID {PID}, since {HORA}; that window shows \"suspended\"). Type fg in that window and press Enter to continue it, or close that window and run the same command again.",
+    "perm_corrigir": "To fix it, run this command, then run the setup again: {CMD}",
+    "perm_nao_pasta": "not a folder",
     "s1_portatil": "git {VERSAO} (the workshop's portable git, without the Apple tools)",
     "lingua_pt": "Portuguese",
     "lingua_en": "English"
@@ -207,16 +211,19 @@
     "E-NET-04": {
       "titulo": "Your company intercepts HTTPS traffic (its own certificate)",
       "so": "todos",
-      "causa": "The certificate for api.anthropic.com does not come from a public authority. The company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code to use them.",
+      "causa": "A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code and uv to use them.",
       "fazer": [
         "Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.",
-        "If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again."
+        "If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again.",
+        "If the Agent Memory app fails with a certificate error, install its Python with the system certificates (last command below), then run the setup again."
       ],
       "mac": [
-        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem"
+        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem",
+        "UV_SYSTEM_CERTS=true uv python install {PYTHON_VERSION}"
       ],
       "windows": [
-        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer"
+        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer",
+        "$env:UV_SYSTEM_CERTS = 'true'; uv python install {PYTHON_VERSION}"
       ]
     },
     "E-NET-05": {
@@ -397,13 +404,13 @@
     "E-CFG-05": {
       "titulo": "The Claude Code settings.json file has an error",
       "so": "todos",
-      "causa": "~/.claude/settings.json is not valid JSON. The setup does not touch it, so you don't lose your settings.",
+      "causa": "~/.claude/settings.json is not strict JSON, or a field in it has the wrong type: the line and column, or the field, are in brackets. JSON does not allow // or /* */ comments, or a comma after the last item of a list or object (some editors' settings files do). The setup does not touch the file, so you don't lose your settings.",
       "fazer": [
-        "Open the file and fix the error (for example, a missing comma or brace).",
-        "Then run the setup again."
+        "Open the file at the line and column shown and fix it: remove the comments and the comma after the last item. For a field with the wrong type, give it the shape shown in brackets.",
+        "Check the file with the command below (it prints JSON OK), then run the setup again."
       ],
       "mac": [
-        "node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8'))\""
+        "PATH=\"$HOME/.workshop-claude/node/bin:$PATH\" node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')); console.log('JSON OK')\""
       ],
       "windows": [
         "Get-Content \"$env:USERPROFILE\\.claude\\settings.json\" -Raw | ConvertFrom-Json"
@@ -442,17 +449,22 @@
     "E-PERM-01": {
       "titulo": "No permission to write to your home folder",
       "so": "todos",
-      "causa": "The setup installs everything in your home folder, and a folder is protected or belongs to another user (for example, it was created with sudo or by an administrator).",
+      "causa": "The setup installs everything in your home folder, and a folder or file there (in brackets) is protected, belongs to another user (for example, it was created with sudo or by an administrator), or is a file where a folder should be.",
       "fazer": [
-        "Find the folder in the log and fix its owner.",
+        "Run the command the setup shows after \"To fix it, run this command\" (it lists exactly those paths), then run the setup again.",
+        "If you have no admin rights for sudo, ask IT to run it for you.",
+        "If a path is a file and not a folder (for example ~/.local/bin), rename it: mv ~/.local/bin ~/.local/bin.old.",
         "Don't run the setup with sudo or as administrator."
       ],
       "mac": [
-        "ls -ld ~/.local ~/.local/bin ~/.claude ~/.workshop-claude",
-        "sudo chown -R \"$USER\" ~/.local ~/.claude ~/.workshop-claude"
+        "ls -ld ~/.local ~/.local/bin ~/.claude ~/.claude.json ~/.workshop-claude",
+        "sudo chown -R \"$USER\" ~/.local ~/.claude ~/.claude.json ~/.workshop-claude"
       ],
       "windows": [
-        "icacls \"$env:USERPROFILE\\.workshop-claude\""
+        "icacls \"$env:USERPROFILE\\.workshop-claude\"",
+        "icacls \"$env:USERPROFILE\\.claude\"",
+        "icacls \"$env:USERPROFILE\\.claude.json\"",
+        "icacls \"$env:USERPROFILE\\.local\\bin\""
       ]
     },
     "E-PERM-02": {
@@ -784,7 +796,7 @@
     "E-KIT-03": {
       "titulo": "Installing the skills and hooks failed",
       "so": "todos",
-      "causa": "The Node installer couldn't copy the files or update settings.json. Your settings.json has a backup in ~/.workshop-claude/backup.",
+      "causa": "The Node installer couldn't copy the files or update settings.json. If settings.json was already changed, its backup is in ~/.workshop-claude/backup.",
       "fazer": [
         "Read the message in the log (search for \"install-user\").",
         "Fix the cause (permissions or an invalid settings.json) and run the setup again."
@@ -863,7 +875,7 @@
     "E-MEM-03": {
       "titulo": "Installing the Agent Memory app failed",
       "so": "todos",
-      "causa": "uv couldn't install the app (Python {PYTHON_VERSION} or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).",
+      "causa": "uv couldn't install the app (Python {PYTHON_VERSION} or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com) or the certificate of a company proxy (code E-NET-04).",
       "fazer": [
         "Check that you can reach pypi.org and files.pythonhosted.org.",
         "Run the setup again. The app is optional: the skills work without it."
@@ -898,6 +910,40 @@
         "agent-memory selftest"
       ],
       "windows": [
+        "agent-memory selftest"
+      ]
+    },
+    "E-MEM-06": {
+      "titulo": "Couldn't create the Agent Memory shortcut",
+      "so": "todos",
+      "causa": "The folder for app shortcuts (in brackets) is not writable: it belongs to another user or is locked by IT. Only the shortcut is missing: the app, its window and its MCP work.",
+      "fazer": [
+        "You can continue. Open the app window with the first command below.",
+        "If you want the shortcut, give the folder back to your user (or ask IT), then run the setup again."
+      ],
+      "mac": [
+        "agent-memory-gui",
+        "ls -ld ~/Applications"
+      ],
+      "windows": [
+        "agent-memory-gui"
+      ]
+    },
+    "E-MEM-07": {
+      "titulo": "The Agent Memory folder is not writable",
+      "so": "todos",
+      "causa": "The Agent Memory app is installed, but it cannot write to its memories folder (~/.agent-memory, ~/.memoria from older versions, or AGENT_MEMORY_HOME). This usually happens after a command was run with sudo, which leaves the folder owned by the administrator, or when that path is a file or a broken link. Running the setup again does not fix it. The skills work without the app.",
+      "fazer": [
+        "Run the command the setup shows after \"To fix it, run this command\", then run the setup again.",
+        "Without admin rights: rename the folder (for example, mv ~/.agent-memory ~/.agent-memory-old), run the setup again, then copy your project folders from the old folder into the new one.",
+        "To see the folder and what the app reports, use the commands below."
+      ],
+      "mac": [
+        "ls -ld ~/.agent-memory ~/.memoria",
+        "agent-memory selftest"
+      ],
+      "windows": [
+        "icacls \"$env:USERPROFILE\\.agent-memory\"",
         "agent-memory selftest"
       ]
     },
