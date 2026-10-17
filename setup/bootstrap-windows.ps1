@@ -108,6 +108,19 @@ function Invoke-WsBootstrap {
     Write-Host ('ERROR: the downloaded setup was removed right away (' + $dest + '), usually by an antivirus. See E-PERM-02 in docs/TROUBLESHOOTING.md.')
     return
   }
+  # Uma pagina web no lugar do script (bloqueio de um proxy ou de um filtro, portal de uma rede WiFi): explica-se, em
+  # vez de um "SHA-256 errado" ou de erros de sintaxe do PowerShell. A mesma regra que o Test-WsHtmlFile do setup.
+  $head = ''
+  try {
+    $fs = [IO.File]::OpenRead($dest)
+    try { $buf = New-Object byte[] 512; $k = $fs.Read($buf, 0, 512); $head = ([Text.Encoding]::UTF8.GetString($buf, 0, $k)) -replace '[\s\uFEFF]', '' } finally { $fs.Close() }
+  } catch { $head = '' }
+  if ($head -match '^(<\?xml[^>]*>)?(<!--[^>]*-->)?<(!doctypehtml|html|head|body)') {
+    Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+    Write-Host ('ERROR: a web page came instead of the setup (' + $url + '): a proxy, a company filter or a WiFi login page.')
+    Write-Host 'Open that address in the browser to see the page, or use another network. See E-NET-01 in docs/TROUBLESHOOTING.md.'
+    return
+  }
   if ($WsSetupSha256) {
     $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash.ToLowerInvariant()
     if ($got -ne $WsSetupSha256.ToLowerInvariant()) {

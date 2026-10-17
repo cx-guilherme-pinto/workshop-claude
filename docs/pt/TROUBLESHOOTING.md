@@ -145,6 +145,7 @@ dscacheutil -q host -a name api.anthropic.com
 - **Porquê:** O teu terminal envia o tráfego por um proxy (HTTPS_PROXY, ALL_PROXY ou o proxy do sistema). Esse proxy não responde, o nome dele não resolve, ou recusou o pedido (por exemplo, erro 407: pede utilizador e palavra-passe). Acontece com um proxy que ficou da rede do escritório ou de uma VPN antiga.
 - **O que fazer:**
   - Se não estás na rede do escritório nem na VPN, tira o proxy deste terminal (primeiro comando abaixo) e apaga a linha que o define no ~/.zshrc ou no ~/.zprofile. Se for o proxy do sistema, desliga-o em Definições do Sistema > Rede > Detalhes > Proxies. Depois volta a correr o setup.
+  - No Windows, o segundo comando tira o proxy das tuas variáveis de ambiente de utilizador, e o proxy do sistema está em Definições > Rede e Internet > Proxy.
   - Se a rede da empresa precisa do proxy, liga a VPN, ou define o proxy certo para esta sessão e volta a correr o setup.
   - Se o proxy pedir utilizador e palavra-passe (erro 407), pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
   - No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy.
@@ -1081,6 +1082,7 @@ Resolve-DnsName api.anthropic.com
 - **Porquê:** O teu terminal envia o tráfego por um proxy (HTTPS_PROXY, ALL_PROXY ou o proxy do sistema). Esse proxy não responde, o nome dele não resolve, ou recusou o pedido (por exemplo, erro 407: pede utilizador e palavra-passe). Acontece com um proxy que ficou da rede do escritório ou de uma VPN antiga.
 - **O que fazer:**
   - Se não estás na rede do escritório nem na VPN, tira o proxy deste terminal (primeiro comando abaixo) e apaga a linha que o define no ~/.zshrc ou no ~/.zprofile. Se for o proxy do sistema, desliga-o em Definições do Sistema > Rede > Detalhes > Proxies. Depois volta a correr o setup.
+  - No Windows, o segundo comando tira o proxy das tuas variáveis de ambiente de utilizador, e o proxy do sistema está em Definições > Rede e Internet > Proxy.
   - Se a rede da empresa precisa do proxy, liga a VPN, ou define o proxy certo para esta sessão e volta a correr o setup.
   - Se o proxy pedir utilizador e palavra-passe (erro 407), pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
   - No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy.
@@ -1166,7 +1168,7 @@ Comandos (Windows):
 
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
-Select-String -Path "$HOME\.claude\settings.json" -Pattern proxy
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
 ```
 
 <a id="windows-e-so-01"></a>

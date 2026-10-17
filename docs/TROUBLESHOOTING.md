@@ -145,6 +145,7 @@ dscacheutil -q host -a name api.anthropic.com
 - **Why:** Your terminal sends the traffic through a proxy (HTTPS_PROXY, ALL_PROXY or the system proxy). That proxy does not answer, its name does not resolve, or it refused the request (for example, error 407: it asks for a username and password). A proxy left over from the office network or from an old VPN causes this.
 - **What to do:**
   - If you are not on the office network or VPN, remove the proxy from this terminal (first command below) and delete the line that sets it in ~/.zshrc or ~/.zprofile. If it is the system proxy, turn it off in System Settings > Network > Details > Proxies. Then run the setup again.
+  - On Windows, the second command removes the proxy from your user environment variables, and the system proxy is in Settings > Network & internet > Proxy.
   - If the company network needs the proxy, connect the VPN, or set the right proxy for this session and run the setup again.
   - If the proxy asks for a username and password (error 407), ask IT for a proxy without authentication or an exception for the workshop domains.
   - On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy.
@@ -1081,6 +1082,7 @@ Resolve-DnsName api.anthropic.com
 - **Why:** Your terminal sends the traffic through a proxy (HTTPS_PROXY, ALL_PROXY or the system proxy). That proxy does not answer, its name does not resolve, or it refused the request (for example, error 407: it asks for a username and password). A proxy left over from the office network or from an old VPN causes this.
 - **What to do:**
   - If you are not on the office network or VPN, remove the proxy from this terminal (first command below) and delete the line that sets it in ~/.zshrc or ~/.zprofile. If it is the system proxy, turn it off in System Settings > Network > Details > Proxies. Then run the setup again.
+  - On Windows, the second command removes the proxy from your user environment variables, and the system proxy is in Settings > Network & internet > Proxy.
   - If the company network needs the proxy, connect the VPN, or set the right proxy for this session and run the setup again.
   - If the proxy asks for a username and password (error 407), ask IT for a proxy without authentication or an exception for the workshop domains.
   - On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy.
@@ -1166,7 +1168,7 @@ Commands (Windows):
 
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
-Select-String -Path "$HOME\.claude\settings.json" -Pattern proxy
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
 ```
 
 <a id="windows-e-so-01"></a>

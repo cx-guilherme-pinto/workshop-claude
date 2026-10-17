@@ -1138,5 +1138,378 @@ Describe 'chaos G2-profiles' {
       $script:UserHome = Join-Path $TestDrive 'sem-claude'
       Get-WsClaude | Should -Be 'C:\npm\claude.cmd'
     }
+# --- chaos G3-network: 403/451 e paginas web, downloads partidos, SHA-256 outra vez, proxy morto, settings.json, NO_PROXY
+Describe 'chaos G3-network' {
+  BeforeAll {
+    function New-G3Listener { $l = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0); $l.Start(); return $l }
+    function Get-G3DeadPort { $l = New-G3Listener; $p = $l.LocalEndpoint.Port; $l.Stop(); return $p }
+    function Set-G3Bytes([string]$Path, [byte[]]$Bytes) { [IO.File]::WriteAllBytes($Path, $Bytes) }
+    function Get-G3Ascii([string]$Text) { return [Text.Encoding]::ASCII.GetBytes($Text) }
+  }
+  BeforeEach {
+    $script:DlPartial = $false; $script:ProxyDead = $false; $script:EnvProxyDead = $false; $script:ProxyShow = ''
+    $script:DlHost = ''; $script:DlHttp = 0; $script:DlStatus = ''; $script:ProxyProbe = @{}; $script:Blocked = ''
+    $script:UA = 'test'; $script:T = New-WsStateTable; $script:Cur = '0'
+  }
+
+  It 'Get-WsNetCode: 403/451 e a pagina web sao bloqueio; parado a meio e E-NET-07; o proxy morto e E-NET-03' {
+    Get-WsNetCode 'ProtocolError' 403 | Should -Be 'E-NET-01'
+    Get-WsNetCode 'ProtocolError' 451 | Should -Be 'E-NET-01'
+    Get-WsNetCode 'HtmlPage' 200 | Should -Be 'E-NET-01'
+    $script:DlPartial = $true
+    Get-WsNetCode 'Timeout' 0 | Should -Be 'E-NET-07'
+    Get-WsNetCode 'ReceiveFailure' 0 | Should -Be 'E-NET-07'
+    Get-WsNetCode 'ConnectFailure' 0 | Should -Be 'E-NET-07' -Because 'com bytes ja recebidos, a ligacao existiu: partiu-se a meio'
+    Get-WsNetCode 'Blocked' 0 | Should -Be 'E-PERM-02'
+    Get-WsNetCode 'ProtocolError' 407 | Should -Be 'E-NET-03'
+    $script:DlPartial = $false
+    Get-WsNetCode 'Timeout' 0 | Should -Be 'E-NET-01'
+    $script:ProxyDead = $true
+    Get-WsNetCode 'ConnectFailure' 0 | Should -Be 'E-NET-03'
+    Get-WsNetCode 'NameResolutionFailure' 0 | Should -Be 'E-NET-03'
+    Get-WsNetCode 'Timeout' 0 | Should -Be 'E-NET-03' -Because 'um proxy do sistema que engole os pedidos so da timeout'
+    $script:ProxyDead = $false
+    Get-WsNetCode 'ConnectFailure' 0 | Should -Be 'E-NET-01'
+    Get-WsNetCode 'NameResolutionFailure' 0 | Should -Be 'E-NET-02'
+    Get-WsNetCode 'ProtocolError' 404 | Should -Be 'E-NET-07'
+  }
+
+  It 'mostra o proxy sem utilizador nem palavra-passe' {
+    Format-WsProxyShow 'http://bea:s3gr3d0@proxy.corp:8080' | Should -BeExactly 'http://proxy.corp:8080'
+    Format-WsProxyShow 'http://u:p@ss@proxy.corp:8080/' | Should -BeExactly 'http://proxy.corp:8080/'
+    Format-WsProxyShow 'http://u:pa/ss@proxy.corp:8080' | Should -BeExactly 'http://proxy.corp:8080'
+    Format-WsProxyShow 'u:pa/ss@proxy.corp:3128' | Should -BeExactly 'proxy.corp:3128'
+    Format-WsProxyShow 'u:pw@proxy.corp:3128' | Should -BeExactly 'proxy.corp:3128'
+    Format-WsProxyShow 'socks5h://127.0.0.1:1080' | Should -BeExactly 'socks5h://127.0.0.1:1080'
+    Format-WsProxyShow '' | Should -BeExactly ''
+  }
+
+  It 'reconhece uma pagina web no lugar do ficheiro (so no inicio, nunca num script ou num arquivo)' {
+    $bom = [byte[]](0xEF, 0xBB, 0xBF)
+    $f = Join-Path $TestDrive 'p1'; Set-G3Bytes $f ($bom + (Get-G3Ascii "  `r`n<!DOCTYPE html><html>"))
+    Test-WsHtmlFile $f | Should -BeTrue
+    $f = Join-Path $TestDrive 'p2'; Set-G3Bytes $f (Get-G3Ascii "<?xml version=`"1.0`"?>`n<html>")
+    Test-WsHtmlFile $f | Should -BeTrue
+    $f = Join-Path $TestDrive 'p3'; Set-G3Bytes $f (Get-G3Ascii '<html><body>Blocked</body></html>')
+    Test-WsHtmlFile $f | Should -BeTrue
+    $f = Join-Path $TestDrive 'p4'; Set-G3Bytes $f (Get-G3Ascii "<!-- filtro --><HEAD><title>x</title>")
+    Test-WsHtmlFile $f | Should -BeTrue
+    $f = Join-Path $TestDrive 'p5'; Set-G3Bytes $f (Get-G3Ascii "#!/bin/sh`n# <LICENSE-MIT`n<html>`n")
+    Test-WsHtmlFile $f | Should -BeFalse
+    $f = Join-Path $TestDrive 'p6'; Set-G3Bytes $f ([byte[]](0x1F, 0x8B, 0x08, 0x00) + (Get-G3Ascii '<html>'))
+    Test-WsHtmlFile $f | Should -BeFalse
+    $f = Join-Path $TestDrive 'p7'; Set-G3Bytes $f (Get-G3Ascii "#Requires -Version 5.1`r`n<#`r`n.SYNOPSIS`r`n#>")
+    Test-WsHtmlFile $f | Should -BeFalse
+    Test-WsHtmlFile (Join-Path $TestDrive 'nao-existe') | Should -BeFalse
+  }
+
+  It 'Invoke-WsDownload nunca usa uma pagina web e o detalhe diz que veio uma pagina' {
+    Mock Invoke-WebRequest { [IO.File]::WriteAllText($OutFile, "`n  <!DOCTYPE html><html><body>Blocked by the company filter</body></html>") }
+    $out = Join-Path $TestDrive 'install.ps1'
+    Invoke-WsDownload 'https://x.test/install.ps1' $out | Should -BeFalse
+    Test-Path -LiteralPath $out | Should -BeFalse
+    Test-Path -LiteralPath ($out + '.part') | Should -BeFalse
+    $script:DlStatus | Should -Be 'HtmlPage'
+    Get-WsDlCode | Should -Be 'E-NET-01'
+    Get-WsDlDetail 'https://x.test/install.ps1' | Should -BeExactly 'https://x.test/install.ps1 - a web page came instead of the file'
+    $script:Blocked | Should -BeExactly ''
+  }
+
+  It 'Invoke-WsDownload: parado a meio (ja tinham chegado bytes) e E-NET-07; sem bytes e E-NET-01' {
+    Mock Invoke-WebRequest { [IO.File]::WriteAllText($OutFile, 'meio ficheiro'); throw [System.Net.WebException]::new('The operation has timed out.', [System.Net.WebExceptionStatus]::Timeout) }
+    $out = Join-Path $TestDrive 'node.zip'
+    Invoke-WsDownload 'https://nodejs.test/node.zip' $out | Should -BeFalse
+    $script:DlPartial | Should -BeTrue
+    Get-WsDlCode | Should -Be 'E-NET-07'
+    Test-Path -LiteralPath ($out + '.part') | Should -BeFalse
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('The operation has timed out.', [System.Net.WebExceptionStatus]::Timeout) }
+    Invoke-WsDownload 'https://nodejs.test/node.zip' $out | Should -BeFalse
+    $script:DlPartial | Should -BeFalse
+    Get-WsDlCode | Should -Be 'E-NET-01'
+  }
+
+  It 'o detalhe mostra o servidor final de um redirecionamento (e nunca o URL assinado)' {
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new("The remote name could not be resolved: 'release-assets.example.test'", [System.Net.WebExceptionStatus]::NameResolutionFailure) }
+    Invoke-WsDownload 'https://github.test/o/r/releases/download/v1/x.zip' (Join-Path $TestDrive 'x.zip') | Should -BeFalse
+    $script:DlHost | Should -BeExactly 'release-assets.example.test'
+    Get-WsDlCode | Should -Be 'E-NET-02'
+    Get-WsDlDetail 'https://github.test/x.zip' | Should -BeExactly 'release-assets.example.test - https://github.test/x.zip'
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new("The remote name could not be resolved: 'github.test'", [System.Net.WebExceptionStatus]::NameResolutionFailure) }
+    Invoke-WsDownload 'https://github.test/x.zip' (Join-Path $TestDrive 'x.zip') | Should -BeFalse
+    $script:DlHost | Should -BeExactly '' -Because 'o proprio servidor do URL nao e um redirecionamento'
+    Get-WsDlFinalHost ([Exception]::new('No such host is known. (objects.example.test:443)')) 'NameResolutionFailure' 'github.test' | Should -BeExactly 'objects.example.test'
+    Get-WsDlFinalHost ([Exception]::new("The proxy name could not be resolved: 'proxy.corp'")) 'ProxyNameResolutionFailure' 'github.test' | Should -BeExactly ''
+    Get-WsDlFinalHost $null '' 'x' | Should -BeExactly ''
+    $script:DlHost = ''; $script:DlStatus = 'ProtocolError'; $script:DlHttp = 404
+    Get-WsDlDetail 'SHA256SUMS' | Should -BeExactly 'SHA256SUMS - HTTP 404'
+    $script:DlHttp = 0; $script:DlStatus = 'ConnectFailure'
+    Get-WsDlDetail 'https://x.test/f' | Should -BeExactly 'https://x.test/f'
+  }
+
+  It 'SHA-256 errado (ficheiro truncado) descarrega uma segunda vez; errado duas vezes = 2, sem ficheiro' {
+    $ref = Join-Path $TestDrive 'ref'; [IO.File]::WriteAllText($ref, 'abc')
+    $want = (Get-WsSha256 $ref).ToUpperInvariant()
+    $out = Join-Path $TestDrive 'trunc.zip'
+    $script:G3Calls = 0
+    Mock Invoke-WsDownload { $script:G3Calls++; if ($script:G3Calls -eq 1) { [IO.File]::WriteAllText($OutFile, 'ab') } else { [IO.File]::WriteAllText($OutFile, 'abc') }; return $true }
+    Invoke-WsDownloadChecked 'https://x.test/f' $out $want | Should -Be 0
+    $script:G3Calls | Should -Be 2
+    [IO.File]::ReadAllText($out) | Should -BeExactly 'abc'
+    $script:G3Calls = 0
+    Mock Invoke-WsDownload { $script:G3Calls++; [IO.File]::WriteAllText($OutFile, 'xyz'); return $true }
+    Invoke-WsDownloadChecked 'https://x.test/f' $out $want | Should -Be 2
+    $script:G3Calls | Should -Be 2
+    Test-Path -LiteralPath $out | Should -BeFalse
+    $script:G3Calls = 0
+    Invoke-WsDownloadChecked 'https://x.test/f' $out '' | Should -Be 2
+    $script:G3Calls | Should -Be 1 -Because 'sem SHA-256 esperado nao vale a pena tentar outra vez'
+    Mock Invoke-WsDownload { $script:G3Calls++; return $false }
+    $script:G3Calls = 0
+    Invoke-WsDownloadChecked 'https://x.test/f' $out $want | Should -Be 1
+    $script:G3Calls | Should -Be 1
+  }
+
+  It 'os passos usam o download com SHA-256 e o detalhe certo (sem E-NET-07 fixo nem o URL errado)' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    ([regex]::Matches($text, '\$rc = Invoke-WsDownloadChecked ')).Count | Should -Be 6
+    $text | Should -Match 'Invoke-WsDownloadChecked \$kitUrl \$zip \$script:InjKitSha -Auth'
+    $text | Should -Not -Match "Set-WsFail 'E-NET-07' \`$f"
+    $text | Should -Not -Match '-or -not \(Invoke-WsDownload'
+    $text | Should -Match "Set-WsFail \(Get-WsDlCode\) \(Get-WsDlDetail \`$sumsUrl\)"
+    $text | Should -Match "Set-WsFail \(Get-WsDlCode\) \(Get-WsDlDetail \`$sums\)"
+    $text | Should -Match "AcliErr = \(Get-WsDlCode\) \+ ' ' \+ \(Get-WsDlDetail \`$url\)"
+    $text | Should -Not -Match "Set-WsFail \(Get-WsDlCode\) \`$url"
+  }
+
+  It 'o kit com SHA-256 errado duas vezes da E-KIT-02 e vai para o git clone' {
+    $script:KitSrc = ''; $script:Mode = 'install'; $script:InjKitSha = ('0' * 64)
+    $script:WsHome = Join-Path $TestDrive 'kitws'; $script:Tmp = Join-Path $TestDrive 'kittmp'
+    New-Item -ItemType Directory -Path $script:WsHome, $script:Tmp -Force | Out-Null
+    $script:C = @{ WORKSHOP_VERSION = 'v9.9.9'; WORKSHOP_REPO_URL = 'https://git.test/o/workshop-claude'; RELEASE_DOWNLOAD_URL = '{repo}/releases/download/{version}/{file}' }
+    $script:G3Calls = 0
+    Mock Write-WsSay { }
+    Mock Invoke-WsDownload { $script:G3Calls++; [IO.File]::WriteAllText($OutFile, 'zip'); return $true }
+    Mock Get-WsGit { return $null }
+    Initialize-WsKit | Should -BeFalse
+    $script:G3Calls | Should -Be 2
+    $script:T['0'].Avisos[0] -join ' ' | Should -BeExactly 'E-KIT-02 workshop-kit-v9.9.9.zip'
+    Should -Invoke Get-WsGit -Times 1
+    $script:InjKitSha = ''
+  }
+
+  It 'o teste de rede usa o instalador do claude.ai no lugar da raiz' {
+    $u = Get-WsNetProbeUrls @('api.anthropic.com', 'claude.ai', '', 'nodejs.org', 'claude.ai', $null) 'https://github.com/o/r/releases/download/v1/k.zip' 'https://claude.ai/install.ps1'
+    $u -join ' ' | Should -BeExactly 'https://api.anthropic.com/ https://claude.ai/install.ps1 https://nodejs.org/ https://github.com/'
+    $c = ConvertFrom-WsConf ([IO.File]::ReadAllText((Join-Path $script:Root 'repos.conf'))) @{}
+    $u = Get-WsNetProbeUrls ($c.NET_CHECK_HOSTS -split '\s+') '' $c.CLAUDE_INSTALL_PS1_URL
+    $u | Should -Contain $c.CLAUDE_INSTALL_PS1_URL
+    $u | Should -Not -Contain 'https://claude.ai/'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '\$okH -and \$h -eq \$cprobe -and \(\$http -eq 403 -or \$http -eq 451\)'
+    $text | Should -Match '\$fails \+= \(\[Uri\]\$h\)\.Authority'
+  }
+
+  It 'avisos do teste de rede: com o proxy como causa, so E-NET-03 com o proxy (sem E-NET-05 nem E-NET-01)' {
+    $w = Get-WsNetWarnings @('api.anthropic.com', 'claude.ai') @('E-NET-03', 'E-NET-03') $false 'http://127.0.0.1:18407 (HTTPS_PROXY)' $false
+    @($w).Count | Should -Be 1
+    $w[0] -join '|' | Should -BeExactly 'E-NET-03|http://127.0.0.1:18407 (HTTPS_PROXY)'
+    $w = Get-WsNetWarnings @('api.anthropic.com') @('E-NET-03') $false 'http://p:8080' $true
+    @($w).Count | Should -Be 0 -Because 'o Test-WsProxy ja avisou'
+    $w = Get-WsNetWarnings @('claude.ai') @('E-NET-01') $true '' $false
+    @($w).Count | Should -Be 1
+    $w[0] -join '|' | Should -BeExactly 'E-NET-01|claude.ai'
+    $w = Get-WsNetWarnings @('api.anthropic.com', 'pypi.org') @('E-NET-01', 'E-NET-02') $false '' $false
+    ($w | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-NET-05|api.anthropic.com;E-NET-01|api.anthropic.com, pypi.org;E-NET-02|api.anthropic.com, pypi.org'
+    $w = Get-WsNetWarnings @() @() $true '' $false
+    @($w).Count | Should -Be 0
+    # Como o Test-WsNetwork os usa: um foreach sobre o resultado (vazio = nenhuma volta; um aviso = uma volta com o par).
+    $n = 0; foreach ($x in (Get-WsNetWarnings @() @() $true '' $false)) { $n++ }; $n | Should -Be 0
+    $n = 0; foreach ($x in (Get-WsNetWarnings @('a') @('E-NET-01') $true '' $false)) { $n++; ($x -join '|') | Should -BeExactly 'E-NET-01|a' }; $n | Should -Be 1
+  }
+
+  It 'proxy que nao responde: porta fechada e nome que nao resolve; um que aceita a ligacao fica (uma vez por proxy)' {
+    $l = New-G3Listener
+    try {
+      $live = 'http://127.0.0.1:' + $l.LocalEndpoint.Port
+      Test-WsProxyDead $live | Should -BeFalse
+      Test-WsProxyDead ('u:pw@127.0.0.1:' + $l.LocalEndpoint.Port) | Should -BeFalse -Because 'sem esquema e com utilizador'
+    } finally { $l.Stop() }
+    Test-WsProxyDead $live | Should -BeFalse -Because 'o resultado fica guardado nesta execucao'
+    Test-WsProxyDead ('http://127.0.0.1:' + (Get-G3DeadPort)) 1000 | Should -BeTrue
+    Test-WsProxyDead 'http://proxy.nao-existe.invalid:8080' 3000 | Should -BeTrue
+    Test-WsProxyDead '' | Should -BeFalse
+    $script:ProxyProbe = @{}
+    Test-WsProxyDead $live 1000 | Should -BeTrue -Because 'sem cache, a porta ja fechou'
+  }
+
+  It 'HTTPS_PROXY morto: aviso E-NET-03, nunca vai para o settings.json, e a palavra-passe nunca aparece' {
+    $keep = @($env:HTTPS_PROXY, $env:NO_PROXY)
+    $port = Get-G3DeadPort
+    try {
+      $env:HTTPS_PROXY = 'http://bea:pw@127.0.0.1:' + $port
+      $env:NO_PROXY = 'intranet.corp'
+      Test-WsProxy
+      $script:Proxy | Should -BeExactly ''
+      $script:EnvProxyDead | Should -BeTrue
+      $script:ProxyShow | Should -BeExactly ('http://127.0.0.1:' + $port + ' (HTTPS_PROXY)')
+      ($script:T['0'].Notas -join "`n") | Should -Match ('System proxy: http://127\.0\.0\.1:' + $port + ' \(HTTPS_PROXY\)')
+      ($script:T['0'].Notas -join "`n") | Should -Not -Match 'pw@'
+      @($script:T['0'].Avisos | Where-Object { $_[0] -eq 'E-NET-03' }).Count | Should -Be 1
+      @($script:T['0'].Avisos | Where-Object { $_[0] -eq 'E-NET-03' })[0][1] | Should -BeExactly $script:ProxyShow
+      $script:NoProxy | Should -BeExactly 'localhost,127.0.0.1,intranet.corp'
+      $env:NO_PROXY | Should -BeExactly 'intranet.corp' -Because 'o NO_PROXY da sessao nao muda'
+      $a = Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -Proxy $script:Proxy -NoProxy $script:NoProxy
+      ($a -join '|') | Should -Not -Match 'https-proxy|no-proxy'
+    } finally { $env:HTTPS_PROXY = $keep[0]; $env:NO_PROXY = $keep[1] }
+  }
+
+  It 'HTTPS_PROXY que responde: vai para o settings.json, com o NO_PROXY junto' {
+    $keep = @($env:HTTPS_PROXY, $env:NO_PROXY)
+    $l = New-G3Listener
+    try {
+      $env:HTTPS_PROXY = 'http://127.0.0.1:' + $l.LocalEndpoint.Port
+      $env:NO_PROXY = '.corp.internal'
+      Test-WsProxy
+      $script:Proxy | Should -BeExactly $env:HTTPS_PROXY
+      $script:EnvProxyDead | Should -BeFalse
+      @($script:T['0'].Avisos | Where-Object { $_[0] -eq 'E-NET-03' -and $_[1] -eq $script:ProxyShow }).Count | Should -Be 0
+      $script:NoProxy | Should -BeExactly 'localhost,127.0.0.1,.corp.internal'
+    } finally { $l.Stop(); $env:HTTPS_PROXY = $keep[0]; $env:NO_PROXY = $keep[1] }
+  }
+
+  It 'NO_PROXY so vai com o certificado ou com o proxy, e sem proxy junta o da pessoa' {
+    (Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -NoProxy 'localhost,127.0.0.1,.corp') -join '|' | Should -Not -Match 'no-proxy'
+    (Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -CaPem 'C:\ca.pem' -NoProxy 'localhost,127.0.0.1,.corp') -join '|' | Should -Match '\|--ca-pem\|C:\\ca\.pem\|--no-proxy\|localhost,127\.0\.0\.1,\.corp$'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "if \(-not \`$script:Proxy\) \{ \`$script:NoProxy = Merge-WsNoProxy \`$env:NO_PROXY '' @\(\)"
+  }
+
+  It 'le o proxy do settings.json do Claude Code' {
+    $d = Join-Path $TestDrive 'cs'; New-Item -ItemType Directory -Path $d -Force | Out-Null
+    $f = Join-Path $d 'settings.json'
+    Get-WsSettingsProxy $f | Should -BeExactly ''
+    [IO.File]::WriteAllText($f, '{"env":{"HTTPS_PROXY":"http://p.corp:8080","NO_PROXY":"localhost"}}')
+    Get-WsSettingsProxy $f | Should -BeExactly 'http://p.corp:8080'
+    [IO.File]::WriteAllText($f, '{"env":{"https_proxy":"http://q.corp:3128"}}')
+    Get-WsSettingsProxy $f | Should -BeExactly 'http://q.corp:3128'
+    [IO.File]::WriteAllText($f, '{"env":{"MEU":"1"}}')
+    Get-WsSettingsProxy $f | Should -BeExactly ''
+    [IO.File]::WriteAllText($f, '{ isto nao e json')
+    Get-WsSettingsProxy $f | Should -BeExactly ''
+  }
+
+  It 'proxy morto no settings.json = E-NET-08 logo, sem os 3 minutos do claude -p' {
+    $script:UserHome = $TestDrive; $script:ClaudeDir = Join-Path $TestDrive 'claude'; $script:Cur = '12'
+    New-Item -ItemType Directory -Path $script:ClaudeDir -Force | Out-Null
+    $port = Get-G3DeadPort
+    [IO.File]::WriteAllText((Join-Path $script:ClaudeDir 'settings.json'), ('{"env":{"HTTPS_PROXY":"http://bea:pw@127.0.0.1:' + $port + '","NO_PROXY":"localhost"}}'))
+    $script:ClaudeExe = 'claude-falso'
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = '{"is_error":false,"result":"OK","modelUsage":{}}'; StdErr = '' } }
+    Get-WsSettingsProxyDead | Should -Match ('^http://127\.0\.0\.1:' + $port + ' - %USERPROFILE%[\\/]claude[\\/]settings\.json$')
+    Install-WsStep12 | Should -BeFalse
+    $script:T['12'].Falha[0] | Should -Be 'E-NET-08'
+    $script:T['12'].Falha[1] | Should -Not -Match 'pw@'
+    Should -Invoke Invoke-WsProcess -Times 0 -Exactly
+    [IO.File]::WriteAllText((Join-Path $script:ClaudeDir 'settings.json'), '{"env":{"MEU":"1"}}')
+    $script:T = New-WsStateTable
+    Get-WsSettingsProxyDead | Should -BeExactly ''
+    Install-WsStep12 | Should -BeTrue
+    Should -Invoke Invoke-WsProcess -Times 1 -Exactly
+  }
+
+  It 'HTTPS_PROXY morto e nenhum proxy no settings.json: o passo 12 falha logo com E-NET-03' {
+    $keep = $env:HTTPS_PROXY
+    $script:ClaudeDir = Join-Path $TestDrive 'claude3'; $script:Cur = '12'; $script:ClaudeExe = 'claude-falso'
+    New-Item -ItemType Directory -Path $script:ClaudeDir -Force | Out-Null
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = '{"is_error":false,"result":"OK","modelUsage":{}}'; StdErr = '' } }
+    try {
+      $env:HTTPS_PROXY = 'http://127.0.0.1:1'; $script:EnvProxyDead = $true; $script:ProxyShow = 'http://127.0.0.1:1 (HTTPS_PROXY)'
+      Install-WsStep12 | Should -BeFalse
+      $script:T['12'].Falha -join '|' | Should -BeExactly 'E-NET-03|http://127.0.0.1:1 (HTTPS_PROXY)'
+      Should -Invoke Invoke-WsProcess -Times 0 -Exactly
+    } finally { $env:HTTPS_PROXY = $keep }
+  }
+
+  It 'o passo 0 avisa do proxy morto no settings.json' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $body = $text.Substring($text.IndexOf('function Test-WsStep0'))
+    $body = $body.Substring(0, $body.IndexOf('function Install-WsStep0'))
+    $body.IndexOf('Test-WsNetwork') | Should -BeLessThan $body.IndexOf('Get-WsSettingsProxyDead')
+    $body | Should -Match "Add-WsNote \(M 's0_proxy_settings' @\{ PROXY = \`$spd \}\)"
+    $script:Msgs.erros.'E-NET-08'.windows -join ' ' | Should -Match '\$env:USERPROFILE\\\.claude\\settings\.json'
+  }
+
+  It 'passo nao bloqueante falhado tem detalhe no resumo' {
+    Mock Write-WsSay { }
+    $script:T['10'].Estado = 'aviso'; $script:T['10'].Avisos = @(, @('E-MEM-01', 'v9.9.9'))
+    Write-WsResult '10'
+    $script:T['10'].Detalhe | Should -BeExactly 'The Agent Memory app release is not published yet (E-MEM-01)'
+    $script:T['4'].Estado = 'falhou'; $script:T['4'].Falha = @('E-NET-07', 'https://nodejs.test/x.zip')
+    Write-WsResult '4'
+    $script:T['4'].Detalhe | Should -BeExactly 'The download failed (E-NET-07)'
+    $script:T['6'].Estado = 'aviso'; $script:T['6'].Detalhe = 'gh 2.1'; $script:T['6'].Avisos = @(, @('E-GH-02', ''))
+    Write-WsResult '6'
+    $script:T['6'].Detalhe | Should -BeExactly 'gh 2.1'
+    $script:T['8'].Estado = 'feito'
+    Write-WsResult '8'
+    $script:T['8'].Detalhe | Should -BeExactly ''
+  }
+
+  It 'MB descarregados para mostrar' {
+    Format-WsMb (2MB) | Should -BeExactly '2.0'
+    Format-WsMb 0 | Should -BeExactly '0.0'
+    Format-WsMb (213.7MB) | Should -BeExactly '213'
+    Format-WsMb (-5MB) | Should -BeExactly '0.0'
+  }
+
+  It 'enquanto o instalador descarrega, o progresso aparece (o que cresceu desde o arranque)' {
+    if (-not (Test-Path -LiteralPath '/bin/sh')) { Set-ItResult -Skipped -Because 'so em macOS/Linux'; return }
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $dl = Join-Path $TestDrive 'downloads'; New-Item -ItemType Directory -Path $dl -Force | Out-Null
+    Set-G3Bytes (Join-Path $dl 'antigo') (New-Object byte[] 1048576)
+    $script:G3Said = @()
+    Mock Write-WsSay { $script:G3Said += $Text }
+    $script:HbEvery = 1
+    try {
+      $r = Invoke-WsProcess '/bin/sh' @('-c', ('dd if=/dev/zero of="' + (Join-Path $dl 'novo') + '" bs=1024 count=2048 2>/dev/null; sleep 2')) -TimeoutSec 30 -WatchPaths @($dl, (Join-Path $TestDrive 'nao-existe'))
+    } finally { $script:HbEvery = $null }
+    $r.ExitCode | Should -Be 0
+    ($script:G3Said -join "`n") | Should -Match 'Still downloading.+ 2\.0 MB so far\.'
+    $script:G3Said = @()
+    $r = Invoke-WsProcess '/bin/sh' @('-c', 'exit 0') -TimeoutSec 30
+    $script:G3Said.Count | Should -Be 0
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '-TimeoutSec 1800 -WatchPaths \$watch'
+  }
+
+  It 'no Windows, o progresso conta um download ainda aberto (o NTFS so atualiza a pasta quando o ficheiro fecha)' {
+    if ($env:OS -ne 'Windows_NT') { Set-ItResult -Skipped -Because 'so no Windows (NTFS)'; return }
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $dl = Join-Path $TestDrive 'downloads-aberto'; New-Item -ItemType Directory -Path $dl -Force | Out-Null
+    $script:G3Said = @()
+    Mock Write-WsSay { $script:G3Said += $Text }
+    # Como o install.ps1 (Invoke-WebRequest -OutFile): o ficheiro fica aberto enquanto chegam os bytes.
+    $novo = (Join-Path $dl 'novo').Replace("'", "''")
+    $cmd = '$fs = [IO.File]::Create(''' + $novo + '''); $fs.Write((New-Object byte[] 2MB), 0, 2MB); $fs.Flush(); Start-Sleep 3; $fs.Close()'
+    $script:HbEvery = 1
+    try {
+      $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-Command', $cmd) -TimeoutSec 60 -WatchPaths @($dl)
+    } finally { $script:HbEvery = $null }
+    $r.ExitCode | Should -Be 0
+    ($script:G3Said -join "`n") | Should -Match 'Still downloading.+ 2\.0 MB so far\.'
+  }
+
+  It 'o bootstrap explica uma pagina web no lugar do setup (e nao a corre)' {
+    $env:WS_NO_MAIN = '1'
+    . (Join-Path $script:Root 'setup/bootstrap-windows.ps1')
+    $old = @($env:WORKSHOP_REPO_URL, $env:WORKSHOP_VERSION, $env:RELEASE_DOWNLOAD_URL)
+    $env:WORKSHOP_REPO_URL = 'https://git.test/o/workshop-claude'; $env:WORKSHOP_VERSION = 'v9.9.9-g3'; $env:RELEASE_DOWNLOAD_URL = '{repo}/releases/download/{version}/{file}'
+    $script:G3Said = @()
+    Mock Write-Host { $script:G3Said += [string]$Object }
+    Mock Invoke-WebRequest { [IO.File]::WriteAllText($OutFile, '<html><body>Access denied by the web filter</body></html>') }
+    try { Invoke-WsBootstrap -PassArgs @() } finally { $env:WORKSHOP_REPO_URL = $old[0]; $env:WORKSHOP_VERSION = $old[1]; $env:RELEASE_DOWNLOAD_URL = $old[2] }
+    ($script:G3Said -join "`n") | Should -Match 'a web page came instead of the setup \(https://git\.test/o/workshop-claude/releases/download/v9\.9\.9-g3/setup-windows\.ps1\)'
+    ($script:G3Said -join "`n") | Should -Not -Match 'setup finished'
+    Test-Path -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'workshop-setup-windows-v9.9.9-g3.ps1') | Should -BeFalse
   }
 }
