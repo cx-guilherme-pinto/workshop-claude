@@ -78,7 +78,7 @@ O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o a
 
 [4:00 → 5:30] 1,5 min · deves estar aqui aos 4 min
 
-Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 20 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.2). Para atualizar só a app Agent Memory: agent-memory update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
+Quase todos já instalaram antes (pré-trabalho): para esses, este slide é só para saberem onde está o comando. Quem ainda não instalou corre agora e segue com o vizinho enquanto instala (10 a 20 minutos). O mesmo comando serve para instalar noutra máquina. Os comandos são gerados a partir do repos.conf: estão sempre certos para a versão publicada (v1.0.0-rc.3). Para atualizar só a app Agent Memory: agent-memory update. Antes deste slide, enviar os comandos no Teams para todos copiarem.
 
 ### 5. Verifica a instalação
 

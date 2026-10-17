@@ -4,7 +4,7 @@
 
 **English** · [Português](README.pt.md) · [हिन्दी](README.hi.md) · [עברית](README.he.md)
 
-Workshop kit: the one-command setup, the skills and agents, the cost hooks, the statusline, the orchestrator and the hands-on projects (the Security Arena and the practice project). Kit version: **v1.0.0-rc.2**.
+Workshop kit: the one-command setup, the skills and agents, the cost hooks, the statusline, the orchestrator and the hands-on projects (the Security Arena and the practice project). Kit version: **v1.0.0-rc.3**.
 
 ## Install (participants)
 
@@ -13,13 +13,13 @@ You need an account on the [Anthropic Console](https://platform.claude.com) with
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/bootstrap-windows.ps1 | iex
 ```
 
 The setup takes 10 to 20 minutes. If it stops halfway, run the same command again: finished steps are skipped. Full guide, with the pre-work: [docs/INSTALL.md](docs/INSTALL.md).
@@ -32,7 +32,7 @@ The setup takes 10 to 20 minutes. If it stops halfway, run the same command agai
 | Diagnosis with Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Uninstall | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
-With no previous install, the check also runs directly: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash -s -- --check` (macOS) or `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex` (Windows).
+With no previous install, the check also runs directly: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | bash -s -- --check` (macOS) or `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/bootstrap-windows.ps1 | iex` (Windows).
 
 Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
@@ -56,7 +56,7 @@ Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TRO
 
 Everything installed is recorded in `~/.workshop-claude/manifest.json`. `settings.json` is backed up in `~/.workshop-claude/backup/`. The log (without secrets) is in `~/.workshop-claude/setup.log`.
 
-**Languages.** The setup speaks English only, and so do its options (the old Portuguese ones still work). It detects the machine language and, if you don't have Claude Code's `language` setting yet, writes it (Portuguese, English, Hindi or Hebrew). The skills and agents are written in English and answer in your language. The Arena, the orchestrator and the statusline are in Portuguese on a Portuguese machine and in English on all others. To choose the language yourself, give the setup `WORKSHOP_LANG` with `pt-BR`, `pt-PT`, `en`, `hi` or `he`: on macOS put it after the pipe, right before `bash` (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` only reaches `curl`), and on Windows run `$env:WORKSHOP_LANG='pt-BR'` first. The language chosen at install is kept when you run the setup again; only `WORKSHOP_LANG` changes it, and a value the setup doesn't know is ignored, with a note.
+**Languages.** The setup speaks English only, and so do its options (the old Portuguese ones still work). It detects the machine language and, if you don't have Claude Code's `language` setting yet, writes it (Portuguese, English, Hindi or Hebrew). The skills and agents are written in English and answer in your language. The Arena, the orchestrator and the statusline are in Portuguese on a Portuguese machine and in English on all others. To choose the language yourself, give the setup `WORKSHOP_LANG` with `pt-BR`, `pt-PT`, `en`, `hi` or `he`: on macOS put it after the pipe, right before `bash` (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` only reaches `curl`), and on Windows run `$env:WORKSHOP_LANG='pt-BR'` first. The language chosen at install is kept when you run the setup again; only `WORKSHOP_LANG` changes it, and a value the setup doesn't know is ignored, with a note.
 
 ## Layout
 
@@ -73,9 +73,9 @@ Everything installed is recorded in `~/.workshop-claude/manifest.json`. `setting
 ## For the organizer
 
 - All URLs and versions are in `repos.conf`. This README is generated: edit the templates in `tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) and run `node tools/render.mjs`.
-- Release: `tools/build-release.sh v1.0.0-rc.2` (creates `dist/v1.0.0-rc.2/`) and `tools/publish-release.sh v1.0.0-rc.2` (creates the release at https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.2).
+- Release: `tools/build-release.sh v1.0.0-rc.3` (creates `dist/v1.0.0-rc.3/`) and `tools/publish-release.sh v1.0.0-rc.3` (creates the release at https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.3).
 - Check the repository: `node tools/check-repo.mjs`. Tests: `node --test tools/test/` and `bash setup/test/test-mac.sh`.
 - Move to the public repositories: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 - Decisions and sources (in Portuguese): [DECISIONS.md](DECISIONS.md).
 
-If you want to verify before running, the SHA-256 checksums are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/SHA256SUMS.
+If you want to verify before running, the SHA-256 checksums are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/SHA256SUMS.

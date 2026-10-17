@@ -78,7 +78,7 @@ The budget is backed by the benchmark, not by cuts. If someone goes over the tar
 
 [4:00 → 5:30] 1.5 min · you should be here at 4 min
 
-Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.2). To update only the Agent Memory app: agent-memory update. Before this slide, post the commands in Teams so everyone can copy them.
+Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.3). To update only the Agent Memory app: agent-memory update. Before this slide, post the commands in Teams so everyone can copy them.
 
 ### 5. Check your installation
 

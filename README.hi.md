@@ -4,7 +4,7 @@
 
 [English](README.md) · [Português](README.pt.md) · **हिन्दी** · [עברית](README.he.md)
 
-Workshop का kit: एक ही command वाला setup, skills और agents, cost hooks, statusline, orchestrator और hands-on projects (Security Arena और practice project)। Kit version: **v1.0.0-rc.2**।
+Workshop का kit: एक ही command वाला setup, skills और agents, cost hooks, statusline, orchestrator और hands-on projects (Security Arena और practice project)। Kit version: **v1.0.0-rc.3**।
 
 ## Install करें (participants के लिए)
 
@@ -13,13 +13,13 @@ Workshop का kit: एक ही command वाला setup, skills और age
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | bash
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/bootstrap-windows.ps1 | iex
 ```
 
 Setup में 10 से 20 मिनट लगते हैं। अगर बीच में रुक जाए, तो वही command दोबारा चलाएँ: जो steps पूरे हो चुके हैं, वो skip हो जाते हैं। पूरी guide, pre-work के साथ: [docs/hi/INSTALL.md](docs/hi/INSTALL.md)।
@@ -32,7 +32,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 | Claude के साथ diagnosis | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Uninstall | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Uninstall` |
 
-अगर पहले से कुछ install नहीं है, तो check सीधे भी चल जाता है: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | bash -s -- --check` (macOS) या `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/bootstrap-windows.ps1 | iex` (Windows)।
+अगर पहले से कुछ install नहीं है, तो check सीधे भी चल जाता है: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | bash -s -- --check` (macOS) या `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/bootstrap-windows.ps1 | iex` (Windows)।
 
 कुछ fail हुआ? हर error का अपना एक code होता है। [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) (English में) देखें।
 
@@ -56,7 +56,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 
 जो कुछ भी install होता है, उसका record `~/.workshop-claude/manifest.json` में रहता है। `settings.json` का backup `~/.workshop-claude/backup/` में बनता है। Log (बिना secrets के) `~/.workshop-claude/setup.log` में है।
 
-**Languages.** Setup सिर्फ़ English में बात करता है, यानी screen पर सारे messages English में ही दिखेंगे; उसके options भी English में हैं (पुराने Portuguese options अभी भी चलते हैं)। Setup machine की language detect करता है और, अगर Claude Code की `language` setting अभी set नहीं है, तो उसे लिख देता है (Portuguese, English, Hindi या Hebrew)। Skills और agents English में लिखे गए हैं, पर जवाब आपकी language में देते हैं। Arena, orchestrator और statusline Portuguese machine पर Portuguese में और बाकी सभी machines पर English में चलते हैं। Language खुद चुननी हो तो setup को `WORKSHOP_LANG` दें, value `pt-BR`, `pt-PT`, `en`, `hi` या `he`: macOS पर इसे pipe के बाद, `bash` से ठीक पहले लिखें (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` सिर्फ़ `curl` तक पहुँचता है), और Windows पर पहले `$env:WORKSHOP_LANG='pt-BR'` चलाएँ। Install के समय चुनी गई language setup दोबारा चलाने पर भी वही रहती है; उसे सिर्फ़ `WORKSHOP_LANG` बदलता है, और setup जिस value को नहीं पहचानता उसे एक note के साथ ignore कर देता है।
+**Languages.** Setup सिर्फ़ English में बात करता है, यानी screen पर सारे messages English में ही दिखेंगे; उसके options भी English में हैं (पुराने Portuguese options अभी भी चलते हैं)। Setup machine की language detect करता है और, अगर Claude Code की `language` setting अभी set नहीं है, तो उसे लिख देता है (Portuguese, English, Hindi या Hebrew)। Skills और agents English में लिखे गए हैं, पर जवाब आपकी language में देते हैं। Arena, orchestrator और statusline Portuguese machine पर Portuguese में और बाकी सभी machines पर English में चलते हैं। Language खुद चुननी हो तो setup को `WORKSHOP_LANG` दें, value `pt-BR`, `pt-PT`, `en`, `hi` या `he`: macOS पर इसे pipe के बाद, `bash` से ठीक पहले लिखें (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` सिर्फ़ `curl` तक पहुँचता है), और Windows पर पहले `$env:WORKSHOP_LANG='pt-BR'` चलाएँ। Install के समय चुनी गई language setup दोबारा चलाने पर भी वही रहती है; उसे सिर्फ़ `WORKSHOP_LANG` बदलता है, और setup जिस value को नहीं पहचानता उसे एक note के साथ ignore कर देता है।
 
 ## Folder structure
 
@@ -73,9 +73,9 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 ## Organizer के लिए
 
 - सारे URLs और versions `repos.conf` में हैं। यह README generated है: `tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) में templates edit करें और `node tools/render.mjs` चलाएँ।
-- Release: `tools/build-release.sh v1.0.0-rc.2` (`dist/v1.0.0-rc.2/` बनाता है) और `tools/publish-release.sh v1.0.0-rc.2` (https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.2 पर release बनाता है)।
+- Release: `tools/build-release.sh v1.0.0-rc.3` (`dist/v1.0.0-rc.3/` बनाता है) और `tools/publish-release.sh v1.0.0-rc.3` (https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.3 पर release बनाता है)।
 - Repository check करने के लिए: `node tools/check-repo.mjs`। Tests: `node --test tools/test/` और `bash setup/test/test-mac.sh`।
 - Public repositories पर move करने के लिए: [docs/PUBLISHING.md](docs/PUBLISHING.md) (English में)।
 - Decisions और sources (Portuguese में): [DECISIONS.md](DECISIONS.md)।
 
-अगर चलाने से पहले verify करना चाहें, तो SHA-256 checksums https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.2/SHA256SUMS पर हैं।
+अगर चलाने से पहले verify करना चाहें, तो SHA-256 checksums https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.3/SHA256SUMS पर हैं।
