@@ -267,7 +267,7 @@ function Get-WsNetCode {
     'TrustFailure' { return 'E-NET-04' }
     'SecureChannelFailure' { return 'E-NET-04' }
     'ConnectFailure' { if ($script:ProxyDead) { return 'E-NET-03' }; return 'E-NET-01' }
-    'Timeout' { return 'E-NET-01' }
+    'Timeout' { if ($script:ProxyDead) { return 'E-NET-03' }; return 'E-NET-01' }
     'ConnectionClosed' { return 'E-NET-01' }
     'ReceiveFailure' { return 'E-NET-01' }
   }
@@ -277,8 +277,8 @@ function Get-WsNetCode {
 function Format-WsProxyShow {
   # Proxy para mostrar no ecra, sem utilizador nem palavra-passe (http://u:p@proxy:8080 -> http://proxy:8080).
   param([string]$Proxy)
-  if ($Proxy -match '://') { return ($Proxy -replace '://[^/]*@', '://') }
-  return ($Proxy -replace '^[^/]*@', '')
+  if ($Proxy -match '://') { return ($Proxy -replace '://.*@', '://') }
+  return ($Proxy -replace '^.*@', '')
 }
 
 function Get-WsNetProbeUrls {
@@ -953,11 +953,18 @@ function Get-WsSumFor {
 
 function Get-WsPathBytes {
   # Tamanho de um ficheiro ou de uma pasta (com as subpastas), em bytes; 0 se nao existe.
+  # O Get-ChildItem le o tamanho da entrada da pasta, que o NTFS so atualiza quando quem escreve fecha o ficheiro:
+  # num download ainda aberto dava 0. O Refresh() pergunta ao proprio ficheiro (GetFileAttributesEx) o tamanho atual.
   param([string]$Path)
   try {
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return [int64]0 }
-    $s = (Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-    if ($s) { return [int64]$s }
+    $s = [int64]0
+    foreach ($f in @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue)) {
+      # Um ficheiro que desapareceu entretanto (o instalador renomeia ou apaga os temporarios) conta 0.
+      try { $f.Refresh() } catch { }
+      try { $s += [int64]$f.Length } catch { }
+    }
+    return $s
   } catch { }
   return [int64]0
 }

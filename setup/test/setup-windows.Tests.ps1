@@ -835,6 +835,7 @@ Describe 'chaos G3-network' {
     $script:ProxyDead = $true
     Get-WsNetCode 'ConnectFailure' 0 | Should -Be 'E-NET-03'
     Get-WsNetCode 'NameResolutionFailure' 0 | Should -Be 'E-NET-03'
+    Get-WsNetCode 'Timeout' 0 | Should -Be 'E-NET-03' -Because 'um proxy do sistema que engole os pedidos so da timeout'
     $script:ProxyDead = $false
     Get-WsNetCode 'ConnectFailure' 0 | Should -Be 'E-NET-01'
     Get-WsNetCode 'NameResolutionFailure' 0 | Should -Be 'E-NET-02'
@@ -844,6 +845,8 @@ Describe 'chaos G3-network' {
   It 'mostra o proxy sem utilizador nem palavra-passe' {
     Format-WsProxyShow 'http://bea:s3gr3d0@proxy.corp:8080' | Should -BeExactly 'http://proxy.corp:8080'
     Format-WsProxyShow 'http://u:p@ss@proxy.corp:8080/' | Should -BeExactly 'http://proxy.corp:8080/'
+    Format-WsProxyShow 'http://u:pa/ss@proxy.corp:8080' | Should -BeExactly 'http://proxy.corp:8080'
+    Format-WsProxyShow 'u:pa/ss@proxy.corp:3128' | Should -BeExactly 'proxy.corp:3128'
     Format-WsProxyShow 'u:pw@proxy.corp:3128' | Should -BeExactly 'proxy.corp:3128'
     Format-WsProxyShow 'socks5h://127.0.0.1:1080' | Should -BeExactly 'socks5h://127.0.0.1:1080'
     Format-WsProxyShow '' | Should -BeExactly ''
@@ -1145,6 +1148,23 @@ Describe 'chaos G3-network' {
     $script:G3Said.Count | Should -Be 0
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
     $text | Should -Match '-TimeoutSec 1800 -WatchPaths \$watch'
+  }
+
+  It 'no Windows, o progresso conta um download ainda aberto (o NTFS so atualiza a pasta quando o ficheiro fecha)' {
+    if ($env:OS -ne 'Windows_NT') { Set-ItResult -Skipped -Because 'so no Windows (NTFS)'; return }
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $dl = Join-Path $TestDrive 'downloads-aberto'; New-Item -ItemType Directory -Path $dl -Force | Out-Null
+    $script:G3Said = @()
+    Mock Write-WsSay { $script:G3Said += $Text }
+    # Como o install.ps1 (Invoke-WebRequest -OutFile): o ficheiro fica aberto enquanto chegam os bytes.
+    $novo = (Join-Path $dl 'novo').Replace("'", "''")
+    $cmd = '$fs = [IO.File]::Create(''' + $novo + '''); $fs.Write((New-Object byte[] 2MB), 0, 2MB); $fs.Flush(); Start-Sleep 3; $fs.Close()'
+    $script:HbEvery = 1
+    try {
+      $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-Command', $cmd) -TimeoutSec 60 -WatchPaths @($dl)
+    } finally { $script:HbEvery = $null }
+    $r.ExitCode | Should -Be 0
+    ($script:G3Said -join "`n") | Should -Match 'Still downloading.+ 2\.0 MB so far\.'
   }
 
   It 'o bootstrap explica uma pagina web no lugar do setup (e nao a corre)' {
