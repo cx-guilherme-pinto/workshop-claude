@@ -268,6 +268,23 @@ if(so&&typeof so==="object"){ line("causa", so.causa||""); var cs=so.comandos||[
 return out.join("\n")+"\n";
 __WS_JS__
 
+# Para o ws_newterm (node -e): segundos ficheiro-de-saida shell args... Corre o shell numa sessao nova (setsid:
+# sem terminal de controlo), com o ambiente de uma janela nova do Terminal, o stdout num ficheiro (um processo
+# que o .zshrc deixe a correr nao segura nada) e no fim mata o grupo inteiro. Sai com 3 se o shell nao acabou
+# a tempo ou nao arrancou, com 130 se o setup foi interrompido. Um node que rebenta (dyld, "Abort trap: 6")
+# so acaba o shell: o que ele escreveu antes conta.
+IFS= read -r -d '' WS_JS_NEWTERM <<'__WS_JS__' || true
+var a=process.argv.slice(1), e=process.env, fs=require("fs"), done=false, cp, t;
+var env={HOME:e.HOME, USER:e.USER, LOGNAME:e.LOGNAME||e.USER, SHELL:a[2], TERM:e.TERM||"xterm-256color", LANG:e.LANG, TMPDIR:e.TMPDIR, PATH:"/usr/bin:/bin:/usr/sbin:/sbin"};
+for(var k in env) if(!env[k]) delete env[k];
+function end(code){ if(done) return; done=true; clearTimeout(t); if(cp&&cp.pid>0){ try{ process.kill(-cp.pid,"SIGKILL"); }catch(x){} } process.exit(code); }
+["SIGINT","SIGTERM","SIGHUP"].forEach(function(s){ process.on(s,function(){ end(130); }); });
+try { cp=require("child_process").spawn(a[2], a.slice(3), {detached:true, stdio:["ignore", fs.openSync(a[1],"w"), "ignore"], env:env, cwd:e.HOME}); } catch(x) { end(3); }
+t=setTimeout(function(){ end(3); }, Number(a[0])*1000);
+cp.on("error",function(){ end(3); });
+cp.on("exit",function(){ end(0); });
+__WS_JS__
+
 # ---------------------------------------------------------------- mensagens
 ws_m() { local n="M_ui_$1"; ws_fill "${!n:-$1}"; }
 
@@ -294,6 +311,8 @@ ws_log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" | ws_redact >> "$WS_LOG" 
 ws_say() { printf '%s\n' "$*"; printf '%s\n' "$*" | ws_redact >> "$WS_LOG" 2>/dev/null || true; }
 ws_bold() { if [ "$WS_COLOR" = 1 ]; then printf '\033[1m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 ws_dim() { if [ "$WS_COLOR" = 1 ]; then printf '\033[2m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
+# Negrito e cinzento so num terminal que os mostra (TERM=dumb e NO_COLOR desligam).
+ws_color_detect() { if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ]; then WS_COLOR=1; else WS_COLOR=0; fi; }
 
 ws_has_tty() { [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null; }
 # Se outro programa ficou com o terminal, ler dele suspende o setup ("zsh: suspended (tty input)").
@@ -307,23 +326,47 @@ ws_tty_fg_check() {
   fi
 }
 
+# Deita fora o que foi escrito antes de uma pergunta ou de um login (um Enter carregado durante um download,
+# o comando colado duas vezes): so conta o que a pessoa escreve depois de ver a pergunta.
+# So em primeiro plano: o stty em segundo plano suspende o setup (SIGTTOU). Sem read -t/-n (bash 3.2).
+ws_tty_drain() {
+  local pg tp
+  pg=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' '); tp=$(ps -o tpgid= -p $$ 2>/dev/null | tr -d ' ')
+  [ -n "$pg" ] && [ "$pg" = "$tp" ] || return 0
+  # Num subshell, para o terminal voltar sempre ao modo normal, mesmo com Ctrl-C a meio.
+  (
+    old=$(stty -g </dev/tty 2>/dev/null) || exit 0
+    trap 'stty "$old" </dev/tty 2>/dev/null; exit 1' INT TERM HUP
+    stty -icanon min 0 time 0 </dev/tty 2>/dev/null || exit 0
+    cat </dev/tty >/dev/null 2>&1
+    stty "$old" </dev/tty 2>/dev/null
+  )
+  return 0
+}
+
 # Pergunta sim/nao. $1 texto, $2 defeito (s|n), $3 "nunca-sim" para nao aceitar o --sim.
 ws_ask() {
-  local q=$1 def=${2:-n} nosim=${3:-} ans hint
+  local q=$1 def=${2:-n} nosim=${3:-} ans hint tries=0
   if [ "$def" = s ]; then hint=$(ws_m sn); else hint=$(ws_m ns); fi
   if [ "$WS_SIM" = 1 ] && [ "$nosim" != nunca-sim ]; then ws_say "  ? $q $hint y (--yes)"; return 0; fi
   if [ "$WS_SIM" = 1 ]; then ws_say "  ? $q $hint n (--yes)"; return 1; fi
   if ! ws_has_tty; then ws_say "  ? $q $hint n · $(ws_m sem_tty)"; return 1; fi
   ws_tty_fg_check
-  printf '  ? %s %s ' "$q" "$hint" > /dev/tty
-  IFS= read -r ans < /dev/tty || ans=""
-  ws_log "question: $q -> ${ans:-<enter>}"
-  case "$ans" in
-    [SsYy]*) return 0 ;;
-    [Nn]*) return 1 ;;
-    '') [ "$def" = s ] && return 0; return 1 ;;
-    *) return 1 ;;
-  esac
+  ws_tty_drain
+  while :; do
+    printf '  ? %s %s ' "$q" "$hint" > /dev/tty
+    IFS= read -r ans < /dev/tty || ans=""
+    ans=$(ws_trim "$ans")
+    ws_log "question: $q -> ${ans:-<enter>}"
+    case "$ans" in
+      [SsYy]*) return 0 ;;
+      [Nn]*) return 1 ;;
+      '') [ "$def" = s ]; return ;;
+    esac
+    # Outra coisa (um comando colado, "talvez"): pergunta outra vez; a terceira assim conta como "nao".
+    tries=$((tries + 1)); [ "$tries" -lt 3 ] || return 1
+    printf '  %s\n' "$(ws_m sn_repetir)" > /dev/tty
+  done
 }
 
 # Corre um comando com a saida (stdout+stderr) no log do passo. Devolve o codigo de saida.
@@ -882,10 +925,13 @@ ws_s3_install() {
   elif [ "$WS_SIM" = 1 ]; then
     ws_note "$(ws_m s3_login_sim)"; ws_fail E-AUTH-01 ""; return 1
   elif ! ws_ask "$(ws_m s3_pergunta_login)" s; then
+    # Sem terminal (agente de IA, tarefa do IDE): diz onde fazer o login.
+    ws_has_tty || ws_note "$(ws_m s3_sem_tty)"
     ws_fail E-AUTH-01 ""; return 1
   fi
-  ws_has_tty || { ws_fail E-AUTH-01 "sem terminal"; return 1; }
+  ws_has_tty || { ws_note "$(ws_m s3_sem_tty)"; ws_fail E-AUTH-01 ""; return 1; }
   ws_log "\$ claude auth login --console (interativo)"
+  ws_tty_drain
   "$WS_CLAUDE" auth login --console </dev/tty >/dev/tty 2>&1 || true
   ws_s3_detect
 }
@@ -901,17 +947,37 @@ ws_node_candidates() {
   brew=$(command -v brew 2>/dev/null) && printf '%s\n' "$("$brew" --prefix 2>/dev/null)/opt/node@$major/bin/node"
 }
 
-# Major do node que um terminal novo encontra (as skills e os testes chamam "node" pelo PATH).
-ws_login_node_major() {
-  # Um terminal novo: shell de login interativo (le o .zprofile e o .zshrc). +m desliga o controlo de
-  # tarefas: sem ele, o zsh -i fica com o terminal e o setup e suspenso na pergunta seguinte
-  # ("zsh: suspended (tty input) bash" com curl | bash).
-  local sh=${SHELL:-/bin/zsh}
+# Corre um comando como numa janela nova do Terminal: shell de login interativo (le o .zprofile e o .zshrc),
+# com o ambiente e o PATH com que o launchd abre o Terminal (com o PATH do setup, o bloco do perfil nao voltava
+# a por as pastas do workshop a frente do brew shellenv). E nunca com o terminal da pessoa: sessao nova sem
+# terminal de controlo (setsid, pelo node: o macOS nao tem setsid nem timeout), stdin em /dev/null, stderr
+# deitado fora, no maximo WS_NEWTERM_SECS segundos e o grupo inteiro morto no fim. Assim o .zshrc nao pode
+# perguntar no terminal (compinit "insecure directories"), ficar com ele (setopt monitor, tmux), comer as
+# teclas da pergunta seguinte nem parar o setup. O +m fica (sem controlo de tarefas, D-24).
+# Imprime o que o comando escreveu. Devolve 1 se nao deu para saber: sem node, o shell nao respondeu a tempo,
+# foi trocado por outro programa (exec tmux) ou falhou antes do comando.
+ws_newterm() { # comando
+  local sh=${SHELL:-/bin/zsh} out="$WS_TMP/newterm-$RANDOM.out" rc
   [ -x "$sh" ] || sh=/bin/zsh
+  [ -n "${WS_NODE:-}" ] && [ -x "$WS_NODE" ] || return 1
   case "$sh" in
-    */zsh|*/bash) "$sh" +m -lic 'node -v' </dev/null 2>/dev/null ;;
-    *) "$sh" -lc 'node -v' </dev/null 2>/dev/null ;;
-  esac | tail -n 1 | sed -nE 's/^v([0-9]+).*/\1/p'
+    */zsh|*/bash) set -- "$sh" +m -lic "echo WS-NEWTERM; $1" ;;
+    *) set -- "$sh" -lc "echo WS-NEWTERM; $1" ;;
+  esac
+  "$WS_NODE" -e "$WS_JS_NEWTERM" -- "${WS_NEWTERM_SECS:-15}" "$out" "$@" </dev/null >/dev/null 2>&1
+  rc=$?
+  if [ "$rc" = 0 ]; then LC_ALL=C awk 'f {print} $0 == "WS-NEWTERM" {f = 1} END {exit f ? 0 : 1}' "$out" 2>/dev/null; rc=$?; fi
+  rm -f "$out"
+  [ "$rc" = 0 ]
+}
+
+# Major do node que um terminal novo encontra (as skills e os testes chamam "node" pelo PATH):
+# o numero, "none" (nenhum node que arranque) ou "unknown" (nao deu para saber, ver ws_newterm).
+ws_login_node_major() {
+  local o
+  o=$(ws_newterm 'node -v') || { printf unknown; return 0; }
+  o=$(printf '%s\n' "$o" | sed -nE 's/^v([0-9]+)\..*/\1/p' | head -n 1)
+  printf '%s' "${o:-none}"
 }
 
 ws_s4_detect() {
@@ -928,13 +994,22 @@ EOF
   case "$WS_NODE" in "$WS_HOME"/node/bin/node|*/opt/node@*/bin/node) WS_NODE_BIN_DIR=$(dirname "$WS_NODE") ;; esac
   ws_detail "$(ws_msg s4_ja VERSAO="$("$WS_NODE" -v </dev/null)" CAMINHO="${WS_NODE/#"$HOME"/~}")"
   ws_registar_flush
+  # O --uninstall so precisa do WS_NODE: nao corre o perfil da pessoa.
+  [ "$WS_MODE" = uninstall ] && return 0
   m=$(ws_login_node_major)
-  ws_log "node in a new login shell: ${m:-none}"
-  if { [ -z "$m" ] || ! [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null; } && [ "$WS_MODE" = install ]; then
+  ws_log "node in a new login shell: $m"
+  if [ "$m" != unknown ] && ! [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null && [ "$WS_MODE" = install ]; then
     ws_profile_update
     m=$(ws_login_node_major)
+    ws_log "node in a new login shell: $m"
   fi
-  { [ -n "$m" ] && [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null; } || ws_warn E-NODE-02 "${m:+v$m}"
+  # unknown: o .zshrc nao respondeu (ou arranca o tmux); nao e um Node antigo, so uma nota.
+  if [ "$m" = unknown ]; then
+    ws_note "$(ws_msg s4_terminal_sem_resposta SEGUNDOS="${WS_NEWTERM_SECS:-15}")"
+  elif ! [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null; then
+    [ "$m" = none ] && m=""
+    ws_warn E-NODE-02 "${m:+v$m}"
+  fi
   return 0
 }
 ws_s4_install() {
@@ -947,6 +1022,8 @@ ws_s4_install() {
       local n; n="$("$brew" --prefix 2>/dev/null)/opt/node@$major/bin/node"
       if [ -x "$n" ]; then WS_NODE=$n; WS_NODE_BIN_DIR=$(dirname "$n"); fi
     fi
+    # O brew falhou (Command Line Tools antigas, sem rede): diz que segue pelo download oficial.
+    [ -n "${WS_NODE:-}" ] || ws_say "  $(ws_m brew_falhou)"
   fi
   if [ -z "${WS_NODE:-}" ]; then
     local file="node-v$C_NODE_VERSION-darwin-$WS_ARCH.tar.xz" url sums want got d="$WS_TMP/node"
@@ -1000,6 +1077,7 @@ ws_s6_detect() {
       WS_GH_ASKED=1
       if ws_ask "$(ws_m s6_pergunta_login)" s; then
         ws_log "\$ gh auth login --hostname github.com --git-protocol https --web (interativo)"
+        ws_tty_drain
         gh auth login --hostname github.com --git-protocol https --web </dev/tty >/dev/tty 2>&1 || true
       fi
     fi
@@ -1020,7 +1098,9 @@ ws_s6_install() {
   if [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && command -v gh >/dev/null 2>&1; then ws_fail E-GH-02 ""; return 1; fi
   local brew; brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
+    ws_say "  $(ws_m a_instalar) (brew install gh)"
     HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect; return $?; }
+    ws_say "  $(ws_m brew_falhou)"
   fi
   local a=arm64 file sums url d="$WS_TMP/gh" want got
   [ "$WS_ARCH" = x64 ] && a=amd64
@@ -1061,6 +1141,7 @@ ws_s7_acli() { # $1=1 depois de tentar instalar
     WS_ACLI_ASKED=1
     if ws_ask "$(ws_m s7_pergunta_acli)" s; then
       ws_log "\$ acli auth login (interativo)"
+      ws_tty_drain
       "$a" auth login </dev/tty >/dev/tty 2>&1 || true
     fi
   fi
@@ -1488,7 +1569,8 @@ ws_helper_offer() {
   local n=$1 f code
   f="SF_$n"; code=${!f%%|*}
   [ "${WS_AUTH_OK:-0}" = 1 ] || return 1
-  case "$code" in E-NET-*|E-AUTH-*) return 1 ;; esac
+  # E-GH-02 (falta o login no GitHub): o setup ja mostra o comando; a analise so custaria dinheiro.
+  case "$code" in E-NET-*|E-AUTH-*|E-GH-02) return 1 ;; esac
   ws_say ""
   ws_ask "$(ws_m helper_pergunta)" s || return 1
   ws_say "  $(ws_m helper_a_pedir)"
@@ -1518,6 +1600,7 @@ ws_helper_offer() {
     ws_say "    \$ $cmd"
     if ws_ask "$(ws_m helper_correr)" n nunca-sim; then
       ws_log "helper: runs $cmd"
+      ws_tty_drain
       bash -c "$cmd" </dev/tty 2>&1 | tee -a "$WS_STEP_LOG"
       ran=1
     fi
@@ -1716,7 +1799,7 @@ ws_main() {
   mkdir -p "$WS_HOME" || { printf 'No permission to create %s\n' "$WS_HOME" >&2; return 1; }
   WS_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ws-setup.XXXXXX") || return 1
   WS_STEP_LOG="$WS_TMP/inicio.log"
-  if [ -t 1 ]; then WS_COLOR=1; else WS_COLOR=0; fi
+  ws_color_detect
   ws_lock || { rm -rf "$WS_TMP"; return 1; }
   trap ws_interrupted INT TERM HUP
   trap ws_cleanup EXIT

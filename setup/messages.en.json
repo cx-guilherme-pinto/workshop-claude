@@ -33,10 +33,12 @@
     "codigo": "Code {CODIGO} (see docs/TROUBLESHOOTING.md)",
     "dep_falhou": "Not run because step {N} failed.",
     "a_instalar": "Installing. This can take a few minutes…",
+    "brew_falhou": "Homebrew could not install it, so I use the official download instead.",
     "a_descarregar": "Downloading {O_QUE}…",
     "a_verificar_rede": "Testing the connection to {N} domains…",
     "sn": "[Y/n]",
     "ns": "[y/N]",
+    "sn_repetir": "Please answer y (yes) or n (no).",
     "sem_tty": "No interactive terminal: I assume \"no\".",
     "ise_nova_janela": "PowerShell ISE cannot answer the questions of the setup, so I opened the setup in a new PowerShell window. Continue there.",
     "relancar_core": "This is PowerShell 7: I am starting the setup again in Windows PowerShell 5.1 (64-bit).",
@@ -104,7 +106,9 @@
     "s3_pergunta_trocar": "You are logged in with a claude.ai subscription. The workshop uses the Console (pay per use). Switch to the Console?",
     "s3_manter": "Kept the current login (claude.ai subscription).",
     "s3_login_sim": "--yes mode: I don't do interactive logins.",
+    "s3_sem_tty": "This window is not an interactive terminal (an AI agent, an IDE task or a script), so the setup cannot log you in here. Open a normal terminal window (Terminal on Mac, PowerShell on Windows) and run the same setup command there.",
     "s4_ja": "Node {VERSAO} at {CAMINHO}",
+    "s4_terminal_sem_resposta": "Could not check which Node a new terminal finds: your shell startup files (~/.zprofile, ~/.zshrc) did not answer within {SEGUNDOS} s, or they start another program (such as tmux). Open a new terminal and check with node -v: it should show v{NODE_MIN_MAJOR} or later.",
     "s5_ja": "uv {VERSAO}",
     "s6_ja": "gh {VERSAO}",
     "s6_pergunta_login": "Log in to GitHub now? (opens the browser)",
@@ -668,14 +672,16 @@
       ]
     },
     "E-NODE-02": {
-      "titulo": "An old Node comes first in the PATH",
+      "titulo": "An old or broken Node comes first in the PATH",
       "so": "todos",
-      "causa": "The terminal finds a Node older than {NODE_MIN_MAJOR} first. The hooks use the new Node, but the project tests may use the old one.",
+      "causa": "A new terminal finds first a Node older than {NODE_MIN_MAJOR}, or one that does not start. The hooks use the new Node, but the project tests may use the old one.",
       "fazer": [
-        "Close and reopen the terminal. If you use nvm, select the new Node with the command below.",
+        "Close and reopen the terminal, then see which node comes first with the first command below.",
+        "If you use nvm, select the new Node with nvm. If the first node does not start (on a Mac, often a broken Homebrew node), reinstall or remove it: brew reinstall node or brew uninstall node.",
         "Check with node -v."
       ],
       "mac": [
+        "type -a node",
         "nvm install {NODE_MIN_MAJOR} && nvm alias default {NODE_MIN_MAJOR}",
         "node -v"
       ],
