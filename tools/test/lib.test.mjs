@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { redact, literalsFromEnv } from '../../installer/lib/redact.mjs';
-import { custoDeResultado, formatUsd, resolveModelo } from '../../installer/lib/custo.mjs';
+import { custoDeResultado, formatUsd, resolveModelo } from '../../installer/lib/cost.mjs';
 import { derived, expand, fillUpper, loadConf, parseConf, releaseFileUrl, repoParts } from '../../installer/lib/conf.mjs';
 import { flattenToShell, loadMessages, renderTroubleshooting } from '../../installer/lib/messages.mjs';
 
@@ -24,7 +24,7 @@ test('redacao: valores literais vem das variaveis secretas do ambiente', () => {
 
 test('custo: casos partilhados (Node)', () => {
   const pricing = json('pricing.json');
-  for (const t of json('tools/test/custo-cases.json').casos) {
+  for (const t of json('tools/test/cost-cases.json').casos) {
     const r = custoDeResultado(t.resultado, pricing);
     if (t.usd === null) assert.equal(r.usd, null, t.nome);
     else assert.ok(Math.abs(r.usd - t.usd) < 1e-9, `${t.nome}: ${r.usd} != ${t.usd}`);
@@ -35,7 +35,7 @@ test('custo: casos partilhados (Node)', () => {
 });
 
 test('custo: CLI devolve linhas chave<TAB>valor', () => {
-  const r = spawnSync(process.execPath, [join(ROOT, 'installer/lib/custo.mjs'), '/nao/existe.json', join(ROOT, 'pricing.json')], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [join(ROOT, 'installer/lib/cost.mjs'), '/nao/existe.json', join(ROOT, 'pricing.json')], { encoding: 'utf8' });
   assert.match(r.stdout, /^usd\t\nusd_texto\tUS\$ \?\n/);
 });
 

@@ -147,12 +147,35 @@ function Get-WsSecretLiterals {
   return $out
 }
 
+function Get-WsPricingModelMap {
+  # pricing.json has English keys (models, long_prompt.above_tokens); older copies used Portuguese ones
+  # (modelos, prompt_longo.acima_de_tokens). Returns the models object either way.
+  param($Pricing)
+  if (-not $Pricing) { return $null }
+  if ($Pricing.PSObject.Properties.Name -contains 'models') { return $Pricing.models }
+  return $Pricing.modelos
+}
+
+function Get-WsLongPrompt {
+  # The long-prompt tier of a model (or $null) and the token threshold: @{ Price; Above }.
+  param($Model)
+  foreach ($k in @('long_prompt', 'prompt_longo')) {
+    if ($Model.PSObject.Properties.Name -contains $k) {
+      $lp = $Model.$k
+      $above = $lp.above_tokens
+      if ($null -eq $above) { $above = $lp.acima_de_tokens }
+      return @{ Price = $lp; Above = [double]$above }
+    }
+  }
+  return $null
+}
+
 function Resolve-WsModel {
   param([string]$Id, $Pricing)
   if (-not $Id -or -not $Pricing) { return $null }
   $m = ($Id.ToLowerInvariant() -replace '\[.*\]$', '')
   if ($Pricing.aliases -and ($Pricing.aliases.PSObject.Properties.Name -contains $m)) { return $Pricing.aliases.$m }
-  $keys = @($Pricing.modelos.PSObject.Properties.Name | Sort-Object { $_.Length } -Descending)
+  $keys = @((Get-WsPricingModelMap $Pricing).PSObject.Properties.Name | Sort-Object { $_.Length } -Descending)
   foreach ($k in $keys) { if ($m -eq $k -or $m.StartsWith($k + '-') -or $m.StartsWith($k + '@')) { return $k } }
   return $null
 }
@@ -168,7 +191,7 @@ function Format-WsUsd {
 
 function Get-WsCusto {
   # Custo de um resultado "claude -p --output-format json" pelos tokens de modelUsage e o pricing.json
-  # (mesmas contas que installer/lib/custo.mjs; casos em tools/test/custo-cases.json).
+  # (mesmas contas que installer/lib/cost.mjs; casos em tools/test/cost-cases.json).
   param($Result, $Pricing)
   $total = 0.0
   $unknown = @()
@@ -179,13 +202,14 @@ function Get-WsCusto {
       $k = Resolve-WsModel $prop.Name $Pricing
       if (-not $k) { $unknown += $prop.Name; continue }
       $u = $prop.Value
-      $p = $Pricing.modelos.$k
+      $p = (Get-WsPricingModelMap $Pricing).$k
       $it = 0; $cr = 0; $cw = 0; $ot = 0
       if ($u.inputTokens) { $it = [double]$u.inputTokens }
       if ($u.cacheReadInputTokens) { $cr = [double]$u.cacheReadInputTokens }
       if ($u.cacheCreationInputTokens) { $cw = [double]$u.cacheCreationInputTokens }
       if ($u.outputTokens) { $ot = [double]$u.outputTokens }
-      if (($p.PSObject.Properties.Name -contains 'prompt_longo') -and (($it + $cr + $cw) -gt [double]$p.prompt_longo.acima_de_tokens)) { $p = $p.prompt_longo }
+      $lp = Get-WsLongPrompt $p
+      if ($lp -and (($it + $cr + $cw) -gt $lp.Above)) { $p = $lp.Price }
       $total += ($it * $p.input + $ot * $p.output + $cw * $p.cache_write_5m + $cr * $p.cache_read) / 1e6
     }
   }
@@ -383,7 +407,7 @@ function Test-WsDependencies {
 }
 
 function Get-WsUvPythonBlockers {
-  # Variaveis que impedem o uv de usar o Python gerido (a app Memoria precisa dele). Devolve os nomes.
+  # Variaveis que impedem o uv de usar o Python gerido (a app Agent Memory precisa dele). Devolve os nomes.
   param([hashtable]$EnvValues)
   $out = @()
   $d = [string]$EnvValues['UV_PYTHON_DOWNLOADS']
@@ -396,7 +420,7 @@ function Get-WsUvPythonBlockers {
 }
 
 function Read-WsSelftest {
-  # Primeira linha do "memoria selftest": "Memoria 0.1.0 . Python 3.12.13 . Windows AMD64". Devolve @{ Python; Fts5; Falhas }.
+  # Primeira linha do "agent-memory selftest": "Agent Memory 0.5.0 . Python 3.12.13 . Windows AMD64". Devolve @{ Python; Fts5; Falhas }.
   # Desde a v0.3.0 o texto segue a lingua da app: so a etiqueta [OK] e igual em todas; qualquer outra e uma falha.
   param([string]$Text)
   $py = ''
@@ -1445,11 +1469,31 @@ function Test-WsGitTag {
   return ($r.ExitCode -eq 0)
 }
 
+# Nomes desde a v1.0.0-rc.2: o projeto de treino e %USERPROFILE%\workshop-claude\practice-project (era
+# exemplo-projeto-real) e a tag do estado inicial da Arena e arena-start (era arena-inicial). Instalacoes antigas
+# sao migradas sem perder trabalho: a pasta antiga so e movida se a nova nao existir; a tag nova aponta para o
+# mesmo commit.
+$script:PracticeDir = 'practice-project'
+$script:PracticeDirOld = 'exemplo-projeto-real'
+
+function Invoke-WsStep9Migrate {
+  $demo = Join-Path $script:Proj 'demo-project'
+  if ((Test-Path -LiteralPath (Join-Path $demo '.arena-kit.json')) -and -not (Test-WsGitTag $demo 'refs/tags/arena-start') -and (Test-WsGitTag $demo 'refs/tags/arena-inicial')) {
+    $r = Invoke-WsProcess $script:GitExe @('-C', $demo, 'tag', 'arena-start', 'arena-inicial') -TimeoutSec 60
+    if ($r.ExitCode -eq 0) { Write-WsLog 'demo-project: tag arena-start added (from arena-inicial)' }
+  }
+  $old = Join-Path $script:Proj $script:PracticeDirOld
+  $new = Join-Path $script:Proj $script:PracticeDir
+  if (-not (Test-Path -LiteralPath $new) -and (Test-Path -LiteralPath (Join-Path $old '.sandbox-kit.json'))) {
+    try { Move-Item -LiteralPath $old -Destination $new -ErrorAction Stop; Write-WsLog ('practice project moved: ' + $old + ' -> ' + $new) } catch { Write-WsLog ('practice project not moved: ' + $_.Exception.Message) }
+  }
+}
+
 function Test-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   $demo = Join-Path $script:Proj 'demo-project'
-  $sb = Join-Path $script:Proj 'exemplo-projeto-real'
-  if (-not (Test-Path -LiteralPath (Join-Path $demo '.arena-kit.json')) -or -not (Test-WsGitTag $demo 'refs/tags/arena-inicial')) { Set-WsFail 'E-DEMO-01' $demo; return $false }
+  $sb = Join-Path $script:Proj $script:PracticeDir
+  if (-not (Test-Path -LiteralPath (Join-Path $demo '.arena-kit.json')) -or -not (Test-WsGitTag $demo 'refs/tags/arena-start')) { Set-WsFail 'E-DEMO-01' $demo; return $false }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if (-not (Test-Path -LiteralPath (Join-Path $sb '.sandbox-kit.json')) -or -not (Test-WsGitTag $sb 'HEAD')) { Set-WsFail 'E-DEMO-01' $sb; return $false }
   }
@@ -1476,7 +1520,7 @@ function Invoke-WsAssemble {
   if ((Test-Path -LiteralPath $Dest) -and @(Get-ChildItem -LiteralPath $Dest -Force).Count -gt 0) {
     if (Test-Path -LiteralPath (Join-Path $Dest $Mark)) {
       $ref = 'HEAD'
-      if ($Mark -eq '.arena-kit.json') { $ref = 'refs/tags/arena-inicial' }
+      if ($Mark -eq '.arena-kit.json') { $ref = 'refs/tags/arena-start' }
       if (-not (Test-WsGitTag $Dest $ref)) { $force = @('--force') }
     } else { Set-WsFail 'E-DEMO-03' $Dest; return $false }
   }
@@ -1490,15 +1534,22 @@ function Invoke-WsAssemble {
 function Install-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   New-Item -ItemType Directory -Path $script:Proj -Force | Out-Null
-  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' @('--node', $script:NodeExe, '--lingua', $script:LangKit))) { return $false }
+  if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
+  Invoke-WsStep9Migrate
+  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
-    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj 'exemplo-projeto-real') '.sandbox-kit.json' @('--lingua', $script:LangKit))) { return $false }
+    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' @('--language', $script:LangKit))) { return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   return (Test-WsAppTests)
 }
 
-# =============================================================== PASSO 10 - app Memoria (nao bloqueante)
+# =============================================================== PASSO 10 - app Agent Memory (nao bloqueante)
+# Desde a v0.5.0 os comandos da app sao "agent-memory" e "agent-memory-gui"; "memoria" e "memoria-gui" ficam como
+# sinonimos, e as versoes antigas so tem esses. O servidor MCP regista-se como "agent-memory" (um registo antigo
+# "memoria" e substituido). As memorias ficam em ~\.agent-memory (ou ~\.memoria, de versoes antigas; ver
+# Get-WsMemoryHome) e o -Uninstall nunca lhes toca.
+$script:McpName = 'agent-memory'
 
 function Get-WsWebView2Version {
   $keys = @(
@@ -1529,18 +1580,54 @@ function Get-WsShortcutPath {
 }
 
 function Get-WsOldShortcutPath {
-  # Nome do atalho ate a v1.0.0-rc.1 ("Memoria" com acento, montado em ASCII).
+  # The shortcut of the versions before the rename (the app was called Memoria, with an accent).
   $name = 'Mem' + [char]0x00F3 + 'ria.lnk'
   return (Join-Path ([Environment]::GetFolderPath('Programs')) $name)
 }
 
+function Get-WsMemoryExe {
+  # agent-memory.exe (v0.5.0 or newer) or memoria.exe (older versions); $null if neither exists.
+  param([string]$Bin)
+  foreach ($n in @('agent-memory.exe', 'memoria.exe')) {
+    $p = Join-Path $Bin $n
+    if (Test-Path -LiteralPath $p) { return $p }
+  }
+  return $null
+}
+
+function Get-WsMemoryHome {
+  # The app's data folder (the app's own rule): AGENT_MEMORY_HOME; MEMORIA_HOME; ~\.memoria if it exists and
+  # ~\.agent-memory does not; otherwise ~\.agent-memory. Nothing is ever moved or deleted.
+  param([hashtable]$EnvValues = $null, [string]$UserHome = $HOME)
+  if ($null -eq $EnvValues) { $EnvValues = @{ AGENT_MEMORY_HOME = $env:AGENT_MEMORY_HOME; MEMORIA_HOME = $env:MEMORIA_HOME } }
+  if ($EnvValues['AGENT_MEMORY_HOME']) { return [string]$EnvValues['AGENT_MEMORY_HOME'] }
+  if ($EnvValues['MEMORIA_HOME']) { return [string]$EnvValues['MEMORIA_HOME'] }
+  $new = Join-Path $UserHome '.agent-memory'
+  $old = Join-Path $UserHome '.memoria'
+  if (-not (Test-Path -LiteralPath $new) -and (Test-Path -LiteralPath $old)) { return $old }
+  return $new
+}
+
+function Get-WsMemoryWheel {
+  # The published wheel for a version, read from SHA256SUMS ("memoria-..." up to v0.4, the new name after it).
+  param([string]$SumsFile, [string]$Ver)
+  $suffix = '-' + $Ver + '-py3-none-any.whl'
+  if ($SumsFile -and (Test-Path -LiteralPath $SumsFile)) {
+    foreach ($l in [IO.File]::ReadAllLines($SumsFile)) {
+      $m = [regex]::Match($l, '^[0-9a-fA-F]{64}\s+\*?(.+)$')
+      if ($m.Success -and $m.Groups[1].Value.Trim().EndsWith($suffix)) { return $m.Groups[1].Value.Trim() }
+    }
+  }
+  return ('memoria' + $suffix)
+}
+
 $script:UvBlockEnv = @('UV_PYTHON_DOWNLOADS', 'UV_NO_MANAGED_PYTHON', 'UV_PYTHON_PREFERENCE', 'UV_PYTHON')
 
-function Invoke-WsMemoriaSelftest {
-  # Corre "memoria selftest" (em ingles, como o resto do setup) e mostra o Python gerido pelo uv.
+function Invoke-WsMemorySelftest {
+  # Corre "agent-memory selftest" (em ingles, como o resto do setup) e mostra o Python gerido pelo uv.
   # O resultado vem do codigo de saida (contrato da app desde a v0.3.0). Falha -> aviso E-MEM-05.
   param([string]$Exe, [string]$Ver)
-  $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1'; MEMORIA_LANG = 'en' }
+  $r = Invoke-WsProcess $Exe @('selftest') -TimeoutSec 300 -Environment @{ PYTHONUTF8 = '1'; AGENT_MEMORY_LANG = 'en'; MEMORIA_LANG = 'en' }
   $st = Read-WsSelftest $r.StdOut
   if ($r.ExitCode -eq 0) {
     Set-WsDetail (M 's10_ok' @{ VERSAO = $Ver; PY = $st.Python })
@@ -1548,7 +1635,7 @@ function Invoke-WsMemoriaSelftest {
   }
   Set-WsDetail (M 's10_ja' @{ VERSAO = $Ver })
   $d = ($st.Falhas -join '; ')
-  if (-not $d) { $d = 'memoria selftest (' + $r.ExitCode + ')' }
+  if (-not $d) { $d = [IO.Path]::GetFileNameWithoutExtension($Exe) + ' selftest (' + $r.ExitCode + ')' }
   Set-WsWarn 'E-MEM-05' $d
   return $false
 }
@@ -1556,17 +1643,17 @@ function Invoke-WsMemoriaSelftest {
 function Test-WsStep10 {
   $ver = $script:C.MEMORY_APP_VERSION.TrimStart('v')
   $bin = Get-WsUvBin
-  $exe = Join-Path $bin 'memoria.exe'
-  if (-not (Test-Path -LiteralPath $exe)) { Set-WsFail 'E-MEM-01' ''; return $false }
+  $exe = Get-WsMemoryExe $bin
+  if (-not $exe) { Set-WsFail 'E-MEM-01' ''; return $false }
   $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
-  if ($l.StdOut -notmatch ('(?m)^memoria v?' + [regex]::Escape($ver) + '(\s|$)')) { Set-WsFail 'E-MEM-03' ('versao ' + $ver); return $false }
-  if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) { Set-WsFail 'E-MEM-03' 'atalho'; return $false }
-  if (-not (Test-Path -LiteralPath (Join-Path $HOME '.memoria\config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
+  if ($l.StdOut -notmatch ('(?m)^(agent-memory|agent_memory|memoria) v?' + [regex]::Escape($ver) + '(\s|$)')) { Set-WsFail 'E-MEM-03' ('version ' + $ver); return $false }
+  if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) { Set-WsFail 'E-MEM-03' 'shortcut'; return $false }
+  if (-not (Test-Path -LiteralPath (Join-Path (Get-WsMemoryHome) 'config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
   if ($script:ClaudeExe) {
-    if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
+    if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
   }
   if (-not (Get-WsWebView2Version)) { Set-WsWarn 'E-MEM-04' '' }
-  [void](Invoke-WsMemoriaSelftest $exe $ver)
+  [void](Invoke-WsMemorySelftest $exe $ver)
   return $true
 }
 
@@ -1581,15 +1668,16 @@ function Install-WsWebView2 {
 
 function Install-WsStep10 {
   $ver = $script:C.MEMORY_APP_VERSION.TrimStart('v')
-  $whl = 'memoria-{0}-py3-none-any.whl' -f $ver
-  $d = Join-Path $script:Tmp 'memoria'
+  $d = Join-Path $script:Tmp 'agent-memory'
   Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Path $d -Force | Out-Null
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $whl }))
   if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'memory' 'SHA256SUMS') (Join-Path $d 'SHA256SUMS') -Auth)) {
     if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $script:C.MEMORY_APP_VERSION } else { Set-WsFail (Get-WsDlCode) 'SHA256SUMS' }
     return $false
   }
+  $whl = Get-WsMemoryWheel (Join-Path $d 'SHA256SUMS') $ver
+  $dist = $whl.Split('-')[0]
+  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $whl }))
   foreach ($f in @($whl, 'constraints.txt')) {
     if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'memory' $f) (Join-Path $d $f) -Auth)) {
       if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $f } else { Set-WsFail 'E-NET-07' $f }
@@ -1604,17 +1692,26 @@ function Install-WsStep10 {
   # As variaveis que o proibiriam sao retiradas so deste processo, nunca globalmente.
   $r = Invoke-WsProcess $script:UvExe @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force') -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
-  Register-WsExtra 'app' 'memoria' '' '' ''
+  # The distribution changed its name? Take the old one out of uv (only the program: the data stays).
+  if ($dist -ne 'memoria') {
+    $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
+    if ($l.StdOut -match '(?m)^memoria v?[0-9]') {
+      [void](Invoke-WsProcess $script:UvExe @('tool', 'uninstall', 'memoria') -TimeoutSec 300)
+      [void](Invoke-WsProcess $script:UvExe @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force') -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv)
+    }
+  }
+  Register-WsExtra 'app' $dist '' '' ''
   $bin = Get-WsUvBin
-  $exe = Join-Path $bin 'memoria.exe'
-  $gui = Join-Path $bin 'memoria-gui.exe'
-  if (-not (Test-Path -LiteralPath $exe)) { Set-WsFail 'E-MEM-03' $exe; return $false }
-  if (-not (Test-Path -LiteralPath $gui)) { $gui = $exe }
+  $exe = Get-WsMemoryExe $bin
+  if (-not $exe) { Set-WsFail 'E-MEM-03' (Join-Path $bin 'agent-memory.exe'); return $false }
+  $gui = $exe
+  foreach ($n in @('agent-memory-gui.exe', 'memoria-gui.exe')) { if (Test-Path -LiteralPath (Join-Path $bin $n)) { $gui = Join-Path $bin $n; break } }
   Add-WsUserPath $bin
-  Write-WsMemoriaConfig
+  Write-WsMemoryConfig
   try {
-    $old = Get-WsOldShortcutPath
-    if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue }
+    # The old shortcut ("Memoria" with an accent) was ours: it goes.
+    $oldLnk = Get-WsOldShortcutPath
+    if (Test-Path -LiteralPath $oldLnk) { Remove-Item -LiteralPath $oldLnk -Force -ErrorAction SilentlyContinue }
     $lnk = Get-WsShortcutPath
     $sh = New-Object -ComObject WScript.Shell
     $s = $sh.CreateShortcut($lnk)
@@ -1622,14 +1719,10 @@ function Install-WsStep10 {
     $s.WorkingDirectory = $HOME
     $s.Description = 'Agent Memory (Claude workshop)'
     $s.Save()
-    Register-WsExtra 'atalho' 'memoria' $lnk '' ''
-  } catch { Set-WsFail 'E-MEM-03' ('atalho: ' + $_.Exception.Message); return $false }
-  if ($script:ClaudeExe -and (Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -ne 0) {
-    $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', 'memoria', '--', $exe, 'mcp') -TimeoutSec 120
-    if ($m.ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'claude mcp add memoria'; return $false }
-    Register-WsExtra 'mcp' 'memoria' '' '' ''
-  }
-  if (Invoke-WsMemoriaSelftest $exe $ver) {
+    Register-WsExtra 'atalho' 'agent-memory' $lnk '' ''
+  } catch { Set-WsFail 'E-MEM-03' ('shortcut: ' + $_.Exception.Message); return $false }
+  if (-not (Register-WsMemoryMcp $exe)) { Set-WsFail 'E-MEM-03' ('claude mcp add ' + $script:McpName); return $false }
+  if (Invoke-WsMemorySelftest $exe $ver) {
     $g = Invoke-WsProcess $exe @('selftest', '--gui', '--timeout', '30') -TimeoutSec 120 -Environment @{ PYTHONUTF8 = '1' }
     if ($g.ExitCode -eq 3) { Set-WsWarn 'E-MEM-04' 'selftest --gui' } elseif ($g.ExitCode -ne 0) { Set-WsWarn 'E-MEM-05' 'selftest --gui' }
   }
@@ -1637,8 +1730,27 @@ function Install-WsStep10 {
   return $true
 }
 
-function Write-WsMemoriaConfig {
-  $dir = Join-Path $HOME '.memoria'
+function Register-WsMemoryMcp {
+  # Registers the app's MCP server as "agent-memory" (command "<exe> mcp"). An old "memoria" registration goes,
+  # and an "agent-memory" one that points to another program (e.g. an older memoria.exe) is redone.
+  param([string]$Exe)
+  if (-not $script:ClaudeExe) { return $true }
+  if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -eq 0) {
+    [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', 'memoria') -TimeoutSec 120)
+  }
+  $cur = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
+  if ($cur.ExitCode -eq 0) {
+    if (([string]$cur.StdOut).Replace('\\', '\').Contains($Exe)) { return $true }
+    [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', $script:McpName) -TimeoutSec 120)
+  }
+  $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', $script:McpName, '--', $Exe, 'mcp') -TimeoutSec 120
+  if ($m.ExitCode -ne 0) { return $false }
+  Register-WsExtra 'mcp' $script:McpName '' '' ''
+  return $true
+}
+
+function Write-WsMemoryConfig {
+  $dir = Get-WsMemoryHome
   New-Item -ItemType Directory -Path $dir -Force | Out-Null
   $f = Join-Path $dir 'config.json'
   $cfg = [ordered]@{}
@@ -1826,7 +1938,10 @@ function Write-WsSummary {
   if ($script:Mode -eq 'install') { Write-WsSay (M 'final_reiniciar') }
   if ($script:TodoMcp) { Write-WsSay (M 's7_oauth') }
   Write-WsSay (M 'final_ficheiros' @{ RESUMO = $script:Resumo; LOG = $script:LogFile }) 'DarkGray'
-  try { [IO.File]::WriteAllText($script:Resumo, (($lines -join "`r`n") + "`r`n"), $script:Utf8NoBom) } catch { }
+  try {
+    [IO.File]::WriteAllText($script:Resumo, (($lines -join "`r`n") + "`r`n"), $script:Utf8NoBom)
+    Remove-Item -LiteralPath (Join-Path $script:WsHome 'resumo.txt') -Force -ErrorAction SilentlyContinue   # the summary's old name
+  } catch { }
   return $sum.Faltam
 }
 
@@ -1854,7 +1969,11 @@ function Invoke-WsUninstall {
     while ($f.Count -lt 5) { $f += '' }
     switch ($f[0]) {
       'mcp' { if ($script:ClaudeExe -and (Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', $f[1])).ExitCode -eq 0) { Write-WsSay ('  ' + (M 'desinst_mcp' @{ NOME = $f[1] })) } }
-      'app' { if ($script:UvExe -and (Invoke-WsProcess $script:UvExe @('tool', 'uninstall', 'memoria')).ExitCode -eq 0) { Write-WsSay ('  ' + (M 'desinst_app')); Write-WsSay ('  ' + (M 'desinst_memorias')) } }
+      'app' {
+        $app = $f[1]
+        if (-not $app) { $app = 'memoria' }
+        if ($script:UvExe -and (Invoke-WsProcess $script:UvExe @('tool', 'uninstall', $app)).ExitCode -eq 0) { Write-WsSay ('  ' + (M 'desinst_app')); Write-WsSay ('  ' + (M 'desinst_memorias' @{ CAMINHO = (Get-WsMemoryHome) })) }
+      }
       'atalho' { if ($f[2] -and (Test-Path -LiteralPath $f[2])) { Remove-Item -LiteralPath $f[2] -Force; Write-WsSay ('  ' + (M 'desinst_atalho' @{ CAMINHO = $f[2] })) } }
       'env_utilizador' {
         if ((Get-WsUserEnvRaw $f[1]) -eq $f[3]) {
@@ -1988,7 +2107,7 @@ function Invoke-WsMain {
 
   $script:WsHome = Join-Path $HOME '.workshop-claude'
   $script:LogFile = Join-Path $script:WsHome 'setup.log'
-  $script:Resumo = Join-Path $script:WsHome 'resumo.txt'
+  $script:Resumo = Join-Path $script:WsHome 'summary.txt'
   $script:ClaudeDir = $env:CLAUDE_CONFIG_DIR
   if (-not $script:ClaudeDir) { $script:ClaudeDir = Join-Path $HOME '.claude' }
   $script:Proj = Join-Path $HOME 'workshop-claude'

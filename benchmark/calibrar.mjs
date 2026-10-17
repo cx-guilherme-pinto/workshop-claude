@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Calibra orquestrador/perfis.json com os tokens reais medidos no benchmark (benchmark/runs/*/arena/.workshop/usage.jsonl).
+// Calibra orchestrator/profiles.json com os tokens reais medidos no benchmark (benchmark/runs/*/arena/.workshop/usage.jsonl).
 // Media por tipo de agente; para a sessao principal, media por lote do orquestrador.
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -19,7 +19,7 @@ for (const r of existsSync(runs) ? readdirSync(runs) : []) {
   const f = join(runs, r, 'arena', '.workshop', 'usage.jsonl');
   const run = join(runs, r, 'arena', '.workshop', 'run.json');
   if (!existsSync(f)) continue;
-  const modo = r.includes('apresentador') ? 'apresentador' : 'participante';
+  const modo = r.includes('apresentador') || r.includes('presenter') ? 'presenter' : 'participant';
   nRuns++;
   const linhas = readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const porAgente = new Map();
@@ -28,20 +28,20 @@ for (const r of existsSync(runs) ? readdirSync(runs) : []) {
     if (x.tipo === 'subagente') porAgente.set(x.agent_id, x);
     else if (x.tipo === 'principal') ultimaSessao.set(x.sessao, x);
   }
-  for (const x of porAgente.values()) add(x.agent_type, x.tokens, x.pedidos);
+  for (const x of porAgente.values()) add(x.agent_type === 'memoria-extrator' ? 'memory-extractor' : x.agent_type, x.tokens, x.pedidos);
   const lotes = existsSync(run) ? JSON.parse(readFileSync(run, 'utf8')).lote || 1 : 1;
   for (const x of ultimaSessao.values()) {
     const porLote = Object.fromEntries(Object.entries(x.tokens).map(([k, v]) => [k, v / (lotes + 5)]));
-    add(`orquestrador_${modo}`, porLote, x.pedidos / (lotes + 5));
-    if (modo === 'participante') add('orquestrador', porLote, x.pedidos / (lotes + 5));
+    add(`orchestrator_${modo}`, porLote, x.pedidos / (lotes + 5));
+    if (modo === 'participant') add('orchestrator', porLote, x.pedidos / (lotes + 5));
   }
 }
 const perfis = {};
 for (const [tipo, s] of Object.entries(soma)) {
-  perfis[tipo] = Object.fromEntries(['pedidos', 'input', 'cache_write_5m', 'cache_write_1h', 'cache_read', 'output'].map((k) => [k, Math.round(s[k] / s.n)]));
+  perfis[tipo] = Object.fromEntries([['requests', 'pedidos'], ...['input', 'cache_write_5m', 'cache_write_1h', 'cache_read', 'output'].map((k) => [k, k])].map(([k, de]) => [k, Math.round(s[de] / s.n)]));
 }
-const p = join(KIT, 'orquestrador', 'perfis.json');
+const p = join(KIT, 'orchestrator', 'profiles.json');
 const atual = JSON.parse(readFileSync(p, 'utf8'));
-const novo = { ...atual, calibrado_em: new Date().toISOString().slice(0, 10), calibracao: `${nRuns} execuções do benchmark (participante e apresentador)`, perfis: { ...atual.perfis, ...perfis } };
+const novo = { ...atual, calibrated_on: new Date().toISOString().slice(0, 10), calibration: `${nRuns} benchmark runs (participant and presenter)`, profiles: { ...atual.profiles, ...perfis } };
 writeFileSync(p, JSON.stringify(novo, null, 2) + '\n');
-console.log(JSON.stringify(novo.perfis, null, 1));
+console.log(JSON.stringify(novo.profiles, null, 1));

@@ -11,7 +11,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 - Volta a correr o setup: os passos já feitos são saltados.
 - Só verificar, sem instalar: `bash ~/.workshop-claude/setup-mac.sh --check` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check` (Windows).
 - Diagnóstico com ajuda do Claude: `bash ~/.workshop-claude/setup-mac.sh --doctor` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` (Windows).
-- O log completo, sem segredos, está em `~/.workshop-claude/setup.log`. O resumo está em `~/.workshop-claude/resumo.txt`.
+- O log completo, sem segredos, está em `~/.workshop-claude/setup.log`. O resumo está em `~/.workshop-claude/summary.txt`.
 - Nunca envies a tua API key a ninguém. O setup nunca a pede nem a mostra.
 
 ## Índice
@@ -750,7 +750,7 @@ uv python install 3.12
 Comando (macOS):
 
 ```
-memoria selftest
+agent-memory selftest
 ```
 
 <a id="mac-e-desk-01"></a>
@@ -1542,7 +1542,7 @@ uv python install 3.12
 Comando (Windows):
 
 ```
-memoria selftest
+agent-memory selftest
 ```
 
 <a id="windows-e-desk-01"></a>

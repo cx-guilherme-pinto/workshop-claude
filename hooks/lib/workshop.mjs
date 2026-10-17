@@ -69,7 +69,7 @@ export async function runHook(name, fn) {
   } catch (err) {
     try {
       const d = process.env.CLAUDE_PROJECT_DIR ? join(process.env.CLAUDE_PROJECT_DIR, '.workshop') : null;
-      if (d && existsSync(d)) appendFileSync(join(d, 'hooks-erros.log'), `${new Date().toISOString()} ${name}: ${err?.stack || err}\n`);
+      if (d && existsSync(d)) appendFileSync(join(d, 'hook-errors.log'), `${new Date().toISOString()} ${name}: ${err?.stack || err}\n`);
     } catch {
       /* sem log possivel */
     }

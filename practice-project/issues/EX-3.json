@@ -1,0 +1,18 @@
+{
+  "id": "EX-3",
+  "source": "local",
+  "url": "issues/EX-3.json",
+  "title": "Um leitor consegue ver os empréstimos de outro leitor",
+  "description": "Relatado em auditoria: GET /leitores/11/emprestimos com o cabeçalho X-Leitor: 10 devolve os empréstimos do leitor 11. É um IDOR (Insecure Direct Object Reference). Só o próprio leitor pode ver os seus empréstimos.",
+  "criteria": [
+    "emprestimosDoLeitor lança ErroAcesso quando pedidoPor é diferente de leitorId ou está vazio",
+    "o servidor devolve 403 nesses casos e 200 para o próprio leitor",
+    "teste que reproduz o ataque (leitor 10 a pedir os empréstimos do 11) e passa a falhar com 403",
+    "nenhum outro endpoint muda de comportamento"
+  ],
+  "epic": "EX-100",
+  "labels": [
+    "seguranca",
+    "idor"
+  ]
+}

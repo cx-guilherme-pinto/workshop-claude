@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# tools/publish-to-github.sh - moves the kit and the Memória app to the company GitHub:
+# tools/publish-to-github.sh - moves the kit and the Agent Memory app to the company GitHub:
 # creates both repositories, pushes the full history (every branch and tag), switches the URLs
 # to the new server, publishes the releases (the app first, then the kit) and checks them with test-machine.
-# Run it inside the kit clone, with the Memória app clone next to it. Guide: docs/HANDOVER.md
+# Run it inside the kit clone, with the Agent Memory app clone next to it. Guide: docs/HANDOVER.md
 #
 #   bash tools/publish-to-github.sh --owner <org or user> [options]
 #
@@ -53,7 +53,7 @@ main() {
   case "$VIS" in private|internal|public) ;; *) echo "--visibility: private, internal or public." >&2; return 2 ;; esac
   case "$VK" in v[0-9]*) ;; *) echo "--kit-version must start with v (e.g. v1.0.0-rc.1)." >&2; return 2 ;; esac
   [ -n "$MEM" ] || MEM="$KIT/../claude-memory-app"
-  [ "$NO_MEM" = 1 ] || MEM="$(cd "$MEM" 2>/dev/null && pwd -P)" || { echo "Cannot find the Memória app clone (--memory-repo or --no-memory)." >&2; return 2; }
+  [ "$NO_MEM" = 1 ] || MEM="$(cd "$MEM" 2>/dev/null && pwd -P)" || { echo "Cannot find the Agent Memory app clone (--memory-repo or --no-memory)." >&2; return 2; }
   # base of the git URLs; WS_PUB_GIT_BASE only for tests (e.g. file:///tmp/remotes)
   GIT_BASE="${WS_PUB_GIT_BASE:-https://$HOSTG}"
   URL_K="$GIT_BASE/$OWNER/$RK.git"; URL_M="$GIT_BASE/$OWNER/$RM.git"
@@ -106,7 +106,7 @@ plan() {
   title "Plan"
   say "  Server:       $HOSTG (owner: $OWNER, visibility: $VIS)"
   say "  Kit:          $KIT -> $WEB_K, release $VK"
-  if [ "$NO_MEM" = 0 ]; then say "  Memória app:  $MEM -> $WEB_M, release $VM"; else say "  Memória app:  left alone (the kit points at $VM)"; fi
+  if [ "$NO_MEM" = 0 ]; then say "  Agent Memory app:  $MEM -> $WEB_M, release $VM"; else say "  Agent Memory app:  left alone (the kit points at $VM)"; fi
   say "  Releases:     $([ "$NO_REL" = 1 ] && echo 'no (--no-releases)' || echo 'yes, the app first and then the kit')"
   say "  Remotes:      $([ "$KEEP" = 1 ] && echo 'kept as they are (--keep-remotes)' || echo 'origin -> the new server (the old one becomes "pacote")')"
   say "  Log:          $LOG"
@@ -150,7 +150,7 @@ step2_create() {
   title "2. Create the repositories on $HOSTG"
   ask "Create (if missing) $OWNER/$RK$([ "$NO_MEM" = 0 ] && echo " and $OWNER/$RM") with visibility $VIS?" || { err "cancelled"; return 1; }
   create_repo "$RK" "Workshop kit for Agent Orchestration with Claude: one-command setup, skills, agents, cost hooks and hands-on projects (EN, PT)." || return 1
-  if [ "$NO_MEM" = 0 ]; then create_repo "$RM" "Memória: local memory notes for Claude Code, with a graph view and an MCP server (EN, PT, HI, HE)." || return 1; fi
+  if [ "$NO_MEM" = 0 ]; then create_repo "$RM" "Agent Memory: local memory notes for Claude Code, with a graph view and an MCP server (EN, PT, HI, HE)." || return 1; fi
 }
 
 # ---------------------------------------------------------------- 3. push the history
@@ -182,16 +182,16 @@ step3_history() {
   if [ "$NO_MEM" = 0 ]; then push_all "$MEM" "$URL_M" || return 1; fi
 }
 
-# ---------------------------------------------------------------- 4. Memória app
+# ---------------------------------------------------------------- 4. Agent Memory app
 step4_memory() {
-  title "4. Memória app: $HOSTG URLs and release $VM"
+  title "4. Agent Memory app: $HOSTG URLs and release $VM"
   run bash -c "cd \"$MEM\" && scripts/mudar-alojamento.sh --repo-url \"$WEB_M\" --provider github --versao \"$VM\"" || { err "mudar-alojamento.sh failed (see $LOG)"; return 1; }
   if [ ! -f "$MEM/src/memoria/web_dist/index.html" ] || [ "$NO_REL" = 0 ]; then
     run bash -c "cd \"$MEM/web\" && npm ci && npm run build && rm -rf ../src/memoria/web_dist && cp -R dist ../src/memoria/web_dist" || { err "the UI build failed (see $LOG)"; return 1; }
   fi
   run bash -c "cd \"$MEM\" && uv run playwright install chromium && uv run pytest -q" || { err "the app tests failed: nothing was pushed (see $LOG)"; return 1; }
   ok "app tests green"
-  run git -C "$MEM" add -A && run git -C "$MEM" commit -q -m "Publish on $HOSTG ($VM)" && run git -C "$MEM" tag -a "$VM" -m "Memória $VM ($HOSTG)" || { err "commit or tag of the app failed"; return 1; }
+  run git -C "$MEM" add -A && run git -C "$MEM" commit -q -m "Publish on $HOSTG ($VM)" && run git -C "$MEM" tag -a "$VM" -m "Agent Memory $VM ($HOSTG)" || { err "commit or tag of the app failed"; return 1; }
   ask "Push the app commit and tag $VM to $HOSTG?" || { err "cancelled (the commit stays local)"; return 1; }
   run git -C "$MEM" push -q origin main "$VM" || { err "pushing the app failed"; return 1; }
   ok "app on $WEB_M with tag $VM"
@@ -223,7 +223,7 @@ step5_kit() {
   run node "$KIT/tools/check-repo.mjs" || { err "check-repo failed: the old server still shows up outside repos.conf (see $LOG)"; return 1; }
   run bash "$KIT/setup/test/test-mac.sh" || { err "the setup tests failed: nothing was pushed (see $LOG)"; return 1; }
   ok "repos.conf, docs and slides point to $HOSTG; setup tests green"
-  run git -C "$KIT" add -A && run git -C "$KIT" commit -q -m "Publish on $HOSTG ($VK; Memória app $VM)" && run git -C "$KIT" tag -a "$VK" -m "Kit $VK ($HOSTG)" || { err "commit or tag of the kit failed"; return 1; }
+  run git -C "$KIT" add -A && run git -C "$KIT" commit -q -m "Publish on $HOSTG ($VK; Agent Memory app $VM)" && run git -C "$KIT" tag -a "$VK" -m "Kit $VK ($HOSTG)" || { err "commit or tag of the kit failed"; return 1; }
   ask "Push the kit commit and tag $VK to $HOSTG?" || { err "cancelled (the commit stays local)"; return 1; }
   run git -C "$KIT" push -q origin main "$VK" || { err "pushing the kit failed"; return 1; }
   ok "kit on $WEB_K with tag $VK"
@@ -246,7 +246,7 @@ step6_verify() {
 summary() {
   title "Done"
   say "  Kit:          $WEB_K ($VK)"
-  [ "$NO_MEM" = 0 ] && say "  Memória app:  $WEB_M ($VM)"
+  [ "$NO_MEM" = 0 ] && say "  Agent Memory app:  $WEB_M ($VM)"
   say "  Participants (Mac):     curl -fsSL https://$HOSTG/$OWNER/$RK/releases/download/$VK/setup-mac.sh | bash"
   say "  Participants (Windows): irm https://$HOSTG/$OWNER/$RK/releases/download/$VK/bootstrap-windows.ps1 | iex"
   say "  Full test: bash tools/test-machine.sh --jira <KEY> --confluence <ID> --github-host $HOSTG --github-repo $OWNER/$RK"

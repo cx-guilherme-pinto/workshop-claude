@@ -70,7 +70,7 @@
     "desinst_settings_limpo": "settings.json changed after the install: I removed only the workshop keys.",
     "desinst_mcp": "MCP removed: {NOME}.",
     "desinst_app": "Agent Memory app removed.",
-    "desinst_memorias": "Your memories in ~/.memoria were left untouched. Delete the folder by hand only if you no longer need them.",
+    "desinst_memorias": "Your memories in {CAMINHO} were left untouched. Delete the folder by hand only if you no longer need them.",
     "desinst_atalho": "Shortcut removed: {CAMINHO}.",
     "desinst_perfil": "PATH lines removed from {FICHEIRO}.",
     "desinst_projeto_removido": "Project removed (it was unchanged): {CAMINHO}.",
@@ -114,9 +114,9 @@
     "s9_ja": "{PROJETOS}",
     "s9_testes_ok": "App tests: {OK} passed.",
     "s9_sem_testes": "The project doesn't have test/app.test.js yet. I skipped the tests.",
-    "s10_ja": "memoria {VERSAO}",
+    "s10_ja": "agent-memory {VERSAO}",
     "s10_ok": "Agent Memory app {VERSAO} (Python {PY} managed by uv, FTS5 ok)",
-    "s10_update": "To update the app later: memoria update. On Windows, close Claude Code first; the update finishes in a new PowerShell window.",
+    "s10_update": "To update the app later: agent-memory update. On Windows, close Claude Code first; the update finishes in a new PowerShell window.",
     "s11_ja": "Claude Desktop at {CAMINHO}",
     "s11_aviso": "Claude Desktop only signs in with a claude.ai account, and the Code tab needs a subscription. All the workshop hands-on work runs in Claude Code (terminal).",
     "s12_prompt": "Reply in English with only the word OK",
@@ -895,10 +895,10 @@
         "Run the setup again: uv reinstalls the app and its Python."
       ],
       "mac": [
-        "memoria selftest"
+        "agent-memory selftest"
       ],
       "windows": [
-        "memoria selftest"
+        "agent-memory selftest"
       ]
     },
     "E-DESK-01": {

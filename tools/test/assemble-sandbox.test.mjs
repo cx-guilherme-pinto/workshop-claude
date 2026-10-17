@@ -11,7 +11,7 @@ import { montar } from '../../installer/assemble-sandbox.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const AS = join(ROOT, 'installer', 'assemble-sandbox.mjs');
-const PROJ = join(ROOT, 'exemplo-projeto-real');
+const PROJ = join(ROOT, 'practice-project');
 
 let base;
 let env;
@@ -63,15 +63,15 @@ const ESPERADO = {
 
 for (const l of ['pt', 'en']) {
   test(`assembles the ${l} project: no i18n/, git commit, test suite passes`, () => {
-    const dest = join(base, `Projeto João ${l}`, 'exemplo-projeto-real');
-    const r = assemble(['--dest', dest, '--lingua', l]);
+    const dest = join(base, `Projeto João ${l}`, 'practice-project');
+    const r = assemble(['--dest', dest, '--language', l]);
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.out.estado, 'montado');
-    assert.equal(r.out.lingua, l);
+    assert.equal(r.out.status, 'assembled');
+    assert.equal(r.out.language, l);
     assert.ok(!existsSync(join(dest, 'i18n')), 'i18n/ must not reach the participant');
     assert.ok(existsSync(join(dest, ESPERADO[l].src)));
     assert.ok(!existsSync(join(dest, ESPERADO[l].ausente)), 'no files from the other language');
-    assert.equal(JSON.parse(readFileSync(join(dest, '.sandbox-kit.json'), 'utf8')).lingua, l);
+    assert.equal(JSON.parse(readFileSync(join(dest, '.sandbox-kit.json'), 'utf8')).language, l);
     assert.equal(git(dest, 'log', '-1', '--format=%s'), ESPERADO[l].commit);
     assert.equal(git(dest, 'status', '--porcelain'), '', 'everything committed');
     const t = runTests(dest);
@@ -103,9 +103,10 @@ test('the en version has the same shape as pt (same issues and fields, same numb
     const a = JSON.parse(readFileSync(join(PROJ, f), 'utf8'));
     const b = JSON.parse(readFileSync(join(EN, f), 'utf8'));
     assert.deepEqual(Object.keys(b), Object.keys(a), `${f}: same field names (the /task-intake skill reads them)`);
-    for (const k of ['id', 'fonte', 'url', 'epico']) assert.equal(b[k], a[k], `${f}: ${k}`);
-    assert.equal(b.criterios.length, a.criterios.length, `${f}: criterios`);
-    assert.equal(b.etiquetas.length, a.etiquetas.length, `${f}: etiquetas`);
+    assert.deepEqual(Object.keys(a), ['id', 'source', 'url', 'title', 'description', 'criteria', 'epic', 'labels'], `${f}: English field names in both languages`);
+    for (const k of ['id', 'source', 'url', 'epic']) assert.equal(b[k], a[k], `${f}: ${k}`);
+    assert.equal(b.criteria.length, a.criteria.length, `${f}: criteria`);
+    assert.equal(b.labels.length, a.labels.length, `${f}: labels`);
   }
 });
 
@@ -113,24 +114,26 @@ test('default language comes from WORKSHOP_LANG; existing project is kept unless
   const dest = join(base, 'por-defeito');
   let r = assemble(['--dest', dest], { WORKSHOP_LANG: 'en-US' });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.out.lingua, 'en');
+  assert.equal(r.out.language, 'en');
   r = assemble(['--dest', dest], { WORKSHOP_LANG: 'pt-PT' });
   assert.equal(r.status, 0, r.stderr);
-  assert.deepEqual(r.out, { estado: 'ja_existia', lingua: 'en' });
+  assert.deepEqual(r.out, { status: 'already_there', language: 'en' });
   assert.ok(existsSync(join(dest, 'src', 'books.js')));
   r = assemble(['--dest', dest, '--force'], { WORKSHOP_LANG: 'pt-PT' });
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.out.lingua, 'pt');
+  assert.equal(r.out.language, 'pt');
   assert.ok(existsSync(join(dest, 'src', 'livros.js')) && !existsSync(join(dest, 'src', 'books.js')));
 });
 
-test('errors: missing --dest, empty --lingua, non-empty folder that is not a sandbox', () => {
+test('errors: missing --dest, empty --language, non-empty folder that is not a sandbox', () => {
   let r = assemble([]);
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /^ERRO: /);
-  r = assemble(['--dest', join(base, 'x'), '--lingua']);
+  assert.match(r.stderr, /^ERROR: /);
+  r = assemble(['--dest', join(base, 'x'), '--language']);
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /^ERRO: /);
+  assert.match(r.stderr, /^ERROR: /);
+  r = assemble(['--dest', join(base, 'x2'), '--lingua']);
+  assert.match(r.stderr, /^ERROR: --language/, 'the older --lingua still works');
   const outra = join(base, 'outra');
   mkdirSync(outra);
   writeFileSync(join(outra, 'meu.txt'), 'meu\n');
@@ -141,11 +144,11 @@ test('errors: missing --dest, empty --lingua, non-empty folder that is not a san
 
 test('kit installed under ~/.workshop-claude/... still copies the project (filter uses relative paths)', () => {
   const kit = join(base, '.workshop-claude', 'kit-src', 'v9.9.9');
-  cpSync(PROJ, join(kit, 'exemplo-projeto-real'), { recursive: true });
+  cpSync(PROJ, join(kit, 'practice-project'), { recursive: true });
   for (const l of ['pt', 'en']) {
     const dest = join(base, `instalado-${l}`);
     const r = montar({ dest, lingua: l, kit });
-    assert.equal(r.estado, 'montado');
+    assert.equal(r.status, 'assembled');
     assert.ok(existsSync(join(dest, ESPERADO[l].src)), `${l}: ${relative(base, dest)} has the project files`);
     assert.ok(!existsSync(join(dest, 'i18n')));
   }

@@ -8,7 +8,7 @@ A kit for a few hundred participants, each with their own **Console** (API) acco
 - two hands-on projects: the Security Arena and the practice project;
 - the slides.
 
-The Memória app lives in another repository (`claude-memory-app`), next to this one.
+The Agent Memory app (called Memória until v0.4) lives in another repository (`claude-memory-app`), next to this one. Its command is `agent-memory` (MCP server `agent-memory`; `memoria` stays as a legacy alias).
 
 **Read `docs/HANDOVER.md` first**: the current state, what is left and where to pick up. The decisions and the reasons behind them are in `DECISIONS.md` (D-01 to D-21, in Portuguese).
 
@@ -18,11 +18,11 @@ The Memória app lives in another repository (`claude-memory-app`), next to this
 |---|---|
 | `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` and the catalogs `messages.en.json` (what the setup prints; generates `docs/TROUBLESHOOTING.md`) and `messages.pt.json` (generates `docs/pt/TROUBLESHOOTING.md`). Tests in `setup/test/` |
 | `installer/` | Node with no dependencies: user-level install, `settings.json` merge, Arena assembly, injection into the release, and redaction |
-| `orquestrador/` | `next-wave`, `grade`, `gate`, `digest`, `report`, `publicar-texto` and `estimate`. The DAG is deterministic (D-07) |
+| `orchestrator/` | `next-wave`, `grade`, `gate`, `digest`, `report`, `publish-text`, `estimate`, `validate-plan`, `explore`, `dashboard` and `init-workshop`. The DAG is deterministic (D-07). Reads plans with English keys or the older Portuguese ones |
 | `hooks/`, `statusline/`, `pricing.json` | Cost from the real tokens in the transcripts × `pricing.json` (D-08). Never `total_cost_usd` |
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents, in English, that answer in the user's language (D-20) |
 | `demo-project/` | The Arena (100 cards; `i18n/en/` overlays the pt source). Reference solutions in `dev/solutions/` (not shipped in the kit) |
-| `exemplo-projeto-real/` | The practice project for Project 2 (issues in local JSON) |
+| `practice-project/` | The practice project for Project 2 (issues in local JSON; `i18n/en/` is the whole English project). Installed as `~/workshop-claude/practice-project` |
 | `benchmark/` | `run-benchmark.sh`, `run-projeto2.sh`, `collect`/`report`/`calibrar` and `REPORT.md` |
 | `slides/` | `build.mjs` + `content.mjs` → `workshop.pptx` and `workshop.en.pptx` (`--lingua en`) |
 | `docs/`, `README.md` | English is the primary version: `README.md` and `docs/` (INSTALL, PUBLISHING, TROUBLESHOOTING, FAQ, ORGANIZER, REPORT, MANUAL-TESTS, HANDOVER, TEST-MACHINE). Portuguese is secondary: `README.pt.md` and `docs/pt/`, with the same file names. Also `README.hi.md`, `README.he.md`, `docs/hi/INSTALL.md` and `docs/he/INSTALL.md` |
@@ -37,7 +37,8 @@ The Memória app lives in another repository (`claude-memory-app`), next to this
   - the **Language:** line;
   - `{{KIT_DIR}}` in the production skills;
   - an explicit "yes" before any write to Jira or GitHub.
-- **Markers that are never translated:** `ESTADO: LOTE|FIM|BLOQUEADO`, `<<<CHAMADAS … CHAMADAS>>>`, `GATE: APROVADO|REPROVADO`, `PLANO OK` and the like (full list in D-20).
+- **Markers that are never translated** (English in both languages): `STATE: BATCH|DONE|BLOCKED`, `<<<CALLS … CALLS>>>`, `TASK:`/`AGENT:`/`ATTEMPT:`, `GATE: APPROVED|REJECTED`, `PLAN OK`, `PLAN INVALID`, `SWARM OK`, `COST OK`, `ERROR: plan not found`, `MEMORY UNAVAILABLE` and `OK <id>`/`FAILED <id>`.
+- **Names the participant sees are English in both languages:** files, folders, flags, task ids, JSON keys written by the kit (`.workshop/task.md`, `task.json`, `verdict.json`, `PLAN.md`, `report.md`, `memory-summary.md`, `review-summary.md`, `publish.json`…), MCP tools (`mcp__agent-memory__memory_search|memory_add|memory_related`). Only human sentences are localised. Old names stay accepted as aliases (flags such as `--projeto`, `--todos`, `--teste`; files such as `veredito.json`, `tarefa.json`; `lingua.json`).
 - **Tokens:** never on the command line, in files or in logs. They reach `curl` through `-K -` (stdin), and logs go through redaction.
 - **No admin and no system Python** (D-14 and D-15): Node, uv/Python, gh, portable git and acli go into the user profile.
 - **Never cut off for cost:** only warnings at US$ 5 and US$ 10.
@@ -51,7 +52,7 @@ The Memória app lives in another repository (`claude-memory-app`), next to this
 ## Tests
 
 ```bash
-bash tools/test-all.sh            # hooks, orchestrator, Arena (pt and en), practice project, check-repo, tools, shellcheck (Docker)
+bash tools/test-all.sh            # hooks, orchestrator, Arena (pt and en), practice project, check-repo, tools, shellcheck (Docker; --no-docker skips it)
 bash setup/test/test-mac.sh       # Mac setup functions (bash 3.2)
 ```
 

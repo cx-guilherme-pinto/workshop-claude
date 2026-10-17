@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/pack-for-transfer.sh - packs both repositories (kit and Memória app) into one zip of
+# tools/pack-for-transfer.sh - packs both repositories (kit and Agent Memory app) into one zip of
 # "git bundles", to copy to another machine (AirDrop, USB stick) without needing the server.
 # Carries the full history, every branch and every tag; uncommitted changes are left out.
 # Before closing the zip, it clones each bundle and checks the commit count matches the original.
@@ -78,7 +78,7 @@ git clone workshop-claude.bundle workshop-claude
 git clone claude-memory-app.bundle claude-memory-app
 \`\`\`
 
-Keep both clones side by side: that is where the test script looks for the Memória app.
+Keep both clones side by side: that is where the test script looks for the Agent Memory app.
 
 ## 2. Test
 
@@ -111,7 +111,7 @@ On github.com you can leave out \`--host\`.
 
 ## 4. Carry on with Claude
 
-Open Claude Code inside \`workshop-claude\`. \`CLAUDE.md\` and \`docs/HANDOVER.md\` (and the Memória app's own) tell it the state, the rules and what is left.
+Open Claude Code inside \`workshop-claude\`. \`CLAUDE.md\` and \`docs/HANDOVER.md\` (and the Agent Memory app's own) tell it the state, the rules and what is left.
 EOF
 }
 
@@ -133,7 +133,7 @@ git clone workshop-claude.bundle workshop-claude
 git clone claude-memory-app.bundle claude-memory-app
 \`\`\`
 
-Os dois clones ficam lado a lado, que é onde o script de testes procura a app Memória.
+Os dois clones ficam lado a lado, que é onde o script de testes procura a app Agent Memory.
 
 ## 2. Testar
 
@@ -166,7 +166,7 @@ No github.com não precisas de \`--host\`.
 
 ## 4. Continuar com o Claude
 
-Abre o Claude Code dentro de \`workshop-claude\`. O \`CLAUDE.md\` e o \`docs/HANDOVER.md\` (e os da app Memória) dizem-lhe o estado, as regras e o que falta.
+Abre o Claude Code dentro de \`workshop-claude\`. O \`CLAUDE.md\` e o \`docs/HANDOVER.md\` (e os da app Agent Memory) dizem-lhe o estado, as regras e o que falta.
 EOF
 }
 

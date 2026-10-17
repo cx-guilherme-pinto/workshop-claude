@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Installs the Project 2 training project (exemplo-projeto-real) in a folder, with git init and a first commit.
-//   node installer/assemble-sandbox.mjs --dest <folder> [--lingua pt|en] [--force]
+// Installs the Project 2 practice project (practice-project) in a folder, with git init and a first commit.
+//   node installer/assemble-sandbox.mjs --dest <folder> [--language pt|en] [--force]     (--lingua still works)
 //
-// --lingua defaults to the kit language (hooks/lib/lingua.mjs: WORKSHOP_LANG, lingua.json, then the OS locale).
-// The source in exemplo-projeto-real/ is the Portuguese project. exemplo-projeto-real/i18n/en/ is the whole
+// --language defaults to the kit language (hooks/lib/language.mjs: WORKSHOP_LANG, language.json, then the OS locale).
+// The source in practice-project/ is the Portuguese project. practice-project/i18n/en/ is the whole
 // English project: the code is translated too, so the file names change (src/livros.js -> src/books.js) and it
 // cannot be laid over the Portuguese files. pt copies the project without i18n/; en copies only i18n/en/.
 // tools/test/assemble-sandbox.test.mjs checks that both versions keep the same shape and that their tests pass.
@@ -11,8 +11,11 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { join, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { ehPrincipal } from './lib/principal.mjs';
-import { lingua as linguaDoKit, normalizar } from '../hooks/lib/lingua.mjs';
+import { isMain } from './lib/is-main.mjs';
+import { lingua as linguaDoKit, normalizar } from '../hooks/lib/language.mjs';
+
+// The kit folder with the practice project (exemplo-projeto-real until v1.0.0-rc.1).
+export const PRACTICE_DIR = 'practice-project';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MARCA = '.sandbox-kit.json';
@@ -28,9 +31,9 @@ export function args(argv) {
     const a = argv[i];
     if (a === '--dest') o.dest = argv[++i] ? resolve(argv[i]) : null;
     else if (a === '--force') o.force = true;
-    else if (a === '--lingua') {
+    else if (a === '--language' || a === '--lingua') {
       o.lingua = normalizar(argv[++i]);
-      if (!o.lingua) throw new Error('--lingua needs a value (pt or en)');
+      if (!o.lingua) throw new Error('--language needs a value (pt or en)');
     }
   }
   if (!o.dest) throw new Error('missing --dest <folder>');
@@ -47,7 +50,8 @@ function copiar(src, dst) {
 
 function lerMarca(f) {
   try {
-    return JSON.parse(readFileSync(f, 'utf8'));
+    const m = JSON.parse(readFileSync(f, 'utf8'));
+    return { ...m, language: m.language ?? m.lingua };
   } catch {
     return {};
   }
@@ -55,19 +59,19 @@ function lerMarca(f) {
 
 export function montar({ dest, force = false, lingua = null, kit = KIT }) {
   const l = normalizar(lingua) || linguaDoKit();
-  const proj = join(kit, 'exemplo-projeto-real');
+  const proj = join(kit, PRACTICE_DIR);
   const origem = l === 'pt' ? proj : join(proj, 'i18n', l);
   if (!existsSync(join(origem, 'package.json'))) throw new Error(`training project not found: ${origem}`);
   const marca = join(dest, MARCA);
   if (existsSync(dest) && readdirSync(dest).length) {
-    if (existsSync(marca) && !force) return { estado: 'ja_existia', lingua: lerMarca(marca).lingua ?? 'pt' };
+    if (existsSync(marca) && !force) return { status: 'already_there', language: lerMarca(marca).language ?? 'pt' };
     if (!force) throw new Error(`the folder ${dest} already exists (use --force to replace it)`);
     rmSync(dest, { recursive: true, force: true });
   }
   mkdirSync(dest, { recursive: true });
   copiar(origem, dest);
   writeFileSync(join(dest, '.gitignore'), 'node_modules/\n.DS_Store\n');
-  writeFileSync(marca, JSON.stringify({ criado_em: new Date().toISOString(), lingua: l }) + '\n');
+  writeFileSync(marca, JSON.stringify({ created_at: new Date().toISOString(), language: l }) + '\n');
   const t = TEXTOS[l];
   const git = (...x) => {
     const r = spawnSync('git', x, { cwd: dest, encoding: 'utf8' });
@@ -78,14 +82,14 @@ export function montar({ dest, force = false, lingua = null, kit = KIT }) {
   git('config', 'user.email', t.email);
   git('add', '-A');
   git('commit', '-q', '-m', t.commit);
-  return { estado: 'montado', dest: dest.replace(/\\/g, '/'), lingua: l };
+  return { status: 'assembled', dest: dest.replace(/\\/g, '/'), language: l };
 }
 
-if (ehPrincipal(import.meta.url)) {
+if (isMain(import.meta.url)) {
   try {
     console.log(JSON.stringify(montar(args(process.argv.slice(2)))));
   } catch (e) {
-    console.error(`ERRO: ${e.message}`);
+    console.error(`ERROR: ${e.message}`);
     process.exit(1);
   }
 }

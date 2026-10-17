@@ -70,7 +70,7 @@
     "desinst_settings_limpo": "settings.json alterado depois da instalação: removi só as chaves do workshop.",
     "desinst_mcp": "MCP removido: {NOME}.",
     "desinst_app": "App Agent Memory removida.",
-    "desinst_memorias": "As tuas memórias em ~/.memoria ficaram intactas. Apaga a pasta à mão só se já não precisares delas.",
+    "desinst_memorias": "As tuas memórias em {CAMINHO} ficaram intactas. Apaga a pasta à mão só se já não precisares delas.",
     "desinst_atalho": "Atalho removido: {CAMINHO}.",
     "desinst_perfil": "Linhas do PATH removidas de {FICHEIRO}.",
     "desinst_projeto_removido": "Projeto removido (estava intacto): {CAMINHO}.",
@@ -114,9 +114,9 @@
     "s9_ja": "{PROJETOS}",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
-    "s10_ja": "memoria {VERSAO}",
+    "s10_ja": "agent-memory {VERSAO}",
     "s10_ok": "App Agent Memory {VERSAO} (Python {PY} gerido pelo uv, FTS5 ok)",
-    "s10_update": "Para atualizar a app mais tarde: memoria update. No Windows, fecha primeiro o Claude Code; a atualização termina numa janela nova do PowerShell.",
+    "s10_update": "Para atualizar a app mais tarde: agent-memory update. No Windows, fecha primeiro o Claude Code; a atualização termina numa janela nova do PowerShell.",
     "s11_ja": "Claude Desktop em {CAMINHO}",
     "s11_aviso": "O Claude Desktop só entra com uma conta claude.ai, e o separador Code exige assinatura. O hands-on do workshop corre todo no Claude Code (terminal).",
     "s12_prompt": "responde só OK",
@@ -895,10 +895,10 @@
         "Volta a correr o setup: o uv volta a instalar a app e o Python dela."
       ],
       "mac": [
-        "memoria selftest"
+        "agent-memory selftest"
       ],
       "windows": [
-        "memoria selftest"
+        "agent-memory selftest"
       ]
     },
     "E-DESK-01": {

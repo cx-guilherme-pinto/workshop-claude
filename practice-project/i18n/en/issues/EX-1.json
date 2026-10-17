@@ -1,0 +1,19 @@
+{
+  "id": "EX-1",
+  "source": "local",
+  "url": "issues/EX-1.json",
+  "title": "Validate ISBN and email when creating books and readers",
+  "description": "Today you can create books with an invalid ISBN and readers with a mistyped email, which breaks searches and return reminders. We want to validate both fields on creation and return a 400 error with a clear message.",
+  "criteria": [
+    "createBook rejects an ISBN that is not a valid ISBN-13 (13 digits, hyphens allowed, correct check digit) with ValidationError",
+    "createReader rejects emails without a valid format (something@domain.tld) with ValidationError",
+    "POST /books and POST /readers return 400 with the error message",
+    "The existing valid cases keep working",
+    "There are tests for the valid and invalid cases"
+  ],
+  "epic": "EX-100",
+  "labels": [
+    "validation",
+    "quality"
+  ]
+}

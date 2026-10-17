@@ -1,6 +1,6 @@
 ---
 name: demo-reset
-description: Resets the Security Arena to its initial state so the exercise can be repeated (the built cards are deleted; the cost history is kept in .workshop/historico/).
+description: Resets the Security Arena to its initial state so the exercise can be repeated (the built cards are deleted; the cost history is kept in .workshop/history/).
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
@@ -16,7 +16,7 @@ allowed-tools:
 
 Arguments: `$ARGUMENTS`.
 
-1. Without `--auto`, ask first: "This deletes the built cards and the current plan. The cost history stays in `.workshop/historico/`. Shall I continue?" Wait for a clear yes.
+1. Without `--auto`, ask first: "This deletes the built cards and the current plan. The cost history stays in `.workshop/history/`. Shall I continue?" Wait for a clear yes.
 2. Run `node tools/reset.mjs`.
 3. Show what the script did in 2 or 3 lines and end with: "Done. To start over: `/demo-plan`."
 

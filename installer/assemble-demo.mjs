@@ -1,27 +1,40 @@
 #!/usr/bin/env node
-// Monta o projeto demo (Arena de Seguranca) numa pasta, pronto a usar:
-//   - copia demo-project/ (sem i18n/) e poe por cima demo-project/i18n/<lingua>/, se existir;
-//     noutra lingua que nao pt, corre tools/gen.mjs no destino (cartoes, testes e TASKS.md nessa lingua)
-//   - copia o motor do kit (hooks/, orquestrador/, statusline/, pricing.json) para tools/workshop/
-//     e escreve tools/workshop/lingua.json (a lingua dos textos das ferramentas)
-//   - copia skills-demo/, skills-shared/ e agents/demo/ para .claude/
-//   - escreve .claude/settings.json com caminhos absolutos (node, hooks, statusline)
-//   - git init + commit inicial (para /demo-reset e worktrees)
+// Assembles the demo project (the Security Arena) in a folder, ready to use:
+//   - copies demo-project/ (without i18n/) and lays demo-project/i18n/<language>/ over it, if it exists;
+//     in a language other than pt, runs tools/gen.mjs in the destination (cards, tests and TASKS.md in that language)
+//   - copies the kit engine (hooks/, orchestrator/, statusline/, pricing.json) to tools/workshop/
+//     and writes tools/workshop/language.json (the language of the tools' texts)
+//   - copies skills-demo/, skills-shared/ and agents/demo/ to .claude/
+//   - writes .claude/settings.json with absolute paths (node, hooks, statusline)
+//   - git init + first commit, tagged arena-start (for /demo-reset, the gate and worktrees)
 //
-//   node installer/assemble-demo.mjs --dest <pasta> [--lingua pt|en] [--node <caminho do node>] [--force] [--sem-git] [--probe]
+//   node installer/assemble-demo.mjs --dest <folder> [--language pt|en] [--node <node path>] [--force] [--no-git] [--probe]
+//   (--lingua and --sem-git still work.)
 //
-// Sem --lingua: WORKSHOP_LANG, o lingua.json do kit instalado e o locale do sistema (ver linguaArena()).
+// Without --language: WORKSHOP_LANG, the installed kit's language.json and the system locale (see linguaArena()).
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { ehPrincipal } from './lib/principal.mjs';
-import { lingua, normalizar } from '../hooks/lib/lingua.mjs';
+import { isMain } from './lib/is-main.mjs';
+import { lingua, normalizar, LANGUAGE_FILE } from '../hooks/lib/language.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-// Lingua da Arena por omissao, como o lingua() do kit: WORKSHOP_LANG, depois o lingua.json do kit
-// instalado (escrito pelo install-user), depois LC_ALL/LC_MESSAGES/LANG e o Intl do Node. 'pt' ou 'en'.
+// The git tag of the Arena's initial state (arena-inicial until v1.0.0-rc.1).
+export const START_TAG = 'arena-start';
+export const LEGACY_START_TAG = 'arena-inicial';
+
+// The engine folders copied to tools/workshop/.
+export const ENGINE = ['hooks', 'orchestrator', 'statusline'];
+
+const TEXTOS = {
+  pt: { nome: 'Participante do Workshop', email: 'participante@workshop.invalid', commit: 'Estado inicial da Arena de Segurança' },
+  en: { nome: 'Workshop Participant', email: 'participant@workshop.invalid', commit: 'Initial state of the Security Arena' },
+};
+
+// Default Arena language, like the kit's lingua(): WORKSHOP_LANG, then the installed kit's language.json
+// (written by install-user), then LC_ALL/LC_MESSAGES/LANG and Node's Intl. 'pt' or 'en'.
 export function linguaArena({ env = process.env, raiz = KIT } = {}) {
   return lingua({ env, raiz });
 }
@@ -31,15 +44,15 @@ export function args(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dest') o.dest = resolve(argv[++i]);
-    else if (a === '--lingua') {
+    else if (a === '--language' || a === '--lingua') {
       o.lingua = normalizar(argv[++i]);
-      if (!o.lingua) throw new Error('--lingua tem de ser pt ou en');
+      if (!o.lingua) throw new Error('--language must be pt or en');
     } else if (a === '--node') o.node = argv[++i];
     else if (a === '--force') o.force = true;
-    else if (a === '--sem-git') o.git = false;
+    else if (a === '--no-git' || a === '--sem-git') o.git = false;
     else if (a === '--probe') o.probe = true;
   }
-  if (!o.dest) throw new Error('falta --dest <pasta>');
+  if (!o.dest) throw new Error('missing --dest <folder>');
   return o;
 }
 
@@ -76,13 +89,13 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
         'Edit(public/**)',
         'Write(.workshop/**)',
         'Edit(.workshop/**)',
-        'mcp__memoria__memoria_procurar',
-        'mcp__memoria__memoria_relacionadas',
-        'mcp__memoria__memoria_adicionar',
+        'mcp__agent-memory__memory_search',
+        'mcp__agent-memory__memory_related',
+        'mcp__agent-memory__memory_add',
       ],
       deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)'],
     },
-    // O paralelismo vem do plan.json (8 participante, 16 apresentador); ARENA_MAX_PARALELO no ambiente sobrepoe-se.
+    // The parallelism comes from plan.json (8 participant, 16 presenter); ARENA_MAX_PARALLEL in the environment overrides it.
     hooks: {
       SubagentStop: [{ hooks: [hook('hooks/subagent-stop.mjs')] }],
       Stop: [{ hooks: [hook('hooks/stop.mjs')] }],
@@ -103,32 +116,51 @@ function copiar(src, dst, { sem = [] } = {}) {
   cpSync(src, dst, { recursive: true, filter: (p) => !/(^|[\\/])(\.DS_Store|node_modules|\.workshop)([\\/]|$)/.test(p) && !sem.includes(resolve(p)) });
 }
 
-// Copia demo-project/ sem i18n/ e poe por cima as traducoes de i18n/<lingua>/ (os mesmos caminhos).
-// Noutra lingua que nao pt, gera cards/*/spec.md, card.test.js e TASKS.md a partir das specs traduzidas.
+// Copies demo-project/ without i18n/ and lays the translations from i18n/<language>/ over it (the same paths).
+// In a language other than pt, generates cards/*/spec.md, card.test.js and TASKS.md from the translated specs.
 export function copiarArena(dest, l, { demo = join(KIT, 'demo-project') } = {}) {
   copiar(demo, dest, { sem: [resolve(demo, 'i18n')] });
   copiar(join(demo, 'i18n', l), dest);
   if (l !== 'pt') {
     const r = spawnSync(process.execPath, [join('tools', 'gen.mjs')], { cwd: dest, encoding: 'utf8' });
-    if (r.status !== 0) throw new Error(`tools/gen.mjs falhou: ${r.stderr || r.stdout}`);
+    if (r.status !== 0) throw new Error(`tools/gen.mjs failed: ${r.stderr || r.stdout}`);
   }
 }
 
 function git(dest, ...a) {
   const r = spawnSync('git', a, { cwd: dest, encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`git ${a.join(' ')} falhou: ${r.stderr || r.stdout}`);
+  if (r.status !== 0) throw new Error(`git ${a.join(' ')} failed: ${r.stderr || r.stdout}`);
   return r.stdout.trim();
 }
+
+const temTag = (dest, t) => spawnSync('git', ['rev-parse', '-q', '--verify', `refs/tags/${t}`], { cwd: dest, encoding: 'utf8' }).status === 0;
+
+// An Arena assembled before the rename only has the arena-inicial tag: add arena-start on the same commit
+// (nothing else changes; the participant's work stays as it is). Returns true if it added the tag.
+export function migrarTag(dest) {
+  if (!existsSync(join(dest, '.git')) || temTag(dest, START_TAG) || !temTag(dest, LEGACY_START_TAG)) return false;
+  return spawnSync('git', ['tag', START_TAG, LEGACY_START_TAG], { cwd: dest, encoding: 'utf8' }).status === 0;
+}
+
+const lerMarca = (f) => {
+  try {
+    const m = JSON.parse(readFileSync(f, 'utf8'));
+    return { version: m.version ?? m.versao, language: m.language ?? m.lingua ?? 'pt' };
+  } catch {
+    return { version: null, language: 'pt' };
+  }
+};
 
 export function montar(o) {
   const marca = join(o.dest, '.arena-kit.json');
   if (existsSync(o.dest) && readdirSync(o.dest).length) {
     if (!o.force) {
       if (existsSync(marca)) {
-        const m = JSON.parse(readFileSync(marca, 'utf8'));
-        return { estado: 'ja_existia', versao: m.versao, lingua: m.lingua ?? 'pt' };
+        const m = lerMarca(marca);
+        const tag = migrarTag(o.dest);
+        return { status: 'already_there', version: m.version, language: m.language, ...(tag ? { tag_added: START_TAG } : {}) };
       }
-      throw new Error(`a pasta ${o.dest} ja existe e nao e um projeto da Arena (usa --force para substituir)`);
+      throw new Error(`the folder ${o.dest} already exists and is not an Arena project (use --force to replace it)`);
     }
     rmSync(o.dest, { recursive: true, force: true });
   }
@@ -136,9 +168,11 @@ export function montar(o) {
   mkdirSync(o.dest, { recursive: true });
   copiarArena(o.dest, l);
   const motor = join(o.dest, 'tools', 'workshop');
-  for (const d of ['hooks', 'orquestrador', 'statusline']) copiar(join(KIT, d), join(motor, d));
+  // Without the kit's own tests (hooks/test/, orchestrator/test/): "node --test" and tools/check-integration.mjs in
+  // the Arena would run them too, and their names are the kit's (Portuguese), not the Arena's language.
+  for (const d of ENGINE) copiar(join(KIT, d), join(motor, d), { sem: [resolve(KIT, d, 'test')] });
   cpSync(join(KIT, 'pricing.json'), join(motor, 'pricing.json'));
-  writeFileSync(join(motor, 'lingua.json'), JSON.stringify({ lingua: l }) + '\n');
+  writeFileSync(join(motor, LANGUAGE_FILE), JSON.stringify({ language: l }) + '\n');
   const skills = join(o.dest, '.claude', 'skills');
   copiar(join(KIT, 'skills-demo'), skills);
   copiar(join(KIT, 'skills-shared'), skills);
@@ -146,25 +180,26 @@ export function montar(o) {
   writeFileSync(join(o.dest, '.claude', 'settings.json'), JSON.stringify(settingsDemo(o.dest, o.node, o), null, 2) + '\n');
   mkdirSync(join(o.dest, '.workshop'), { recursive: true });
   writeFileSync(join(o.dest, '.gitignore'), '.workshop/\nnode_modules/\n.DS_Store\n');
-  writeFileSync(marca, JSON.stringify({ versao: kitVersion(), lingua: l, montado_em: new Date().toISOString() }, null, 2) + '\n');
+  writeFileSync(marca, JSON.stringify({ version: kitVersion(), language: l, assembled_at: new Date().toISOString() }, null, 2) + '\n');
   if (o.git) {
+    const t = TEXTOS[l] ?? TEXTOS.en;
     git(o.dest, 'init', '-q', '-b', 'main');
-    git(o.dest, 'config', 'user.name', 'Participante do Workshop');
-    git(o.dest, 'config', 'user.email', 'participante@workshop.invalid');
+    git(o.dest, 'config', 'user.name', t.nome);
+    git(o.dest, 'config', 'user.email', t.email);
     git(o.dest, 'config', 'core.autocrlf', 'false');
     git(o.dest, 'add', '-A');
-    git(o.dest, 'commit', '-q', '-m', 'Estado inicial da Arena de Seguranca');
-    git(o.dest, 'tag', 'arena-inicial');
+    git(o.dest, 'commit', '-q', '-m', t.commit);
+    git(o.dest, 'tag', START_TAG);
   }
-  return { estado: 'montado', versao: kitVersion(), lingua: l };
+  return { status: 'assembled', version: kitVersion(), language: l };
 }
 
-if (ehPrincipal(import.meta.url)) {
+if (isMain(import.meta.url)) {
   try {
     const r = montar(args(process.argv.slice(2)));
     console.log(JSON.stringify(r));
   } catch (e) {
-    console.error(`ERRO: ${e.message}`);
+    console.error(`ERROR: ${e.message}`);
     process.exit(1);
   }
 }

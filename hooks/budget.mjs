@@ -1,16 +1,16 @@
-// Aviso de orcamento: SO INFORMA, nunca interrompe.
-// Mostra uma mensagem uma unica vez ao passar o alvo (US$ 5) e outra ao passar o teto (US$ 10).
-// O texto sai na lingua do kit (pt ou en); `l` e opcional (testes).
+// Budget warning: it ONLY INFORMS, it never stops anything.
+// Shows a message once when the cost passes the target (US$ 5) and another when it passes the cap (US$ 10).
+// The text is in the kit language (pt or en); `l` is optional (tests).
 import { join } from 'node:path';
 import { readJsonSafe, writeJsonAtomic } from './lib/workshop.mjs';
 import { readUsage, totals } from './lib/totals.mjs';
-import { fmtUsd } from './lib/cost.mjs';
-import { lingua, textos } from './lib/lingua.mjs';
+import { fmtUsd, normalizePricing } from './lib/cost.mjs';
+import { lingua, textos } from './lib/language.mjs';
 
 const TEXTOS = {
   pt: {
-    teto: (total, teto) => `Aviso: o custo acumulado deste projeto chegou a ${total}, acima do teto de ${teto}. A execucao continua; nada foi interrompido.`,
-    alvo: (total, alvo) => `Aviso: o custo acumulado deste projeto chegou a ${total}, acima do alvo de ${alvo}. A execucao continua normalmente.`,
+    teto: (total, teto) => `Aviso: o custo acumulado deste projeto chegou a ${total}, acima do teto de ${teto}. A execução continua; nada foi interrompido.`,
+    alvo: (total, alvo) => `Aviso: o custo acumulado deste projeto chegou a ${total}, acima do alvo de ${alvo}. A execução continua normalmente.`,
   },
   en: {
     teto: (total, teto) => `Warning: this project's total cost has reached ${total}, above the ${teto} cap. The run continues; nothing was stopped.`,
@@ -21,16 +21,20 @@ const TEXTOS = {
 export function budgetMessage(wsDir, pricing, l = lingua()) {
   const T = textos(TEXTOS, l);
   const t = totals(readUsage(wsDir));
-  const alvo = pricing.orcamento?.alvo_usd ?? 5;
-  const teto = pricing.orcamento?.teto_usd ?? 10;
-  const flagFile = join(wsDir, 'avisos.json');
-  const flags = readJsonSafe(flagFile, {});
+  pricing = normalizePricing(pricing);
+  const alvo = pricing.budget?.target_usd ?? 5;
+  const teto = pricing.budget?.cap_usd ?? 10;
+  // Which warnings were already shown (warnings.json; older versions wrote avisos.json with pt keys).
+  const flagFile = join(wsDir, 'warnings.json');
+  const old = readJsonSafe(join(wsDir, 'avisos.json'), {});
+  const flags = { cap: old.teto, target: old.alvo, ...readJsonSafe(flagFile, {}) };
+  for (const k of Object.keys(flags)) if (flags[k] === undefined) delete flags[k];
   let msg = null;
-  if (t.total >= teto && !flags.teto) {
-    flags.teto = new Date().toISOString();
+  if (t.total >= teto && !flags.cap) {
+    flags.cap = new Date().toISOString();
     msg = T.teto(fmtUsd(t.total, l), fmtUsd(teto, l));
-  } else if (t.total >= alvo && !flags.alvo) {
-    flags.alvo = new Date().toISOString();
+  } else if (t.total >= alvo && !flags.target) {
+    flags.target = new Date().toISOString();
     msg = T.alvo(fmtUsd(t.total, l), fmtUsd(alvo, l));
   }
   if (msg) {

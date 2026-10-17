@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { loadPricing, resolveModel, requestCost, tokensFromUsage, fmtUsd } from '../lib/cost.mjs';
 import { summarize, parseMarkers } from '../lib/transcript.mjs';
 import { totals } from '../lib/totals.mjs';
-import { lingua, normalizar, textos } from '../lib/lingua.mjs';
+import { lingua, normalizar, textos, language, normalize, texts } from '../lib/language.mjs';
 import { budgetMessage } from '../budget.mjs';
 
 const KIT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -54,7 +54,7 @@ test('transcript: deduplica por message.id ficando com o maior output, ignora si
   const f = join(d, 't.jsonl');
   const u = (out) => ({ input_tokens: 10, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
   const linhas = [
-    { type: 'user', timestamp: '2026-10-16T10:00:00Z', message: { role: 'user', content: 'TAREFA: pw-01\nAGENTE: worker-02\nTENTATIVA: 2\n\nfaz' } },
+    { type: 'user', timestamp: '2026-10-16T10:00:00Z', message: { role: 'user', content: 'TASK: pw-01\nAGENT: worker-02\nATTEMPT: 2\n\nfaz' } },
     { type: 'assistant', timestamp: '2026-10-16T10:00:05Z', message: { id: 'm1', model: 'claude-haiku-5-5', usage: u(3) } },
     { type: 'assistant', timestamp: '2026-10-16T10:00:06Z', message: { id: 'm1', model: 'claude-haiku-5-5', usage: u(300) } },
     { type: 'assistant', timestamp: '2026-10-16T10:00:09Z', message: { id: 'm2', model: 'claude-haiku-5-5', usage: u(100) } },
@@ -128,17 +128,24 @@ test('lingua: normalizar tags de locale', () => {
   assert.equal(normalizar(undefined), null);
 });
 
-test('lingua: WORKSHOP_LANG > lingua.json > LANG', () => {
+test('lingua: WORKSHOP_LANG > language.json > LANG', () => {
   const comJson = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
-  writeFileSync(join(comJson, 'lingua.json'), JSON.stringify({ lingua: 'pt' }));
+  writeFileSync(join(comJson, 'language.json'), JSON.stringify({ language: 'pt' }));
   const semJson = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
   // WORKSHOP_LANG ganha a tudo.
   assert.equal(lingua({ env: { WORKSHOP_LANG: 'en', LANG: 'pt_PT.UTF-8' }, raiz: comJson }), 'en');
   assert.equal(lingua({ env: { WORKSHOP_LANG: 'pt-PT', LANG: 'en_US.UTF-8' }, raiz: semJson }), 'pt');
   // Sem WORKSHOP_LANG: o lingua.json da instalacao ganha ao locale.
   assert.equal(lingua({ env: { LANG: 'en_US.UTF-8' }, raiz: comJson }), 'pt');
-  writeFileSync(join(comJson, 'lingua.json'), JSON.stringify({ lingua: 'en' }));
+  writeFileSync(join(comJson, 'language.json'), JSON.stringify({ language: 'en' }));
   assert.equal(lingua({ env: { LANG: 'pt_PT.UTF-8' }, raiz: comJson }), 'en');
+  // An older install has lingua.json ({"lingua": ...}): still read.
+  const antigo = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
+  writeFileSync(join(antigo, 'lingua.json'), JSON.stringify({ lingua: 'pt' }));
+  assert.equal(lingua({ env: { LANG: 'en_US.UTF-8' }, root: antigo }), 'pt');
+  assert.equal(language, lingua, 'English and older names are the same functions');
+  assert.equal(normalize, normalizar);
+  assert.equal(texts, textos);
   // Sem lingua.json: LC_ALL, depois LC_MESSAGES, depois LANG; 'C' nao conta.
   assert.equal(lingua({ env: { LANG: 'pt_PT.UTF-8' }, raiz: semJson }), 'pt');
   assert.equal(lingua({ env: { LC_ALL: 'he_IL.UTF-8', LANG: 'pt_PT.UTF-8' }, raiz: semJson }), 'en');
@@ -171,10 +178,15 @@ function projetoComCusto(usd) {
 }
 
 test('aviso de orcamento em portugues e em ingles (uma vez cada)', () => {
-  const orc = { orcamento: { alvo_usd: 5, teto_usd: 10 } };
+  const orc = { budget: { target_usd: 5, cap_usd: 10 } };
   const pt = projetoComCusto(6);
-  assert.equal(budgetMessage(pt.ws, orc, 'pt').systemMessage, 'Aviso: o custo acumulado deste projeto chegou a US$ 6,00, acima do alvo de US$ 5,00. A execucao continua normalmente.');
+  assert.equal(budgetMessage(pt.ws, orc, 'pt').systemMessage, 'Aviso: o custo acumulado deste projeto chegou a US$ 6,00, acima do alvo de US$ 5,00. A execução continua normalmente.');
   assert.equal(budgetMessage(pt.ws, orc, 'pt'), null, 'so avisa uma vez');
+  assert.ok(JSON.parse(readFileSync(join(pt.ws, 'warnings.json'), 'utf8')).target);
+  // The older pricing keys and the older avisos.json (already warned) still work.
+  const velho = projetoComCusto(6);
+  writeFileSync(join(velho.ws, 'avisos.json'), JSON.stringify({ alvo: '2026-10-16T10:00:00Z' }));
+  assert.equal(budgetMessage(velho.ws, { orcamento: { alvo_usd: 5, teto_usd: 10 } }, 'en'), null);
   const en = projetoComCusto(6);
   assert.equal(budgetMessage(en.ws, orc, 'en').systemMessage, "Warning: this project's total cost has reached US$ 6.00, above the US$ 5.00 target. The run continues as normal.");
   const teto = projetoComCusto(12);
@@ -187,4 +199,23 @@ test('statusline: palavras e numeros na lingua do kit', () => {
   const correr = (l) => spawnSync(process.execPath, [join(KIT, 'statusline', 'statusline.mjs')], { input, encoding: 'utf8', env: { ...process.env, WORKSHOP_LANG: l } }).stdout;
   assert.equal(correr('pt'), 'Sonnet · sessão US$ ? · projeto US$ 6,00 de US$ 5,00 ⚠ acima do alvo · swarm 1✓ 0… 1✗ · 1 h 5 min');
   assert.equal(correr('en'), 'Sonnet · session US$ ? · project US$ 6.00 of US$ 5.00 ⚠ over the target · swarm 1✓ 0… 1✗ · 1 h 5 min');
+});
+
+test('subagent prompt markers: TASK/AGENT/ATTEMPT, and the older TAREFA/AGENTE/TENTATIVA', () => {
+  assert.deepEqual(parseMarkers('TASK: pw-01\nAGENT: worker-02\nATTEMPT: 2\n\ndo it'), { tarefa: 'pw-01', agente: 'worker-02', tentativa: 2 });
+  assert.deepEqual(parseMarkers('TAREFA: pw-01\nAGENTE: worker-02\nTENTATIVA: 3\n\nfaz'), { tarefa: 'pw-01', agente: 'worker-02', tentativa: 3 });
+  assert.deepEqual(parseMarkers('no markers'), { tarefa: null, agente: null, tentativa: 1 });
+});
+
+test('pricing.json: English keys, and the older Portuguese keys give the same prices', () => {
+  assert.ok(pricing.models && pricing.budget && !pricing.modelos && !pricing.orcamento);
+  assert.equal(pricing.budget.target_usd, 5);
+  assert.equal(pricing.budget.cap_usd, 10);
+  const velho = {
+    modelos: { 'claude-haiku-5-5': { nome: 'Haiku 5.5', input: 0.1, output: 0.5, cache_write_5m: 0.125, cache_write_1h: 0.2, cache_read: 0.01, prompt_longo: { acima_de_tokens: 100000, input: 0.5, output: 2.5, cache_write_5m: 0.625, cache_write_1h: 1, cache_read: 0.05 } } },
+    aliases: { haiku: 'claude-haiku-5-5' },
+    orcamento: { alvo_usd: 5, teto_usd: 10 },
+  };
+  const t = { input: 150000, output: 1000, cache_write_5m: 0, cache_write_1h: 0, cache_read: 0 };
+  assert.equal(requestCost(t, 'haiku', velho).usd, requestCost(t, 'haiku', pricing).usd);
 });
