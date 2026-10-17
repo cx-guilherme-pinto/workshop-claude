@@ -956,7 +956,9 @@ function Write-WsCode {
   Write-WsSay ($Indent + (M 'porque') + ': ' + (Format-WsFill $e.causa) + $d)
   Write-WsSay ($Indent + (M 'fazer') + ':')
   foreach ($f in $e.fazer) { Write-WsSay ($Indent + '  - ' + (Format-WsFill $f)) }
-  foreach ($c in $e.windows) { Write-WsSay ($Indent + '    PS> ' + (Format-WsFill $c)) 'Cyan' }
+  # Nos comandos PS> a pasta dos projetos vai como $env:USERPROFILE (o PowerShell nao expande %USERPROFILE%);
+  # sem aspas continua a ser um so argumento, mesmo com espacos no nome. As frases ficam com %USERPROFILE%.
+  foreach ($c in $e.windows) { Write-WsSay ($Indent + '    PS> ' + (Format-WsFill $c @{ PROJETOS = '$env:USERPROFILE\workshop-claude' })) 'Cyan' }
   Write-WsSay ($Indent + (M 'codigo' @{ CODIGO = $Code })) 'DarkGray'
 }
 
@@ -2016,7 +2018,8 @@ function Invoke-WsAssemble {
   if ($r.ExitCode -ne 0) {
     # A causa no ecra (ex.: "git commit ... failed: ..." ou "could not move ... (is it open in another program?)").
     $d = $Script
-    $why = @(([string]$r.StdErr -split "`r?`n") | Where-Object { $_ -like 'ERROR: *' } | Select-Object -Last 1)
+    # -clike: o "error: ..." do proprio git (minusculas, nas linhas a seguir) nao conta, como no sed do Mac.
+    $why = @(([string]$r.StdErr -split "`r?`n") | Where-Object { $_ -clike 'ERROR: *' } | Select-Object -Last 1)
     if ($why.Count -gt 0) {
       $w = Protect-WsText (([string]$why[0]).Substring(7).Trim()) $script:Literals
       if ($w.Length -gt 200) { $w = $w.Substring(0, 200) }

@@ -914,6 +914,10 @@ Describe 'chaos G5-arena-git' {
     [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-fail.mjs'), (
         "console.error('ERROR: git commit -q -m x failed: error: gpg failed to sign the data (token=sk-ant-abcdef123456)');`n" +
         "process.exit(1);`n"))
+    # O git escreve as suas linhas "error:"/"fatal:" a seguir: so a linha "ERROR: " (maiusculas) do assembler conta.
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-fail3.mjs'), (
+        "console.error('ERROR: git add -A failed: error: open(x): Filename too long\nerror: unable to index file x\nfatal: adding files failed');`n" +
+        "process.exit(1);`n"))
     $env:WS_G5_ARGS = $argsFile
     try {
       # vazia: monta sem --force e mostra onde ficou o backup
@@ -955,6 +959,9 @@ Describe 'chaos G5-arena-git' {
       Invoke-WsAssemble 'fake-fail.mjs' (Join-Path $TestDrive 'p-falha') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
       $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
       $script:T['9'].Falha[1] | Should -BeExactly 'fake-fail.mjs: git commit -q -m x failed: error: gpg failed to sign the data (token=***'
+      $script:T = New-WsStateTable
+      Invoke-WsAssemble 'fake-fail3.mjs' (Join-Path $TestDrive 'p-falha3') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[1] | Should -BeExactly 'fake-fail3.mjs: git add -A failed: error: open(x): Filename too long'
     } finally { Remove-Item Env:WS_G5_ARGS -ErrorAction SilentlyContinue }
   }
 
@@ -991,6 +998,30 @@ Describe 'chaos G5-arena-git' {
     $f = ${function:Invoke-WsUninstall}.ToString()
     $f | Should -Match "'editado' \{ Write-WsSay \('  ' \+ \(M 'desinst_editado'"
     $f | Should -Match "'anteriores' \{ Write-WsSay \('  ' \+ \(M 's8_anteriores'"
+  }
+
+  It 'Write-WsCode: os comandos PS> usam $env:USERPROFILE (o PowerShell nao expande %USERPROFILE%)' {
+    $keep = $script:Fill
+    $script:Said = New-Object System.Collections.Generic.List[string]
+    Mock Write-WsSay { $script:Said.Add($Text) }
+    try {
+      $script:Fill = @{ PROJETOS = '%USERPROFILE%\workshop-claude' }
+      Write-WsCode 'E-DEMO-04' '' ''
+      $ps = @($script:Said | Where-Object { $_ -like '    PS> *' })
+      $ps.Count | Should -Be 1
+      $ps[0] | Should -BeExactly '    PS> Rename-Item $env:USERPROFILE\workshop-claude\demo-project demo-project-old'
+      # As frases para ler ficam com %USERPROFILE%.
+      $script:Said.Clear()
+      Write-WsCode 'E-SO-03' '' ''
+      $script:Said -join ' ' | Should -Match ([regex]::Escape('The projects are in %USERPROFILE%\workshop-claude.'))
+      # Nenhum comando PS> do catalogo fica com %USERPROFILE% nem com {PROJETOS} por preencher.
+      $script:Said.Clear()
+      foreach ($k in $script:Msgs.erros.PSObject.Properties.Name) { Write-WsCode $k '' '' }
+      $ps = @($script:Said | Where-Object { $_ -like '    PS> *' })
+      $ps.Count | Should -BeGreaterThan 4
+      foreach ($l in $ps) { $l | Should -Not -Match '%USERPROFILE%|\{PROJETOS\}' }
+      @($ps | Where-Object { $_ -like '*$env:USERPROFILE\workshop-claude*' }).Count | Should -BeGreaterOrEqual 4
+    } finally { $script:Fill = $keep }
   }
 
   It 'as mensagens novas existem nos dois catalogos' {
