@@ -147,7 +147,7 @@ function Get-WsSecretLiterals {
   return $out
 }
 
-function Get-WsPricingModels {
+function Get-WsPricingModelMap {
   # pricing.json has English keys (models, long_prompt.above_tokens); older copies used Portuguese ones
   # (modelos, prompt_longo.acima_de_tokens). Returns the models object either way.
   param($Pricing)
@@ -175,7 +175,7 @@ function Resolve-WsModel {
   if (-not $Id -or -not $Pricing) { return $null }
   $m = ($Id.ToLowerInvariant() -replace '\[.*\]$', '')
   if ($Pricing.aliases -and ($Pricing.aliases.PSObject.Properties.Name -contains $m)) { return $Pricing.aliases.$m }
-  $keys = @((Get-WsPricingModels $Pricing).PSObject.Properties.Name | Sort-Object { $_.Length } -Descending)
+  $keys = @((Get-WsPricingModelMap $Pricing).PSObject.Properties.Name | Sort-Object { $_.Length } -Descending)
   foreach ($k in $keys) { if ($m -eq $k -or $m.StartsWith($k + '-') -or $m.StartsWith($k + '@')) { return $k } }
   return $null
 }
@@ -202,7 +202,7 @@ function Get-WsCusto {
       $k = Resolve-WsModel $prop.Name $Pricing
       if (-not $k) { $unknown += $prop.Name; continue }
       $u = $prop.Value
-      $p = (Get-WsPricingModels $Pricing).$k
+      $p = (Get-WsPricingModelMap $Pricing).$k
       $it = 0; $cr = 0; $cw = 0; $ot = 0
       if ($u.inputTokens) { $it = [double]$u.inputTokens }
       if ($u.cacheReadInputTokens) { $cr = [double]$u.cacheReadInputTokens }

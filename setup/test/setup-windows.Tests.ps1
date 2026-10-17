@@ -367,7 +367,7 @@ Describe 'script da release (injetado)' {
       $env:WS_NO_MAIN = '1'
       . $dist.FullName
       [void](Initialize-WsConfig)
-      @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ((Get-WsPricingModels $script:Pricing).PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
+      @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ((Get-WsPricingModelMap $script:Pricing).PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
     }
     $r.V | Should -Match '^v'
     $r.P | Should -BeExactly 'Everything is ready for the workshop.'
