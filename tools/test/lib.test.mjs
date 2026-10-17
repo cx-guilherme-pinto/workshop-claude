@@ -15,7 +15,7 @@ const json = (p) => JSON.parse(readFileSync(join(ROOT, p), 'utf8'));
 
 test('redacao: casos partilhados (Node)', () => {
   const c = json('tools/test/redact-cases.json');
-  for (const t of c.casos) assert.equal(redact(t.in, c.literais), t.out, t.in);
+  for (const t of [...c.casos, ...(c.casos_mac_node || [])]) assert.equal(redact(t.in, c.literais), t.out, t.in);
 });
 
 test('redacao: valores literais vem das variaveis secretas do ambiente', () => {

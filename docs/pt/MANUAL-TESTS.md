@@ -17,7 +17,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | W7 | Com um proxy corporativo (ou um Fiddler/mitmproxy a intercetar) | Deteta a interceção, exporta os certificados e o `claude -p` de teste funciona |
 | W8 | `claude` na pasta da Arena → aceitar a confiança na pasta → `/demo-plan` | Mostra o Mermaid e a estimativa |
 | W9 | `/demo-swarm` com a statusline visível | Cartões a ficar verdes; a statusline mostra o custo; o cronómetro fica abaixo de 20 min |
-| W10 | `node server.js` e abrir `http://localhost:3000/status` | A grelha muda de cor; não aparece o aviso da firewall do Windows |
+| W10 | `node server.js` e abrir o endereço `/status` que ele mostra (normalmente `http://localhost:3000/status`) | A grelha muda de cor; não aparece o aviso da firewall do Windows |
 | W11 | Abre a app Agent Memory pelo Menu Iniciar | A janela abre (WebView2) e o grafo aparece |
 | W12 | `-Uninstall` (e o sinónimo antigo `-Desinstalar`) | O `settings.json` volta ao que era; os agentes, as skills e o MCP saem |
 | W13 | Utilizador com espaço e acentos no nome (ex.: `C:\Users\João Silva`) | Tudo funciona, incluindo os hooks e a statusline |

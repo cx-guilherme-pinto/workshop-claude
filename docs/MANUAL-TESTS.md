@@ -17,7 +17,7 @@ These tests must be done on a real machine before publishing. For each one, reco
 | W7 | With a corporate proxy (or Fiddler/mitmproxy intercepting) | Detects the interception, exports the certificates and the test `claude -p` works |
 | W8 | `claude` in the Arena folder → accept trust for the folder → `/demo-plan` | Shows the Mermaid diagram and the estimate |
 | W9 | `/demo-swarm` with the statusline visible | Cards turning green; the statusline shows the cost; the timer stays under 20 min |
-| W10 | `node server.js` and open `http://localhost:3000/status` | The grid changes colour; no Windows firewall warning appears |
+| W10 | `node server.js` and open the `/status` address it prints (usually `http://localhost:3000/status`) | The grid changes colour; no Windows firewall warning appears |
 | W11 | Open the Agent Memory app from the Start menu | The window opens (WebView2) and the graph shows up |
 | W12 | `-Uninstall` (and the old alias `-Desinstalar`) | `settings.json` goes back to what it was; the agents, the skills and the MCP are removed |
 | W13 | User with a space and accents in the name (e.g. `C:\Users\João Silva`) | Everything works, including the hooks and the statusline |

@@ -10,6 +10,7 @@
 //   5. Bearer <token>                  -> Bearer ***
 //   6. utilizador:senha@ ou token@ em URLs -> ***@
 //   7. chave=valor / "chave": "valor" para token|secret|password|passwd|api_key|apikey -> ***
+//      (a palavra-chave nao pode vir logo a seguir a um algarismo: "1Password: agent" e o nome de um programa)
 
 export const SECRET_ENV_NAMES = [
   'REPO_TOKEN',
@@ -32,7 +33,7 @@ export function redact(text, literals = []) {
   s = s.replace(/([Bb]earer[ \t]+)[A-Za-z0-9._~+/=-]+/g, '$1***');
   s = s.replace(/(:\/\/)[^/@\s"']+@/g, '$1***@');
   s = s.replace(
-    /((?:[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy])["']?[ \t]*[:=][ \t]*["']?)[^"'\s,&]+/g,
+    /(?<![0-9])((?:[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy])["']?[ \t]*[:=][ \t]*["']?)[^"'\s,&]+/g,
     '$1***',
   );
   return s;

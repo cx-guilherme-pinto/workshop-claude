@@ -66,6 +66,8 @@ EOF
 ws_ver_of() { printf '%s' "$1" | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1; }
 
 # Filtro de redacao (mesmas regras que installer/lib/redact.mjs; casos em tools/test/redact-cases.json).
+# Na ultima regra (chave=valor) a palavra-chave nao pode vir logo a seguir a um algarismo: em "1Password: agent"
+# e o nome de um programa, nao um segredo.
 ws_redact() {
   LC_ALL=C awk '
     BEGIN { n = split("REPO_TOKEN CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN GH_TOKEN GITHUB_TOKEN WS_REDACT_EXTRA", names, " ")
@@ -80,7 +82,7 @@ ws_redact() {
     -e "s/([Aa]uthorization[\"']?[[:blank:]]*[:=][[:blank:]]*)[^\"'${WS_CR}]+/\\1***/g" \
     -e 's/([Bb]earer[[:blank:]]+)[A-Za-z0-9._~+/=-]+/\1***/g' \
     -e "s#(://)[^/@[:space:]\"']+@#\\1***@#g" \
-    -e "s/(([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy])[\"']?[[:blank:]]*[:=][[:blank:]]*[\"']?)[^\"'[:space:],&]+/\\1***/g"
+    -e "s/(^|[^0-9])(([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy])[\"']?[[:blank:]]*[:=][[:blank:]]*[\"']?)[^\"'[:space:],&]+/\\1\\2***/g"
 }
 
 # Partes de um URL de repositorio: define R_REPO R_HOST R_OWNER R_NAME
@@ -245,6 +247,10 @@ try { r=JSON.parse(readText(A[0])); } catch(e) { line("json","0"); return out.jo
 try { pr=JSON.parse(readText(A[1])); } catch(e) { pr=null; }
 line("json","1"); line("erro", r.is_error?"1":"0"); line("subtipo", r.subtype||"");
 line("resposta", String(r.result||"").slice(0,300));
+// Para o resumo: so a primeira linha com texto, sem espacos nas pontas e com no maximo 40 caracteres (o Haiku pode
+// juntar avisos, ex.: um MCP que pede login; o resto fica no log).
+var r1=String(r.result||"").replace(/^\s+/,"").split(/[\r\n]/)[0].replace(/\s+$/,""), r1c=Array.from?Array.from(r1):r1.split("");
+line("resposta_curta", r1c.length>40 ? r1c.slice(0,39).join("")+"\u2026" : r1);
 function res(id){
   if(!pr||!id) return null;
   var m=String(id).toLowerCase().replace(/\[.*\]$/,"");
@@ -827,7 +833,7 @@ ws_profile_update() {
      ws_profile_strip "$bf" > "$WS_TMP/perfil-bp" 2>/dev/null && ! cmp -s "$bf" "$WS_TMP/perfil-bp" &&
      ! LC_ALL=C grep -q '[^[:space:]]' "$WS_TMP/perfil-bp"; then
     rm -f "$bf"; ws_log "profile: removed $bf (only the workshop block, it hid .bash_login or .profile)"
-    bf=""
+    WS_PERFIL_MUDOU=1; bf=""
     for f in "$HOME/.bash_login" "$HOME/.profile"; do
       if [ -f "$f" ] && [ -r "$f" ]; then bf=$f; break; fi
     done
@@ -905,6 +911,8 @@ ws_profile_put() { # ficheiro bloco
     rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1
   fi
   rm -f "$tmp"
+  WS_PERFIL_MUDOU=1   # o resumo diz para reabrir o terminal
+  ws_log "profile updated: $f"
   ws_registar perfil "$f" "$f" "$novo"
 }
 
@@ -1209,7 +1217,7 @@ ws_perm_blocked() { # caminhos...
 # HTTPS_PROXY ou o proxy do sistema (o Claude Code nao usa ALL_PROXY nem SOCKS), e nunca um proxy que nao responde.
 ws_detect_proxy() {
   WS_PROXY=""; WS_PROXY_ENV=""; WS_PROXY_DEAD=0
-  local v p="" out en host port pac
+  local v p="" out en host port pac bp
   for v in HTTPS_PROXY https_proxy ALL_PROXY all_proxy; do
     p=${!v:-}; [ -n "$p" ] && break
   done
@@ -1225,7 +1233,9 @@ ws_detect_proxy() {
     if [ "$en" = 1 ] && [ -n "$host" ]; then
       p="http://$host:${port:-8080}"; WS_PROXY=$p; WS_PROXY_ENV=$p
       export HTTPS_PROXY="$p" https_proxy="$p"
-      export NO_PROXY="localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}"
+      # As excecoes do proxy do sistema (Definicoes > Rede > Proxies) tambem vao para o NO_PROXY (e dai para o settings.json).
+      bp=$(printf '%s\n' "$out" | ws_proxy_bypass)
+      export NO_PROXY="localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}${bp:+,$bp}"
       ws_note "$(ws_msg s0_proxy_sistema PROXY="$p")"
     else
       pac=$(printf '%s\n' "$out" | awk -F' : ' '/ProxyAutoConfigURLString/{print $2}' | tr -d ' ')
@@ -1240,6 +1250,19 @@ ws_detect_proxy() {
     WS_PROXY_DEAD=1; WS_PROXY=""
     ws_log "proxy does not answer: $WS_PROXY_ENV"
   fi
+}
+
+# Excecoes do proxy do sistema (o ExceptionsList do "scutil --proxy", lido do stdin) no formato do NO_PROXY, separadas
+# por virgulas. As mesmas regras que o Merge-WsNoProxy do Windows: "*.empresa.pt" passa a ".empresa.pt"; os outros
+# curingas, "<local>" e as redes (169.254/16) nao tem equivalente e ficam de fora.
+ws_proxy_bypass() {
+  LC_ALL=C awk '
+    /ExceptionsList[[:space:]]*:[[:space:]]*<array>/ { on = 1; next }
+    on && /^[[:space:]]*}/ { on = 0; next }
+    on && /:/ { v = $0; sub(/^[^:]*:[[:space:]]*/, "", v); sub(/[[:space:]]+$/, "", v); sub(/^[A-Za-z][A-Za-z0-9+.-]*:\/\//, "", v)
+      if (v ~ /^\*\./) v = substr(v, 2)
+      if (v ~ /^[A-Za-z0-9._:-]+$/ && !(v in seen)) { seen[v] = 1; out = out (out == "" ? "" : ",") v } }
+    END { printf "%s", out }'
 }
 
 # Proxy para mostrar no ecra, sem utilizador nem palavra-passe (http://u:p@proxy:8080 -> http://proxy:8080).
@@ -2150,7 +2173,9 @@ ws_s10_install() {
     return 1
   fi
   whl=$(ws_memory_wheel "$ver" "$d/SHA256SUMS"); dist=${whl%%-*}
-  ws_say "  $(ws_msg a_descarregar O_QUE="$whl")"
+  # No ecra so o nome da app (o wheel ate a v0.5 chama-se "memoria-..."); o nome do ficheiro fica no log.
+  ws_log "app wheel: $whl"
+  ws_say "  $(ws_m a_descarregar_app)"
   for f in "$whl" constraints.txt; do
     ws_dl_check "$(ws_release_url memory "$f")" "$d/$f" "$(ws_sum_for "$d/SHA256SUMS" "$f")" auth
     case $? in
@@ -2293,10 +2318,10 @@ ws_s11_install() {
 # ================================================================= PASSO 12 - teste final
 ws_parse_result() { # ficheiro-json -> define WSR_*
   local k v
-  WSR_JSON=0; WSR_ERRO=1; WSR_RESPOSTA=""; WSR_USD=""; WSR_USD_TEXTO="US\$ ?"; WSR_CAUSA=""; WSR_CMDS=""
+  WSR_JSON=0; WSR_ERRO=1; WSR_RESPOSTA=""; WSR_CURTA=""; WSR_USD=""; WSR_USD_TEXTO="US\$ ?"; WSR_CAUSA=""; WSR_CMDS=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
-      json) WSR_JSON=$v ;; erro) WSR_ERRO=$v ;; resposta) WSR_RESPOSTA=$v ;; usd) WSR_USD=$v ;; usd_texto) WSR_USD_TEXTO=$v ;;
+      json) WSR_JSON=$v ;; erro) WSR_ERRO=$v ;; resposta) WSR_RESPOSTA=$v ;; resposta_curta) WSR_CURTA=$v ;; usd) WSR_USD=$v ;; usd_texto) WSR_USD_TEXTO=$v ;;
       causa) WSR_CAUSA=$v ;; cmd) WSR_CMDS="$WSR_CMDS$v
 " ;;
     esac
@@ -2326,7 +2351,9 @@ ws_s12_install() {
   ws_parse_result "$out"
   ws_log "final test: rc=$rc error=$WSR_ERRO cost=$WSR_USD_TEXTO"
   if [ "$rc" = 0 ] && [ "$WSR_JSON" = 1 ] && [ "$WSR_ERRO" = 0 ]; then
-    ws_detail "$(ws_msg s12_ok RESPOSTA="$(ws_trim "$WSR_RESPOSTA")" SEG="$((t1 - t0))" USD="$WSR_USD_TEXTO")"
+    # No resumo so a resposta curta esperada ("OK"); uma resposta maior fica inteira no log.
+    [ "$(ws_trim "$WSR_RESPOSTA")" = "$WSR_CURTA" ] || ws_log "final test: full reply: $WSR_RESPOSTA"
+    ws_detail "$(ws_msg s12_ok RESPOSTA="$WSR_CURTA" SEG="$((t1 - t0))" USD="$WSR_USD_TEXTO")"
     [ "$WSR_USD_TEXTO" = "US\$ ?" ] && ws_note "$(ws_m s12_custo_desconhecido)"
     return 0
   fi
@@ -2481,18 +2508,31 @@ ws_summary() {
       if [ "$WS_MODE" = install ]; then printf '%s\n' "$(ws_m final_pronto)"; else printf '%s\n' "$(ws_m final_check_ok)"; fi
     else
       if [ "$faltam" = 1 ]; then printf '%s\n' "$(ws_msg final_falta1 LISTA="$lista")"; else printf '%s\n' "$(ws_msg final_faltam N="$faltam" LISTA="$lista")"; fi
-      printf '%s\n' "$(ws_m final_voltar)"
+      # O --check e o --doctor nao instalam nada: "os passos feitos sao saltados" so vale para a instalacao.
+      if [ "$WS_MODE" = install ]; then printf '%s\n' "$(ws_m final_voltar)"; else printf '%s\n' "$(ws_m final_voltar_check)"; fi
     fi
     [ "$avisos" -gt 0 ] && printf '%s\n' "$(ws_msg final_avisos N="$avisos")"
   } > "$r"
   ws_say ""
   ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
   while IFS= read -r line; do ws_say "$line"; done < "$r"
-  [ "$WS_MODE" = install ] && ws_say "$(ws_m final_reiniciar)"
+  [ "$WS_MODE" = install ] && ws_need_reopen && ws_say "$(ws_m final_reiniciar)"
   [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "$(ws_m s7_oauth)"
   ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"
   cp -f "$r" "$WS_RESUMO" 2>/dev/null && rm -f "$WS_HOME/resumo.txt"   # o nome antigo do resumo
   WS_FALTAM=$faltam
+}
+# Reabrir o terminal so faz falta se esta execucao mudou o perfil, ou se o terminal onde o setup arrancou
+# (WS_PATH0, o PATH antes do ws_path_setup) ainda nao tem uma pasta do workshop com programas (ex.: a primeira
+# instalacao foi feita neste mesmo terminal). Numa segunda execucao num terminal novo, sem nada a mudar, nao se diz.
+ws_need_reopen() {
+  local d
+  [ "${WS_PERFIL_MUDOU:-0}" = 1 ] && return 0
+  for d in "$HOME/.local/bin" "$WS_HOME/bin" ${WS_NODE_BIN_DIR:+"$WS_NODE_BIN_DIR"}; do
+    [ -d "$d" ] && [ -n "$(ls -A "$d" 2>/dev/null)" ] || continue
+    case ":${WS_PATH0:-}:" in *":$d:"*|*":$d/:"*) ;; *) return 0 ;; esac
+  done
+  return 1
 }
 
 # ================================================================= desinstalar
@@ -2603,7 +2643,7 @@ ws_self_update() {
   # O exec mantem o PID: a nova copia ve o .lock com o seu proprio PID e fica com ele (ws_lock_alive).
   trap - EXIT INT TERM HUP
   rm -rf "$WS_TMP"
-  WS_REEXEC=1 exec bash "$dst" ${WS_ARGS[@]+"${WS_ARGS[@]}"}
+  WS_REEXEC=1 WS_PATH0=$WS_PATH0 exec bash "$dst" ${WS_ARGS[@]+"${WS_ARGS[@]}"}
 }
 
 # .lock/pid: PID e hora de arranque (ps lstart) do setup que tem o lock. Depois de um kill -9, de uma falta de luz
@@ -2655,8 +2695,10 @@ ws_cleanup() {
 ws_interrupted() {
   # Fechar a janela manda mais do que um HUP: ignora os seguintes. A mensagem vai para o ecra so no fim: com a
   # janela fechada a escrita falha, e cada processo criado depois voltaria a despeja-la no setup.log.
+  # So uma linha no setup.log por interrupcao (os subshells nao herdam esta trap; os sinais seguintes sao ignorados).
   trap '' INT TERM HUP
-  local msg; msg=$(ws_m interrompido)
+  local msg
+  case "${WS_MODE:-}" in check|doctor) msg=$(ws_m interrompido_check) ;; *) msg=$(ws_m interrompido) ;; esac
   ws_log "interrupted"
   ws_cleanup
   # Para o terminal: o sinal pode chegar a meio de uma funcao com a saida redirecionada (ex.: ws_timeout ... >/dev/null).
@@ -2717,6 +2759,8 @@ EOF
   else
     printf 'This script must come from the release (with the injected values) or run inside the repository.\n' >&2; return 2
   fi
+  # O PATH do terminal da pessoa (ws_need_reopen). Depois do exec da copia nova (ws_self_update) vem no ambiente.
+  [ -n "${WS_REEXEC:-}" ] && [ -n "${WS_PATH0:-}" ] || WS_PATH0=$PATH
   ws_path_setup
   # valores derivados (D_*) para as mensagens
   ws_repo_parts "$C_WORKSHOP_REPO_URL"; D_REPO_HOST=$R_HOST

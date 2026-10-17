@@ -35,6 +35,7 @@
     "a_instalar": "Installing. This can take a few minutes…",
     "brew_falhou": "Homebrew could not install it, so I use the official download instead.",
     "a_descarregar": "Downloading {O_QUE}…",
+    "a_descarregar_app": "Downloading the Agent Memory app…",
     "a_descarregar_mb": "Still downloading… {MB} MB so far.",
     "dl_html": "a web page came instead of the file",
     "a_verificar_rede": "Testing the connection to {N} domains…",
@@ -56,6 +57,7 @@
     "final_falta1": "1 step still to do: {LISTA}.",
     "final_avisos": "There are {N} warnings above. They don't block the workshop, but read them.",
     "final_voltar": "After you fix it, run the same command again. Steps already done are skipped.",
+    "final_voltar_check": "This was only a check: nothing was installed or changed. Fix what is listed above, or run the setup without --check to install what is missing. Then run the check again.",
     "final_reiniciar": "Close and reopen the terminal (and VS Code) so the new commands are available.",
     "final_ficheiros": "Summary saved to {RESUMO}. Log at {LOG}.",
     "final_check_ok": "Check complete: everything is ready for the workshop.",
@@ -148,6 +150,7 @@
     "s12_ok": "Reply \"{RESPOSTA}\" in {SEG} s · cost {USD}",
     "s12_custo_desconhecido": "model has no price in pricing.json",
     "interrompido": "Interrupted. Run the same command again: steps already done are skipped.",
+    "interrompido_check": "Interrupted. Nothing was installed or changed: run the same command again to check everything.",
     "login_cancelado": "Login cancelled (Ctrl-C). The setup carries on; you can log in later.",
     "lock_ativo": "The setup is already running in another window (PID {PID}, since {HORA}). Wait for it to finish, or close that window, then run the same command again.",
     "lock_parado": "The setup is paused in a Terminal window, maybe this one (PID {PID}, since {HORA}; that window shows \"suspended\"). Type fg in that window and press Enter to continue it, or close that window and run the same command again.",
@@ -1086,16 +1089,19 @@
     "E-MEM-05": {
       "titulo": "The Agent Memory app test failed",
       "so": "todos",
-      "causa": "The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.",
+      "causa": "The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working, or the search index of the notes may be damaged. The skills work without the app.",
       "fazer": [
-        "Run the command below and send the result to the organizer.",
+        "Run the first command below and send the result to the organizer.",
+        "If a line mentions the index: close Claude Code and the Agent Memory app, then run agent-memory reindex (your notes stay in Markdown).",
         "Run the setup again: uv reinstalls the app and its Python."
       ],
       "mac": [
-        "agent-memory selftest"
+        "agent-memory selftest",
+        "agent-memory reindex"
       ],
       "windows": [
-        "agent-memory selftest"
+        "agent-memory selftest",
+        "agent-memory reindex"
       ]
     },
     "E-MEM-06": {

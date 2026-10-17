@@ -35,6 +35,7 @@
     "a_instalar": "A instalar. Pode demorar alguns minutos…",
     "brew_falhou": "O Homebrew não conseguiu instalar, por isso uso o download oficial.",
     "a_descarregar": "A descarregar {O_QUE}…",
+    "a_descarregar_app": "A descarregar a app Agent Memory…",
     "a_descarregar_mb": "Ainda a descarregar… {MB} MB até agora.",
     "dl_html": "veio uma página web em vez do ficheiro",
     "a_verificar_rede": "A testar a ligação a {N} domínios…",
@@ -56,6 +57,7 @@
     "final_falta1": "Falta 1 passo: {LISTA}.",
     "final_avisos": "Há {N} avisos acima. Não impedem o workshop, mas lê-os.",
     "final_voltar": "Depois de corrigires, corre outra vez o mesmo comando. Os passos feitos são saltados.",
+    "final_voltar_check": "Isto foi só uma verificação: não instalei nem alterei nada. Corrige o que está acima, ou corre o setup sem --check para instalar o que falta. Depois volta a verificar.",
     "final_reiniciar": "Fecha e volta a abrir o terminal (e o VS Code) para os comandos novos ficarem disponíveis.",
     "final_ficheiros": "Resumo guardado em {RESUMO}. Log em {LOG}.",
     "final_check_ok": "Verificação concluída: está tudo pronto para o workshop.",
@@ -148,6 +150,7 @@
     "s12_ok": "Resposta «{RESPOSTA}» em {SEG} s · custo {USD}",
     "s12_custo_desconhecido": "modelo sem preço no pricing.json",
     "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados.",
+    "interrompido_check": "Interrompido. Não instalei nem alterei nada: volta a correr o mesmo comando para verificar tudo.",
     "login_cancelado": "Login cancelado (Ctrl-C). O setup continua; podes fazer o login depois.",
     "lock_ativo": "O setup já está a correr noutra janela (PID {PID}, desde as {HORA}). Espera que acabe, ou fecha essa janela, e volta a correr o mesmo comando.",
     "lock_parado": "O setup está em pausa numa janela do Terminal, talvez esta (PID {PID}, desde as {HORA}; essa janela mostra \"suspended\"). Escreve fg nessa janela e carrega em Enter para continuar, ou fecha essa janela e volta a correr o mesmo comando.",
@@ -1086,16 +1089,19 @@
     "E-MEM-05": {
       "titulo": "O teste da app Agent Memory falhou",
       "so": "todos",
-      "causa": "A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.",
+      "causa": "A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar, ou o índice de pesquisa das notas pode estar estragado. As skills funcionam sem a app.",
       "fazer": [
-        "Corre o comando abaixo e envia o resultado ao organizador.",
+        "Corre o primeiro comando abaixo e envia o resultado ao organizador.",
+        "Se uma linha falar do índice: fecha o Claude Code e a app Agent Memory e depois corre agent-memory reindex (as tuas notas continuam guardadas em Markdown).",
         "Volta a correr o setup: o uv volta a instalar a app e o Python dela."
       ],
       "mac": [
-        "agent-memory selftest"
+        "agent-memory selftest",
+        "agent-memory reindex"
       ],
       "windows": [
-        "agent-memory selftest"
+        "agent-memory selftest",
+        "agent-memory reindex"
       ]
     },
     "E-MEM-06": {

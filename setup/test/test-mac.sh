@@ -56,8 +56,8 @@ eq "$(ws_net_code 0 407)" E-NET-03 net407; eq "$(ws_net_code 22 404)" E-NET-07 n
 # --- redacao (casos partilhados)
 CASES="$ROOT/tools/test/redact-cases.json"
 if [ -n "$NODE" ]; then
-  "$NODE" -e 'const c=require(process.argv[1]); for (const t of c.casos) console.log(t.in)' "$CASES" > "$WS_TMP/in"
-  "$NODE" -e 'const c=require(process.argv[1]); for (const t of c.casos) console.log(t.out)' "$CASES" > "$WS_TMP/exp"
+  "$NODE" -e 'const c=require(process.argv[1]); for (const t of [...c.casos, ...(c.casos_mac_node || [])]) console.log(t.in)' "$CASES" > "$WS_TMP/in"
+  "$NODE" -e 'const c=require(process.argv[1]); for (const t of [...c.casos, ...(c.casos_mac_node || [])]) console.log(t.out)' "$CASES" > "$WS_TMP/exp"
   WS_REDACT_EXTRA=s3cr3t-repo-token-value ws_redact < "$WS_TMP/in" > "$WS_TMP/out"
   if cmp -s "$WS_TMP/exp" "$WS_TMP/out"; then ok; else ko "ws_redact"; diff "$WS_TMP/exp" "$WS_TMP/out"; fi
   REPO_TOKEN=tok-literal-1234 eq "$(printf 'x tok-literal-1234 y\n' | REPO_TOKEN=tok-literal-1234 ws_redact)" "x *** y" "ws_redact REPO_TOKEN"
@@ -944,6 +944,89 @@ eq "$(su_run "file://$SU/rel/{file}")" "OLD" "self-update: um ficheiro sem os va
 grep -q 'ws_lock || return 1' "$ROOT/setup/setup-mac.sh" && [ "$(grep -n 'ws_lock || return 1' "$ROOT/setup/setup-mac.sh" | cut -d: -f1)" -gt "$(grep -n '  ws_load_messages ||' "$ROOT/setup/setup-mac.sh" | cut -d: -f1)" ] && ok || ko "o lock vem depois das mensagens (texto do catalogo)"
 grep -q "The setup is already running (PID" "$ROOT/setup/setup-mac.sh" && ko "mensagem do lock ainda escrita no codigo" || ok
 chmod -R u+rwX "$G6" 2>/dev/null
+
+# --- G11: follow-ups do chaos test (passo 10, passo 12, resumo, --check, Ctrl-C, redacao, excecoes do proxy)
+G11="$WS_TMP/g11"; mkdir -p "$G11/bin" "$G11/t" "$G11/ws/bin" "$G11/home/.local/bin"
+# passo 10: no ecra o nome da app, nunca o nome do wheel (ate a v0.5 "memoria-..."); o ficheiro fica no log
+( WS_CUR=10; WS_TMP="$G11/t"; WS_STEP_LOG="$G11/s10.log"; : > "$WS_STEP_LOG"; WS_LOG="$G11/s10-setup.log"; : > "$WS_LOG"; C_MEMORY_APP_VERSION=v0.5.0; SF_10=""
+  ws_release_url() { printf 'file:///nada/%s' "$2"; }
+  ws_dl() { printf '%s  memoria-0.5.0-py3-none-any.whl\n%s  constraints.txt\n' aaaa bbbb > "$2"; }
+  ws_dl_check() { : > "$2"; }
+  ws_uv_tool_install() { return 1; }
+  ws_s10_install; printf '|%s\n' "$SF_10" ) > "$G11/o" 2>&1
+grep -qF "$M_ui_a_descarregar_app" "$G11/o" && ! grep -q 'memoria-' "$G11/o" && grep -q '|E-MEM-03|uv tool install' "$G11/o" && ok || ko "s10: download mostra o nome da app [$(cat "$G11/o")]"
+grep -q 'app wheel: memoria-0.5.0-py3-none-any.whl' "$G11/s10-setup.log" && ok || ko "s10: o nome do wheel fica no log"
+# passo 12: no resumo so a resposta curta (primeira linha, ate 40 caracteres); a resposta inteira vai para o log
+printf '%s' '{"type":"result","is_error":false,"result":"\n OK \n\nThe MCP server \"atlassian\" needs authentication: run /mcp.","modelUsage":{}}' > "$G11/r1.json"
+printf '%s' '{"type":"result","is_error":false,"result":"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ\nmais","modelUsage":{}}' > "$G11/r2.json"
+for engine in node jxa; do
+  if [ "$engine" = node ]; then [ -n "$NODE" ] || continue; e=$NODE; else command -v osascript >/dev/null || continue; e=""; fi
+  ( WS_NODE=$e; WS_PRICING="$ROOT/pricing.json"; ws_parse_result "$G11/r1.json"; printf '%s|' "$WSR_CURTA"; ws_parse_result "$G11/r2.json"; printf '%s' "$WSR_CURTA" ) > "$G11/o"
+  eq "$(cat "$G11/o")" "OK|abcdefghijklmnopqrstuvwxyz0123456789ABC…" "s12 $engine: resposta curta para o resumo"
+done
+printf '#!/bin/sh\ncat "%s"\n' "$G11/r1.json" > "$G11/bin/claude"; chmod +x "$G11/bin/claude"
+( WS_CLAUDE="$G11/bin/claude"; WS_CUR=12; SD_12=""; SF_12=""; CLAUDE_DIR="$G11/cdir"; WS_TMP="$G11/t"; WS_STEP_LOG="$G11/s12.log"; WS_LOG="$G11/s12-setup.log"; : > "$WS_LOG"
+  WS_PRICING="$ROOT/pricing.json"; WS_TMO_SMOKE=10; WS_GW_URL=""; WS_GW_DOWN=0; ANTHROPIC_BASE_URL=""
+  ws_s12_install >/dev/null; printf '%s|%s' "$?" "$SD_12" ) > "$G11/o"
+case "$(cat "$G11/o")" in '0|Reply "OK" in '*' s · cost US$ '*) ok ;; *) ko "s12: detalhe so com a resposta curta [$(cat "$G11/o")]" ;; esac
+grep -q 'final test: full reply: .*OK.*The MCP server "atlassian" needs authentication' "$G11/s12-setup.log" && ok || ko "s12: a resposta inteira fica no log"
+# resumo: "Close and reopen the terminal" so se esta execucao mudou o perfil ou o terminal ainda nao tem as pastas
+GH11="$G11/home"; : > "$GH11/.local/bin/claude"; : > "$G11/ws/bin/gh"
+nr() { ( HOME=$GH11; WS_HOME="$G11/ws"; WS_NODE_BIN_DIR=""; WS_PERFIL_MUDOU=$1; WS_PATH0=$2; ws_need_reopen; printf '%s' "$?" ); }
+eq "$(nr 0 "/usr/bin:$GH11/.local/bin:$G11/ws/bin")|$(nr 1 "/usr/bin:$GH11/.local/bin:$G11/ws/bin")|$(nr 0 "/usr/bin:$GH11/.local/bin")|$(nr 0 /usr/bin)" "1|0|0|0" "reabrir o terminal: so se o perfil mudou ou falta uma pasta no PATH do terminal"
+printf 'export A=1\n' > "$GH11/.zshrc"
+( HOME=$GH11; WS_HOME="$G11/ws"; WS_MODE=install; WS_TMP="$G11/t"; WS_LOG=/dev/null; WS_NODE_BIN_DIR=""; KIT_SRC=""; WS_ZDOTDIR_HOME=$GH11; WS_ZDOTDIR=$GH11; SHELL=/bin/zsh
+  WS_PERFIL_MUDOU=0; ws_profile_put "$GH11/.zshrc" "# >>> workshop-claude >>>
+x
+# <<< workshop-claude <<<"; a=$WS_PERFIL_MUDOU
+  WS_PERFIL_MUDOU=0; ws_profile_put "$GH11/.zshrc" "# >>> workshop-claude >>>
+x
+# <<< workshop-claude <<<"; printf '%s|%s' "$a" "$WS_PERFIL_MUDOU" ) > "$G11/o"
+eq "$(cat "$G11/o")" "1|0" "perfil: WS_PERFIL_MUDOU so quando o ficheiro muda"
+# --check e --doctor: a frase do fim nao diz que "os passos feitos sao saltados"; a instalacao continua a dizer
+sm() { ( WS_MODE=$1; WS_TMP="$G11/t"; WS_RESUMO="$G11/summary.txt"; WS_HOME="$G11/ws"; WS_LOG=/dev/null; WS_OS=macOS; WS_COLOR=0; WS_TODO_MCP=0
+    HOME=$GH11; WS_PERFIL_MUDOU=$2; WS_PATH0="$GH11/.local/bin:$G11/ws/bin"; WS_NODE_BIN_DIR=""
+    for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do ws_set ST "$n" ok; ws_set SD "$n" ""; done; ws_set ST 3 "$3"; ws_summary ) 2>&1; }
+o=$(sm check 0 falta)
+case "$o" in *"$M_ui_final_voltar_check"*) ok ;; *) ko "--check: frase do fim propria [$o]" ;; esac
+case "$o" in *"already done are skipped"*|*"$M_ui_final_reiniciar"*) ko "--check: ainda fala dos passos saltados ou de reabrir o terminal" ;; *) ok ;; esac
+o=$(sm doctor 0 falta); case "$o" in *"$M_ui_final_voltar_check"*) ok ;; *) ko "--doctor: frase do fim do --check" ;; esac
+o=$(sm install 0 falhou); case "$o" in *"$M_ui_final_voltar"*) ok ;; *) ko "instalacao: frase do fim (final_voltar)" ;; esac
+case "$o" in *"$M_ui_final_reiniciar"*) ko "instalacao sem nada mudado: nao diz para reabrir o terminal" ;; *) ok ;; esac
+o=$(sm install 1 ja); case "$o" in *"$M_ui_final_reiniciar"*) ok ;; *) ko "instalacao que mudou o perfil: diz para reabrir o terminal" ;; esac
+# Ctrl-C (SIGINT a todo o grupo) a meio de uma substituicao de comando com um filho que trata o SIGINT (node) ou
+# dentro do ws_timeout: uma so linha "interrupted" no setup.log, e no --check a frase propria
+if command -v script >/dev/null 2>&1; then
+  cat > "$G11/int.sh" <<EOF
+WS_SOURCE_ONLY=1; . "$ROOT/setup/setup-mac.sh"
+WS_LOG="$G11/int-\$1.log"; : > "\$WS_LOG"; WS_HOME="$G11/ih"; WS_TMP="$G11/it-\$1"; mkdir -p "\$WS_HOME" "\$WS_TMP"; WS_MODE=check
+trap ws_interrupted INT TERM HUP
+( sleep 1; kill -INT 0 ) &
+case "\$1" in
+  node) x=\$(y=\$("$NODE" -e 'process.on("SIGINT",()=>process.exit(130)); setTimeout(()=>{},8000)'); echo "\$y") ;;
+  timeout) x=\$(ws_timeout 10 sleep 8) ;;
+esac
+echo nao-chegou
+EOF
+  for m in node timeout; do
+    [ "$m" = node ] && [ -z "$NODE" ] && continue
+    out=$(script -q /dev/null bash "$G11/int.sh" "$m" </dev/null 2>&1 | tr -d '\r'); r=""
+    case "$out" in *nao-chegou*) r=continuou ;; *interrompido_check*) r=check ;; esac
+    eq "$(grep -c interrupted "$G11/int-$m.log")|$r" "1|check" "Ctrl-C ($m): uma linha no log e a frase do --check"
+  done
+fi
+# excecoes do proxy do sistema (scutil --proxy) para o NO_PROXY
+printf '<dictionary> {\n  ExceptionsList : <array> {\n    0 : *.local\n    1 : 169.254/16\n    2 : intranet.empresa.pt\n    3 : <local>\n    4 : *.corp.example\n    5 : intranet.empresa.pt\n    6 : 10.*\n  }\n  HTTPSEnable : 1\n  HTTPSProxy : proxy.empresa.pt\n}\n' > "$G11/scutil"
+eq "$(ws_proxy_bypass < "$G11/scutil")" ".local,intranet.empresa.pt,.corp.example" "excecoes do proxy do sistema no formato do NO_PROXY"
+eq "$(printf '<dictionary> {\n  HTTPSEnable : 0\n}\n' | ws_proxy_bypass)" "" "sem excecoes"
+( scutil() { cat "$G11/scutil"; }; ws_proxy_dead() { return 1; }
+  unset HTTPS_PROXY https_proxy ALL_PROXY all_proxy; NO_PROXY=meu.servidor; no_proxy=""; WS_CUR=0; SN_0=""; WS_LOG=/dev/null
+  ws_detect_proxy; printf '%s|%s' "$WS_PROXY" "$(ws_no_proxy)" ) > "$G11/o"
+eq "$(cat "$G11/o")" "http://proxy.empresa.pt:8080|localhost,127.0.0.1,meu.servidor,.local,intranet.empresa.pt,.corp.example" "proxy do sistema: NO_PROXY com o da pessoa e as excecoes"
+# passo 8: o --no-proxy (com o NO_PROXY da sessao) vai sempre junto com o --https-proxy
+printf '#!/bin/sh\nprintf "%%s " "$@"\n' > "$G11/bin/node-args"; chmod +x "$G11/bin/node-args"
+eq "$(WS_NODE="$G11/bin/node-args"; KIT_SRC=/k; WS_LANG=en; WS_CA_PEM=""; WS_PROXY=http://p:8080; NO_PROXY=meu.servidor; no_proxy=""; WS_STEP_LOG=/dev/null; ws_iu verificar)" \
+  "/k/installer/install-user.mjs verificar --node $G11/bin/node-args --kit-src /k --lingua-maquina en --https-proxy http://p:8080 --no-proxy localhost,127.0.0.1,meu.servidor " "ws_iu: --no-proxy com o NO_PROXY da pessoa junto do --https-proxy"
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

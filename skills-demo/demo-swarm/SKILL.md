@@ -30,7 +30,7 @@ The script decides the graph, not you. Your job is to launch exactly what it ask
 4. When all agents in the batch have answered, go back to step 1. Do not summarise their answers.
 
 **At the end**, show the last table and the `STATE: DONE` line. Without `--auto`, suggest:
-- opening `http://localhost:3000/status` (with `node server.js`) to see the grid;
+- running `node server.js` and opening the `/status` address it prints (usually `http://localhost:3000/status`) to see the grid;
 - `/demo-review` for the final gate;
 - `/demo-cost` for the cost report.
 

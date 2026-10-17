@@ -89,4 +89,4 @@ export function renderScore(container, { categories = [], cards = [], progress =
 node --test pages/score.test.js
 ```
 
-passa sem erros. Para ver a página: `node server.js` e abre `http://localhost:3000/#/score`.
+passa sem erros. Para ver a página: `node server.js` e abre o endereço que ele mostra com `#/score` no fim (normalmente `http://localhost:3000/#/score`).

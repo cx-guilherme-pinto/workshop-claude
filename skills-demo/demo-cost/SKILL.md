@@ -30,6 +30,6 @@ Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
    Then show the list it returns: type and title of each saved memory. If it answers `MEMORY UNAVAILABLE`, say in one line that the memory app is not installed and continue.
 5. Without `--auto`, end with:
    - "Open the **Agent Memory** app to see your first graph."
-   - "To play: `node server.js` and open http://localhost:3000."
+   - "To play: run `node server.js` and open the address it prints (usually http://localhost:3000)."
 
 With `--auto`, end only with `COST OK`.
