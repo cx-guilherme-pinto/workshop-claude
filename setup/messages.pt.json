@@ -149,6 +149,10 @@
     "s12_custo_desconhecido": "modelo sem preço no pricing.json",
     "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados.",
     "login_cancelado": "Login cancelado (Ctrl-C). O setup continua; podes fazer o login depois.",
+    "lock_ativo": "O setup já está a correr noutra janela (PID {PID}, desde as {HORA}). Espera que acabe, ou fecha essa janela, e volta a correr o mesmo comando.",
+    "lock_parado": "O setup está em pausa numa janela do Terminal, talvez esta (PID {PID}, desde as {HORA}; essa janela mostra \"suspended\"). Escreve fg nessa janela e carrega em Enter para continuar, ou fecha essa janela e volta a correr o mesmo comando.",
+    "perm_corrigir": "Para resolver, corre este comando e depois volta a correr o setup: {CMD}",
+    "perm_nao_pasta": "não é uma pasta",
     "s1_portatil": "git {VERSAO} (portátil do workshop, sem as ferramentas da Apple)",
     "lingua_pt": "português",
     "lingua_en": "inglês"
@@ -240,16 +244,19 @@
     "E-NET-04": {
       "titulo": "A empresa interceta o tráfego HTTPS (certificado próprio)",
       "so": "todos",
-      "causa": "O certificado de api.anthropic.com não vem de uma autoridade pública. A rede da empresa abre e volta a cifrar o tráfego. O setup exporta os certificados da empresa para ~/.workshop-claude/ca.pem e configura o Claude Code para os usar.",
+      "causa": "Um site de que o setup precisa (api.anthropic.com, github.com ou pypi.org) mostra um certificado que não vem de uma autoridade pública: a rede da empresa abre e volta a cifrar o tráfego. O setup exporta os certificados da empresa para ~/.workshop-claude/ca.pem e configura o Claude Code e o uv para os usarem.",
       "fazer": [
         "Normalmente não precisas de fazer nada: o setup já configurou NODE_EXTRA_CA_CERTS e UV_SYSTEM_CERTS.",
-        "Se o teste final falhar com erro de certificado, pede ao IT o certificado raiz da empresa em formato PEM e guarda-o em ~/.workshop-claude/ca.pem. Depois volta a correr o setup."
+        "Se o teste final falhar com erro de certificado, pede ao IT o certificado raiz da empresa em formato PEM e guarda-o em ~/.workshop-claude/ca.pem. Depois volta a correr o setup.",
+        "Se a app Agent Memory falhar com um erro de certificado, instala o Python dela com os certificados do sistema (último comando abaixo) e volta a correr o setup."
       ],
       "mac": [
-        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem"
+        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem",
+        "UV_SYSTEM_CERTS=true uv python install {PYTHON_VERSION}"
       ],
       "windows": [
-        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer"
+        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer",
+        "$env:UV_SYSTEM_CERTS = 'true'; uv python install {PYTHON_VERSION}"
       ]
     },
     "E-NET-05": {
@@ -481,13 +488,13 @@
     "E-CFG-05": {
       "titulo": "O ficheiro settings.json do Claude Code tem um erro",
       "so": "todos",
-      "causa": "O ~/.claude/settings.json não é JSON válido. O setup não lhe toca, para não perder as tuas definições.",
+      "causa": "O ~/.claude/settings.json não é JSON estrito, ou um campo dele tem o tipo errado: a linha e a coluna, ou o campo, estão entre parênteses. O JSON não aceita comentários // ou /* */, nem uma vírgula depois do último elemento de uma lista ou objeto (os ficheiros de definições de alguns editores aceitam). O setup não lhe toca, para não perderes as tuas definições.",
       "fazer": [
-        "Abre o ficheiro e corrige o erro (falta uma vírgula ou uma chaveta, por exemplo).",
-        "Depois volta a correr o setup."
+        "Abre o ficheiro na linha e coluna indicadas e corrige: tira os comentários e a vírgula depois do último elemento. Num campo com o tipo errado, dá-lhe a forma indicada entre parênteses.",
+        "Confirma o ficheiro com o comando abaixo (mostra JSON OK) e volta a correr o setup."
       ],
       "mac": [
-        "node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8'))\""
+        "PATH=\"$HOME/.workshop-claude/node/bin:$PATH\" node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')); console.log('JSON OK')\""
       ],
       "windows": [
         "Get-Content \"$env:USERPROFILE\\.claude\\settings.json\" -Raw | ConvertFrom-Json"
@@ -526,17 +533,22 @@
     "E-PERM-01": {
       "titulo": "Sem permissão para escrever na pasta pessoal",
       "so": "todos",
-      "causa": "O setup instala tudo na tua pasta pessoal, e uma pasta está protegida ou pertence a outro utilizador (por exemplo, criada com sudo ou por um administrador).",
+      "causa": "O setup instala tudo na tua pasta pessoal, e uma pasta ou ficheiro dela (entre parênteses) está protegido, pertence a outro utilizador (por exemplo, criado com sudo ou por um administrador) ou é um ficheiro onde devia estar uma pasta.",
       "fazer": [
-        "Vê no log qual é a pasta e corrige o dono.",
+        "Corre o comando que o setup mostra depois de \"To fix it, run this command\" (tem exatamente esses caminhos) e volta a correr o setup.",
+        "Se não tiveres direitos de administrador para o sudo, pede à TI que o corra.",
+        "Se um caminho for um ficheiro e não uma pasta (por exemplo ~/.local/bin), muda-lhe o nome: mv ~/.local/bin ~/.local/bin.old.",
         "Não corras o setup com sudo nem como administrador."
       ],
       "mac": [
-        "ls -ld ~/.local ~/.local/bin ~/.claude ~/.workshop-claude",
-        "sudo chown -R \"$USER\" ~/.local ~/.claude ~/.workshop-claude"
+        "ls -ld ~/.local ~/.local/bin ~/.claude ~/.claude.json ~/.workshop-claude",
+        "sudo chown -R \"$USER\" ~/.local ~/.claude ~/.claude.json ~/.workshop-claude"
       ],
       "windows": [
-        "icacls \"$env:USERPROFILE\\.workshop-claude\""
+        "icacls \"$env:USERPROFILE\\.workshop-claude\"",
+        "icacls \"$env:USERPROFILE\\.claude\"",
+        "icacls \"$env:USERPROFILE\\.claude.json\"",
+        "icacls \"$env:USERPROFILE\\.local\\bin\""
       ]
     },
     "E-PERM-02": {
@@ -954,7 +966,7 @@
     "E-KIT-03": {
       "titulo": "A instalação das skills e dos hooks falhou",
       "so": "todos",
-      "causa": "O instalador em Node não conseguiu copiar os ficheiros ou atualizar o settings.json. O teu settings.json tem backup em ~/.workshop-claude/backup.",
+      "causa": "O instalador em Node não conseguiu copiar os ficheiros ou atualizar o settings.json. Se o settings.json já tiver sido alterado, o backup dele está em ~/.workshop-claude/backup.",
       "fazer": [
         "Lê a mensagem no log (procura «install-user»).",
         "Corrige a causa (permissões ou settings.json inválido) e volta a correr o setup."
@@ -1048,7 +1060,7 @@
     "E-MEM-03": {
       "titulo": "A instalação da app Agent Memory falhou",
       "so": "todos",
-      "causa": "O uv não conseguiu instalar a app (Python {PYTHON_VERSION} ou as dependências). Costuma ser rede (pypi.org, files.pythonhosted.org ou github.com).",
+      "causa": "O uv não conseguiu instalar a app (Python {PYTHON_VERSION} ou as dependências). Costuma ser a rede (pypi.org, files.pythonhosted.org ou github.com) ou o certificado de um proxy da empresa (código E-NET-04).",
       "fazer": [
         "Confirma o acesso a pypi.org e files.pythonhosted.org.",
         "Volta a correr o setup. A app é opcional: as skills funcionam sem ela."
@@ -1083,6 +1095,40 @@
         "agent-memory selftest"
       ],
       "windows": [
+        "agent-memory selftest"
+      ]
+    },
+    "E-MEM-06": {
+      "titulo": "Não consegui criar o atalho da app Agent Memory",
+      "so": "todos",
+      "causa": "A pasta dos atalhos das apps (entre parênteses) não aceita escrita: pertence a outro utilizador ou está bloqueada pela TI. Só falta o atalho: a app, a janela dela e o MCP funcionam.",
+      "fazer": [
+        "Podes continuar. Abre a janela da app com o primeiro comando abaixo.",
+        "Se quiseres o atalho, devolve a pasta ao teu utilizador (ou pede à TI) e volta a correr o setup."
+      ],
+      "mac": [
+        "agent-memory-gui",
+        "ls -ld ~/Applications"
+      ],
+      "windows": [
+        "agent-memory-gui"
+      ]
+    },
+    "E-MEM-07": {
+      "titulo": "A pasta da app Agent Memory não aceita escrita",
+      "so": "todos",
+      "causa": "A app Agent Memory está instalada, mas não consegue escrever na pasta das memórias (~/.agent-memory, ~/.memoria das versões antigas, ou AGENT_MEMORY_HOME). Costuma acontecer depois de um comando corrido com sudo, que deixa a pasta a pertencer ao administrador, ou quando esse caminho é um ficheiro ou um link partido. Voltar a correr o setup não resolve. As skills funcionam sem a app.",
+      "fazer": [
+        "Corre o comando que o setup mostra depois de \"To fix it, run this command\" e volta a correr o setup.",
+        "Sem direitos de administrador: muda o nome da pasta (por exemplo, mv ~/.agent-memory ~/.agent-memory-old), volta a correr o setup e depois copia as pastas dos teus projetos da pasta antiga para a nova.",
+        "Para ver a pasta e o que a app diz, usa os comandos abaixo."
+      ],
+      "mac": [
+        "ls -ld ~/.agent-memory ~/.memoria",
+        "agent-memory selftest"
+      ],
+      "windows": [
+        "icacls \"$env:USERPROFILE\\.agent-memory\"",
         "agent-memory selftest"
       ]
     },

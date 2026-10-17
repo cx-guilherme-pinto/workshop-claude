@@ -313,8 +313,8 @@ ws_err_list() { # codigo campo (fazer|mac) -> uma linha por item
 }
 
 # ---------------------------------------------------------------- saida e log
-ws_log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" | ws_redact >> "$WS_LOG" 2>/dev/null || true; }
-ws_say() { printf '%s\n' "$*"; printf '%s\n' "$*" | ws_redact >> "$WS_LOG" 2>/dev/null || true; }
+ws_log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" | ws_redact 2>/dev/null >> "$WS_LOG" || true; }
+ws_say() { printf '%s\n' "$*"; printf '%s\n' "$*" | ws_redact 2>/dev/null >> "$WS_LOG" || true; }
 ws_bold() { if [ "$WS_COLOR" = 1 ]; then printf '\033[1m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 ws_dim() { if [ "$WS_COLOR" = 1 ]; then printf '\033[2m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 # Negrito e cinzento so num terminal que os mostra (TERM=dumb e NO_COLOR desligam).
@@ -420,7 +420,7 @@ ws_run_login() {
 
 ws_flush_step_log() {
   [ -s "$WS_STEP_LOG" ] || return 0
-  { printf -- '--- command output (step %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- end ---\n'; } | ws_redact >> "$WS_LOG" 2>/dev/null || true
+  { printf -- '--- command output (step %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- end ---\n'; } | ws_redact 2>/dev/null >> "$WS_LOG" || true
 }
 
 # ---------------------------------------------------------------- rede e ficheiros
@@ -617,9 +617,9 @@ ${!line}
 EOF
   fi
   if [ -n "$f" ] && { [ "$st" = falhou ] || [ "$st" = falta ]; }; then ws_print_code "${f%%|*}" "${f#*|}" "     "; fi
-  [ -z "$d" ] && [ -n "$f" ] && ws_set SD "$n" "$(ws_fill "$(ws_err_field "${f%%|*}" titulo)") (${f%%|*})"
-  # Um passo nao bloqueante que falhou (10, 11) fica "aviso" sem falha: o resumo mostra o primeiro aviso, nao um vazio.
-  [ -z "$d" ] && [ -z "$f" ] && [ "$st" = aviso ] && [ -n "$w" ] && ws_set SD "$n" "$(ws_fill "$(ws_err_field "${w%%|*}" titulo)") (${w%%|*})"
+  # Sem detalhe, o resumo mostra o titulo do codigo (da falha ou do primeiro aviso), para a linha nao ficar vazia.
+  if [ -z "$d" ] && [ -n "$f" ]; then ws_set SD "$n" "$(ws_fill "$(ws_err_field "${f%%|*}" titulo)") (${f%%|*})"
+  elif [ -z "$d" ] && [ -n "$w" ]; then line=${w%%$'\n'*}; ws_set SD "$n" "$(ws_fill "$(ws_err_field "${line%%|*}" titulo)") (${line%%|*})"; fi
   if [ -n "$w" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] || continue
@@ -633,7 +633,7 @@ EOF
 # Executa um passo: cabecalho, dependencias, detetar -> (instalar) -> resultado.
 ws_step() { # numero deps...
   local n=$1 d; shift
-  WS_CUR=$n
+  WS_CUR=$n; WS_STEP_FAILED=""
   WS_STEP_LOG="$WS_TMP/passo-$n.log"; : > "$WS_STEP_LOG"
   ws_set SD "$n" ""; ws_set SW "$n" ""; ws_set SF "$n" ""; ws_set SN "$n" ""
   local title="M_passos_$n"; title=${!title}
@@ -661,10 +661,14 @@ ws_step() { # numero deps...
     elif [ "$WS_MODE" = install ]; then ws_set ST "$n" feito
     else ws_set ST "$n" ok; fi
   elif [ "$WS_MODE" != install ]; then
-    local f="SF_$n"; [ -n "${!f}" ] || ws_fail "$(ws_default_code "$n")" ""
-    ws_is_missing_code "${!f%%|*}" && ws_fail E-SETUP-01 "${!f%%|*}"
+    local f="SF_$n" prev=""; [ -n "${!f}" ] || ws_fail "$(ws_default_code "$n")" ""
+    ws_perm_reclass
+    # "Ainda nao instalado": a causa real da ultima instalacao (se falhou) vem do setup.log, porque o
+    # --check e o --doctor nao voltam a correr a instalacao.
+    if ws_is_missing_code "${!f%%|*}"; then prev=$(ws_last_install_result "$n"); ws_fail E-SETUP-01 "${!f%%|*}"; fi
     if ws_nonblocking "$n"; then ws_set ST "$n" aviso; ws_warn "${!f%%|*}" "${!f#*|}"; ws_set SF "$n" ""
     else ws_set ST "$n" falta; fi
+    [ -n "$prev" ] && ws_warn "${prev%%|*}" "${prev#*|}"
   else
     ws_set SW "$n" ""
     ws_set SF "$n" ""
@@ -672,6 +676,8 @@ ws_step() { # numero deps...
       local w="SW_$n"; if [ -n "${!w}" ]; then ws_set ST "$n" aviso; else ws_set ST "$n" feito; fi
     else
       local f="SF_$n"; [ -n "${!f}" ] || ws_fail "$(ws_default_code "$n")" ""
+      ws_perm_reclass
+      WS_STEP_FAILED=${!f}
       if ws_nonblocking "$n"; then
         ws_set ST "$n" aviso; ws_warn "${!f%%|*}" "${!f#*|}"; ws_set SF "$n" ""
       else
@@ -680,6 +686,7 @@ ws_step() { # numero deps...
     fi
   fi
   ws_flush_step_log
+  [ "$WS_MODE" = install ] && ws_log "result step $n: $(ws_st "$n") $WS_STEP_FAILED"
   ws_print_result "$n"
   if [ "$(ws_st "$n")" = falhou ] && [ "$WS_MODE" = install ] && [ -z "${WS_RETRY:-}" ]; then
     ws_helper_offer "$n" && { WS_RETRY=1; ws_say "  $(ws_msg helper_repetir N="$n")"; ws_step "$n" "$@"; WS_RETRY=""; }
@@ -696,6 +703,65 @@ ws_nonblocking() { case "$1" in 10|11) return 0 ;; *) return 1 ;; esac; }
 ws_default_code() {
   case "$1" in 1) echo E-GIT-01 ;; 2) echo E-CC-01 ;; 3) echo E-AUTH-01 ;; 4) echo E-NODE-01 ;; 5) echo E-UV-01 ;;
     6) echo E-GH-01 ;; 7) echo E-MCP-01 ;; 8) echo E-KIT-03 ;; 9) echo E-DEMO-01 ;; 10) echo E-MEM-03 ;; 11) echo E-DESK-02 ;; *) echo E-SMOKE-01 ;; esac
+}
+
+# Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da
+# rede ou do antivirus: mostra-se E-PERM-01 com a linha que o diz (restos de um "sudo", pastas bloqueadas).
+ws_perm_reclass() {
+  local f="SF_$WS_CUR" p
+  case "${!f%%|*}" in E-PERM-*|E-CFG-05|E-GH-02|E-SMOKE-02|E-SMOKE-03) return 0 ;; esac
+  p=$(grep -E 'EACCES|EEXIST|ENOTDIR|EROFS|Permission denied|File exists|Not a directory|Read-only file system' "$WS_STEP_LOG" 2>/dev/null |
+    grep -v 'publickey' | head -n 1 | ws_redact)
+  [ -n "$p" ] || return 0
+  p="${p//"$HOME"/~}"
+  ws_fail E-PERM-01 "$(ws_trim "${p:0:160}")"
+}
+
+# O ws_step escreve "result step N: estado [codigo|detalhe da falha]" no setup.log de cada instalacao: o --check e
+# o --doctor nao voltam a instalar, mas assim sabem porque falhou a ultima instalacao (num passo nao bloqueante
+# a falha aparece como aviso).
+ws_last_install_result() { # passo -> "codigo|detalhe" se a ultima instalacao desse passo falhou
+  local r
+  r=$(awk -v n="$1:" '$2 == "result" && $3 == "step" && $4 == n { st = $5; $1 = $2 = $3 = $4 = $5 = ""; last = st " " $0 } END { print last }' "$WS_LOG" 2>/dev/null)
+  case "$r" in falhou\ *|aviso\ *) r=$(ws_trim "${r#* }"); case "$r" in E-*) printf '%s' "$r" ;; esac ;; esac
+}
+
+# Caminho para mostrar num comando: ~/... sem aspas (para o ~ expandir) se nao tiver espacos nem simbolos,
+# senao o caminho completo entre aspas simples.
+ws_show_path() {
+  local p=$1
+  # shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
+  case "$p" in "$HOME"/*) p="~/${p#"$HOME"/}" ;; esac
+  case "$p" in *[!A-Za-z0-9._/~+-]*) printf "'%s'" "${1//\'/\'\\\'\'}" ;; *) printf '%s' "$p" ;; esac
+}
+# Tipo de correcao para um caminho sem escrita: mover (nao e uma pasta), chown (tem coisas de outro utilizador,
+# p. ex. do root depois de um sudo) ou chmod (e da pessoa, so sem permissao).
+ws_perm_kind() { # caminho [dir]
+  local p=$1
+  if [ -L "$p" ] && [ ! -e "$p" ]; then echo mv; return; fi
+  if [ "${2:-}" = dir ] && [ -e "$p" ] && [ ! -d "$p" ]; then echo mv; return; fi
+  if [ -e "$p" ] && { [ ! -O "$p" ] || [ -n "$(find "$p" -maxdepth 3 ! -user "$(id -u)" -print 2>/dev/null | head -n 1)" ]; }; then echo chown; return; fi
+  echo chmod
+}
+# Notas com os comandos exatos (um por tipo) para os caminhos dados: pastas, ou "f:<caminho>" para um ficheiro.
+ws_perm_fix_notes() {
+  local w p own="" mod="" mv=""
+  for p in "$@"; do
+    w=dir; case "$p" in f:*) w=""; p=${p#f:} ;; esac
+    # Ainda nao existe: a correcao e na primeira pasta de cima que existe.
+    while [ ! -e "$p" ] && [ ! -L "$p" ] && [ "$p" != / ] && [ "$p" != . ]; do p=$(dirname "$p"); w=dir; done
+    case "$(ws_perm_kind "$p" "$w")" in
+      mv) mv="$mv
+mv $(ws_show_path "$p") $(ws_show_path "$p.old")" ;;
+      chown) own="$own $(ws_show_path "$p")" ;;
+      *) mod="$mod $(ws_show_path "$p")" ;;
+    esac
+  done
+  [ -n "$own" ] && ws_note "$(ws_msg perm_corrigir CMD="sudo chown -R \"\$USER\"$own")"
+  [ -n "$mod" ] && ws_note "$(ws_msg perm_corrigir CMD="chmod -R u+rwX$mod")"
+  while IFS= read -r p; do [ -n "$p" ] && ws_note "$(ws_msg perm_corrigir CMD="$p")"; done <<EOF
+$mv
+EOF
 }
 
 # ---------------------------------------------------------------- comandos
@@ -925,9 +991,14 @@ ws_kit_ensure() {
   [ -n "${KIT_SRC:-}" ] && [ -f "$KIT_SRC/installer/install-user.mjs" ] && return 0
   if [ "$WS_DEV" = 1 ]; then KIT_SRC=$WS_DEV_ROOT; return 0; fi
   local dest="$WS_HOME/kit-src/$C_WORKSHOP_VERSION"
-  if [ -f "$dest/.ws-kit-ok" ]; then KIT_SRC=$dest; return 0; fi
+  # O .ws-kit-ok guarda o SHA-256 do arquivo: uma release republicada com a mesma tag (outro SHA-256) volta a
+  # ser descarregada ao instalar. O --check usa o que houver.
+  if [ -f "$dest/.ws-kit-ok" ]; then
+    if [ "$WS_MODE" != install ] || [ -z "$WS_INJ_KIT_SHA256" ] || grep -qx "$WS_INJ_KIT_SHA256" "$dest/.ws-kit-ok" 2>/dev/null; then KIT_SRC=$dest; return 0; fi
+    ws_log "kit-src $C_WORKSHOP_VERSION is not the published kit (republished release?): downloading it again"
+  fi
   [ "$WS_MODE" = install ] || return 1
-  local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd rc
+  local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd rc sum
   url=$(ws_release_url workshop "$name")
   tmpd="$WS_TMP/kit"; rm -rf "$tmpd"; mkdir -p "$tmpd/x"
   ws_say "  $(ws_msg a_descarregar O_QUE="$name")"
@@ -938,12 +1009,15 @@ ws_kit_ensure() {
     ws_log "kit SHA-256 mismatch (expected $WS_INJ_KIT_SHA256)"
     ws_warn E-KIT-02 "$name"
   elif [ "$rc" = 0 ]; then
+    sum=$(ws_sha256 "$tmpd/$name")
     if tar -xzf "$tmpd/$name" -C "$tmpd/x" 2>>"$WS_STEP_LOG" && [ -d "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" ]; then
       rm -rf "$dest"; mkdir -p "$(dirname "$dest")"
-      mv "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" "$dest" && date > "$dest/.ws-kit-ok"
+      mv "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" "$dest" && printf '%s\n' "$sum" > "$dest/.ws-kit-ok"
       KIT_SRC=$dest; return 0
     fi
   fi
+  # Sem o arquivo novo, o kit que ja estava descarregado continua a servir.
+  if [ -f "$dest/.ws-kit-ok" ]; then KIT_SRC=$dest; return 0; fi
   # Recurso: git clone da tag (o REPO_TOKEN, se existir, vai por variaveis de configuracao do git).
   # Os mesmos limites que o ws_dl: uma transferencia parada (menos de 1 KB/s durante 60 s) falha.
   command -v git >/dev/null 2>&1 && xcode_ok || return 1
@@ -1001,6 +1075,7 @@ ws_s0_detect() {
   if [ -n "$kb" ]; then ws_note "$(ws_msg s0_disco GB="$((kb / 1048576))")"; [ "$kb" -lt 3145728 ] && ws_warn E-SO-06 "$((kb / 1048576)) GB"; fi
   case "$(cd "$HOME" 2>/dev/null && pwd -P)" in *OneDrive*|*CloudStorage*) ws_warn E-SO-03 "$HOME" ;; esac
   [ -d "$WS_PROJ" ] && case "$(cd "$WS_PROJ" && pwd -P)" in *OneDrive*|*CloudStorage*) ws_warn E-SO-03 "$WS_PROJ" ;; esac
+  ws_perm_scan
 
   ws_detect_proxy
   ws_detect_tls
@@ -1083,6 +1158,50 @@ ws_gw_show() {
   [ -n "$u" ] || return 0
   u=$(ws_url_base "$u")
   case "$u" in *://*) rest=${u#*://}; printf '%s://%s' "${u%%://*}" "${rest#*@}" ;; *) printf '%s' "${u#*@}" ;; esac
+}
+
+# Restos de um "sudo" (pastas ou ficheiros do root na pasta da pessoa) e caminhos que deviam ser pastas e nao
+# sao (ex.: ~/.local/bin como ficheiro). O Claude Code, o uv, o gh, o Node e o kit escrevem ai: deteta-se antes
+# dos downloads e mostra-se o comando exato que resolve. So avisa: os passos que nao precisam desses caminhos
+# continuam, e os que precisam (2 e 5, ver ws_perm_blocked) falham logo com E-PERM-01, sem descarregar nada.
+ws_perm_scan() {
+  local p q skip show="" cj="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" fix=()
+  WS_PERM_BAD=()
+  for p in "$WS_HOME" "$WS_HOME/bin" "$WS_HOME/kit" "$WS_HOME/kit-src" "$WS_HOME/node" "$WS_HOME/backup" \
+    "$CLAUDE_DIR" "$CLAUDE_DIR/skills" "$CLAUDE_DIR/agents" "$CLAUDE_DIR/downloads" \
+    "$HOME/.local" "$HOME/.local/bin" "$HOME/.local/share" "$HOME/.local/share/claude" "$HOME/.local/share/uv" \
+    "$HOME/.cache" "$HOME/.cache/uv" "$HOME/.config" "$HOME/.config/gh" "$HOME/.npm"; do
+    skip=0; for q in ${WS_PERM_BAD[@]+"${WS_PERM_BAD[@]}"}; do case "$p" in "$q"/*) skip=1 ;; esac; done
+    [ "$skip" = 1 ] && continue
+    if [ -L "$p" ] && [ ! -e "$p" ]; then :
+    elif [ ! -e "$p" ]; then continue
+    elif [ -d "$p" ] && [ -w "$p" ] && [ -x "$p" ]; then continue
+    fi
+    WS_PERM_BAD+=("$p"); fix+=("$p")
+    if [ -d "$p" ]; then show="$show $(ws_show_path "$p")"; else show="$show $(ws_show_path "$p") ($(ws_m perm_nao_pasta))"; fi
+  done
+  for p in "$cj" "$CLAUDE_DIR/settings.json" "$WS_LOG" "$WS_HOME/manifest.json"; do
+    [ -e "$p" ] || [ -L "$p" ] || continue
+    skip=0; for q in ${WS_PERM_BAD[@]+"${WS_PERM_BAD[@]}"}; do case "$p" in "$q"/*) skip=1 ;; esac; done
+    [ "$skip" = 1 ] && continue
+    [ -r "$p" ] && [ -w "$p" ] && continue
+    WS_PERM_BAD+=("$p"); fix+=("f:$p"); show="$show $(ws_show_path "$p")"
+  done
+  [ -n "$show" ] || return 0
+  ws_log "permissions: no write access to:$show"
+  ws_warn E-PERM-01 "$(ws_trim "$show")"
+  ws_perm_fix_notes "${fix[@]}"
+  return 0
+}
+# Um passo que vai escrever num destes caminhos, se o passo 0 os viu sem escrita: E-PERM-01 sem descarregar nada.
+ws_perm_blocked() { # caminhos...
+  local p q
+  for p in "$@"; do
+    for q in ${WS_PERM_BAD[@]+"${WS_PERM_BAD[@]}"}; do
+      case "$p/" in "$q"/*) ws_fail E-PERM-01 "$(ws_show_path "$q")"; return 0 ;; esac
+    done
+  done
+  return 1
 }
 
 # Proxy da sessao. O curl usa HTTPS_PROXY/https_proxy e, sem eles, ALL_PROXY/all_proxy (HTTP_PROXY nao conta para
@@ -1337,6 +1456,7 @@ ws_s2_detect() {
 ws_s2_install() {
   local f="$WS_TMP/claude-install.sh" v
   ws_claude_json_ok || return 1
+  ws_perm_blocked "$HOME/.claude/downloads" "$HOME/.local/bin/claude" "$HOME/.local/share/claude" && return 1
   ws_say "  $(ws_m a_instalar)"
   if ! ws_dl "$C_CLAUDE_INSTALL_SH_URL" "$f"; then ws_dl_fail "$C_CLAUDE_INSTALL_SH_URL"; return 1; fi
   # O install.sh chama o curl sem limites: com o curlrc do setup (ws_curl_home) uma transferencia parada falha em vez
@@ -1562,6 +1682,7 @@ ws_s5_detect() {
 }
 ws_s5_install() {
   local f="$WS_TMP/uv-install.sh" url
+  ws_perm_blocked "$HOME/.local/bin/uv" && return 1
   url=$(ws_expand "$C_UV_INSTALL_SH_URL" "" "" "" "" "$C_UV_VERSION" "" "")
   ws_dl "$url" "$f" || { ws_dl_fail "$url"; return 1; }
   # Como no passo 2: o instalador do uv usa o curl sem limites (curlrc do setup) e descarrega para uma pasta nossa.
@@ -1759,13 +1880,14 @@ ws_iu() { # subcomando [extra]
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
 ws_s8_parse() { # le a saida TSV de install-user
-  local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para=""
+  local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para="" err="" det=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       skills) skills=$v ;; agentes) agentes=$v ;;
       language) lang=$v ;; language_nossa) nossa=$v ;; lingua_kit) kit=$v ;;
       aviso) [ "$v" = E-CFG-06 ] && ws_note "$(ws_m s8_statusline_mantida)"; ws_warn "$v" "statusLine" ;;
-      erro) ws_fail "$v" "" ;;
+      erro) err=$v ;;
+      erro_detalhe) det=$v ;;
       falta) ws_log "missing: $v"
         # "lingua do kit (pt -> en)" ou "language do Claude (European Portuguese -> Brazilian Portuguese)"
         case "$v" in "lingua do kit ("*" -> "*")"|"language do Claude ("*" -> "*")")
@@ -1779,6 +1901,11 @@ ws_s8_parse() { # le a saida TSV de install-user
   done <<EOF
 $1
 EOF
+  # settings.json com erro: o caminho e onde esta o erro (linha e coluna, ou o campo) ficam no ecra.
+  if [ -n "$err" ]; then
+    case "$err" in E-CFG-05) det="${CLAUDE_DIR/#"$HOME"/~}/settings.json${det:+ · $det}" ;; esac
+    ws_fail "$err" "$det"; return 0
+  fi
   ws_detail "$(ws_msg s8_ja SKILLS="$skills" AGENTES="$agentes")"
   # Em --check, a lingua instalada diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio: diz-se qual e.
   [ "${WS_MODE:-}" != install ] && [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_muda DE="$de" PARA="$para")"
@@ -1804,7 +1931,9 @@ ws_s8_install() {
   rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   ws_s8_parse "$out"
-  case "$rc" in 0) ;; 3) ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
+  # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
+  [ "$rc" = 0 ] || { ws_set SD 8 ""; ws_set SN 8 ""; }
+  case "$rc" in 0) ;; 3) [ -n "${SF_8:-}" ] || ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
   ws_registar_flush
   return 0
 }
@@ -1959,11 +2088,25 @@ ws_s10_detect() {
   local b ver=${C_MEMORY_APP_VERSION#v}
   b=$(ws_memory_bin) || { ws_fail E-MEM-01 ""; return 1; }
   "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq "^(agent-memory|agent_memory|memoria) v?$ver( |$)" || { ws_fail E-MEM-03 "version $ver"; return 1; }
-  [ -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ] || { ws_fail E-MEM-03 "shortcut"; return 1; }
-  [ -f "$(ws_memory_home)/config.json" ] || { ws_fail E-MEM-03 "config.json"; return 1; }
   if [ -n "${WS_CLAUDE:-}" ]; then ws_memory_mcp_ok "$b" || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
+  # O config.json e o atalho sao extras: ao instalar refazem-se aqui (sem reinstalar a app). Sem escrita na pasta
+  # (dados ou ~/Applications), reinstalar nao resolve: fica um aviso (o selftest diz o resto).
+  if [ ! -f "$(ws_memory_home)/config.json" ]; then
+    if [ "$WS_MODE" = install ]; then ws_memory_config || ws_log "config.json not written: $(ws_memory_home_show) is not writable"
+    elif ws_dir_writable "$(ws_memory_home)"; then ws_fail E-MEM-03 "config.json"; return 1; fi
+  fi
+  if [ ! -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ]; then
+    if [ "$WS_MODE" = install ]; then ws_memory_shortcut "$b" || ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"
+    elif ws_dir_writable "$HOME/Applications"; then ws_fail E-MEM-03 "shortcut"; return 1
+    else ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"; fi
+  fi
   ws_memory_selftest "$b" "$ver"
   return 0
+}
+# 0 se a pasta existe e aceita escrita, ou se ainda nao existe e a pasta de cima aceita.
+ws_dir_writable() {
+  if [ -d "$1" ]; then [ -w "$1" ] && [ -x "$1" ]; return; fi
+  [ ! -e "$1" ] && [ ! -L "$1" ] && [ -w "$(dirname "$1")" ]
 }
 # O registo MCP "agent-memory" aponta para este programa? (o "claude mcp get" sai com 0 para qualquer registo, mesmo
 # um que aponte para um programa que ja nao existe, ex.: de outro utilizador num Mac migrado). Um registo antigo
@@ -1990,7 +2133,13 @@ ws_memory_selftest() {
   fi
   ws_detail "$(ws_msg s10_ja VERSAO="$2")"
   fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[OK\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
-  ws_warn E-MEM-05 "${fails:-$(basename "$1") selftest ($rc)}"
+  # Pasta das memorias sem escrita (do root depois de um sudo, um ficheiro, um link partido): reinstalar nao
+  # resolve, por isso tem o seu codigo e o comando exato.
+  case "$fails" in
+    *"Cannot write to"*|*"readonly database"*|*"Permission denied"*|*"Read-only file system"*|*"Not a directory"*|*"File exists"*)
+      ws_warn E-MEM-07 "$fails"; ws_perm_fix_notes "$(ws_memory_home)" ;;
+    *) ws_warn E-MEM-05 "${fails:-$(basename "$1") selftest ($rc)}" ;;
+  esac
   return 1
 }
 ws_s10_install() {
@@ -2010,7 +2159,14 @@ ws_s10_install() {
     esac
   done
   ws_say "  $(ws_m a_instalar)"
-  ws_uv_tool_install "$d/$whl" "$d/constraints.txt" || { ws_fail E-MEM-03 "uv tool install"; return 1; }
+  if ! ws_uv_tool_install "$d/$whl" "$d/constraints.txt"; then
+    # Certificado da empresa: o passo 0 so testa a api.anthropic.com, e um proxy pode inspecionar so o github.com
+    # (o Python do uv) ou o pypi.org. Repete uma vez com os certificados do sistema (Keychain).
+    grep -qiE 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed' "$WS_STEP_LOG" || { ws_fail E-MEM-03 "uv tool install"; return 1; }
+    [ "${UV_SYSTEM_CERTS:-}" = true ] && { ws_fail E-NET-04 "uv: github.com / pypi.org"; return 1; }
+    ws_log "uv: certificate error, retrying with UV_SYSTEM_CERTS=true"
+    UV_SYSTEM_CERTS=true ws_uv_tool_install "$d/$whl" "$d/constraints.txt" || { ws_fail E-NET-04 "uv: github.com / pypi.org"; return 1; }
+  fi
   # A distribuicao mudou de nome? Tirar a antiga do uv (so o programa: os dados ficam).
   if [ "$dist" != memoria ] && "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq '^memoria v?[0-9]'; then
     "${WS_UV:-uv}" tool uninstall memoria >>"$WS_LOG" 2>&1 </dev/null || true
@@ -2018,8 +2174,9 @@ ws_s10_install() {
   fi
   ws_registar app "$dist"
   b=$(ws_memory_bin) || { ws_fail E-MEM-03 "agent-memory"; return 1; }
-  ws_memory_config
-  ws_memory_shortcut "$b" || { ws_fail E-MEM-03 "shortcut"; return 1; }
+  # O config.json e o atalho nao impedem o resto: sem eles a app, o MCP e o selftest continuam.
+  ws_memory_config || ws_log "config.json not written: $(ws_memory_home_show) is not writable"
+  ws_memory_shortcut "$b" || ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"
   ws_memory_mcp "$b" || { ws_fail E-MEM-03 "claude mcp add $WS_MCP_NAME"; return 1; }
   ws_memory_selftest "$b" "$ver"
   ws_note "$(ws_m s10_update)"
@@ -2058,10 +2215,12 @@ ws_memory_mcp() {
   ws_registar mcp "$WS_MCP_NAME"
 }
 # <pasta dos dados>/config.json com as chaves que a app usa para se atualizar (mesmos nomes que o repos.conf).
+# Sem escrita na pasta (do root depois de um sudo, um ficheiro, um link partido) devolve 1: os erros vao para o
+# log do passo, nunca para o ecra.
 ws_memory_config() {
   local home cfg uvp
   home=$(ws_memory_home); cfg="$home/config.json"
-  mkdir -p "$home"
+  mkdir -p "$home" 2>>"$WS_STEP_LOG" || return 1
   uvp=${WS_UV:-$(command -v uv 2>/dev/null)}
   if [ -n "${WS_NODE:-}" ]; then
     "$WS_NODE" -e '
@@ -2069,10 +2228,11 @@ ws_memory_config() {
       let c = {}; try { c = JSON.parse(fs.readFileSync(f, "utf8")); } catch {}
       Object.assign(c, { MEMORY_APP_REPO_URL: repo, RELEASE_DOWNLOAD_URL: pat, PYTHON_VERSION: py });
       if (uv) c.UV = uv;
-      fs.writeFileSync(f, JSON.stringify(c, null, 2) + "\n");' "$cfg" "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" </dev/null
+      try { fs.writeFileSync(f, JSON.stringify(c, null, 2) + "\n"); }
+      catch (e) { process.stderr.write("config.json: " + e.message + "\n"); process.exit(1); }' "$cfg" "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" </dev/null 2>>"$WS_STEP_LOG" || return 1
   elif [ ! -f "$cfg" ]; then
-    printf '{\n  "MEMORY_APP_REPO_URL": "%s",\n  "RELEASE_DOWNLOAD_URL": "%s",\n  "PYTHON_VERSION": "%s",\n  "UV": "%s"\n}\n' \
-      "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" > "$cfg"
+    { printf '{\n  "MEMORY_APP_REPO_URL": "%s",\n  "RELEASE_DOWNLOAD_URL": "%s",\n  "PYTHON_VERSION": "%s",\n  "UV": "%s"\n}\n' \
+      "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" > "$cfg"; } 2>>"$WS_STEP_LOG" || return 1
   fi
 }
 ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminho absoluto
@@ -2080,9 +2240,11 @@ ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminh
   gui=$b
   for g in "$(dirname "$b")/agent-memory-gui" "$(dirname "$b")/memoria-gui"; do [ -x "$g" ] && { gui=$g; break; }; done
   # O atalho antigo ("Memória.app") era nosso: sai (so se tiver o nosso executavel).
-  [ -x "$old/Contents/MacOS/memoria-app" ] && rm -rf "$old"
-  mkdir -p "$app/Contents/MacOS" || return 1
-  cat > "$app/Contents/Info.plist" <<EOF
+  [ -x "$old/Contents/MacOS/memoria-app" ] && rm -rf "$old" 2>>"$WS_STEP_LOG"
+  # Cada escrita e verificada e os erros vao para o log do passo: ~/Applications sem escrita (ou um atalho
+  # antigo so de leitura) devolve 1 e o passo continua com um aviso (E-MEM-06).
+  { mkdir -p "$app/Contents/MacOS" &&
+  cat > "$app/Contents/Info.plist" <<EOF &&
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -2098,8 +2260,8 @@ ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminh
 </dict>
 </plist>
 EOF
-  printf '#!/bin/sh\nexec "%s" "$@"\n' "$gui" > "$app/Contents/MacOS/$WS_APP_EXE"
-  chmod +x "$app/Contents/MacOS/$WS_APP_EXE"
+  printf '#!/bin/sh\nexec "%s" "$@"\n' "$gui" > "$app/Contents/MacOS/$WS_APP_EXE" &&
+  chmod +x "$app/Contents/MacOS/$WS_APP_EXE"; } 2>>"$WS_STEP_LOG" || return 1
   ws_registar atalho "$WS_APP_BUNDLE" "$app"
 }
 
@@ -2229,7 +2391,7 @@ ws_helper_offer() {
     printf 'Never suggest sudo or destructive commands, and never ask for or show API keys. If you are not sure, do not suggest commands.\n\n'
     printf 'Failed step: %s (%s)\nCode: %s\n%s\n\n' "$n" "${!title}" "$code" "$(ws_versions_line)"
     printf 'Log excerpt (no secrets):\n'
-    tail -n 80 "$WS_STEP_LOG" | ws_redact
+    grep -v '^\[claude-code:' "$WS_STEP_LOG" | tail -n 80 | ws_redact
   } > "$p"
   ws_log "helper: request of $(wc -c < "$p" | tr -d ' ') bytes"
   if ! ws_helper_call "$p" "$o" "$WS_SCHEMA_HELPER"; then ws_say "  $(ws_m helper_falhou)"; return 1; fi
@@ -2257,6 +2419,16 @@ EOF
   [ "$ran" = 1 ]
 }
 
+# O ultimo bloco "--- command output (step N) ---" escrito por uma instalacao (mode install) no setup.log.
+ws_last_step_output() {
+  awk -v h="--- command output (step $1) ---" '
+    / === step [0-9]+: / && / \(mode [a-z]+\)$/ { m = $NF; sub(/\)$/, "", m) }
+    $0 == h && m == "install" { b = ""; on = 1 }
+    on { b = b $0 "\n" }
+    on && $0 == "--- end ---" { on = 0; last = b }
+    END { printf "%s", last }' "$WS_LOG" 2>/dev/null
+}
+
 ws_doctor() {
   local n st any=0 p="$WS_TMP/doctor.txt" o="$WS_TMP/doctor.json" f w title
   ws_say ""; ws_say "$(ws_bold "$(ws_m doctor_titulo)")"
@@ -2265,12 +2437,19 @@ ws_doctor() {
   if [ "${WS_AUTH_OK:-0}" != 1 ] || [ "${WS_NET_API_OK:-1}" = 0 ] || [ "${WS_GW_DOWN:-0}" = 1 ]; then ws_say "  $(ws_m doctor_sem_claude)"; return 0; fi
   {
     printf 'You are a support assistant for the setup of a Claude Code workshop (macOS). Answer in plain English, short sentences, for someone with no experience.\n'
-    printf 'Make a full diagnosis: what is wrong, why, and the exact steps (with commands) in order. Never suggest sudo or showing API keys.\n\n%s\n\n' "$(ws_versions_line)"
+    printf 'Make a full diagnosis: what is wrong, why, and the exact steps (with commands) in order. Never suggest sudo or showing API keys.\n'
+    printf 'You cannot use tools, run commands or read files: answer now, only from the information below.\n\n%s\n\n' "$(ws_versions_line)"
     for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
       st=$(ws_st "$n"); title="M_passos_$n"; f="SF_$n"; w="SW_$n"
       printf 'Step %s (%s): %s %s %s\n' "$n" "${!title}" "$st" "${!f}" "$(printf '%s' "${!w}" | tr '\n' ' ')"
     done
-    printf '\nLog excerpt:\n'; tail -n 120 "$WS_LOG" | ws_redact
+    # A causa de uma falha esta na saida da instalacao que falhou, que pode ser de uma execucao anterior (o
+    # --doctor nao instala) e ficar muito antes das ultimas 120 linhas.
+    printf '\nLast recorded install output of each step with a problem (it may come from an earlier run):\n'
+    for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
+      case "$(ws_st "$n")" in falta|falhou|naoexec|aviso) ws_last_step_output "$n" | grep -v '^\[claude-code:' | tail -n 30 | ws_redact ;; esac
+    done
+    printf '\nLog excerpt:\n'; tail -n 120 "$WS_LOG" | grep -v '^\[claude-code:' | ws_redact
   } > "$p"
   if ws_helper_call "$p" "$o" "" "$WS_TMO_DOCTOR"; then
     ws_parse_result "$o"
@@ -2300,11 +2479,11 @@ ws_summary() {
     printf '\n'
     if [ "$faltam" = 0 ]; then
       if [ "$WS_MODE" = install ]; then printf '%s\n' "$(ws_m final_pronto)"; else printf '%s\n' "$(ws_m final_check_ok)"; fi
-      [ "$avisos" -gt 0 ] && printf '%s\n' "$(ws_msg final_avisos N="$avisos")"
     else
       if [ "$faltam" = 1 ]; then printf '%s\n' "$(ws_msg final_falta1 LISTA="$lista")"; else printf '%s\n' "$(ws_msg final_faltam N="$faltam" LISTA="$lista")"; fi
       printf '%s\n' "$(ws_m final_voltar)"
     fi
+    [ "$avisos" -gt 0 ] && printf '%s\n' "$(ws_msg final_avisos N="$avisos")"
   } > "$r"
   ws_say ""
   ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
@@ -2333,7 +2512,7 @@ ws_uninstall() {
     case "$t" in
       mcp) [ -n "$WS_CLAUDE" ] && "$WS_CLAUDE" mcp remove --scope user "$n" >>"$WS_LOG" 2>&1 </dev/null && ws_say "  $(ws_msg desinst_mcp NOME="$n")" ;;
       app) "${WS_UV:-uv}" tool uninstall "${n:-memoria}" >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_msg desinst_memorias CAMINHO="$(ws_memory_home_show)")"; } ;;
-      atalho) [ -n "$c" ] && rm -rf "$c" && ws_say "  $(ws_msg desinst_atalho CAMINHO="$c")" ;;
+      atalho) [ -n "$c" ] && [ -e "$c" ] && rm -rf "$c" && ws_say "  $(ws_msg desinst_atalho CAMINHO="$c")" ;;
       perfil) ws_profile_remove "$c" "$v" ;;
     esac
   done <<EOF
@@ -2406,25 +2585,88 @@ ws_save_self() { # guarda uma copia local do script (para "bash ~/.workshop-clau
   [ -n "$sums" ] && [ "$sums" = "$(ws_sha256 "$WS_TMP/setup-mac.sh")" ] && mv -f "$WS_TMP/setup-mac.sh" "$dst" && chmod +x "$dst"
 }
 
-ws_lock() {
-  local l="$WS_HOME/.lock" pid
-  if mkdir "$l" 2>/dev/null; then echo $$ > "$l/pid"; return 0; fi
-  pid=$(cat "$l/pid" 2>/dev/null)
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then printf 'The setup is already running (PID %s).\n' "$pid"; return 1; fi
-  rm -rf "$l"; mkdir "$l" 2>/dev/null && echo $$ > "$l/pid"
+# A correr da copia guardada (~/.workshop-claude/setup-mac.sh): se a release (a mesma tag) tem outro
+# setup-mac.sh, confirmado pelo SHA256SUMS, a copia e substituida e corre-se a nova. Sem rede, fica a copia local.
+# Sem isto, uma correcao publicada nunca chegaria a quem corre "bash ~/.workshop-claude/setup-mac.sh".
+ws_self_update() {
+  local dst="$WS_HOME/setup-mac.sh" src=${BASH_SOURCE[0]:-} sum new="$WS_TMP/setup-mac.new"
+  [ "$WS_DEV" = 1 ] || [ -n "${WS_REEXEC:-}" ] && return 0
+  [ -n "$src" ] && [ -f "$src" ] && [ -f "$dst" ] || return 0
+  [ "$(cd "$(dirname "$src")" && pwd -P)/$(basename "$src")" = "$(cd "$WS_HOME" && pwd -P)/setup-mac.sh" ] || return 0
+  ws_dl "$(ws_release_url workshop SHA256SUMS)" "$WS_TMP/SHA256SUMS" auth || return 0
+  sum=$(ws_sum_for "$WS_TMP/SHA256SUMS" setup-mac.sh)
+  [ -n "$sum" ] && [ "$sum" != "$(ws_sha256 "$dst")" ] || return 0
+  ws_dl "$(ws_release_url workshop setup-mac.sh)" "$new" auth || return 0
+  [ "$sum" = "$(ws_sha256 "$new")" ] && grep -q "WS_INJ_KIT_SHA256=" "$new" || return 0
+  chmod +x "$new" && mv -f "$new" "$dst" || return 0
+  ws_log "saved setup-mac.sh updated from the release ($sum): running the new copy"
+  # O exec mantem o PID: a nova copia ve o .lock com o seu proprio PID e fica com ele (ws_lock_alive).
+  trap - EXIT INT TERM HUP
+  rm -rf "$WS_TMP"
+  WS_REEXEC=1 exec bash "$dst" ${WS_ARGS[@]+"${WS_ARGS[@]}"}
 }
 
-ws_cleanup() { [ -n "${WS_HB:-}" ] && kill "$WS_HB" 2>/dev/null; rm -rf "$WS_HOME/.lock" "${WS_TMP:-/nonexistent}" 2>/dev/null; }
+# .lock/pid: PID e hora de arranque (ps lstart) do setup que tem o lock. Depois de um kill -9, de uma falta de luz
+# ou de um reboot, o PID pode ser agora de outro programa: com outra hora de arranque (ou, num .lock antigo so com
+# o PID, sem ser um bash), o lock e velho e passa para este setup. Um setup parado (Ctrl+Z, estado T) continua com
+# o lock: a mensagem diz como o continuar (fg) ou fechar.
+ws_proc_start() { LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//; s/ *$//'; }
+ws_lock_mine() { { echo $$; ws_proc_start $$; } > "$1/pid.$$" 2>/dev/null && mv -f "$1/pid.$$" "$1/pid" 2>/dev/null; }
+ws_lock_alive() { # pid hora -> 0 se o setup que escreveu o .lock ainda existe
+  local pid=$1 st=$2 cur
+  case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$pid" != $$ ] && kill -0 "$pid" 2>/dev/null || return 1
+  cur=$(ws_proc_start "$pid")
+  if [ -n "$st" ] && [ -n "$cur" ]; then [ "$cur" = "$st" ]; return; fi
+  case "$(ps -o comm= -p "$pid" 2>/dev/null)" in *bash|*/sh|sh|'') return 0 ;; esac
+  return 1
+}
+ws_lock() {
+  local l="$WS_HOME/.lock" pid st since age
+  if mkdir "$l" 2>/dev/null; then ws_lock_mine "$l"; return 0; fi
+  pid=$(sed -n 1p "$l/pid" 2>/dev/null); st=$(sed -n 2p "$l/pid" 2>/dev/null)
+  since=$(stat -f %Sm -t %H:%M "$l" 2>/dev/null)
+  if ws_lock_alive "$pid" "$st"; then
+    ws_log "lock held by PID $pid (state $(ps -o stat= -p "$pid" 2>/dev/null | tr -d ' '))"
+    case "$(ps -o stat= -p "$pid" 2>/dev/null)" in
+      T*) printf '%s\n' "$(ws_msg lock_parado PID="$pid" HORA="${since:-?}")" >&2 ;;
+      *) printf '%s\n' "$(ws_msg lock_ativo PID="$pid" HORA="${since:-?}")" >&2 ;;
+    esac
+    return 1
+  fi
+  # Sem PID ha menos de 10 s: outro setup acabou de criar o .lock e ainda esta a escrever o PID.
+  if [ -z "$pid" ]; then
+    age=$(( $(date +%s) - $(stat -f %m "$l" 2>/dev/null || echo 0) ))
+    if [ "$age" -lt 10 ]; then printf '%s\n' "$(ws_msg lock_ativo PID="?" HORA="${since:-?}")" >&2; return 1; fi
+  fi
+  ws_log "stale lock removed (PID ${pid:-?})"
+  rm -rf "$l"
+  if mkdir "$l" 2>/dev/null; then ws_lock_mine "$l"; return 0; fi
+  printf '%s\n' "$(ws_msg lock_ativo PID="?" HORA="${since:-?}")" >&2; return 1
+}
+
+# So apaga o .lock se for deste setup: um segundo terminal que foi recusado nao tira o lock ao primeiro.
+ws_cleanup() {
+  [ -n "${WS_HB:-}" ] && kill "$WS_HB" 2>/dev/null
+  [ "$(sed -n 1p "$WS_HOME/.lock/pid" 2>/dev/null)" = "$$" ] && rm -rf "$WS_HOME/.lock" 2>/dev/null
+  rm -rf "${WS_TMP:-/nonexistent}" 2>/dev/null
+  return 0
+}
 ws_interrupted() {
-  trap '' INT TERM HUP   # uma so vez (o Ctrl-C e o fecho do terminal podem chegar juntos)
-  # Para o terminal: o sinal pode chegar a meio de uma funcao com a saida redirecionada (ex.: ws_timeout ... >/dev/null).
-  { printf '\n%s\n' "$(ws_m interrompido)" > /dev/tty; } 2>/dev/null || printf '\n%s\n' "$(ws_m interrompido)" >&2
+  # Fechar a janela manda mais do que um HUP: ignora os seguintes. A mensagem vai para o ecra so no fim: com a
+  # janela fechada a escrita falha, e cada processo criado depois voltaria a despeja-la no setup.log.
+  trap '' INT TERM HUP
+  local msg; msg=$(ws_m interrompido)
   ws_log "interrupted"
-  ws_cleanup; exit 130
+  ws_cleanup
+  # Para o terminal: o sinal pode chegar a meio de uma funcao com a saida redirecionada (ex.: ws_timeout ... >/dev/null).
+  { printf '\n%s\n' "$msg" > /dev/tty; } 2>/dev/null || printf '\n%s\n' "$msg" >&2
+  exit 130
 }
 
 ws_main() {
   WS_MODE=install; WS_SIM=0; WS_SEM_DESKTOP=0; WS_SUBST_SL=0
+  WS_ARGS=("$@")
   local a
   for a in "$@"; do
     case "$a" in
@@ -2452,7 +2694,6 @@ ws_main() {
   WS_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ws-setup.XXXXXX") || return 1
   WS_STEP_LOG="$WS_TMP/inicio.log"
   ws_color_detect
-  ws_lock || { rm -rf "$WS_TMP"; return 1; }
   trap ws_interrupted INT TERM HUP
   trap ws_cleanup EXIT
 
@@ -2496,6 +2737,17 @@ EOF
 
   ws_load_messages || { printf 'Could not read the messages (setup/messages.en.json).\n' >&2; return 2; }
   ws_lang_detect
+  # ~/.workshop-claude do root (um "sudo" antigo): sem escrita nao ha lock, log nem copia guardada.
+  if [ ! -w "$WS_HOME" ] || [ ! -x "$WS_HOME" ]; then
+    WS_CUR=pre; ws_print_code E-PERM-01 "$(ws_show_path "$WS_HOME")" "  "
+    SN_pre=""; ws_perm_fix_notes "$WS_HOME"; printf '%s' "$SN_pre" | sed 's/^/  /'
+    return 1
+  fi
+  # setup.log de outro utilizador (o mesmo "sudo"): fica de lado, com outro nome, e comeca-se um novo. Sem isto,
+  # cada comando com ">> setup.log" falharia sem correr.
+  if [ -e "$WS_LOG" ] && [ ! -w "$WS_LOG" ]; then mv -f "$WS_LOG" "$WS_LOG.unwritable-$(date +%Y%m%d%H%M%S)" 2>/dev/null; fi
+  ws_lock || return 1
+  [ "$WS_MODE" = uninstall ] || ws_self_update
 
   { printf '\n'; printf '=%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; printf ' %s · mode %s · %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$WS_MODE" "$C_WORKSHOP_VERSION"; } >> "$WS_LOG"
   ws_log "language: $WS_LANG (kit $WS_LANG_KIT) · saved ${WS_LANG_GUARDADA:--} · machine $WS_LANG_MAQUINA${WS_LANG_IGNORADA:+ · WORKSHOP_LANG ignored: $WS_LANG_IGNORADA}"

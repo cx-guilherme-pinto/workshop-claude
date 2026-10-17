@@ -808,6 +808,142 @@ if [ -n "$NODE" ]; then
   # shellcheck disable=SC2012
   [ "$(cat "$EH"/.workshop-claude/backup/*/practice-project/MY-NOTES.md 2>/dev/null)" = mine ] && [ ! -e "$P/MY-NOTES.md" ] && ok || ko "s9 sem .git: o trabalho esta no backup"
 fi
+# --- chaos G6-lifecycle: lock, interrupcao, copia guardada, restos de sudo, settings.json, pastas sem escrita
+G6="$WS_TMP/g6"; mkdir -p "$G6"
+WS_NODE=$NODE; code=$(ws_js "$WS_JS_MSGS" "$ROOT/setup/messages.en.json"); eval "$code"
+# lock: PID reutilizado por outro programa, setup vivo, setup parado (Ctrl+Z), lock antigo, o proprio PID
+LK="$G6/lk"; mkdir -p "$LK"
+/bin/sleep 30 & SP=$!
+( WS_HOME=$LK; mkdir "$LK/.lock"; printf '%s\n%s\n' "$SP" "Thu Jan  1 00:00:00 2026" > "$LK/.lock/pid"
+  ws_lock 2>/dev/null; printf '%s|%s' "$?" "$(sed -n 1p "$LK/.lock/pid")"; [ "$(sed -n 1p "$LK/.lock/pid")" = $$ ] && printf '|mine' ) > "$G6/o"
+eq "$(cut -d'|' -f1,3 "$G6/o")" "0|mine" "ws_lock: PID reutilizado (outra hora de arranque) nao bloqueia"
+rm -rf "$LK/.lock"; mkdir "$LK/.lock"; printf '%s\n' "$SP" > "$LK/.lock/pid"; touch -t 202601010000 "$LK/.lock"
+( WS_HOME=$LK; ws_lock 2>/dev/null; printf '%s' "$?" ) > "$G6/o"
+eq "$(cat "$G6/o")" 0 "ws_lock: lock antigo so com o PID de um programa que nao e um bash nao bloqueia"
+/bin/bash -c 'sleep 30' & HP=$!
+sleep 0.2
+rm -rf "$LK/.lock"; mkdir "$LK/.lock"; printf '%s\n%s\n' "$HP" "$(ws_proc_start "$HP")" > "$LK/.lock/pid"
+( WS_HOME=$LK; ws_lock; printf '|%s' "$?" ) > "$G6/o" 2>&1
+case "$(cat "$G6/o")" in *"already running in another window (PID $HP, since "*"|1") ok ;; *) ko "ws_lock: setup vivo bloqueia com a mensagem do catalogo [$(cat "$G6/o")]" ;; esac
+kill -STOP "$HP"; sleep 0.2
+( WS_HOME=$LK; ws_lock; printf '|%s' "$?" ) > "$G6/o" 2>&1
+case "$(cat "$G6/o")" in *"paused in a Terminal window"*"Type fg"*"|1") ok ;; *) ko "ws_lock: setup parado (T) diz para fazer fg [$(cat "$G6/o")]" ;; esac
+kill -CONT "$HP"; kill "$HP" 2>/dev/null; wait "$HP" 2>/dev/null
+( WS_HOME=$LK; ws_lock 2>/dev/null; printf '%s' "$?" ) > "$G6/o"
+eq "$(cat "$G6/o")" 0 "ws_lock: depois de o dono acabar, o seguinte fica com o lock"
+rm -rf "$LK/.lock"; mkdir "$LK/.lock"; printf '%s\n%s\n' "$$" "$(ws_proc_start $$)" > "$LK/.lock/pid"
+( WS_HOME=$LK; ws_lock 2>/dev/null; printf '%s' "$?" ) > "$G6/o"
+eq "$(cat "$G6/o")" 0 "ws_lock: o lock com o proprio PID (depois do exec da copia nova) e retomado"
+rm -rf "$LK/.lock"; mkdir "$LK/.lock"
+( WS_HOME=$LK; ws_lock 2>/dev/null; printf '%s' "$?" ) > "$G6/o"
+eq "$(cat "$G6/o")" 1 "ws_lock: .lock acabado de criar (ainda sem PID) bloqueia"
+touch -t 202601010000 "$LK/.lock"
+( WS_HOME=$LK; ws_lock 2>/dev/null; printf '%s' "$?" ) > "$G6/o"
+eq "$(cat "$G6/o")" 0 "ws_lock: .lock sem PID com mais de 10 s e velho"
+kill "$SP" 2>/dev/null; wait "$SP" 2>/dev/null
+rm -rf "$LK/.lock"; mkdir "$LK/.lock"; printf '99999999\n' > "$LK/.lock/pid"
+( WS_HOME=$LK; WS_TMP="$G6/t1"; mkdir -p "$WS_TMP"; ws_cleanup; [ -d "$LK/.lock" ] && printf keep ) > "$G6/o"
+eq "$(cat "$G6/o")" keep "ws_cleanup: nao apaga o lock de outro setup"
+( WS_HOME=$LK; WS_TMP="$G6/t1"; rm -rf "$LK/.lock"; ws_lock 2>/dev/null; ws_cleanup; [ -d "$LK/.lock" ] || printf gone ) > "$G6/o"
+eq "$(cat "$G6/o")" gone "ws_cleanup: apaga o seu proprio lock"
+# interrupcao: uma so linha no log, mesmo com dois sinais
+WS_SOURCE_ONLY=1 /bin/bash -c '. "$1"; WS_HOME=$2; WS_LOG=$3; WS_TMP=$4; mkdir -p "$WS_TMP"; ws_lock; trap ws_interrupted INT TERM HUP; kill -HUP $$; sleep 2' \
+  _ "$ROOT/setup/setup-mac.sh" "$LK" "$G6/int.log" "$G6/t2" 2>/dev/null
+eq "$(grep -c interrupted "$G6/int.log" 2>/dev/null)|$([ -d "$LK/.lock" ] && echo lock)" "1|" "ws_interrupted: uma linha no log e o lock removido"
+# restos de sudo: pastas e ficheiros sem escrita, ~/.local/bin ficheiro
+PH="$G6/home com espaço"; mkdir -p "$PH/.claude" "$PH/.local" "$PH/.workshop-claude"; : > "$PH/.local/bin"; printf '{}' > "$PH/.claude.json"
+chmod 555 "$PH/.claude"; chmod 000 "$PH/.claude.json"
+( HOME=$PH; WS_HOME="$PH/.workshop-claude"; CLAUDE_DIR="$PH/.claude"; WS_LOG=/dev/null; WS_CUR=0; SW_0=""; SN_0=""; CLAUDE_CONFIG_DIR=""
+  ws_perm_scan; printf '%s\n%s' "$SW_0" "$SN_0" ) > "$G6/o"
+grep -q '^E-PERM-01|~/.claude ~/.local/bin (not a folder) ~/.claude.json$' "$G6/o" && ok || ko "perm scan: aviso com os caminhos [$(cat "$G6/o")]"
+grep -q 'run the setup again: chmod -R u+rwX ~/.claude ~/.claude.json$' "$G6/o" && grep -q 'run the setup again: mv ~/.local/bin ~/.local/bin.old$' "$G6/o" && ok || ko "perm scan: comandos exatos [$(cat "$G6/o")]"
+( HOME=$PH; WS_HOME="$PH/.workshop-claude"; CLAUDE_DIR="$PH/.claude"; WS_LOG=/dev/null; WS_CUR=2; SF_2=""; CLAUDE_CONFIG_DIR=""
+  ws_perm_scan >/dev/null; ws_perm_blocked "$HOME/.claude/downloads" "$HOME/.local/bin/claude" && printf '%s' "$SF_2" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-PERM-01|~/.claude" "perm: passo 2 nao descarrega para uma pasta sem escrita"
+chmod 755 "$PH/.claude"; chmod 644 "$PH/.claude.json"; rm -f "$PH/.local/bin"
+( HOME=$PH; WS_HOME="$PH/.workshop-claude"; CLAUDE_DIR="$PH/.claude"; WS_LOG=/dev/null; WS_CUR=0; SW_0=""; SN_0=""; CLAUDE_CONFIG_DIR=""
+  ws_perm_scan; printf '%s%s' "$SW_0" "$SN_0" ) > "$G6/o"
+eq "$(cat "$G6/o")" "" "perm scan: pasta pessoal normal nao avisa"
+( WS_LOG="$G6/rolog"; : > "$WS_LOG"; chmod 444 "$WS_LOG"; ws_say x; ws_log y; ws_flush_step_log ) > /dev/null 2> "$G6/e"
+eq "$(cat "$G6/e")" "" "log sem escrita: nada no ecra (stderr)"
+eq "$(HOME=$PH; ws_show_path "$PH/.local/bin")|$(HOME=$PH; ws_show_path "/x/a b")" "~/.local/bin|'/x/a b'" "ws_show_path"
+# erro de permissao na saida de um passo ganha ao codigo generico (rede)
+printf 'Downloading...\nmkdir: %s/.claude/downloads: Permission denied\n' "$PH" > "$G6/s2.log"
+( HOME=$PH; WS_CUR=2; WS_STEP_LOG="$G6/s2.log"; WS_LOG=/dev/null; SF_2="E-CC-01|install.sh"; ws_perm_reclass; printf '%s' "$SF_2" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-PERM-01|mkdir: ~/.claude/downloads: Permission denied" "reclass: E-CC-01 com EACCES passa a E-PERM-01"
+printf 'git@host: Permission denied (publickey).\ncurl: (6) Could not resolve host\n' > "$G6/s2.log"
+( HOME=$PH; WS_CUR=2; WS_STEP_LOG="$G6/s2.log"; WS_LOG=/dev/null; SF_2="E-NET-02|x"; ws_perm_reclass; printf '%s' "$SF_2" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-NET-02|x" "reclass: publickey e erros de rede ficam como estao"
+printf 'EACCES: permission denied\n' > "$G6/s2.log"
+( HOME=$PH; WS_CUR=8; WS_STEP_LOG="$G6/s2.log"; WS_LOG=/dev/null; SF_8="E-CFG-05|x"; ws_perm_reclass; printf '%s' "$SF_8" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-CFG-05|x" "reclass: E-CFG-05 fica"
+# --check/--doctor: a causa da ultima instalacao que falhou (do setup.log), e a saida dessa instalacao
+printf '10:00:01 === step 10: Agent Memory app (mode install)\n--- command output (step 10) ---\nerror: invalid peer certificate: UnknownIssuer\n--- end ---\n10:00:02 result step 10: aviso E-MEM-03|uv tool install\n10:05:00 === step 10: Agent Memory app (mode doctor)\n--- command output (step 10) ---\n[claude-code:x] y\n--- end ---\n' > "$G6/setup.log"
+eq "$(WS_LOG="$G6/setup.log"; ws_last_install_result 10)" "E-MEM-03|uv tool install" "ultima instalacao: falha do passo 10"
+eq "$(WS_LOG="$G6/setup.log"; ws_last_install_result 9)" "" "ultima instalacao: passo sem registo"
+eq "$(WS_LOG="$G6/setup.log"; ws_last_step_output 10 | grep -c UnknownIssuer)" 1 "doctor: saida da instalacao, nao a do proprio doctor"
+( WS_MODE=check; WS_LOG="$G6/setup.log"; WS_TMP=$G6; WS_SEM_DESKTOP=0; WS_COLOR=0; ws_s10_detect() { ws_fail E-MEM-01 ""; return 1; }
+  ws_step 10 >/dev/null; printf '%s' "$SW_10" ) > "$G6/o"
+eq "$(cat "$G6/o")" "$(printf 'E-SETUP-01|E-MEM-01\nE-MEM-03|uv tool install')" "--check: mostra a falha da ultima instalacao"
+printf '10:06:00 result step 10: ja \n' >> "$G6/setup.log"
+eq "$(WS_LOG="$G6/setup.log"; ws_last_install_result 10)" "" "ultima instalacao: depois de correr bem, nada"
+# resumo: passo com aviso e sem detalhe mostra o titulo do aviso
+( WS_LOG=/dev/null; WS_COLOR=0; ST_10=aviso; SD_10=""; SF_10=""; SN_10=""; SW_10="E-MEM-06|~/Applications
+"; ws_print_result 10 >/dev/null; printf '%s' "$SD_10" ) > "$G6/o"
+eq "$(cat "$G6/o")" "Couldn't create the Agent Memory shortcut (E-MEM-06)" "resumo: detalhe do primeiro aviso"
+# passo 8: settings.json com comentarios -> o caminho e a linha no ecra, sem "0 skills"
+( WS_CUR=8; WS_LOG=/dev/null; CLAUDE_DIR=/h/.claude; SF_8=""; SD_8=""; ws_s8_parse "$(printf 'erro\tE-CFG-05\nerro_detalhe\tnot valid JSON at line 2, column 3: a comment\nskills\t0\n')"; printf '%s|%s' "$SF_8" "$SD_8" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-CFG-05|/h/.claude/settings.json · not valid JSON at line 2, column 3: a comment|" "s8: detalhe do E-CFG-05"
+# passo 10: ~/Applications sem escrita -> aviso E-MEM-06 e o MCP e o selftest continuam; pasta dos dados sem escrita
+AH="$G6/apph"; mkdir -p "$AH/Applications" "$AH/bin" "$AH/ws"; chmod 555 "$AH/Applications"
+printf '#!/bin/sh\nprintf "Agent Memory 0.5.0 \302\267 Python 3.12.13\\n  [OK] x\\n"\n' > "$AH/bin/agent-memory"; chmod +x "$AH/bin/agent-memory"
+( HOME=$AH; WS_HOME="$AH/ws"; KIT_SRC=""; WS_CUR=10; WS_STEP_LOG="$G6/s10.log"; : > "$WS_STEP_LOG"; WS_LOG=/dev/null; C_MEMORY_APP_VERSION=v0.5.0
+  ws_memory_shortcut "$AH/bin/agent-memory"; printf '%s|%s|%s' "$?" "$(grep -c 'Permission denied' "$G6/s10.log")" "$([ -f "$AH/ws/extras-pendentes.tsv" ] && echo reg)" ) > "$G6/o" 2> "$G6/e"
+eq "$(cat "$G6/o")|$(cat "$G6/e")" "1|1||" "atalho: ~/Applications sem escrita devolve 1, erro no log do passo e nada no ecra"
+printf '#!/bin/sh\ncase "$1 $2" in "tool list") echo "agent-memory v0.5.0";; "tool dir") echo "%s/bin";; esac\n' "$AH" > "$AH/bin/uv"; chmod +x "$AH/bin/uv"
+# o "claude mcp get" de verdade diz para que programa aponta o registo (G4: ws_memory_mcp_ok); o "memoria" antigo ja nao existe
+printf '#!/bin/sh\ncase "$3" in agent-memory) printf "agent-memory:\\n  Command: %s/bin/agent-memory\\n" ;; *) exit 1 ;; esac\n' "$AH" > "$AH/bin/claude"; chmod +x "$AH/bin/claude"
+( HOME=$AH; PATH="$AH/bin:$PATH"; WS_HOME="$AH/ws"; KIT_SRC=""; WS_CUR=10; WS_STEP_LOG="$G6/s10.log"; WS_LOG=/dev/null; WS_MODE=install; WS_NODE=$NODE
+  WS_CLAUDE="$AH/bin/claude"; AGENT_MEMORY_HOME=""; MEMORIA_HOME=""; C_MEMORY_APP_VERSION=v0.5.0; SW_10=""; SF_10=""
+  ws_s10_detect; printf '%s|%s|%s' "$?" "$SW_10" "$([ -f "$AH/.agent-memory/config.json" ] && echo cfg)" ) > "$G6/o" 2>&1
+eq "$(cat "$G6/o")" "0|E-MEM-06|~/Applications
+|cfg" "s10 detect: sem atalho possivel = aviso, sem reinstalar; config.json refeito"
+chmod 755 "$AH/Applications"
+mkdir -p "$AH/ro"; chmod 555 "$AH/ro"
+( HOME=$AH; WS_STEP_LOG="$G6/s10.log"; AGENT_MEMORY_HOME="$AH/ro/mem"; WS_NODE=$NODE; ws_memory_config; printf '%s' "$?" ) > "$G6/o" 2> "$G6/e"
+eq "$(cat "$G6/o")|$(cat "$G6/e")" "1|" "config.json: pasta sem escrita devolve 1 sem nada no ecra"
+printf '#!/bin/sh\nprintf "  [OK] x\\n  [FAIL] Cannot write to %s/ro/mem: [Errno 13] Permission denied\\n"; exit 1\n' "$AH" > "$FAKE"
+( HOME=$AH; WS_CUR=10; WS_STEP_LOG="$G6/s10.log"; WS_LOG=/dev/null; AGENT_MEMORY_HOME="$AH/ro/mem"; SW_10=""; SN_10=""; ws_memory_selftest "$FAKE" 0.5.0; printf '%s#%s' "${SW_10%%|*}" "$SN_10" ) > "$G6/o"
+case "$(cat "$G6/o")" in "E-MEM-07#"*"chmod -R u+rwX ~/ro"*) ok ;; *) ko "selftest sem escrita -> E-MEM-07 com o comando [$(cat "$G6/o")]" ;; esac
+chmod 755 "$AH/ro"
+# kit-src: uma release republicada com a mesma tag (outro SHA-256) volta a ser descarregada; sem rede fica o antigo
+KR="$G6/kr"; mkdir -p "$KR/rel/workshop-kit-v9/installer" "$KR/ws/kit-src/v9/installer"
+: > "$KR/rel/workshop-kit-v9/installer/install-user.mjs"; printf 'novo\n' > "$KR/rel/workshop-kit-v9/marca"
+tar -czf "$KR/rel/workshop-kit-v9.tar.gz" -C "$KR/rel" workshop-kit-v9
+: > "$KR/ws/kit-src/v9/installer/install-user.mjs"; date > "$KR/ws/kit-src/v9/.ws-kit-ok"
+kr() { ( WS_HOME="$KR/ws"; WS_DEV=0; KIT_SRC=""; WS_MODE=$1; WS_TMP="$G6/kt"; mkdir -p "$WS_TMP"; WS_STEP_LOG="$G6/k.log"; WS_LOG=/dev/null; WS_UA=t
+    C_WORKSHOP_VERSION=v9; C_WORKSHOP_REPO_URL="https://h/o/n"; C_RELEASE_DOWNLOAD_URL="$2"; D_REPO_HOST=h; REPO_TOKEN=""
+    WS_INJ_KIT_SHA256=$(ws_sha256 "$KR/rel/workshop-kit-v9.tar.gz"); WS_CUR=8; SW_8=""
+    ws_kit_ensure >/dev/null; printf '%s|%s' "$?" "$(cat "$KIT_SRC/marca" 2>/dev/null)" ) 2>/dev/null; }
+eq "$(kr check "file://$KR/nada/{file}")" "0|" "kit-src: o --check usa o kit que houver"
+eq "$(kr install "file://$KR/nada/{file}")" "0|" "kit-src: sem o arquivo novo, fica o antigo"
+eq "$(kr install "file://$KR/rel/{file}")" "0|novo" "kit-src: SHA-256 diferente volta a descarregar"
+eq "$(cat "$KR/ws/kit-src/v9/.ws-kit-ok")" "$(ws_sha256 "$KR/rel/workshop-kit-v9.tar.gz")" "kit-src: .ws-kit-ok guarda o SHA-256"
+# copia guardada desatualizada: substitui-se pela da release (SHA256SUMS) e corre a nova, com os mesmos argumentos
+SU="$G6/su"; mkdir -p "$SU/ws" "$SU/rel"; cp "$ROOT/setup/setup-mac.sh" "$SU/ws/setup-mac.sh"
+printf '#!/bin/bash\n# WS_INJ_KIT_SHA256=x\necho "NEW reexec=$WS_REEXEC args=$*"\n' > "$SU/rel/setup-mac.sh"
+printf '%s  setup-mac.sh\n' "$(ws_sha256 "$SU/rel/setup-mac.sh")" > "$SU/rel/SHA256SUMS"
+su_run() { ( WS_SOURCE_ONLY=1; . "$SU/ws/setup-mac.sh"; WS_HOME="$SU/ws"; WS_DEV=0; WS_TMP="$G6/st"; mkdir -p "$WS_TMP"; WS_STEP_LOG="$G6/su.log"; WS_LOG=/dev/null
+    WS_UA=t; C_WORKSHOP_VERSION=v9; C_WORKSHOP_REPO_URL="https://h/o/n"; C_RELEASE_DOWNLOAD_URL="$1"; D_REPO_HOST=h; REPO_TOKEN=""; WS_ARGS=(--check --no-desktop)
+    ws_self_update; echo "OLD" ) 2>/dev/null; }
+eq "$(su_run "file://$SU/nada/{file}")" "OLD" "self-update: sem rede fica a copia local"
+eq "$(su_run "file://$SU/rel/{file}")" "NEW reexec=1 args=--check --no-desktop" "self-update: copia nova, mesmos argumentos"
+eq "$(ws_sha256 "$SU/ws/setup-mac.sh")" "$(ws_sha256 "$SU/rel/setup-mac.sh")" "self-update: a copia guardada e a da release"
+printf '#!/bin/bash\necho sem-marca\n' > "$SU/rel/setup-mac.sh"; printf '%s  setup-mac.sh\n' "$(ws_sha256 "$SU/rel/setup-mac.sh")" > "$SU/rel/SHA256SUMS"; cp "$ROOT/setup/setup-mac.sh" "$SU/ws/setup-mac.sh"
+eq "$(su_run "file://$SU/rel/{file}")" "OLD" "self-update: um ficheiro sem os valores injetados nao substitui a copia"
+grep -q 'ws_lock || return 1' "$ROOT/setup/setup-mac.sh" && [ "$(grep -n 'ws_lock || return 1' "$ROOT/setup/setup-mac.sh" | cut -d: -f1)" -gt "$(grep -n '  ws_load_messages ||' "$ROOT/setup/setup-mac.sh" | cut -d: -f1)" ] && ok || ko "o lock vem depois das mensagens (texto do catalogo)"
+grep -q "The setup is already running (PID" "$ROOT/setup/setup-mac.sh" && ko "mensagem do lock ainda escrita no codigo" || ok
+chmod -R u+rwX "$G6" 2>/dev/null
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

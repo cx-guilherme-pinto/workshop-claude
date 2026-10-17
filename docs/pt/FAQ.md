@@ -15,8 +15,12 @@ Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não ins
 **Posso correr o script duas vezes?**
 Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
 
+**O setup diz que já está a correr.**
+Outra janela está a corrê-lo, ou ele está em pausa nela (alguém carregou em Ctrl+Z e a janela mostra "suspended"). A mensagem diz qual dos dois. Espera que acabe, escreve `fg` e carrega em Enter na janela em pausa, ou fecha essa janela, e volta a correr o mesmo comando. Um setup que foi interrompido à força (por exemplo, quando o portátil se desligou) não bloqueia o seguinte.
+
 **Instalei uma versão anterior do kit. Tenho de fazer alguma coisa?**
 Volta a correr o setup. Ele atualiza o que a versão anterior instalou com os nomes que o kit usa agora, todos em inglês: o servidor MCP da memória passa de `memoria` a `agent-memory`, e o projeto de treino passa de `~/workshop-claude/exemplo-projeto-real` para `~/workshop-claude/practice-project` (só se esta pasta ainda não existir; não se apaga nada). As tuas notas ficam onde estão (em `~/.memoria`) e a app continua a usá-las. O comando `memoria` continua a funcionar.
+Da primeira vez, usa o comando de uma linha (`curl … | bash`) em vez de `bash ~/.workshop-claude/setup-mac.sh`: a cópia guardada por uma release antiga pode parar na primeira pergunta com "zsh: suspended (tty input)". Se acontecer, escreve `fg` e carrega em Enter, ou fecha a janela e usa o comando de uma linha. A partir desta release, a cópia guardada atualiza-se sozinha a partir da release.
 
 **Estou atrás de um proxy da empresa.**
 O script deteta o proxy do sistema e, se a empresa inspecionar o tráfego HTTPS, exporta os certificados da empresa e configura o Claude Code, o Node e o uv para os usarem. Proxies que só aceitam NTLM ou Kerberos não são suportados. Nesse caso fala com a TI ou usa outra rede.

@@ -5,6 +5,7 @@ import {
   checkSettings,
   command,
   isOurs,
+  jsonErrorDetail,
   mergeSettings,
   parseSettings,
   SettingsError,
@@ -126,6 +127,43 @@ test('settings.json invalido ou com tipos errados da SettingsError (E-CFG-05)', 
   assert.throws(() => mergeSettings({ hooks: [] }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
   assert.throws(() => mergeSettings({ hooks: { Stop: {} } }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
   assert.throws(() => mergeSettings({ env: 'x' }, { node: NODE_MAC, kitDir: KIT_MAC }), SettingsError);
+});
+
+// O setup mostra e.detail no ecra: onde esta o erro, em ingles, sem citar o ficheiro (pode ter tokens no "env").
+test('settings.json com comentarios, virgulas a mais ou tipos errados: o detalhe diz onde e porque', () => {
+  const detail = (t) => {
+    try {
+      parseSettings(t);
+    } catch (e) {
+      assert.ok(e instanceof SettingsError);
+      assert.equal(e.code, 'E-CFG-05');
+      return e.detail;
+    }
+    return null;
+  };
+  assert.equal(detail('{\n  // o meu modelo\n  "model": "opus"\n}'), 'not valid JSON at line 2, column 3: a comment. JSON does not allow // or /* */ comments');
+  assert.equal(detail('{\r\n  "a": 1 /* x */\r\n}'), 'not valid JSON at line 2, column 10: a comment. JSON does not allow // or /* */ comments');
+  assert.equal(detail('{\n  "allow": ["a", "b",],\n  "x": 1\n}'), 'not valid JSON at line 2, column 21: a comma after the last item. JSON does not allow it');
+  assert.equal(detail('{ "a": 1,\n}'), 'not valid JSON at line 1, column 9: a comma after the last item. JSON does not allow it');
+  // // dentro de uma string (um URL) e uma aspa escapada nao sao comentarios
+  assert.match(detail('{ "u": "https://x/\\"y", "b": 1 "c": 2 }'), /^not valid JSON at line 1, column \d+$/);
+  assert.match(detail('{ "a": 1'), /^not valid JSON at (line 1, column \d+|the file ends too early or has an invalid character)$/);
+  assert.equal(detail('[1, 2]'), 'the whole file must be one object { ... }');
+  assert.equal(detail('{ "env": { "GITHUB_TOKEN": "ghp_secretsecretsecret" }, }').includes('ghp_'), false, 'sem citar o ficheiro');
+  assert.equal(jsonErrorDetail('{"a":1 x}', new Error('Unexpected token at position 7')), 'line 1, column 8');
+  const shape = (o, f = mergeSettings) => {
+    try {
+      f(o, { node: NODE_MAC, kitDir: KIT_MAC });
+    } catch (e) {
+      return e.detail;
+    }
+    return null;
+  };
+  assert.equal(shape({ hooks: [] }), '"hooks" must be an object { "Stop": [ ... ] }, not a list or text');
+  assert.equal(shape({ hooks: { Stop: {} } }), '"hooks.Stop" must be a list [ ... ]');
+  assert.equal(shape({ env: 'x' }), '"env" must be an object { "NAME": "value" }');
+  // o --check ve o mesmo erro de tipo que a instalacao (antes dizia so que faltavam os hooks)
+  assert.equal(shape({ hooks: [] }, checkSettings), '"hooks" must be an object { "Stop": [ ... ] }, not a list or text');
 });
 
 test('checkSettings deteta o que falta e statusline alheia', () => {

@@ -336,6 +336,7 @@ export function verificar(flags, env = process.env) {
   } catch (e) {
     if (e instanceof SettingsError) {
       out('erro', e.code);
+      if (e.detail) out('erro_detalhe', e.detail);
       faltam.push('settings.json invalido');
     } else throw e;
   }
@@ -455,6 +456,7 @@ if (isMain) {
   } catch (e) {
     if (e instanceof SettingsError) {
       out('erro', e.code);
+      if (e.detail) out('erro_detalhe', e.detail);
       process.stderr.write(`ERROR install-user: ${e.message}\n`);
       process.exitCode = 3;
     } else {

@@ -80,6 +80,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-MEM-03` | Installing the Agent Memory app failed | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
 | `E-MEM-04` | WebView2 is missing (Windows) | [Windows](#windows-e-mem-04) |
 | `E-MEM-05` | The Agent Memory app test failed | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
+| `E-MEM-06` | Couldn't create the Agent Memory shortcut | [macOS](#mac-e-mem-06) · [Windows](#windows-e-mem-06) |
+| `E-MEM-07` | The Agent Memory folder is not writable | [macOS](#mac-e-mem-07) · [Windows](#windows-e-mem-07) |
 | `E-DESK-01` | Claude Desktop has limits with the Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | I couldn't install Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-PROF-01` | The setup could not add the workshop folders to a shell profile | [macOS](#mac-e-prof-01) |
@@ -160,15 +162,17 @@ export NO_PROXY=localhost,127.0.0.1
 
 ### E-NET-04 · Your company intercepts HTTPS traffic (its own certificate)
 
-- **Why:** The certificate for api.anthropic.com does not come from a public authority. The company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code to use them.
+- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code and uv to use them.
 - **What to do:**
   - Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.
   - If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again.
+  - If the Agent Memory app fails with a certificate error, install its Python with the system certificates (last command below), then run the setup again.
 
-Command (macOS):
+Commands (macOS):
 
 ```
 security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem
+UV_SYSTEM_CERTS=true uv python install 3.12
 ```
 
 <a id="mac-e-net-05"></a>
@@ -333,15 +337,15 @@ unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY
 
 ### E-CFG-05 · The Claude Code settings.json file has an error
 
-- **Why:** ~/.claude/settings.json is not valid JSON. The setup does not touch it, so you don't lose your settings.
+- **Why:** ~/.claude/settings.json is not strict JSON, or a field in it has the wrong type: the line and column, or the field, are in brackets. JSON does not allow // or /* */ comments, or a comma after the last item of a list or object (some editors' settings files do). The setup does not touch the file, so you don't lose your settings.
 - **What to do:**
-  - Open the file and fix the error (for example, a missing comma or brace).
-  - Then run the setup again.
+  - Open the file at the line and column shown and fix it: remove the comments and the comma after the last item. For a field with the wrong type, give it the shape shown in brackets.
+  - Check the file with the command below (it prints JSON OK), then run the setup again.
 
 Command (macOS):
 
 ```
-node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8'))"
+PATH="$HOME/.workshop-claude/node/bin:$PATH" node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')); console.log('JSON OK')"
 ```
 
 <a id="mac-e-cfg-06"></a>
@@ -378,16 +382,18 @@ env | grep -E "^UV_(PYTHON_DOWNLOADS|NO_MANAGED_PYTHON|PYTHON_PREFERENCE)"
 
 ### E-PERM-01 · No permission to write to your home folder
 
-- **Why:** The setup installs everything in your home folder, and a folder is protected or belongs to another user (for example, it was created with sudo or by an administrator).
+- **Why:** The setup installs everything in your home folder, and a folder or file there (in brackets) is protected, belongs to another user (for example, it was created with sudo or by an administrator), or is a file where a folder should be.
 - **What to do:**
-  - Find the folder in the log and fix its owner.
+  - Run the command the setup shows after "To fix it, run this command" (it lists exactly those paths), then run the setup again.
+  - If you have no admin rights for sudo, ask IT to run it for you.
+  - If a path is a file and not a folder (for example ~/.local/bin), rename it: mv ~/.local/bin ~/.local/bin.old.
   - Don't run the setup with sudo or as administrator.
 
 Commands (macOS):
 
 ```
-ls -ld ~/.local ~/.local/bin ~/.claude ~/.workshop-claude
-sudo chown -R "$USER" ~/.local ~/.claude ~/.workshop-claude
+ls -ld ~/.local ~/.local/bin ~/.claude ~/.claude.json ~/.workshop-claude
+sudo chown -R "$USER" ~/.local ~/.claude ~/.claude.json ~/.workshop-claude
 ```
 
 <a id="mac-e-perm-02"></a>
@@ -771,7 +777,7 @@ curl -sSI https://github.com/cx-guilherme-pinto/workshop-claude/releases/downloa
 
 ### E-KIT-03 · Installing the skills and hooks failed
 
-- **Why:** The Node installer couldn't copy the files or update settings.json. Your settings.json has a backup in ~/.workshop-claude/backup.
+- **Why:** The Node installer couldn't copy the files or update settings.json. If settings.json was already changed, its backup is in ~/.workshop-claude/backup.
 - **What to do:**
   - Read the message in the log (search for "install-user").
   - Fix the cause (permissions or an invalid settings.json) and run the setup again.
@@ -861,7 +867,7 @@ mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
 
 ### E-MEM-03 · Installing the Agent Memory app failed
 
-- **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).
+- **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com) or the certificate of a company proxy (code E-NET-04).
 - **What to do:**
   - Check that you can reach pypi.org and files.pythonhosted.org.
   - Run the setup again. The app is optional: the skills work without it.
@@ -884,6 +890,39 @@ uv python install 3.12
 Command (macOS):
 
 ```
+agent-memory selftest
+```
+
+<a id="mac-e-mem-06"></a>
+
+### E-MEM-06 · Couldn't create the Agent Memory shortcut
+
+- **Why:** The folder for app shortcuts (in brackets) is not writable: it belongs to another user or is locked by IT. Only the shortcut is missing: the app, its window and its MCP work.
+- **What to do:**
+  - You can continue. Open the app window with the first command below.
+  - If you want the shortcut, give the folder back to your user (or ask IT), then run the setup again.
+
+Commands (macOS):
+
+```
+agent-memory-gui
+ls -ld ~/Applications
+```
+
+<a id="mac-e-mem-07"></a>
+
+### E-MEM-07 · The Agent Memory folder is not writable
+
+- **Why:** The Agent Memory app is installed, but it cannot write to its memories folder (~/.agent-memory, ~/.memoria from older versions, or AGENT_MEMORY_HOME). This usually happens after a command was run with sudo, which leaves the folder owned by the administrator, or when that path is a file or a broken link. Running the setup again does not fix it. The skills work without the app.
+- **What to do:**
+  - Run the command the setup shows after "To fix it, run this command", then run the setup again.
+  - Without admin rights: rename the folder (for example, mv ~/.agent-memory ~/.agent-memory-old), run the setup again, then copy your project folders from the old folder into the new one.
+  - To see the folder and what the app reports, use the commands below.
+
+Commands (macOS):
+
+```
+ls -ld ~/.agent-memory ~/.memoria
 agent-memory selftest
 ```
 
@@ -1060,15 +1099,17 @@ $env:NO_PROXY = 'localhost,127.0.0.1'
 
 ### E-NET-04 · Your company intercepts HTTPS traffic (its own certificate)
 
-- **Why:** The certificate for api.anthropic.com does not come from a public authority. The company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code to use them.
+- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code and uv to use them.
 - **What to do:**
   - Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.
   - If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again.
+  - If the Agent Memory app fails with a certificate error, install its Python with the system certificates (last command below), then run the setup again.
 
-Command (Windows):
+Commands (Windows):
 
 ```
 Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Select-Object Subject, Issuer
+$env:UV_SYSTEM_CERTS = 'true'; uv python install 3.12
 ```
 
 <a id="windows-e-net-05"></a>
@@ -1288,10 +1329,10 @@ Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern CLAUDE_COD
 
 ### E-CFG-05 · The Claude Code settings.json file has an error
 
-- **Why:** ~/.claude/settings.json is not valid JSON. The setup does not touch it, so you don't lose your settings.
+- **Why:** ~/.claude/settings.json is not strict JSON, or a field in it has the wrong type: the line and column, or the field, are in brackets. JSON does not allow // or /* */ comments, or a comma after the last item of a list or object (some editors' settings files do). The setup does not touch the file, so you don't lose your settings.
 - **What to do:**
-  - Open the file and fix the error (for example, a missing comma or brace).
-  - Then run the setup again.
+  - Open the file at the line and column shown and fix it: remove the comments and the comma after the last item. For a field with the wrong type, give it the shape shown in brackets.
+  - Check the file with the command below (it prints JSON OK), then run the setup again.
 
 Command (Windows):
 
@@ -1333,15 +1374,20 @@ Get-ChildItem Env:UV_*
 
 ### E-PERM-01 · No permission to write to your home folder
 
-- **Why:** The setup installs everything in your home folder, and a folder is protected or belongs to another user (for example, it was created with sudo or by an administrator).
+- **Why:** The setup installs everything in your home folder, and a folder or file there (in brackets) is protected, belongs to another user (for example, it was created with sudo or by an administrator), or is a file where a folder should be.
 - **What to do:**
-  - Find the folder in the log and fix its owner.
+  - Run the command the setup shows after "To fix it, run this command" (it lists exactly those paths), then run the setup again.
+  - If you have no admin rights for sudo, ask IT to run it for you.
+  - If a path is a file and not a folder (for example ~/.local/bin), rename it: mv ~/.local/bin ~/.local/bin.old.
   - Don't run the setup with sudo or as administrator.
 
-Command (Windows):
+Commands (Windows):
 
 ```
 icacls "$env:USERPROFILE\.workshop-claude"
+icacls "$env:USERPROFILE\.claude"
+icacls "$env:USERPROFILE\.claude.json"
+icacls "$env:USERPROFILE\.local\bin"
 ```
 
 <a id="windows-e-perm-02"></a>
@@ -1739,7 +1785,7 @@ Invoke-WebRequest -UseBasicParsing -Method Head https://github.com/cx-guilherme-
 
 ### E-KIT-03 · Installing the skills and hooks failed
 
-- **Why:** The Node installer couldn't copy the files or update settings.json. Your settings.json has a backup in ~/.workshop-claude/backup.
+- **Why:** The Node installer couldn't copy the files or update settings.json. If settings.json was already changed, its backup is in ~/.workshop-claude/backup.
 - **What to do:**
   - Read the message in the log (search for "install-user").
   - Fix the cause (permissions or an invalid settings.json) and run the setup again.
@@ -1829,7 +1875,7 @@ Rename-Item ~/workshop-claude\demo-project demo-project-old
 
 ### E-MEM-03 · Installing the Agent Memory app failed
 
-- **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).
+- **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com) or the certificate of a company proxy (code E-NET-04).
 - **What to do:**
   - Check that you can reach pypi.org and files.pythonhosted.org.
   - Run the setup again. The app is optional: the skills work without it.
@@ -1861,6 +1907,38 @@ uv python install 3.12
 Command (Windows):
 
 ```
+agent-memory selftest
+```
+
+<a id="windows-e-mem-06"></a>
+
+### E-MEM-06 · Couldn't create the Agent Memory shortcut
+
+- **Why:** The folder for app shortcuts (in brackets) is not writable: it belongs to another user or is locked by IT. Only the shortcut is missing: the app, its window and its MCP work.
+- **What to do:**
+  - You can continue. Open the app window with the first command below.
+  - If you want the shortcut, give the folder back to your user (or ask IT), then run the setup again.
+
+Command (Windows):
+
+```
+agent-memory-gui
+```
+
+<a id="windows-e-mem-07"></a>
+
+### E-MEM-07 · The Agent Memory folder is not writable
+
+- **Why:** The Agent Memory app is installed, but it cannot write to its memories folder (~/.agent-memory, ~/.memoria from older versions, or AGENT_MEMORY_HOME). This usually happens after a command was run with sudo, which leaves the folder owned by the administrator, or when that path is a file or a broken link. Running the setup again does not fix it. The skills work without the app.
+- **What to do:**
+  - Run the command the setup shows after "To fix it, run this command", then run the setup again.
+  - Without admin rights: rename the folder (for example, mv ~/.agent-memory ~/.agent-memory-old), run the setup again, then copy your project folders from the old folder into the new one.
+  - To see the folder and what the app reports, use the commands below.
+
+Commands (Windows):
+
+```
+icacls "$env:USERPROFILE\.agent-memory"
 agent-memory selftest
 ```
 
