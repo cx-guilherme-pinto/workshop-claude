@@ -66,11 +66,11 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-DEMO-01` | Não consegui montar os projetos do workshop | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | Os testes da app da Arena falharam | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | A pasta do projeto já existe e não é do kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
-| `E-MEM-01` | A release da app Memória ainda não foi publicada | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
-| `E-MEM-02` | O ficheiro da app Memória não confere (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
-| `E-MEM-03` | A instalação da app Memória falhou | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
+| `E-MEM-01` | A release da app Agent Memory ainda não foi publicada | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
+| `E-MEM-02` | O ficheiro da app Agent Memory não confere (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
+| `E-MEM-03` | A instalação da app Agent Memory falhou | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
 | `E-MEM-04` | Falta o WebView2 (Windows) | [Windows](#windows-e-mem-04) |
-| `E-MEM-05` | O teste da app Memória falhou | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
+| `E-MEM-05` | O teste da app Agent Memory falhou | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-DESK-01` | O Claude Desktop tem limitações com a Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | Não consegui instalar o Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-SMOKE-01` | O teste final ao Claude falhou | [macOS](#mac-e-smoke-01) · [Windows](#windows-e-smoke-01) |
@@ -327,7 +327,7 @@ bash ~/.workshop-claude/setup-mac.sh --replace-statusline
 
 ### E-CFG-07 · O uv está proibido de usar o Python gerido
 
-- **Porquê:** Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Memória precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.
+- **Porquê:** Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Agent Memory precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.
 - **O que fazer:**
   - Se a variável foi posta pela empresa, fala com o IT antes de a mudar.
   - Não precisas de ter Python instalado: o uv traz o dele.
@@ -709,15 +709,15 @@ mv ~/workshop-claude ~/workshop-claude-antigo
 
 <a id="mac-e-mem-01"></a>
 
-### E-MEM-01 · A release da app Memória ainda não foi publicada
+### E-MEM-01 · A release da app Agent Memory ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Agent Memory v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 
 <a id="mac-e-mem-02"></a>
 
-### E-MEM-02 · O ficheiro da app Memória não confere (SHA-256)
+### E-MEM-02 · O ficheiro da app Agent Memory não confere (SHA-256)
 
 - **Porquê:** O wheel descarregado é diferente do publicado em SHA256SUMS. Não o instalei.
 - **O que fazer:**
@@ -725,7 +725,7 @@ mv ~/workshop-claude ~/workshop-claude-antigo
 
 <a id="mac-e-mem-03"></a>
 
-### E-MEM-03 · A instalação da app Memória falhou
+### E-MEM-03 · A instalação da app Agent Memory falhou
 
 - **Porquê:** O uv não conseguiu instalar a app (Python 3.12 ou as dependências). Costuma ser rede (pypi.org, files.pythonhosted.org ou github.com).
 - **O que fazer:**
@@ -740,7 +740,7 @@ uv python install 3.12
 
 <a id="mac-e-mem-05"></a>
 
-### E-MEM-05 · O teste da app Memória falhou
+### E-MEM-05 · O teste da app Agent Memory falhou
 
 - **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.
 - **O que fazer:**
@@ -1096,7 +1096,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setu
 
 ### E-CFG-07 · O uv está proibido de usar o Python gerido
 
-- **Porquê:** Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Memória precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.
+- **Porquê:** Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Agent Memory precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.
 - **O que fazer:**
   - Se a variável foi posta pela empresa, fala com o IT antes de a mudar.
   - Não precisas de ter Python instalado: o uv traz o dele.
@@ -1492,15 +1492,15 @@ Rename-Item ~/workshop-claude workshop-claude-antigo
 
 <a id="windows-e-mem-01"></a>
 
-### E-MEM-01 · A release da app Memória ainda não foi publicada
+### E-MEM-01 · A release da app Agent Memory ainda não foi publicada
 
-- **Porquê:** Não encontrei os ficheiros da app Memória v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
+- **Porquê:** Não encontrei os ficheiros da app Agent Memory v0.4.1 no servidor. A app é opcional: as skills funcionam sem ela.
 - **O que fazer:**
   - Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar.
 
 <a id="windows-e-mem-02"></a>
 
-### E-MEM-02 · O ficheiro da app Memória não confere (SHA-256)
+### E-MEM-02 · O ficheiro da app Agent Memory não confere (SHA-256)
 
 - **Porquê:** O wheel descarregado é diferente do publicado em SHA256SUMS. Não o instalei.
 - **O que fazer:**
@@ -1508,7 +1508,7 @@ Rename-Item ~/workshop-claude workshop-claude-antigo
 
 <a id="windows-e-mem-03"></a>
 
-### E-MEM-03 · A instalação da app Memória falhou
+### E-MEM-03 · A instalação da app Agent Memory falhou
 
 - **Porquê:** O uv não conseguiu instalar a app (Python 3.12 ou as dependências). Costuma ser rede (pypi.org, files.pythonhosted.org ou github.com).
 - **O que fazer:**
@@ -1525,14 +1525,14 @@ uv python install 3.12
 
 ### E-MEM-04 · Falta o WebView2 (Windows)
 
-- **Porquê:** A janela da app Memória usa o Microsoft Edge WebView2, e não o encontrei nem o consegui instalar. Sem ele, a app abre no browser.
+- **Porquê:** A janela da app Agent Memory usa o Microsoft Edge WebView2, e não o encontrei nem o consegui instalar. Sem ele, a app abre no browser.
 - **O que fazer:**
   - Podes continuar: a app abre no browser.
   - Para a janela própria, instala o WebView2 Runtime pelo portal de software da empresa ou pede ao IT.
 
 <a id="windows-e-mem-05"></a>
 
-### E-MEM-05 · O teste da app Memória falhou
+### E-MEM-05 · O teste da app Agent Memory falhou
 
 - **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.
 - **O que fazer:**

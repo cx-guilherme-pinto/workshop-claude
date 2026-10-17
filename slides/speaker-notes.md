@@ -156,7 +156,7 @@ Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de seg
 
 [25:30 → 26:00] 0,5 min · deves estar aqui aos 26 min
 
-Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa faz o mesmo com 15.
+Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa constrói a mesma Arena, com até 8 agentes em paralelo.
 
 ### 18. 100 agentes a construir a Arena
 
@@ -174,7 +174,7 @@ Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta 
 
 [29:30 → 30:00] 0,5 min · deves estar aqui aos 30 min
 
-25 minutos de hands-on. No benchmark, o swarm de 15 tarefas demorou 2 a 3 minutos (a sessão completa, 3,5 a 5); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
+25 minutos de hands-on. Na medição, o swarm das 100 tarefas demorou 6,5 min (a sessão completa, 9 min); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
 
 ### 21. O que vamos fazer neste projeto hoje
 
@@ -210,13 +210,13 @@ Explicar antes de correr. O ponto importante: quem escolhe o que corre é um scr
 
 [38:30 → 40:30] 2 min · deves estar aqui aos 39 min
 
-A partir daqui o swarm trabalha alguns minutos (2 a 3 no benchmark; mais com contas novas). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
+A partir daqui o swarm trabalha alguns minutos (6,5 min na medição; mais com contas novas). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
 
 ### 27. Pergunta sem interromper
 
 [40:30 → 42:30] 2 min · deves estar aqui aos 41 min
 
-O /btw responde ao lado. É a forma certa de tirar dúvidas durante uma execução longa.
+O /btw responde ao lado, sem entrar na conversa. Atenção: enquanto o painel da resposta está aberto, os resultados dos agentes ficam à espera (o Claude Code mostra "background task updates waiting while this panel is open"). Lê e carrega em Esc para o swarm continuar.
 
 ### 28. Hooks: o Claude Code avisa, um script reage
 

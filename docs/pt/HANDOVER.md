@@ -4,7 +4,7 @@
 
 Para a sessão do Claude que continua o trabalho na máquina da empresa, onde há Jira, Confluence e GitHub corporativo, mas não o Gitea de desenvolvimento. Escrito a 16 out. 2026, no fim da construção.
 
-Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-21: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Memória, no repositório `claude-memory-app`.
+Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-21: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
 
 ## De onde vem isto
 
@@ -17,7 +17,7 @@ O kit e a app foram construídos noutra máquina, contra um Gitea privado (`repo
 | Setup (Mac e Windows) | Completo. Instala tudo de raiz, sem admin, e fala inglês desde a D-20 | 115 testes bash, 44 Pester, PSScriptAnalyzer sem erros, ponta a ponta no Mac em HOMEs vazios. **O Windows real nunca foi corrido** |
 | Projeto 1 (Arena) | 100 cartões; 15 no modo participante | Benchmark com as skills em pt (D-16): 10/10, US$ 1,03 de média e 4,0 min. Com as skills em inglês: 6/6, US$ 0,94 a 1,05 e 4,0 a 4,5 min (Arena em pt e em en; D-20). Apresentador: 3/3, US$ 2,54 e 7,1 min |
 | Projeto 2 (`/task-*`) | Jira pelo MCP, com o `acli` de reserva (D-19); Confluence pelo MCP ou pelo `acli`; GitHub pelo `gh` | Ponta a ponta no projeto de treino (D-18). **Nunca correu num Jira, Confluence ou GitHub corporativo reais** |
-| App Memória v0.4.0 | 4 línguas, registo das chamadas MCP, app portátil | 227 testes, selftest e instalação isolada |
+| App Agent Memory v0.4.0 | 4 línguas, registo das chamadas MCP, app portátil | 227 testes, selftest e instalação isolada |
 | Slides | 47 slides, 90 min, em pt e en | Render no LibreOffice |
 | Releases | `v1.0.0-dev.3` no Gitea | O `--check` a partir da release |
 

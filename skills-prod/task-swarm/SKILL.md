@@ -35,4 +35,4 @@ The script decides the graph and the batches. Your job is to launch exactly what
 Tips for the user:
 - The state is kept in `.workshop/`. If you stop (Esc), running `/task-swarm` again resumes where it left off.
 - To watch the swarm live in another terminal, from the project folder: `node "{{KIT_DIR}}/orquestrador/painel.mjs"`.
-- `/btw <question>` asks a question without interrupting the swarm.
+- `/btw <question>` asks a side question. Close its answer panel with Esc: while it is open, the agents' results wait.

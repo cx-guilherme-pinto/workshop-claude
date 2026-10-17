@@ -36,4 +36,4 @@ The script decides the graph, not you. Your job is to launch exactly what it ask
 
 With `--auto`, end only with `ENXAME OK`.
 
-While the swarm runs, the participant can use `/btw <question>` without interrupting anything.
+While the swarm runs, the participant can use `/btw <question>`. Its answer opens in a panel; the agents' results wait until the panel is closed with Esc.

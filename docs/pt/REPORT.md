@@ -18,7 +18,7 @@ Data: 16 out. 2026. Releases de desenvolvimento no Gitea:
 | Medição de custo | Hooks `SubagentStop`/`Stop` que leem os tokens reais dos transcripts × `pricing.json`; statusline; aviso informativo aos US$ 5 e aos US$ 10 | `hooks/`, `statusline/`, `pricing.json` |
 | Skills e agentes | Demo: `/demo-plan`, `/demo-swarm`, `/demo-review`, `/demo-cost`, `/demo-reset`, `/memoria`. Produção: `/task-intake`, `/task-plan`, `/task-swarm`, `/task-gate`, `/task-report`, `/memoria`. Agentes Opus, Sonnet e Haiku | `skills-*/`, `agents/` |
 | Projeto de treino (Projeto 2 sem Jira) | Biblioteca Municipal com 3 issues locais, ligadas ao épico EX-100 | `exemplo-projeto-real/` |
-| App Memória | Markdown + SQLite FTS5, grafo, pesquisa por nome, projeto, ticket e épico, servidor MCP, `memoria update`, e o mesmo visual da Arena | repo `claude-memory-app` |
+| App Agent Memory | Markdown + SQLite FTS5, grafo, pesquisa por nome, projeto, ticket e épico, servidor MCP, `memoria update`, e o mesmo visual da Arena | repo `claude-memory-app` |
 | Skill de design | Fork MIT dentro do repo (commit `2b44c81`), sem o script de rede | `skills-shared/design-taste-frontend/` |
 | Apresentação | 47 slides para 90 min, com notas, relógio acumulado, slides "Faz agora", o vídeo real dos 100 agentes e capturas | `slides/workshop.pptx`, `slides/speaker-notes.md` |
 | Preview do swarm | Vídeo acelerado (92 s), GIF e a Arena gravada para replay sem API | `slides/media/`, `presenter-replay/` |

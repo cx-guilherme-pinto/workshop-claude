@@ -42,10 +42,10 @@ async function fetchCards() {
   };
 }
 
-// With a plan, it shows the cards of the plan; with no plan, the participant mode ones. The ones that exist always show up.
+// With a plan, it shows the cards of the plan; with no plan, all of them. The ones that exist always show up.
 function visible() {
   const { mode, cards } = state.data;
-  return cards.filter((c) => c.exists || (mode ? c.in_plan : c.mode === 'participant'));
+  return cards.filter((c) => c.exists || !mode || c.in_plan);
 }
 
 function group(list) {

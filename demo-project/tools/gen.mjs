@@ -63,12 +63,11 @@ const TEXTS = {
     tasks: {
       title: '# TASKS — Arena de Segurança',
       intro: 'Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/gen.mjs` a partir de `specs/cards.json` e `specs/tasks.json`.',
-      participant: (n) => `- Modo participante: **${n} cartões** + utilitário + 2 páginas + integração + revisão.`,
-      presenter: (n) => `- Modo apresentador: **${n} cartões** + as mesmas tarefas.`,
+      participant: (n) => `- Modo participante: **${n} cartões** + utilitário + 2 páginas + integração + revisão, com até 8 agentes em paralelo.`,
+      presenter: (n) => `- Modo apresentador: as mesmas tarefas, com até 16 agentes em paralelo.`,
       support: '## Tarefas de suporte',
       supportColumns: ['id', 'onda', 'o quê', 'spec', 'depende de'],
-      cardColumns: ['id', 'modo', 'modelo', 'título', 'conceito', 'depende de'],
-      modes: { participant: 'participante', presenter: 'apresentador' },
+      cardColumns: ['id', 'modelo', 'título', 'conceito', 'depende de'],
       allCards: 'todos os cartões',
     },
     msg: {
@@ -132,12 +131,11 @@ const TEXTS = {
     tasks: {
       title: '# TASKS — Security Arena',
       intro: 'Each task is done by one agent. **This file is generated** by `node tools/gen.mjs` from `specs/cards.json` and `specs/tasks.json`.',
-      participant: (n) => `- Participant mode: **${n} cards** + utility + 2 pages + integration + review.`,
-      presenter: (n) => `- Presenter mode: **${n} cards** + the same tasks.`,
+      participant: (n) => `- Participant mode: **${n} cards** + utility + 2 pages + integration + review, with up to 8 agents in parallel.`,
+      presenter: (n) => `- Presenter mode: the same tasks, with up to 16 agents in parallel.`,
       support: '## Support tasks',
       supportColumns: ['id', 'wave', 'what', 'spec', 'depends on'],
-      cardColumns: ['id', 'mode', 'template', 'title', 'concept', 'depends on'],
-      modes: { participant: 'participant', presenter: 'presenter' },
+      cardColumns: ['id', 'template', 'title', 'concept', 'depends on'],
       allCards: 'all the cards',
     },
     msg: {
@@ -312,8 +310,7 @@ function tasksMd() {
   const X = TEXTS.tasks;
   const L = [X.title, ''];
   L.push(X.intro, '');
-  const part = specs.cards.filter((c) => c.mode === 'participant');
-  L.push(X.participant(part.length));
+  L.push(X.participant(specs.cards.length));
   L.push(X.presenter(specs.cards.length), '');
   L.push(X.support, '', tableRow(X.supportColumns), tableRow(['---', '---', '---', '---', '---']));
   const dep = (d) => (d === '*cards' ? X.allCards : d);
@@ -324,8 +321,8 @@ function tasksMd() {
   for (const cat of specs.categories) {
     const cs = specs.cards.filter((c) => c.category === cat.id);
     if (!cs.length) continue;
-    L.push(`## ${cat.name}`, '', tableRow(X.cardColumns), tableRow(['---', '---', '---', '---', '---', '---']));
-    for (const c of cs) L.push(tableRow([c.id, X.modes[c.mode] ?? c.mode, c.template, c.title, c.concept, (c.depends || []).join(', ') || '—']));
+    L.push(`## ${cat.name}`, '', tableRow(X.cardColumns), tableRow(['---', '---', '---', '---', '---']));
+    for (const c of cs) L.push(tableRow([c.id, c.template, c.title, c.concept, (c.depends || []).join(', ') || '—']));
     L.push('');
   }
   return L.join('\n');

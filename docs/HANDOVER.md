@@ -4,7 +4,7 @@
 
 For the Claude session that continues the work on the company machine, which has Jira, Confluence and corporate GitHub but not the development Gitea. Written on 16 Oct 2026, at the end of the build.
 
-Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-21: what was decided and why, in Portuguese) and the Memória app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
+Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-21: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
 
 ## Where this comes from
 
@@ -17,7 +17,7 @@ The kit and the app were built on another machine, against a private Gitea (`rep
 | Setup (Mac and Windows) | Complete. Installs everything from scratch, without admin, and speaks English since D-20 | 115 bash tests, 44 Pester tests, PSScriptAnalyzer with no errors, end to end on the Mac in empty HOMEs. **Never run on real Windows** |
 | Project 1 (Arena) | 100 cards; 15 in participant mode | Benchmark with the skills in pt (D-16): 10/10, US$ 1.03 on average and 4.0 min. With the skills in English: 6/6, US$ 0.94 to 1.05 and 4.0 to 4.5 min (Arena in pt and in en; D-20). Presenter: 3/3, US$ 2.54 and 7.1 min |
 | Project 2 (`/task-*`) | Jira through the MCP, with `acli` as the fallback (D-19); Confluence through the MCP or `acli`; GitHub through `gh` | End to end on the practice project (D-18). **Never run against a real corporate Jira, Confluence or GitHub** |
-| Memória app v0.4.0 | 4 languages, log of the MCP calls, portable app | 227 tests, selftest and an isolated install |
+| Agent Memory app v0.4.0 | 4 languages, log of the MCP calls, portable app | 227 tests, selftest and an isolated install |
 | Slides | 47 slides, 90 min, in pt and en | Rendered in LibreOffice |
 | Releases | `v1.0.0-dev.3` on Gitea | `--check` from the release |
 

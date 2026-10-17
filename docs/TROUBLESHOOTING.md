@@ -66,11 +66,11 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-DEMO-01` | I couldn't set up the workshop projects | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | The Arena app tests failed | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | The project folder already exists and is not from the kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
-| `E-MEM-01` | The Memória app release is not published yet | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
-| `E-MEM-02` | The Memória app file does not match (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
-| `E-MEM-03` | Installing the Memória app failed | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
+| `E-MEM-01` | The Agent Memory app release is not published yet | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
+| `E-MEM-02` | The Agent Memory app file does not match (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
+| `E-MEM-03` | Installing the Agent Memory app failed | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
 | `E-MEM-04` | WebView2 is missing (Windows) | [Windows](#windows-e-mem-04) |
-| `E-MEM-05` | The Memória app test failed | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
+| `E-MEM-05` | The Agent Memory app test failed | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-DESK-01` | Claude Desktop has limits with the Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | I couldn't install Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
 | `E-SMOKE-01` | The final Claude test failed | [macOS](#mac-e-smoke-01) · [Windows](#windows-e-smoke-01) |
@@ -327,7 +327,7 @@ bash ~/.workshop-claude/setup-mac.sh --replace-statusline
 
 ### E-CFG-07 · uv is not allowed to use managed Python
 
-- **Why:** An environment variable (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON or UV_PYTHON_PREFERENCE) stops uv from downloading its own Python. The Memória app needs that Python. The setup ignores the variable only in its own command, but other uv commands are still affected.
+- **Why:** An environment variable (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON or UV_PYTHON_PREFERENCE) stops uv from downloading its own Python. The Agent Memory app needs that Python. The setup ignores the variable only in its own command, but other uv commands are still affected.
 - **What to do:**
   - If your company set the variable, talk to IT before you change it.
   - You don't need Python installed: uv brings its own.
@@ -709,15 +709,15 @@ mv ~/workshop-claude ~/workshop-claude-old
 
 <a id="mac-e-mem-01"></a>
 
-### E-MEM-01 · The Memória app release is not published yet
+### E-MEM-01 · The Agent Memory app release is not published yet
 
-- **Why:** I couldn't find the files for the Memória app v0.4.1 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Agent Memory app v0.4.1 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 
 <a id="mac-e-mem-02"></a>
 
-### E-MEM-02 · The Memória app file does not match (SHA-256)
+### E-MEM-02 · The Agent Memory app file does not match (SHA-256)
 
 - **Why:** The downloaded wheel is different from the one published in SHA256SUMS. I did not install it.
 - **What to do:**
@@ -725,7 +725,7 @@ mv ~/workshop-claude ~/workshop-claude-old
 
 <a id="mac-e-mem-03"></a>
 
-### E-MEM-03 · Installing the Memória app failed
+### E-MEM-03 · Installing the Agent Memory app failed
 
 - **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).
 - **What to do:**
@@ -740,7 +740,7 @@ uv python install 3.12
 
 <a id="mac-e-mem-05"></a>
 
-### E-MEM-05 · The Memória app test failed
+### E-MEM-05 · The Agent Memory app test failed
 
 - **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.
 - **What to do:**
@@ -1096,7 +1096,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setu
 
 ### E-CFG-07 · uv is not allowed to use managed Python
 
-- **Why:** An environment variable (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON or UV_PYTHON_PREFERENCE) stops uv from downloading its own Python. The Memória app needs that Python. The setup ignores the variable only in its own command, but other uv commands are still affected.
+- **Why:** An environment variable (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON or UV_PYTHON_PREFERENCE) stops uv from downloading its own Python. The Agent Memory app needs that Python. The setup ignores the variable only in its own command, but other uv commands are still affected.
 - **What to do:**
   - If your company set the variable, talk to IT before you change it.
   - You don't need Python installed: uv brings its own.
@@ -1492,15 +1492,15 @@ Rename-Item ~/workshop-claude workshop-claude-old
 
 <a id="windows-e-mem-01"></a>
 
-### E-MEM-01 · The Memória app release is not published yet
+### E-MEM-01 · The Agent Memory app release is not published yet
 
-- **Why:** I couldn't find the files for the Memória app v0.4.1 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Agent Memory app v0.4.1 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 
 <a id="windows-e-mem-02"></a>
 
-### E-MEM-02 · The Memória app file does not match (SHA-256)
+### E-MEM-02 · The Agent Memory app file does not match (SHA-256)
 
 - **Why:** The downloaded wheel is different from the one published in SHA256SUMS. I did not install it.
 - **What to do:**
@@ -1508,7 +1508,7 @@ Rename-Item ~/workshop-claude workshop-claude-old
 
 <a id="windows-e-mem-03"></a>
 
-### E-MEM-03 · Installing the Memória app failed
+### E-MEM-03 · Installing the Agent Memory app failed
 
 - **Why:** uv couldn't install the app (Python 3.12 or the dependencies). This is usually the network (pypi.org, files.pythonhosted.org or github.com).
 - **What to do:**
@@ -1525,14 +1525,14 @@ uv python install 3.12
 
 ### E-MEM-04 · WebView2 is missing (Windows)
 
-- **Why:** The Memória app window uses Microsoft Edge WebView2, and I couldn't find it or install it. Without it, the app opens in the browser.
+- **Why:** The Agent Memory app window uses Microsoft Edge WebView2, and I couldn't find it or install it. Without it, the app opens in the browser.
 - **What to do:**
   - You can continue: the app opens in the browser.
   - To get the app's own window, install the WebView2 Runtime from your company's software portal, or ask IT.
 
 <a id="windows-e-mem-05"></a>
 
-### E-MEM-05 · The Memória app test failed
+### E-MEM-05 · The Agent Memory app test failed
 
 - **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.
 - **What to do:**

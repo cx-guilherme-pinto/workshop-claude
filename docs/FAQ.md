@@ -10,7 +10,7 @@ Short answers to the most likely questions at the workshop. For install errors w
 The script installs everything in your profile and does not need admin rights. Run `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): it tells you which folder has no permission and the command to fix it. On a company laptop, a folder blocked by policy (AppLocker, antivirus) is a case for your IT team.
 
 **How do I know everything is ready?**
-Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/resumo.txt`, and you can show it to whoever helps you.
+Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Check complete: everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/resumo.txt`, and you can show it to whoever helps you.
 
 **Can I run the script twice?**
 Yes. It detects what is already done and skips those steps (⏭️). If it failed halfway, running it again continues from there.
@@ -33,7 +33,7 @@ Yes: the setup installs the **Atlassian CLI** (`acli`, official from Atlassian).
 3. `acli` does not log time: at the end, `/task-report` tells you how much time to log by hand in *Log work*.
 The same login works for Confluence: `acli confluence space list` and `acli confluence page view --id <id>`.
 
-**The Memória app does not open on Windows.**
+**The Agent Memory app does not open on Windows.**
 It needs Microsoft WebView2. The setup installs it if it is missing. If it still does not open, the app opens the same interface in your browser.
 
 ## Costs
@@ -58,7 +58,7 @@ With a Console account, the default model is Opus. The demo project pins Sonnet 
 Press **Esc** in Claude Code. The running agents finish and no more are launched. The state is saved in `.workshop/`, so running `/demo-swarm` (or `/task-swarm`) again resumes where it stopped.
 
 **Can I ask a question without interrupting?**
-Yes: `/btw <question>`. The answer does not go into the main conversation.
+Yes: `/btw <question>`. The answer does not go into the main conversation. It opens in a panel: close it with Esc, because while it is open the agents' results wait and the swarm stands still.
 
 **Where can I see the agents working?**
 - In the browser: `node server.js` in the Arena folder, then `http://localhost:3000/estado`.
@@ -87,7 +87,7 @@ They follow the machine language: Portuguese on a Portuguese machine, English on
 ## Features
 
 **How do I find everything I learned on a ticket or an epic?**
-In the Memória app, type the key in the search (e.g. `ABC-123` or the epic `ABC-100`): you see the memories for that ticket, the epic's and the linked tasks. In Claude Code, `/task-intake` does the same by itself before planning. Memories are linked to the ticket because `/task-report` and `/memoria` save the id, the epic and the URL.
+In the Agent Memory app, type the key in the search (e.g. `ABC-123` or the epic `ABC-100`): you see the memories for that ticket, the epic's and the linked tasks. In Claude Code, `/task-intake` does the same by itself before planning. Memories are linked to the ticket because `/task-report` and `/memoria` save the id, the epic and the URL.
 
 **Does `/task-intake` read the Confluence pages linked in the issue?**
 Yes, up to 2. If the Jira issue description has links to Confluence pages (`…/wiki/spaces/<space>/pages/<id>/…`), the intake reads them through the MCP or, if the MCP fails, through `acli`. Then it saves a short summary of each one in `.workshop/tarefa.md`, in the "Documentação (Confluence)" section, and `/task-plan` uses it.

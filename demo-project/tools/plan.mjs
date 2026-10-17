@@ -142,7 +142,8 @@ const I = T.instructions;
 function build(mode, maxParallel) {
   const specs = read('specs/cards.json');
   const extra = read('specs/tasks.json');
-  const cards = specs.cards.filter((c) => mode === 'presenter' || c.mode === 'participant');
+  // Both modes build all the Arena's tasks (100 cards); only the parallelism changes (8 participant, 16 presenter).
+  const cards = specs.cards;
   const cat = Object.fromEntries(specs.categories.map((c) => [c.id, c.name]));
   const task = (t, group, type, instructions) => ({
     id: t.id,

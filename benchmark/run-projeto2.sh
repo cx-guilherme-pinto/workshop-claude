@@ -11,6 +11,13 @@ main() {
   local KIT; KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   local ISSUE="${1:-EX-3}"
   local NODE; NODE="$(command -v node)"
+  # A versao do Claude Code que os participantes vao ter e a do repos.conf. CLAUDE_BIN escolhe o binario.
+  local CLAUDE_BIN="${CLAUDE_BIN:-claude}" CC_KIT CC_AQUI
+  CC_KIT=$(sed -n 's/^CLAUDE_CODE_VERSION=//p' "$KIT/repos.conf" | head -1)
+  CC_AQUI=$("$CLAUDE_BIN" --version 2>/dev/null | awk '{print $1}')
+  if [ -n "$CC_KIT" ] && [ "$CC_AQUI" != "$CC_KIT" ]; then
+    echo "AVISO: o kit instala o Claude Code $CC_KIT e este benchmark usa o ${CC_AQUI:-?} ($CLAUDE_BIN). Os participantes podem ver outra coisa (ex.: pedidos de permissao). Para medir a versao do kit: CLAUDE_BIN=<binario $CC_KIT>." >&2
+  fi
   local ID; ID="$(date +%Y%m%d-%H%M%S)-projeto2-$ISSUE"
   local RUN="$KIT/benchmark/runs/$ID"; mkdir -p "$RUN"
   local P="$RUN/projeto"
@@ -40,11 +47,11 @@ main() {
   local T0; T0=$(date +%s)
   (
     cd "$P" || exit 1
-    claude -p --session-id "$SID" "/task-intake issues/$ISSUE.json" "${FLAGS[@]}" < /dev/null > "$RUN/1-intake.json" 2> "$RUN/1-intake.err"
-    claude -p --resume "$SID" "/task-plan --auto" "${FLAGS[@]}" < /dev/null > "$RUN/2-plan.json" 2> "$RUN/2-plan.err"
-    claude -p --resume "$SID" "/task-swarm --auto" "${FLAGS[@]}" < /dev/null > "$RUN/3-swarm.json" 2> "$RUN/3-swarm.err"
-    claude -p --resume "$SID" "/task-gate --auto" "${FLAGS[@]}" < /dev/null > "$RUN/4-gate.json" 2> "$RUN/4-gate.err"
-    claude -p --resume "$SID" "/memoria" "${FLAGS[@]}" < /dev/null > "$RUN/5-memoria.json" 2> "$RUN/5-memoria.err"
+    "$CLAUDE_BIN" -p --session-id "$SID" "/task-intake issues/$ISSUE.json" "${FLAGS[@]}" < /dev/null > "$RUN/1-intake.json" 2> "$RUN/1-intake.err"
+    "$CLAUDE_BIN" -p --resume "$SID" "/task-plan --auto" "${FLAGS[@]}" < /dev/null > "$RUN/2-plan.json" 2> "$RUN/2-plan.err"
+    "$CLAUDE_BIN" -p --resume "$SID" "/task-swarm --auto" "${FLAGS[@]}" < /dev/null > "$RUN/3-swarm.json" 2> "$RUN/3-swarm.err"
+    "$CLAUDE_BIN" -p --resume "$SID" "/task-gate --auto" "${FLAGS[@]}" < /dev/null > "$RUN/4-gate.json" 2> "$RUN/4-gate.err"
+    "$CLAUDE_BIN" -p --resume "$SID" "/memoria" "${FLAGS[@]}" < /dev/null > "$RUN/5-memoria.json" 2> "$RUN/5-memoria.err"
   )
   local T1; T1=$(date +%s)
   echo "Projeto 2 ($ISSUE): $((T1 - T0)) s · pasta $RUN"

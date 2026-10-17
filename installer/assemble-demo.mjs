@@ -78,6 +78,7 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
         'Edit(.workshop/**)',
         'mcp__memoria__memoria_procurar',
         'mcp__memoria__memoria_relacionadas',
+        'mcp__memoria__memoria_adicionar',
       ],
       deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)'],
     },

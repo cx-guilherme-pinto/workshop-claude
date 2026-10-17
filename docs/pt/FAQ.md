@@ -10,7 +10,7 @@ Respostas curtas às perguntas mais prováveis no workshop. Para erros de instal
 O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): ele diz qual pasta não tem permissão e o comando para corrigir. Num portátil da empresa, uma pasta bloqueada por política (AppLocker, antivírus) é um caso para a tua equipa de TI.
 
 **Como sei se está tudo pronto?**
-Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
+Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Check complete: everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
 
 **Posso correr o script duas vezes?**
 Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
@@ -33,7 +33,7 @@ Sim: o setup instala o **Atlassian CLI** (`acli`, oficial da Atlassian). Quando 
 3. O `acli` não regista horas: no fim, o `/task-report` diz-te quanto tempo registar à mão em *Log work*.
 O mesmo login serve para o Confluence: `acli confluence space list` e `acli confluence page view --id <id>`.
 
-**A app Memória não abre no Windows.**
+**A app Agent Memory não abre no Windows.**
 Ela precisa do WebView2 da Microsoft. O setup instala-o se faltar. Se mesmo assim não abrir, a app abre a mesma interface no teu browser.
 
 ## Custos
@@ -58,7 +58,7 @@ Com conta Console, o modelo por defeito é o Opus. O projeto demo fixa Sonnet na
 Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lançados mais. O estado fica guardado em `.workshop/`, por isso voltar a correr `/demo-swarm` (ou `/task-swarm`) retoma onde parou.
 
 **Posso fazer uma pergunta sem interromper?**
-Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
+Sim: `/btw <pergunta>`. A resposta não entra na conversa principal. Abre num painel: fecha-o com Esc, porque enquanto está aberto os resultados dos agentes ficam à espera e o swarm não avança.
 
 **Onde vejo os agentes a trabalhar?**
 - No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/estado`.
@@ -87,7 +87,7 @@ Seguem a língua da máquina: português numa máquina em português, inglês em
 ## Funcionalidades
 
 **Como encontro tudo o que aprendi num ticket ou num épico?**
-Na app Memória, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memoria` gravam o id, o épico e o URL.
+Na app Agent Memory, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memoria` gravam o id, o épico e o URL.
 
 **O `/task-intake` lê as páginas do Confluence ligadas na issue?**
 Sim, até 2. Se a descrição da issue do Jira tiver links para páginas do Confluence (`…/wiki/spaces/<espaço>/pages/<id>/…`), o intake lê-as pelo MCP ou, se o MCP falhar, pelo `acli`. Depois guarda um resumo curto de cada uma em `.workshop/tarefa.md`, na secção "Documentação (Confluence)", e o `/task-plan` usa-o.

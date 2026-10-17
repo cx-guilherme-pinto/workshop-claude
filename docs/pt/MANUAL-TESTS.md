@@ -18,7 +18,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | W8 | `claude` na pasta da Arena → aceitar a confiança na pasta → `/demo-plan` | Mostra o Mermaid e a estimativa |
 | W9 | `/demo-swarm` com a statusline visível | Cartões a ficar verdes; a statusline mostra o custo; o cronómetro fica abaixo de 20 min |
 | W10 | `node server.js` e abrir `http://localhost:3000/estado` | A grelha muda de cor; não aparece o aviso da firewall do Windows |
-| W11 | Abre a app Memória pelo Menu Iniciar | A janela abre (WebView2) e o grafo aparece |
+| W11 | Abre a app Agent Memory pelo Menu Iniciar | A janela abre (WebView2) e o grafo aparece |
 | W12 | `-Uninstall` (e o sinónimo antigo `-Desinstalar`) | O `settings.json` volta ao que era; os agentes, as skills e o MCP saem |
 | W13 | Utilizador com espaço e acentos no nome (ex.: `C:\Users\João Silva`) | Tudo funciona, incluindo os hooks e a statusline |
 | W14 | Windows on ARM (se houver) | Usa os binários arm64 ou dá uma mensagem clara |
@@ -34,7 +34,7 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 | M1 | Numa conta sem admin, com `curl -fsSL … \| bash` | Corre até ao fim; as perguntas (login) aparecem e aceitam resposta |
 | M2 | Sem Xcode Command Line Tools | O passo do git explica o pré-trabalho (`xcode-select --install`) e os passos independentes continuam |
 | M3 | Intel (x64) | Instala o Node x64 e o Claude Code certo |
-| M4 | App Memória pelo `~/Applications/Memória.app` | Abre sem aviso do Gatekeeper |
+| M4 | App Agent Memory pelo `~/Applications/Agent Memory.app` | Abre sem aviso do Gatekeeper |
 | M5 | Login Console real (`claude auth login --console`) numa conta Console nova | `claude auth status` mostra o método Console; o teste de fumo mostra o custo |
 | M6 | Conta **sem nada** instalado (sem Claude Code, sem `gh`, sem Command Line Tools) | O setup instala tudo, abre o login da conta Claude no browser e depois o login do GitHub (código no terminal, confirmação no browser); passos 3 e 6 ✅; "Everything is ready for the workshop." |
 | M7 | Atlassian CLI: aceitar o login do passo 7, depois `acli auth status`. Com o MCP desligado (`claude mcp remove --scope user atlassian`), correr `/task-intake <CHAVE>` e `/task-report jira` numa issue de teste com um link para uma página do Confluence na descrição | O intake lê a issue pelo `acli` (`"via":"acli"` no `tarefa.json`) e a página com `acli confluence page view … --body-format storage --json`; o `tarefa.md` tem `## Documentação (Confluence)` com um resumo de até 800 caracteres. Anota o tamanho da saída em `storage` e em `view` (D-19). O report pede o sim e publica os comentários com `--body-file`; diz para registar as horas à mão. Volta a correr o setup para repor o MCP |
