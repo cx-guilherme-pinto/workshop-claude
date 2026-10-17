@@ -42,7 +42,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-CFG-01` | There are company-managed settings (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | The ANTHROPIC_BASE_URL variable is set | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
-| `E-CFG-04` | Claude Code is set up for Bedrock, Vertex or Foundry | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
+| `E-CFG-04` | Claude Code uses your company's cloud (Bedrock, Vertex or Foundry) | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
 | `E-CFG-05` | The Claude Code settings.json file has an error | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | You already had a statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | uv is not allowed to use managed Python | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
@@ -390,14 +390,13 @@ unset ANTHROPIC_BASE_URL
 
 <a id="mac-e-cfg-04"></a>
 
-### E-CFG-04 · Claude Code is set up for Bedrock, Vertex or Foundry
+### E-CFG-04 · Claude Code uses your company's cloud (Bedrock, Vertex or Foundry)
 
-- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.
+- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses that cloud and not the Console login. That is fine if your company set it up this way: the final test (step 12) checks that Claude answers. The workshop models (Haiku, Sonnet and Opus) must be enabled in that cloud.
 - **What to do:**
-  - If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.
-  - If it shows ~/.claude/settings.json: delete the variable from the "env" block (and AWS_PROFILE or AWS_REGION, if they are only for this).
-  - If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.
-  - If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available.
+  - If your company uses this cloud: nothing to do. If the final test fails, log in to the cloud in this terminal (for Bedrock: aws sso login, or AWS_PROFILE and AWS_REGION) and run the setup again.
+  - If you did not mean to use it: delete the variable (the first command shows where it is) and open a new terminal. In ~/.claude/settings.json, delete it from the "env" block.
+  - If the workshop models are not enabled in your company's cloud, talk to the organizer before the workshop.
 
 Commands (macOS):
 
@@ -1652,14 +1651,13 @@ Command (Windows):
 
 <a id="windows-e-cfg-04"></a>
 
-### E-CFG-04 · Claude Code is set up for Bedrock, Vertex or Foundry
+### E-CFG-04 · Claude Code uses your company's cloud (Bedrock, Vertex or Foundry)
 
-- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.
+- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses that cloud and not the Console login. That is fine if your company set it up this way: the final test (step 12) checks that Claude answers. The workshop models (Haiku, Sonnet and Opus) must be enabled in that cloud.
 - **What to do:**
-  - If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.
-  - If it shows ~/.claude/settings.json: delete the variable from the "env" block (and AWS_PROFILE or AWS_REGION, if they are only for this).
-  - If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.
-  - If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available.
+  - If your company uses this cloud: nothing to do. If the final test fails, log in to the cloud in this terminal (for Bedrock: aws sso login, or AWS_PROFILE and AWS_REGION) and run the setup again.
+  - If you did not mean to use it: delete the variable (the first command shows where it is) and open a new terminal. In ~/.claude/settings.json, delete it from the "env" block.
+  - If the workshop models are not enabled in your company's cloud, talk to the organizer before the workshop.
 
 Commands (Windows):
 

@@ -1216,7 +1216,8 @@ ws_s0_detect() {
     [ -e "$f" ] && { ws_note "$(ws_msg s0_gerido CAMINHO="$f")"; ws_log "managed settings: $f"; }
   done
   local keys; keys=$(ws_env_keys) && ws_warn E-CFG-02 "$keys"
-  local cloud; cloud=$(ws_cloud_where) && ws_warn E-CFG-04 "$cloud"
+  # Bedrock, Vertex ou Foundry: o aviso (E-CFG-04) fica no passo 3, onde o Claude Code diz qual usa.
+  local cloud; cloud=$(ws_cloud_where) && ws_log "cloud provider: $cloud"
   local b; for b in $(ws_uv_python_blockers); do ws_warn E-CFG-07 "$b=${!b}"; done
   ws_s0_env_warnings
 
@@ -1727,13 +1728,14 @@ ws_auth_classify() { # -> console | assinatura | outro | nenhum
 ws_s3_detect() {
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
   ws_auth_read
-  # Bedrock, Vertex ou Foundry (na shell ou no "env" das definicoes): o login do Console e ignorado e, sem as
-  # credenciais da cloud, o "claude -p" nunca acaba. O passo falha (o teste final fica por correr) com a origem.
+  # Bedrock, Vertex ou Foundry (na shell ou no "env" das definicoes): e uma forma valida de usar o Claude Code
+  # (ha empresas que so permitem essa). O login do Console nao e usado: so um aviso, e o teste final (passo 12)
+  # confirma que a cloud responde.
   WS_AUTH_CLOUD=""
   case "${WS_AUTH_PROVIDER:-firstParty}" in
     firstParty) ;;
     *) WS_AUTH_CLOUD="$WS_AUTH_PROVIDER: $(ws_cloud_where || printf 'Claude Code settings')"
-       ws_detail "$(ws_msg s3_outro METODO="$WS_AUTH_PROVIDER")"; ws_fail E-CFG-04 "$WS_AUTH_CLOUD"; return 1 ;;
+       ws_detail "$(ws_msg s3_outro METODO="$WS_AUTH_PROVIDER")"; ws_warn E-CFG-04 "$WS_AUTH_CLOUD"; WS_AUTH_OK=1; return 0 ;;
   esac
   case "$(ws_auth_classify)" in
     console) ws_detail "$(ws_msg s3_console EMAIL="${WS_AUTH_ORG:-Console}")"; WS_AUTH_OK=1; return 0 ;;
@@ -1747,7 +1749,7 @@ ws_s3_detect() {
 ws_s3_install() {
   local kind; kind=$(ws_auth_classify)
   # Com uma cloud configurada, o login do Console seria ignorado: nao o oferecer.
-  [ -n "${WS_AUTH_CLOUD:-}" ] && { ws_fail E-CFG-04 "$WS_AUTH_CLOUD"; return 1; }
+  [ -n "${WS_AUTH_CLOUD:-}" ] && { ws_s3_detect; return $?; }
   WS_AUTH_ASKED=1
   if [ "$kind" = assinatura ]; then
     if [ "$WS_SIM" = 1 ] || ! ws_ask "$(ws_m s3_pergunta_trocar)" n nunca-sim; then
@@ -2822,7 +2824,17 @@ for(var i=0;i<fs.length;i++){ var j; try{ j=JSON.parse(String(readText(fs[i])||"
       if(alheio&&out.indexOf(ev)<0) out.push(ev); } } }
 return out.join(", ");' "$CLAUDE_DIR/settings.json" "/Library/Application Support/ClaudeCode/managed-settings.json" 2>/dev/null
 }
+# O modelo do teste final e do ajudante: o id exato com a conta da Anthropic; numa cloud (Bedrock, Vertex, Foundry)
+# o alias "haiku", que o Claude Code traduz para o modelo dessa cloud (o id da Anthropic pode nao existir la).
+ws_smoke_model() { if [ -n "${WS_AUTH_CLOUD:-}" ]; then printf haiku; else printf claude-haiku-5-5; fi; }
+# Numa cloud (Bedrock, Vertex, Foundry) uma falha do teste final quase sempre e o login nessa cloud: diz-se isso, e
+# a analise paga (que tambem passaria pela cloud) nao e oferecida.
 ws_s12_install() {
+  ws_s12_run && return 0
+  [ -n "${WS_AUTH_CLOUD:-}" ] && ws_note "$(ws_msg s12_cloud CLOUD="${WS_AUTH_PROVIDER:-cloud}")"
+  return 1
+}
+ws_s12_run() {
   local out="$WS_TMP/smoke.json" err="$WS_TMP/smoke.err" t0 t1 gw keys
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
   # Um proxy morto no settings.json faz o claude -p tentar em silencio durante 3 minutos: falha ja, com a causa.
@@ -2834,7 +2846,7 @@ ws_s12_install() {
   t0=$(date +%s)
   # Com limite de tempo (sem resposta, o Claude Code tenta outra vez durante minutos) e sem servidores MCP
   # (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo.
-  ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" --strict-mcp-config > "$out" 2> "$err" </dev/null ) 2>/dev/null
+  ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model "$(ws_smoke_model)" --output-format json --tools "" --strict-mcp-config > "$out" 2> "$err" </dev/null ) 2>/dev/null
   local rc=$?; t1=$(date +%s)
   { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG" 2>/dev/null
   ws_parse_result "$out"
@@ -2860,7 +2872,7 @@ ws_s12_install() {
     if [ -z "$gw" ] && [ -n "$hk" ]; then
       ws_log "final test: no answer in $WS_TMO_SMOKE s with the hooks of the settings ($hk): once more without them"
       ws_say "  $(ws_msg s12_sem_hooks HOOKS="$hk")"
-      ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" --strict-mcp-config --settings "$(ws_nohooks)" > "$out" 2> "$err" </dev/null )
+      ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model "$(ws_smoke_model)" --output-format json --tools "" --strict-mcp-config --settings "$(ws_nohooks)" > "$out" 2> "$err" </dev/null )
       rc=$?
       { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG"
       ws_parse_result "$out"
@@ -2878,7 +2890,7 @@ ws_s12_install() {
   case "$all" in
     *[Cc]redit\ balance*|*billing*) ws_fail E-SMOKE-02 "" ;;
     *429*|*rate_limit*|*[Rr]ate\ limit*) ws_fail E-SMOKE-03 "" ;;
-    *not_found_error*|*model:*|*[Ii]nvalid\ model*) ws_fail E-SMOKE-04 "claude-haiku-5-5" ;;
+    *not_found_error*|*model:*|*[Ii]nvalid\ model*) ws_fail E-SMOKE-04 "$(ws_smoke_model)" ;;
     *certificate*|*CERT_*|*SELF_SIGNED*) ws_fail E-NET-04 "" ;;
     *ENOTFOUND*|*ECONNREFUSED*|*ETIMEDOUT*|*ECONNRESET*|*fetch\ failed*|*[Uu]nable\ to\ connect*)
       # Com ANTHROPIC_BASE_URL o Claude nem fala com o api.anthropic.com: o que falha e o gateway.
@@ -2908,9 +2920,9 @@ ws_helper_call() { # ficheiro-prompt ficheiro-saida [schema] [segundos]
   # (um SessionStart preso ou um UserPromptSubmit que bloqueia nao deixavam o ajudante responder).
   local nh; nh=$(ws_nohooks)
   if [ -n "${3:-}" ]; then
-    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --strict-mcp-config --settings "$nh" --disallowedTools "mcp__*" --output-format json --json-schema "$3" < "$1" > "$2" 2>>"$WS_LOG" )
+    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model "$(ws_smoke_model)" --tools "" --strict-mcp-config --settings "$nh" --disallowedTools "mcp__*" --output-format json --json-schema "$3" < "$1" > "$2" 2>>"$WS_LOG" )
   else
-    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --strict-mcp-config --settings "$nh" --disallowedTools "mcp__*" --output-format json < "$1" > "$2" 2>>"$WS_LOG" )
+    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model "$(ws_smoke_model)" --tools "" --strict-mcp-config --settings "$nh" --disallowedTools "mcp__*" --output-format json < "$1" > "$2" 2>>"$WS_LOG" )
   fi
 }
 
@@ -2924,6 +2936,7 @@ ws_helper_offer() {
   # sem login no GitHub (E-GH-02), o setup ja mostra o comando: a analise so custaria dinheiro.
   # Um hook da pessoa (E-SMOKE-05/06) ou o disco cheio (E-SO-06/10) ja tem a causa no ecra.
   case "$code" in E-NET-*|E-AUTH-*|E-SO-06|E-SO-10|E-GH-02|E-GH-03|E-SMOKE-05|E-SMOKE-06) return 1 ;; esac
+  [ -n "${WS_AUTH_CLOUD:-}" ] && [ "$n" = 12 ] && return 1
   ws_say ""
   ws_ask "$(ws_m helper_pergunta)" s || return 1
   ws_say "  $(ws_m helper_a_pedir)"

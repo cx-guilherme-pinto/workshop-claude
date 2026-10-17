@@ -1752,8 +1752,9 @@ function Test-WsStep0 {
   # nomes (e o ficheiro), nunca os valores. O ANTHROPIC_BASE_URL ve-se depois da rede (Test-WsGateway).
   $keys = Get-WsEnvKeys -User
   if ($keys) { Set-WsWarn 'E-CFG-02' $keys }
+  # Bedrock, Vertex ou Foundry: o aviso (E-CFG-04) fica no passo 3, onde o Claude Code diz qual usa.
   $cloud = Get-WsCloudWhere
-  if ($cloud) { Set-WsWarn 'E-CFG-04' $cloud }
+  if ($cloud) { Write-WsLog ('cloud provider: ' + $cloud) }
   Test-WsEnvWarnings
 
   try {
@@ -2500,16 +2501,18 @@ function Get-WsAuthKind {
 function Test-WsStep3 {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
   $script:Auth = Read-WsAuth
-  # Bedrock, Vertex ou Foundry (no ambiente ou no "env" das definicoes): o login do Console e ignorado e, sem as
-  # credenciais da cloud, o "claude -p" nunca acaba. O passo falha (o teste final fica por correr) com a origem.
+  # Bedrock, Vertex ou Foundry (no ambiente ou no "env" das definicoes): e uma forma valida de usar o Claude Code
+  # (ha empresas que so permitem essa). O login do Console nao e usado: so um aviso, e o teste final (passo 12)
+  # confirma que a cloud responde.
   $script:AuthCloud = ''
   if ($script:Auth.Provider -and $script:Auth.Provider -ne 'firstParty') {
     $w = Get-WsCloudWhere
     if (-not $w) { $w = 'Claude Code settings' }
     $script:AuthCloud = $script:Auth.Provider + ': ' + $w
     Set-WsDetail (M 's3_outro' @{ METODO = $script:Auth.Provider })
-    Set-WsFail 'E-CFG-04' $script:AuthCloud
-    return $false
+    Set-WsWarn 'E-CFG-04' $script:AuthCloud
+    $script:AuthOk = $true
+    return $true
   }
   switch (Get-WsAuthKind $script:Auth) {
     'console' { $o = $script:Auth.Org; if (-not $o) { $o = 'Console' }; Set-WsDetail (M 's3_console' @{ EMAIL = $o }); $script:AuthOk = $true; return $true }
@@ -2530,7 +2533,7 @@ function Test-WsStep3 {
 
 function Install-WsStep3 {
   # Com uma cloud configurada, o login do Console seria ignorado: nao o oferecer.
-  if ($script:AuthCloud) { Set-WsFail 'E-CFG-04' $script:AuthCloud; return $false }
+  if ($script:AuthCloud) { return (Test-WsStep3) }
   $kind = Get-WsAuthKind $script:Auth
   $script:AuthAsked = $true
   if ($kind -eq 'assinatura') {
@@ -3917,7 +3920,19 @@ $script:TmoSmoke = 90
 $script:TmoHelper = 90
 $script:TmoDoctor = 180
 
+# O modelo do teste final e do ajudante: o id exato com a conta da Anthropic; numa cloud (Bedrock, Vertex, Foundry)
+# o alias "haiku", que o Claude Code traduz para o modelo dessa cloud (o id da Anthropic pode nao existir la).
+function Get-WsSmokeModel { if ($script:AuthCloud) { return 'haiku' }; return 'claude-haiku-5-5' }
+
+# Numa cloud (Bedrock, Vertex, Foundry) uma falha do teste final quase sempre e o login nessa cloud: diz-se isso, e
+# a analise paga (que tambem passaria pela cloud) nao e oferecida.
 function Install-WsStep12 {
+  if (Invoke-WsStep12Run) { return $true }
+  if ($script:AuthCloud) { $c = [string]$script:Auth.Provider; if (-not $c) { $c = 'cloud' }; Add-WsNote (M 's12_cloud' @{ CLOUD = $c }) }
+  return $false
+}
+
+function Invoke-WsStep12Run {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
   # Um proxy morto no settings.json (ou, sem nenhum la, no HTTPS_PROXY deste terminal) faz o claude -p tentar em
   # silencio durante uns 3 minutos e acabar num E-NET-05 enganador: falha ja, com a causa.
@@ -3930,7 +3945,7 @@ function Install-WsStep12 {
   Write-WsSay ('  ' + (M 's12_a_testar' @{ SEG = $script:TmoSmoke }))
   $t0 = Get-Date
   # Sem servidores MCP (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo e nao espera por MCPs.
-  $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '', '--strict-mcp-config') -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
+  $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', (Get-WsSmokeModel), '--output-format', 'json', '--tools', '', '--strict-mcp-config') -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
   $secs = [int]((Get-Date) - $t0).TotalSeconds
   $o = Read-WsResult $r.StdOut
   Write-WsLog ('final test: exit {0} error {1} turns {2} cost {3}' -f $r.ExitCode, $o.Erro, $o.Turnos, $o.Custo.Texto)
@@ -3954,7 +3969,7 @@ function Install-WsStep12 {
     if (-not $gw -and $hk) {
       Write-WsLog ('final test: no answer in {0} s with the hooks of the settings ({1}): once more without them' -f $script:TmoSmoke, $hk)
       Write-WsSay ('  ' + (M 's12_sem_hooks' @{ HOOKS = $hk }))
-      $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks) -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
+      $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', (Get-WsSmokeModel), '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks) -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
       $o = Read-WsResult $r.StdOut
       Write-WsLog ('final test without the hooks: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
       if ($r.ExitCode -eq 0 -and $o.Json -and -not $o.Erro) {
@@ -3967,7 +3982,7 @@ function Install-WsStep12 {
   $all = $r.StdErr + ' ' + $o.Resposta
   if ($all -match 'credit balance|billing') { Set-WsFail 'E-SMOKE-02' '' }
   elseif ($all -match '429|rate_limit|[Rr]ate limit') { Set-WsFail 'E-SMOKE-03' '' }
-  elseif ($all -match 'not_found_error|[Ii]nvalid model|model:') { Set-WsFail 'E-SMOKE-04' 'claude-haiku-5-5' }
+  elseif ($all -match 'not_found_error|[Ii]nvalid model|model:') { Set-WsFail 'E-SMOKE-04' (Get-WsSmokeModel) }
   elseif ($all -match 'certificate|CERT_|SELF_SIGNED') { Set-WsFail 'E-NET-04' '' }
   elseif ($all -match 'ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|fetch failed|[Uu]nable to connect') {
     # Com ANTHROPIC_BASE_URL o Claude nem fala com o api.anthropic.com: o que falha e o gateway.
@@ -4000,7 +4015,7 @@ function Invoke-WsClaudeHelper {
   param([string]$Prompt, [string]$Schema, [int]$TimeoutSec = $script:TmoHelper)
   if ($script:GwDown) { return $null }
   if ($TimeoutSec -le 0) { $TimeoutSec = 90 }
-  $a = @('-p', '--model', 'claude-haiku-5-5', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks, '--disallowedTools', 'mcp__*', '--output-format', 'json')
+  $a = @('-p', '--model', (Get-WsSmokeModel), '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks, '--disallowedTools', 'mcp__*', '--output-format', 'json')
   if ($Schema) { $a += @('--json-schema', $Schema) }
   $r = Invoke-WsProcess $script:ClaudeExe $a -StdinText $Prompt -WorkingDirectory $script:Tmp -TimeoutSec $TimeoutSec
   if ($r.ExitCode -ne 0) { return $null }
@@ -4013,6 +4028,7 @@ function Invoke-WsHelper {
   if (-not $script:AuthOk) { return $false }
   if ($script:GwDown) { return $false }
   $code = $script:T[$N].Falha[0]
+  if ($script:AuthCloud -and $N -eq '12') { return $false }
   # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui. O GitHub sem resposta
   # (E-GH-03) ja tem a causa certa e, sem login no GitHub (E-GH-02), o setup ja mostra o comando: a analise so custaria dinheiro.
   # Um hook da pessoa (E-SMOKE-05/06) ja tem a causa e o ficheiro no ecra.

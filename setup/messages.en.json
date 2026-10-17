@@ -58,7 +58,6 @@
     "final_falta1": "1 step still to do: {LISTA}.",
     "final_aviso1": "There is 1 warning above. It doesn't block the workshop, but read it.",
     "final_avisos": "There are {N} warnings above. They don't block the workshop, but read them.",
-    "final_aviso1": "There is 1 warning above. It doesn't block the workshop, but read it.",
     "final_voltar": "After you fix it, run the same command again. Steps already done are skipped.",
     "final_voltar_check": "This was only a check: nothing was installed or changed. Fix what is listed above, or run the setup without --check to install what is missing. Then run the check again.",
     "final_reiniciar": "Close and reopen the terminal (and VS Code) so the new commands are available.",
@@ -168,7 +167,8 @@
     "perm_nao_pasta": "not a folder",
     "s1_portatil": "git {VERSAO} (the workshop's portable git, without the Apple tools)",
     "lingua_pt": "Portuguese",
-    "lingua_en": "English"
+    "lingua_en": "English",
+    "s12_cloud": "Claude Code uses {CLOUD}, not the Console. Log in to that cloud in this terminal (for Bedrock: aws sso login, or set AWS_PROFILE and AWS_REGION), check that the Haiku, Sonnet and Opus models are enabled there, then run the setup again."
   },
   "passos": {
     "0": "Environment detection",
@@ -536,14 +536,13 @@
       ]
     },
     "E-CFG-04": {
-      "titulo": "Claude Code is set up for Bedrock, Vertex or Foundry",
+      "titulo": "Claude Code uses your company's cloud (Bedrock, Vertex or Foundry)",
       "so": "todos",
-      "causa": "CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the \"env\" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.",
+      "causa": "CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the \"env\" block of a Claude Code settings file (shown above). Claude Code then uses that cloud and not the Console login. That is fine if your company set it up this way: the final test (step 12) checks that Claude answers. The workshop models (Haiku, Sonnet and Opus) must be enabled in that cloud.",
       "fazer": [
-        "If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.",
-        "If it shows ~/.claude/settings.json: delete the variable from the \"env\" block (and AWS_PROFILE or AWS_REGION, if they are only for this).",
-        "If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.",
-        "If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available."
+        "If your company uses this cloud: nothing to do. If the final test fails, log in to the cloud in this terminal (for Bedrock: aws sso login, or AWS_PROFILE and AWS_REGION) and run the setup again.",
+        "If you did not mean to use it: delete the variable (the first command shows where it is) and open a new terminal. In ~/.claude/settings.json, delete it from the \"env\" block.",
+        "If the workshop models are not enabled in your company's cloud, talk to the organizer before the workshop."
       ],
       "mac": [
         "grep -n CLAUDE_CODE_USE_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null",

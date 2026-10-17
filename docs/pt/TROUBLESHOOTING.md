@@ -42,7 +42,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-CFG-01` | Há definições geridas pela empresa (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | Está definida a variável ANTHROPIC_API_KEY ou ANTHROPIC_AUTH_TOKEN | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | A variável ANTHROPIC_BASE_URL está definida | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
-| `E-CFG-04` | O Claude Code está configurado para Bedrock, Vertex ou Foundry | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
+| `E-CFG-04` | O Claude Code usa a cloud da tua empresa (Bedrock, Vertex ou Foundry) | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
 | `E-CFG-05` | O ficheiro settings.json do Claude Code tem um erro | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | Já tinhas uma statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | O uv está proibido de usar o Python gerido | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
@@ -390,14 +390,13 @@ unset ANTHROPIC_BASE_URL
 
 <a id="mac-e-cfg-04"></a>
 
-### E-CFG-04 · O Claude Code está configurado para Bedrock, Vertex ou Foundry
+### E-CFG-04 · O Claude Code usa a cloud da tua empresa (Bedrock, Vertex ou Foundry)
 
-- **Porquê:** A CLAUDE_CODE_USE_BEDROCK, a CLAUDE_CODE_USE_VERTEX ou a CLAUDE_CODE_USE_FOUNDRY está definida, no terminal ou no bloco "env" de um ficheiro de definições do Claude Code (indicado acima). Assim o Claude Code usa a cloud da empresa e ignora o login na Console e, sem as credenciais dessa cloud, os pedidos nunca acabam.
+- **Porquê:** A CLAUDE_CODE_USE_BEDROCK, a CLAUDE_CODE_USE_VERTEX ou a CLAUDE_CODE_USE_FOUNDRY está definida, no terminal ou no bloco "env" de um ficheiro de definições do Claude Code (aparece acima). O Claude Code passa a usar essa cloud e não o login do Console. Está tudo bem se foi a tua empresa que o configurou assim: o teste final (passo 12) confirma que o Claude responde. Os modelos do workshop (Haiku, Sonnet e Opus) têm de estar ativos nessa cloud.
 - **O que fazer:**
-  - Se indicar (shell): apaga a linha do ~/.zshrc, ~/.zprofile ou ~/.bash_profile (o primeiro comando mostra-a) e abre um terminal novo.
-  - Se indicar ~/.claude/settings.json: apaga a variável do bloco "env" (e AWS_PROFILE ou AWS_REGION, se só servirem para isto).
-  - Se indicar /Library/... ou managed settings: foi a empresa que a definiu. Fala com o organizador: o workshop usa a Console.
-  - Se a empresa exigir Bedrock, Vertex ou Foundry, confirma com o organizador que os modelos do workshop estão disponíveis.
+  - Se a tua empresa usa esta cloud: não há nada a fazer. Se o teste final falhar, faz o login na cloud neste terminal (no Bedrock: aws sso login, ou AWS_PROFILE e AWS_REGION) e volta a correr o setup.
+  - Se não querias usá-la: apaga a variável (o primeiro comando mostra onde está) e abre um terminal novo. No ~/.claude/settings.json, apaga-a do bloco "env".
+  - Se os modelos do workshop não estiverem ativos na cloud da empresa, fala com o organizador antes do workshop.
 
 Comandos (macOS):
 
@@ -1652,14 +1651,13 @@ Comando (Windows):
 
 <a id="windows-e-cfg-04"></a>
 
-### E-CFG-04 · O Claude Code está configurado para Bedrock, Vertex ou Foundry
+### E-CFG-04 · O Claude Code usa a cloud da tua empresa (Bedrock, Vertex ou Foundry)
 
-- **Porquê:** A CLAUDE_CODE_USE_BEDROCK, a CLAUDE_CODE_USE_VERTEX ou a CLAUDE_CODE_USE_FOUNDRY está definida, no terminal ou no bloco "env" de um ficheiro de definições do Claude Code (indicado acima). Assim o Claude Code usa a cloud da empresa e ignora o login na Console e, sem as credenciais dessa cloud, os pedidos nunca acabam.
+- **Porquê:** A CLAUDE_CODE_USE_BEDROCK, a CLAUDE_CODE_USE_VERTEX ou a CLAUDE_CODE_USE_FOUNDRY está definida, no terminal ou no bloco "env" de um ficheiro de definições do Claude Code (aparece acima). O Claude Code passa a usar essa cloud e não o login do Console. Está tudo bem se foi a tua empresa que o configurou assim: o teste final (passo 12) confirma que o Claude responde. Os modelos do workshop (Haiku, Sonnet e Opus) têm de estar ativos nessa cloud.
 - **O que fazer:**
-  - Se indicar (shell): apaga a linha do ~/.zshrc, ~/.zprofile ou ~/.bash_profile (o primeiro comando mostra-a) e abre um terminal novo.
-  - Se indicar ~/.claude/settings.json: apaga a variável do bloco "env" (e AWS_PROFILE ou AWS_REGION, se só servirem para isto).
-  - Se indicar /Library/... ou managed settings: foi a empresa que a definiu. Fala com o organizador: o workshop usa a Console.
-  - Se a empresa exigir Bedrock, Vertex ou Foundry, confirma com o organizador que os modelos do workshop estão disponíveis.
+  - Se a tua empresa usa esta cloud: não há nada a fazer. Se o teste final falhar, faz o login na cloud neste terminal (no Bedrock: aws sso login, ou AWS_PROFILE e AWS_REGION) e volta a correr o setup.
+  - Se não querias usá-la: apaga a variável (o primeiro comando mostra onde está) e abre um terminal novo. No ~/.claude/settings.json, apaga-a do bloco "env".
+  - Se os modelos do workshop não estiverem ativos na cloud da empresa, fala com o organizador antes do workshop.
 
 Comandos (Windows):
 

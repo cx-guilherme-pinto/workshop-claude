@@ -665,8 +665,10 @@ E-AUTH-05|http://127.0.0.1:9/" "passo 0: gateway do settings.json que nao respon
 : > "$SJ"
 eq "$(g4 'WS_CUR=0; SW_0=""; ws_gw_detect; printf "%s|%s" "$WS_GW_DOWN" "$SW_0"')" "0|" "passo 0: sem gateway"
 eq "$(grep -c '^  ws_gw_detect$' "$ROOT/setup/setup-mac.sh")" 1 "passo 0: o gateway e testado uma so vez (depois do proxy)"
-# passo 3: Bedrock/Vertex pelo apiProvider -> falha E-CFG-04 sem oferecer o login; a origem da chave no aviso E-AUTH-03
-eq "$(G4_PROVIDER=bedrock G4_METHOD=third_party g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=install; WS_AUTH_OK=0; ws_s3_detect; r=$?; SF_3=""; ws_s3_install; printf "%s|%s|%s" "$r$?" "$SF_3" "$WS_AUTH_OK"')" "11|E-CFG-04|bedrock: Claude Code settings|0" "passo 3: apiProvider bedrock -> E-CFG-04"
+# passo 3: Bedrock/Vertex pelo apiProvider -> so o aviso E-CFG-04 (e uma forma valida de usar o Claude Code), sem
+# oferecer o login, e o teste final corre com o alias "haiku"; a origem da chave no aviso E-AUTH-03
+eq "$(G4_PROVIDER=bedrock G4_METHOD=third_party g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=install; WS_AUTH_OK=0; SW_3=""; ws_s3_detect; r=$?; SF_3=""; ws_s3_install; printf "%s|%s|%s|%s|%s" "$r$?" "$SF_3" "$(printf "%s" "$SW_3" | head -n 1)" "$WS_AUTH_OK" "$(ws_smoke_model)"')" "00||E-CFG-04|bedrock: Claude Code settings|1|haiku" "passo 3: apiProvider bedrock -> aviso E-CFG-04, passo feito"
+eq "$(WS_AUTH_CLOUD=""; ws_smoke_model)" claude-haiku-5-5 "teste final: o id exato sem cloud"
 eq "$(G4_METHOD=api_key G4_SOURCE=ANTHROPIC_API_KEY g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=check; SW_3=""; ws_s3_detect; printf "%s|%s" "$?" "$SW_3"')" "0|E-AUTH-03|ANTHROPIC_API_KEY" "passo 3: E-AUTH-03 diz a variavel"
 # passo 2: ~/.claude.json invalido para antes de qualquer comando do Claude Code (node e JXA)
 mkdir -p "$G4/cj"

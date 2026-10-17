@@ -1623,9 +1623,10 @@ Describe 'chaos G4-auth-tools' {
     Mock Test-WsStep3 { return $true }
     Install-WsStep3 | Should -BeTrue
     $script:Login | Should -BeExactly 'C:\u\claude.exe auth login --console'
+    # Com uma cloud (Bedrock...) o passo 3 e so o aviso do Test-WsStep3: nao se oferece o login.
     $script:AuthCloud = 'bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
-    Install-WsStep3 | Should -BeFalse
-    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    Install-WsStep3 | Should -BeTrue
+    Get-WsSmokeModel | Should -BeExactly 'haiku'
     Should -Invoke Invoke-WsLogin -Times 1 -Exactly
     # acli (reserva do MCP)
     $script:Cur = '7'; $script:Login = ''
@@ -1679,7 +1680,7 @@ Describe 'chaos G4-auth-tools' {
     Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_VERTEX ({0})' -f $mf)
   }
 
-  It 'passo 3: com Bedrock/Vertex/Foundry o passo falha com a origem (E-CFG-04) e o login fica por fazer' {
+  It 'passo 3: com Bedrock/Vertex/Foundry o passo fica feito com o aviso E-CFG-04 (com a origem) e sem login' {
     $script:Cur = '3'; $script:ClaudeExe = 'claude.exe'
     Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:AuthJson } }
     $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
@@ -1693,12 +1694,13 @@ Describe 'chaos G4-auth-tools' {
     $script:T = New-WsStateTable; $script:AuthOk = $false
     $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
     $env:CLAUDE_CODE_USE_BEDROCK = '1'
-    Test-WsStep3 | Should -BeFalse
-    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
-    $script:AuthOk | Should -BeFalse
+    Test-WsStep3 | Should -BeTrue
+    $script:T['3'].Falha | Should -BeNullOrEmpty
+    ($script:T['3'].Avisos[0] -join '|') | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    $script:AuthOk | Should -BeTrue
     Remove-Item Env:CLAUDE_CODE_USE_BEDROCK
     $script:T = New-WsStateTable
-    Test-WsStep3 | Should -BeFalse
+    Test-WsStep3 | Should -BeTrue
     $script:AuthCloud | Should -BeExactly 'bedrock: Claude Code settings'
     # outro metodo: o aviso mostra a origem (o nome da variavel), nunca o valor
     $script:T = New-WsStateTable
