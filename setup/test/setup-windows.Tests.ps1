@@ -450,9 +450,10 @@ Describe 'chaos G9-windows: o Windows PowerShell de 64 bits (F2)' {
   It 'o outro PowerShell escreve na consola (nao fica capturado) e os logins tambem' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
     $text | Should -Match '-File \$PSCommandPath @self \| Out-Default'
-    $text | Should -Match '& \$script:ClaudeExe auth login --console \| Out-Default'
-    $text | Should -Match '& \$exe auth login --hostname github\.com --git-protocol https --web \| Out-Default'
-    $text | Should -Match '& \$exe auth login \| Out-Default'
+    # Os logins correm numa janela sua (chaos G4: Invoke-WsLogin), e nunca capturados.
+    $text | Should -Match "Invoke-WsLogin \`$script:ClaudeExe @\('auth', 'login', '--console'\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web'\) -CancelCodes @\(2\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login'\)"
   }
   It 'erros de download do PowerShell 5.1 e 7 dao o codigo certo' {
     $w = [System.Net.WebException]::new('dns', [System.Net.WebExceptionStatus]::NameResolutionFailure)
@@ -723,7 +724,9 @@ Describe 'chaos G9-windows: app Agent Memory sem atalho (F10)' {
     Mock Invoke-WsProcess {
       $a = @($Arguments) -join ' '
       if ($a -eq 'tool list') { return @{ ExitCode = 0; StdOut = "agent-memory v0.5.0`n- agent-memory.exe" } }
-      if ($a -like 'mcp get*') { if ($script:McpOk) { return @{ ExitCode = 0; StdOut = '' } } else { return @{ ExitCode = 1; StdOut = '' } } }
+      # chaos G4: o registo tem de apontar para este programa, e sem o registo antigo "memoria".
+      if ($a -eq 'mcp get memoria') { return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp get*') { if ($script:McpOk) { return @{ ExitCode = 0; StdOut = "agent-memory:`n  Type: stdio`n  Command: C:\u\.local\bin\agent-memory.exe`n  Args: mcp" } } else { return @{ ExitCode = 1; StdOut = '' } } }
       return @{ ExitCode = 0; StdOut = '' }
     }
   }
@@ -734,13 +737,14 @@ Describe 'chaos G9-windows: app Agent Memory sem atalho (F10)' {
   }
   It 'com o MCP, um atalho que nao se consegue criar e so um aviso' {
     $script:Mode = 'install'; $script:McpOk = $true
-    Mock New-WsMemoryShortcut { Set-WsWarn 'E-MEM-03' 'shortcut: blocked by policy'; return $false }
+    Mock New-WsMemoryShortcut { Set-WsWarn 'E-MEM-06' 'Programs'; return $false }
     Test-WsStep10 | Should -BeTrue
     $script:T['10'].Falha | Should -BeNullOrEmpty
-    $script:T['10'].Avisos[0] -join ' ' | Should -BeExactly 'E-MEM-03 shortcut: blocked by policy'
+    $script:T['10'].Avisos[0] -join ' ' | Should -BeExactly 'E-MEM-06 Programs'
+    # G6: no -Check, com a pasta do atalho com escrita, falta correr o setup (sem escrita: E-MEM-06, no bloco G6).
     $script:Mode = 'check'; $script:T = New-WsStateTable
     Test-WsStep10 | Should -BeTrue
-    $script:T['10'].Avisos[0] -join ' ' | Should -BeExactly 'E-MEM-03 shortcut'
+    $script:T['10'].Avisos[0] -join ' ' | Should -BeExactly 'E-SETUP-01 shortcut'
   }
   It 'na instalacao, o MCP regista-se antes do atalho' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
@@ -757,13 +761,14 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     Test-WsLockHeld "1234`r`n638600000000000000" @{ Name = 'powershell'; StartTicks = 638600000000000000 } | Should -BeTrue
     Test-WsLockHeld "1234`r`n638600000000000000" @{ Name = 'powershell'; StartTicks = 638611111111111111 } | Should -BeFalse
     Test-WsLockHeld "1234`r`n638600000000000000" @{ Name = 'svchost'; StartTicks = 638600000000000000 } | Should -BeFalse
-    Test-WsLockHeld "1234`r`n638600000000000000" @{ Name = 'pwsh'; StartTicks = 0 } | Should -BeTrue
+    # G6: uma hora de arranque que nao se le (outro utilizador, SYSTEM, elevado) nao e este setup.
+    Test-WsLockHeld "1234`r`n638600000000000000" @{ Name = 'pwsh'; StartTicks = 0 } | Should -BeFalse
     Test-WsLockHeld '1234' $null | Should -BeFalse
     Test-WsLockHeld 'lixo' @{ Name = 'powershell'; StartTicks = 1 } | Should -BeFalse
     Test-WsLockHeld '' @{ Name = 'powershell'; StartTicks = 1 } | Should -BeFalse
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
-    $text | Should -Match "M 'ja_a_correr' @\{ PID = \`$first; LOCK = \`$lock \}"
-    $script:Msgs.ui.ja_a_correr | Should -Match '\{LOCK\}'
+    $text | Should -Match "M 'lock_ativo' @\{ PID = \`$first; HORA = \`$since \}"
+    $script:Msgs.ui.lock_ativo | Should -Match '\{HORA\}'
   }
   It 'um programa que passa do tempo e terminado (a espera e aos bocados, para o Ctrl-C chegar)' {
     if (-not (Test-Path -LiteralPath '/bin/sleep')) { Set-ItResult -Skipped -Because 'so em macOS/Linux'; return }
@@ -806,7 +811,6 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $ps.Dispose()
   }
 }
-
 Describe 'chaos G1-tty' {
   Context 'perguntas, logins e teclas a mais' {
     BeforeEach {
@@ -977,6 +981,10 @@ Describe 'chaos G1-tty' {
       } finally {
         if ($null -eq $old) { Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue } else { $env:NO_COLOR = $old }
       }
+    }
+  }
+}
+
 Describe 'chaos G2-profiles' {
   BeforeAll { $env:WS_PESTER_UP = 'C:\Users\t' }
   AfterAll { Remove-Item Env:WS_PESTER_UP -ErrorAction SilentlyContinue }
@@ -1138,6 +1146,9 @@ Describe 'chaos G2-profiles' {
       $script:UserHome = Join-Path $TestDrive 'sem-claude'
       Get-WsClaude | Should -Be 'C:\npm\claude.cmd'
     }
+  }
+}
+
 # --- chaos G3-network: 403/451 e paginas web, downloads partidos, SHA-256 outra vez, proxy morto, settings.json, NO_PROXY
 Describe 'chaos G3-network' {
   BeforeAll {
@@ -1151,7 +1162,6 @@ Describe 'chaos G3-network' {
     $script:DlHost = ''; $script:DlHttp = 0; $script:DlStatus = ''; $script:ProxyProbe = @{}; $script:Blocked = ''
     $script:UA = 'test'; $script:T = New-WsStateTable; $script:Cur = '0'
   }
-
   It 'Get-WsNetCode: 403/451 e a pagina web sao bloqueio; parado a meio e E-NET-07; o proxy morto e E-NET-03' {
     Get-WsNetCode 'ProtocolError' 403 | Should -Be 'E-NET-01'
     Get-WsNetCode 'ProtocolError' 451 | Should -Be 'E-NET-01'
@@ -1513,3 +1523,1492 @@ Describe 'chaos G3-network' {
     Test-Path -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'workshop-setup-windows-v9.9.9-g3.ps1') | Should -BeFalse
   }
 }
+
+Describe 'chaos G4-auth-tools' {
+  BeforeEach {
+    $script:T = New-WsStateTable; $script:Cur = '0'; $script:Mode = 'install'; $script:Sim = $false
+    $script:UA = 'test'; $script:Blocked = ''; $script:AuthOk = $false; $script:NetApiOk = $true
+    $script:ClaudeDir = Join-Path $TestDrive 'claude'
+    $script:UserHome = Join-Path $TestDrive 'home'
+    New-Item -ItemType Directory -Path $script:ClaudeDir, $script:UserHome -Force | Out-Null
+    Remove-Item -LiteralPath (Join-Path $script:ClaudeDir 'settings.json') -Force -ErrorAction SilentlyContinue
+    $script:GwDown = $false; $script:GwUrl = ''; $script:AuthCloud = ''; $script:Auth = $null
+    $script:GhSemRede = $false; $script:GhSemLogin = $false; $script:GhAsked = $false; $script:GhExe = $null; $script:AcliAsked = $false
+    $script:KeepEnv = @{}
+    foreach ($k in @('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY',
+        'CLAUDE_CONFIG_DIR', 'GH_CONFIG_DIR', 'GH_HOST', 'XDG_CONFIG_HOME', 'APPDATA', 'ProgramFiles', 'ProgramData')) {
+      $script:KeepEnv[$k] = [Environment]::GetEnvironmentVariable($k)
+      [Environment]::SetEnvironmentVariable($k, $null)
+    }
+    Mock Get-WsUserEnvRaw { return $null }
+    Mock Write-WsSay { }
+    function New-FakeProcess([int]$Exit) {
+      $p = [pscustomobject]@{ ExitCode = $Exit; Handle = [IntPtr]::Zero; HasExited = $true; Id = 0 }
+      $p | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($ms) return $true }
+      return $p
+    }
+  }
+  AfterEach {
+    foreach ($k in $script:KeepEnv.Keys) { [Environment]::SetEnvironmentVariable($k, $script:KeepEnv[$k]) }
+  }
+
+  It 'login numa janela sua: um Ctrl-C la so cancela o login (nota) e nada vai para a saida do passo' {
+    $script:Cur = '3'; $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Mock Start-Process { $script:Sp = @{ File = $FilePath; Args = @($ArgumentList) -join ' '; Wait = [bool]$Wait }; return (New-FakeProcess $script:SpExit) }
+    $script:SpExit = -1073741510
+    @(Invoke-WsLogin 'C:\u\claude.exe' @('auth', 'login', '--console')).Count | Should -Be 0
+    $script:Sp.File | Should -BeExactly 'C:\u\claude.exe'
+    $script:Sp.Args | Should -BeExactly 'auth login --console'
+    $script:Sp.Wait | Should -BeFalse -Because 'o -Wait do 5.1 esperava tambem pelo browser'
+    $script:T['3'].Notas | Should -Contain (M 'login_cancelado')
+    $script:Said | Should -Contain ('  ' + (M 'login_janela')) -Because 'a janela do setup diz onde esta o login'
+    $script:T = New-WsStateTable; $script:SpExit = 0
+    Invoke-WsLogin 'gh.exe' @('auth', 'login', '--hostname', 'github.com')
+    $script:T['3'].Notas.Count | Should -Be 0
+    # O gh sai com 2 num Ctrl-C nas perguntas dele; para os outros logins o 2 nao e um cancelamento.
+    $script:SpExit = 2
+    Invoke-WsLogin 'acli.exe' @('auth', 'login')
+    $script:T['3'].Notas.Count | Should -Be 0
+    Invoke-WsLogin 'gh.exe' @('auth', 'login', '--hostname', 'github.com') -CancelCodes @(2)
+    $script:T['3'].Notas | Should -Contain (M 'login_cancelado')
+    Mock Start-Process { throw [ComponentModel.Win32Exception]::new(1260) }
+    { Invoke-WsLogin 'acli.exe' @('auth', 'login') } | Should -Not -Throw
+    $script:Blocked | Should -BeExactly 'acli.exe'
+  }
+
+  It 'um Ctrl-C na janela do setup a meio do login: o login termina e o setup para como antes (o finally corre)' {
+    if (-not (Test-Path -LiteralPath '/bin/sh')) { Set-ItResult -Skipped -Because 'so em macOS/Linux'; return }
+    $pidFile = Join-Path $TestDrive 'login.pid'
+    $ps = [PowerShell]::Create()
+    [void]$ps.AddScript({
+        param($Setup, $PidFile, $Log)
+        $env:WS_NO_MAIN = '1'
+        . $Setup
+        $script:LogFile = $Log
+        Invoke-WsLogin '/bin/sh' @('-c', ('echo $$ > ' + $PidFile + '; exec sleep 60'))
+        'continuou'
+      }).AddArgument((Join-Path $script:Root 'setup/setup-windows.ps1')).AddArgument($pidFile).AddArgument((Join-Path $TestDrive 'login.log'))
+    $h = $ps.BeginInvoke()
+    for ($i = 0; $i -lt 100 -and -not (Test-Path -LiteralPath $pidFile); $i++) { Start-Sleep -Milliseconds 100 }
+    $child = [int]([IO.File]::ReadAllText($pidFile).Trim())
+    Start-Sleep -Milliseconds 300
+    $t0 = Get-Date
+    $ps.Stop()
+    ((Get-Date) - $t0).TotalSeconds | Should -BeLessThan 5
+    $gone = $false
+    for ($i = 0; $i -lt 30 -and -not $gone; $i++) { $gone = -not (Get-Process -Id $child -ErrorAction SilentlyContinue); if (-not $gone) { Start-Sleep -Milliseconds 100 } }
+    $gone | Should -BeTrue
+    $h.IsCompleted | Should -BeTrue
+    $out = @(); try { $out = @($ps.EndInvoke($h)) } catch { }
+    $out -contains 'continuou' | Should -BeFalse
+    $ps.Dispose()
+  }
+
+  It 'os logins do claude, gh e acli usam o Invoke-WsLogin; com uma cloud configurada nao se oferece o login' {
+    $script:Cur = '3'; $script:ClaudeExe = 'C:\u\claude.exe'
+    $script:Auth = @{ Logged = $false; Method = ''; Source = ''; Sub = ''; Org = ''; Provider = '' }
+    Mock Read-WsYesNo { return $true }
+    Mock Test-WsInteractive { return $true }
+    Mock Invoke-WsLogin { $script:Login = $Exe + ' ' + (@($Arguments) -join ' ') }
+    Mock Test-WsStep3 { return $true }
+    Install-WsStep3 | Should -BeTrue
+    $script:Login | Should -BeExactly 'C:\u\claude.exe auth login --console'
+    $script:AuthCloud = 'bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    Install-WsStep3 | Should -BeFalse
+    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    Should -Invoke Invoke-WsLogin -Times 1 -Exactly
+    # acli (reserva do MCP)
+    $script:Cur = '7'; $script:Login = ''
+    Mock Get-WsAcli { return 'acli.exe' }
+    Mock Invoke-WsProcess { if ((@($Arguments) -join ' ') -eq '--version') { return @{ ExitCode = 0; StdOut = 'acli version 1.3.0' } }; return @{ ExitCode = 1; StdOut = '' } }
+    Test-WsAcli $true | Should -BeTrue
+    $script:Login | Should -BeExactly 'acli.exe auth login'
+  }
+
+  It 'chaves da API: so os nomes (do ambiente, do registo com -User, ou do "env" das definicoes com o ficheiro)' {
+    $env:ANTHROPIC_API_KEY = 'sk-ant-api03-SEGREDO'
+    Get-WsEnvKeys | Should -BeExactly 'ANTHROPIC_API_KEY'
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_AUTH_TOKEN":"tok-SEGREDO","CLAUDE_CODE_USE_BEDROCK":true,"AWS_REGION":"eu-west-1"}}')
+    $k = Get-WsEnvKeys
+    $k | Should -BeExactly ('ANTHROPIC_AUTH_TOKEN ({0}), ANTHROPIC_API_KEY' -f $sf)
+    $k | Should -Not -Match 'SEGREDO'
+    Mock Get-WsUserEnvRaw { if ($Name -eq 'ANTHROPIC_AUTH_TOKEN') { return 'x' }; return $null }
+    Get-WsEnvKeys -User | Should -BeExactly 'ANTHROPIC_AUTH_TOKEN, ANTHROPIC_API_KEY'
+    Remove-Item Env:ANTHROPIC_API_KEY
+    [IO.File]::WriteAllText($sf, '{"env":{}}')
+    Get-WsEnvKeys | Should -BeExactly ''
+  }
+
+  It 'cloud (Bedrock, Vertex, Foundry): verdadeiro na shell ou no "env" das definicoes (o JSON true tambem conta)' {
+    foreach ($v in @('1', 'true', 'True', 'YES', 'on')) { Test-WsTruthy $v | Should -BeTrue -Because $v }
+    foreach ($v in @('0', 'false', '', 'no', 'off')) { Test-WsTruthy $v | Should -BeFalse -Because $v }
+    # O E-CFG-04 do Windows tem o comando para limpar cada uma das tres.
+    foreach ($n in @('BEDROCK', 'VERTEX', 'FOUNDRY')) {
+      ($script:Msgs.erros.'E-CFG-04'.windows -join "`n") | Should -Match ('SetEnvironmentVariable\(''CLAUDE_CODE_USE_{0}'', \$null, ''User''\)' -f $n)
+    }
+    Get-WsCloudWhere | Should -BeNullOrEmpty
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"CLAUDE_CODE_USE_BEDROCK":true}}')
+    (Get-WsSettingsEnv 'CLAUDE_CODE_USE_BEDROCK') -join '|' | Should -BeExactly ('True|' + $sf)
+    Get-WsSettingsEnv 'NADA' | Should -BeNullOrEmpty
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_BEDROCK ({0})' -f $sf)
+    $env:CLAUDE_CODE_USE_VERTEX = '0'
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_BEDROCK ({0})' -f $sf)
+    $env:CLAUDE_CODE_USE_FOUNDRY = '1'
+    Get-WsCloudWhere | Should -BeExactly 'CLAUDE_CODE_USE_FOUNDRY (shell)'
+    Remove-Item Env:CLAUDE_CODE_USE_FOUNDRY
+    [IO.File]::WriteAllText($sf, '{"env":{"CLAUDE_CODE_USE_BEDROCK":true,}')
+    Get-WsSettingsEnv 'CLAUDE_CODE_USE_BEDROCK' | Should -BeNullOrEmpty -Because 'um settings.json que nao se le e ignorado'
+    $pf = Join-Path $TestDrive 'pf'
+    New-Item -ItemType Directory -Path $pf -Force | Out-Null
+    $mf = Join-Path $pf 'ClaudeCode\managed-settings.json'
+    New-Item -ItemType Directory -Path (Split-Path $mf) -Force | Out-Null
+    [IO.File]::WriteAllText($mf, '{"env":{"CLAUDE_CODE_USE_VERTEX":"1"}}')
+    $env:ProgramFiles = $pf
+    Get-WsCloudWhere | Should -BeExactly ('CLAUDE_CODE_USE_VERTEX ({0})' -f $mf)
+  }
+
+  It 'passo 3: com Bedrock/Vertex/Foundry o passo falha com a origem (E-CFG-04) e o login fica por fazer' {
+    $script:Cur = '3'; $script:ClaudeExe = 'claude.exe'
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:AuthJson } }
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'bedrock'
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'third_party'
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","apiKeySource":"/login managed key","orgName":"ACME"}'
+    (Read-WsAuth).Provider | Should -BeExactly 'firstParty'
+    Test-WsStep3 | Should -BeTrue
+    $script:AuthCloud | Should -BeExactly ''
+    $script:T = New-WsStateTable; $script:AuthOk = $false
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"third_party","apiProvider":"bedrock"}'
+    $env:CLAUDE_CODE_USE_BEDROCK = '1'
+    Test-WsStep3 | Should -BeFalse
+    $script:T['3'].Falha -join '|' | Should -BeExactly 'E-CFG-04|bedrock: CLAUDE_CODE_USE_BEDROCK (shell)'
+    $script:AuthOk | Should -BeFalse
+    Remove-Item Env:CLAUDE_CODE_USE_BEDROCK
+    $script:T = New-WsStateTable
+    Test-WsStep3 | Should -BeFalse
+    $script:AuthCloud | Should -BeExactly 'bedrock: managed settings'
+    # outro metodo: o aviso mostra a origem (o nome da variavel), nunca o valor
+    $script:T = New-WsStateTable
+    $script:AuthJson = '{"loggedIn":true,"authMethod":"api_key","apiKeySource":"ANTHROPIC_API_KEY"}'
+    Test-WsStep3 | Should -BeTrue
+    $script:T['3'].Avisos[0] -join '|' | Should -BeExactly 'E-AUTH-03|ANTHROPIC_API_KEY'
+  }
+
+  It 'gateway (ANTHROPIC_BASE_URL): o que conta como em baixo e o URL que se mostra' {
+    foreach ($c in @(@('NameResolutionFailure', 0), @('ProxyNameResolutionFailure', 0), @('ConnectFailure', 0), @('Timeout', 0), @('ProtocolError', 502), @('', 503), @('ProtocolError', 504))) {
+      Test-WsGatewayAnswer $c[0] $c[1] | Should -BeFalse -Because ($c -join ' ')
+    }
+    foreach ($c in @(@('ProtocolError', 401), @('ProtocolError', 404), @('', 407), @('TrustFailure', 0), @('SecureChannelFailure', 0), @('ReceiveFailure', 0), @('', 0))) {
+      Test-WsGatewayAnswer $c[0] $c[1] | Should -BeTrue -Because ($c -join ' ')
+    }
+    Get-WsGatewayShow 'https://ana:SEGREDO@gw.empresa.pt:8443/v1/messages?x=1' | Should -BeExactly 'https://gw.empresa.pt:8443/'
+    Get-WsGatewayShow 'http://localhost:4000' | Should -BeExactly 'http://localhost:4000/'
+    Get-WsGatewayShow 'ht tp://ana:SEG/REDO@gw/x' | Should -Not -Match 'SEG'
+    Get-WsGatewayShow '' | Should -BeExactly ''
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('dns', [System.Net.WebExceptionStatus]::NameResolutionFailure) }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeFalse
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('tls', [System.Net.WebExceptionStatus]::TrustFailure) }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeTrue
+    Mock Invoke-WebRequest { return 'ok' }
+    Test-WsGatewayUp 'https://gw.invalid/' | Should -BeTrue
+  }
+
+  It 'passo 0: gateway que nao responde = E-CFG-03 + E-AUTH-05 (sem a password) e $script:GwDown' {
+    $env:ANTHROPIC_BASE_URL = 'https://ana:SEGREDO@gw.empresa.pt/v1'
+    Mock Test-WsGatewayUp { return $false }
+    Test-WsGateway
+    $script:GwDown | Should -BeTrue
+    ($script:T['0'].Avisos | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-CFG-03|ANTHROPIC_BASE_URL;E-AUTH-05|https://gw.empresa.pt/'
+    $script:T = New-WsStateTable
+    Remove-Item Env:ANTHROPIC_BASE_URL
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_BASE_URL":"http://localhost:4000"}}')
+    Mock Test-WsGatewayUp { return $true }
+    Test-WsGateway
+    $script:GwDown | Should -BeFalse
+    $script:GwUrl | Should -BeExactly 'http://localhost:4000'
+    ($script:T['0'].Avisos | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly ('E-CFG-03|ANTHROPIC_BASE_URL ({0})' -f $sf)
+    Remove-Item -LiteralPath $sf
+    $script:T = New-WsStateTable
+    Test-WsGateway
+    $script:GwUrl | Should -BeExactly ''
+    $script:T['0'].Avisos.Count | Should -Be 0
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $body = $text.Substring($text.IndexOf('function Test-WsStep0'))
+    $body = $body.Substring(0, $body.IndexOf('function Install-WsStep0'))
+    $body | Should -Not -Match "@\('ANTHROPIC_API_KEY', 'E-CFG-02'\)"
+    $body | Should -Match 'Get-WsEnvKeys -User'
+    $body | Should -Match 'Get-WsCloudWhere'
+    $body.LastIndexOf('Test-WsGateway') | Should -BeGreaterThan $body.IndexOf('Test-WsNetwork')
+  }
+
+  It 'passo 12: 90 s, sem MCP, e o codigo certo para o gateway, a chave rejeitada e o login' {
+    $script:Cur = '12'; $script:ClaudeExe = 'claude.exe'; $script:Tmp = $TestDrive
+    $script:Auth = @{ Source = '/login managed key' }
+    $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Mock Invoke-WsProcess { $script:SmokeArgs = @($Arguments); $script:SmokeTmo = $TimeoutSec; return $script:SmokeR }
+    function Get-Smoke([int]$Exit, [string]$Err) {
+      $script:SmokeR = @{ ExitCode = $Exit; StdOut = ''; StdErr = $Err }; $script:SmokeArgs = $null
+      $script:T = New-WsStateTable
+      $null = Install-WsStep12
+      return ($script:T['12'].Falha -join '|')
+    }
+    Get-Smoke -2 'timeout' | Should -BeExactly 'E-SMOKE-01|no answer in 90 s'
+    $script:SmokeTmo | Should -Be 90
+    $script:SmokeArgs | Should -Contain '--strict-mcp-config'
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape((M 's12_a_testar' @{ SEG = 90 })))
+    Get-Smoke 1 'Error: connect ECONNREFUSED 1.2.3.4:443' | Should -BeExactly 'E-NET-05|'
+    $script:GwUrl = 'https://ana:SEGREDO@gw.empresa.pt/v1'
+    Get-Smoke -2 'timeout' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    Get-Smoke 1 'Error: getaddrinfo ENOTFOUND gw.empresa.pt' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    $script:GwDown = $true
+    Get-Smoke 0 '' | Should -BeExactly 'E-AUTH-05|https://gw.empresa.pt/'
+    $script:SmokeArgs | Should -BeNullOrEmpty -Because 'com o gateway em baixo o Claude nao e chamado'
+    $script:GwDown = $false; $script:GwUrl = ''
+    $env:ANTHROPIC_API_KEY = 'sk-ant-api03-SEGREDO'
+    Get-Smoke 1 'API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}' | Should -BeExactly 'E-AUTH-04|ANTHROPIC_API_KEY'
+    Remove-Item Env:ANTHROPIC_API_KEY
+    Get-Smoke 1 'Invalid API key - Please run /login' | Should -BeExactly 'E-AUTH-01|'
+    $script:Auth = @{ Source = 'apiKeyHelper' }
+    Get-Smoke 1 'Failed to authenticate. API Error: 401' | Should -BeExactly 'E-AUTH-04|apiKeyHelper'
+    $script:Auth = @{ Source = 'none' }
+    $sf = Join-Path $script:ClaudeDir 'settings.json'
+    [IO.File]::WriteAllText($sf, '{"env":{"ANTHROPIC_AUTH_TOKEN":"tok-SEGREDO"}}')
+    Get-Smoke 1 'Invalid bearer token' | Should -BeExactly ('E-AUTH-04|ANTHROPIC_AUTH_TOKEN ({0})' -f $sf)
+  }
+
+  It 'ajudante e -Doctor: sem MCP, com limite, e nada com o gateway em baixo ou o GitHub sem resposta' {
+    $script:ClaudeExe = 'claude.exe'; $script:Tmp = $TestDrive
+    Mock Invoke-WsProcess { $script:HArgs = @($Arguments); $script:HTmo = $TimeoutSec; return @{ ExitCode = 1; StdOut = ''; StdErr = '' } }
+    Invoke-WsClaudeHelper 'p' '' | Should -BeNullOrEmpty
+    $script:HArgs | Should -Contain '--strict-mcp-config'
+    $script:HTmo | Should -Be 90
+    $null = Invoke-WsClaudeHelper 'p' '' -TimeoutSec 180
+    $script:HTmo | Should -Be 180
+    $script:GwDown = $true; $script:HArgs = $null
+    Invoke-WsClaudeHelper 'p' '' | Should -BeNullOrEmpty
+    $script:HArgs | Should -BeNullOrEmpty
+    $script:AuthOk = $true
+    Mock Read-WsYesNo { return $true }
+    $script:T['8'].Falha = @('E-KIT-03', '')
+    Invoke-WsHelper '8' | Should -BeFalse
+    $script:GwDown = $false
+    $script:T['6'].Falha = @('E-GH-03', 'github.com')
+    Invoke-WsHelper '6' | Should -BeFalse
+    Should -Invoke Read-WsYesNo -Times 0 -Exactly
+    $script:T['6'].Estado = 'falhou'; $script:GwDown = $true; $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Invoke-WsDoctor
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape((M 'doctor_sem_claude')))
+    Should -Invoke Invoke-WsProcess -Times 2 -Exactly
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match 'Invoke-WsClaudeHelper \$prompt '''' -TimeoutSec \$script:TmoDoctor'
+  }
+
+  It 'passo 6: o "gh auth status" sem resposta e a rede (E-GH-03), sem perguntar o login nem descarregar outra vez' {
+    $script:Cur = '6'; $script:WsHome = Join-Path $TestDrive 'ws'
+    $gh = Join-Path $TestDrive 'gh.exe'; Set-Content -LiteralPath $gh -Value 'x'
+    $cfg = Join-Path $TestDrive 'ghcfg'; New-Item -ItemType Directory -Path $cfg -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $cfg 'hosts.yml'), "github.com:`n    user: ana`n    git_protocol: https`nghe.empresa.pt:`n    users:`n        ana:`n")
+    Get-WsGhHosts | Should -BeExactly 'github.com' -Because 'sem hosts.yml'
+    $env:GH_CONFIG_DIR = $cfg
+    Get-WsGhHosts | Should -BeExactly 'github.com ghe.empresa.pt'
+    $env:GH_HOST = 'ghe.empresa.pt'
+    Get-WsGhHosts | Should -BeExactly 'ghe.empresa.pt github.com'
+    Remove-Item Env:GH_HOST
+    $script:Status = @(-2); $script:StatusN = 0; $script:Calls = @()
+    # Sem um gh verdadeiro no PATH: o -Exe tem de chegar (no Mac do autor havia um /opt/homebrew/bin/gh).
+    Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'gh' }
+    Mock Test-WsInteractive { return $true }
+    Mock Read-WsYesNo { return $true }
+    Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
+    Mock Invoke-WsDownload { return $true }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += ('{0} ({1})' -f $a, $TimeoutSec)
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'gh version 2.102.0 (2026-09-30)' } }
+      if ($a -eq 'auth status') { $i = [math]::Min($script:StatusN, $script:Status.Count - 1); $script:StatusN++; return @{ ExitCode = $script:Status[$i]; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    Test-WsStep6 -Exe $gh | Should -BeFalse
+    $script:T['6'].Falha -join '|' | Should -BeExactly 'E-GH-03|github.com ghe.empresa.pt'
+    $script:GhSemRede | Should -BeTrue
+    $script:Calls | Should -Contain 'auth status (25)'
+    Should -Invoke Read-WsYesNo -Times 0 -Exactly
+    $script:T = New-WsStateTable
+    Install-WsStep6 | Should -BeFalse
+    $script:T['6'].Falha[0] | Should -Be 'E-GH-03'
+    Should -Invoke Invoke-WsDownload -Times 0 -Exactly
+    Test-WsStep6 -Exe (Join-Path $TestDrive 'nao-ha.exe') | Should -BeFalse
+  }
+
+  It 'passo 6: sem login, o "auth status" so se repete depois de tentar o login (pelo Invoke-WsLogin)' {
+    $script:Cur = '6'; $script:WsHome = Join-Path $TestDrive 'ws'
+    $gh = Join-Path $TestDrive 'gh.exe'; Set-Content -LiteralPath $gh -Value 'x'
+    Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'gh' }
+    Mock Test-WsInteractive { return $true }
+    Mock Read-WsYesNo { return $true }
+    Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += ('{0} ({1})' -f $a, $TimeoutSec)
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'gh version 2.102.0 (2026-09-30)' } }
+      if ($a -eq 'auth status') { $i = [math]::Min($script:StatusN, $script:Status.Count - 1); $script:StatusN++; return @{ ExitCode = $script:Status[$i]; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $script:Sim = $true; $script:Status = @(1); $script:StatusN = 0; $script:Calls = @()
+    Test-WsStep6 -Exe $gh | Should -BeFalse
+    $script:T['6'].Falha[0] | Should -Be 'E-GH-02'
+    @($script:Calls | Where-Object { $_ -like 'auth status*' }).Count | Should -Be 1
+    $script:Sim = $false; $script:Status = @(1, 0); $script:StatusN = 0; $script:Calls = @(); $script:T = New-WsStateTable
+    Test-WsStep6 -Exe $gh | Should -BeTrue
+    $script:Login | Should -BeExactly 'auth login --hostname github.com --git-protocol https --web'
+    $script:Calls | Should -Contain 'auth setup-git (25)'
+    $script:GhSemLogin | Should -BeFalse
+    Should -Invoke Get-Command -Times 0 -Exactly -ParameterFilter { $Name -eq 'gh' } -Because 'com -Exe nao se procura o gh no PATH'
+  }
+
+  It 'acli: sem resposta no primeiro "auth status", nao tenta o segundo' {
+    $script:Calls = @()
+    Mock Invoke-WsProcess { $script:Calls += ('{0} ({1})' -f (@($Arguments) -join ' '), $TimeoutSec); return @{ ExitCode = $script:AcliRc; StdOut = '' } }
+    $script:AcliRc = -2
+    Test-WsAcliLogin 'acli.exe' | Should -BeFalse
+    $script:Calls -join ';' | Should -BeExactly 'auth status (25)'
+    $script:AcliRc = 1; $script:Calls = @()
+    Test-WsAcliLogin 'acli.exe' | Should -BeFalse
+    $script:Calls -join ';' | Should -BeExactly 'auth status (25);jira auth status (25)'
+  }
+
+  It 'MCP: le os campos do "claude mcp get" e compara o atlassian com o do workshop' {
+    $out = "atlassian:`r`n  Scope: User config (available in all your projects)`r`n  Status: Connected`r`n  Type: sse`r`n  URL: https://mcp.atlassian.com/v1/sse`r`n`r`nTo remove this server, run: claude mcp remove ""atlassian"" -s user`r`n"
+    Get-WsMcpField $out 'URL' | Should -BeExactly 'https://mcp.atlassian.com/v1/sse'
+    Get-WsMcpField $out 'Command' | Should -BeExactly ''
+    Get-WsMcpField "x:`n  Command:`n  Args: mcp" 'Command' | Should -BeExactly '' -Because 'um campo vazio nao apanha a linha seguinte'
+    $script:C = @{ ATLASSIAN_MCP_URL = 'https://mcp.atlassian.com/v1/mcp' }
+    Test-WsAtlassianMcp $out | Should -BeFalse
+    Test-WsAtlassianMcp $out.Replace('/v1/sse', '/v1/mcp') | Should -BeTrue
+    Test-WsAtlassianMcp "atlassian:`n  Type: stdio`n  Command: npx`n  Args: -y mcp-remote https://mcp.atlassian.com/v1/sse" | Should -BeFalse
+    Test-WsAtlassianMcp 'atlassian: (formato novo)' | Should -BeTrue -Because 'sem URL nem Command nao da para comparar'
+  }
+
+  It 'passo 7: um registo atlassian antigo e trocado (com nota), e confirma-se com "mcp get" e nao "mcp list"' {
+    $script:Cur = '7'; $script:Sim = $true; $script:ClaudeExe = 'claude.exe'
+    $script:C = @{ ATLASSIAN_MCP_URL = 'https://mcp.exemplo/v1/mcp' }
+    $script:McpUrl = 'https://mcp.exemplo/v1/sse'; $script:RmFail = $false; $script:Calls = @()
+    Mock Register-WsExtra { }
+    Mock Get-WsAcli { return 'acli.exe' }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments) -join ' '
+      $script:Calls += $a
+      if ($a -eq 'mcp get atlassian') { if ($script:McpUrl) { return @{ ExitCode = 0; StdOut = ("atlassian:`r`n  Scope: User config`r`n  Type: http`r`n  URL: " + $script:McpUrl + "`r`n") } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp remove*') { if ($script:RmFail) { return @{ ExitCode = 1; StdOut = '' } }; $script:McpUrl = ''; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a -like 'mcp add *') { $script:McpUrl = @($Arguments)[-1]; return @{ ExitCode = 0; StdOut = '' } }
+      if ($a -eq '--version') { return @{ ExitCode = 0; StdOut = 'acli version 1.3.0' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $script:Mode = 'check'
+    Test-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha -join '|' | Should -BeExactly 'E-MCP-01|atlassian: https://mcp.exemplo/v1/sse'
+    $script:Mode = 'install'; $script:T = New-WsStateTable
+    Install-WsStep7 | Should -BeTrue
+    $script:Calls | Should -Contain 'mcp remove --scope user atlassian'
+    $script:Calls | Should -Contain 'mcp add --transport http --scope user atlassian https://mcp.exemplo/v1/mcp'
+    $script:Calls | Should -Not -Contain 'mcp list'
+    $script:T['7'].Notas | Should -Contain (M 's7_substituido' @{ ANTIGO = 'https://mcp.exemplo/v1/sse' })
+    $script:T['7'].Falha | Should -BeNullOrEmpty
+    $script:T = New-WsStateTable; $script:McpUrl = 'https://mcp.exemplo/v1/sse'; $script:RmFail = $true; $script:Calls = @()
+    Install-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha -join '|' | Should -BeExactly 'E-MCP-01|claude mcp remove atlassian'
+    $script:Calls | Should -Contain 'mcp remove atlassian'
+  }
+
+  It 'passo 10: o registo agent-memory tem de apontar para este programa, e o antigo "memoria" sai' {
+    Test-WsMcpCommand "agent-memory:`r`n  Command: C:\\Users\\Ana\\.local\\bin\\agent-memory.exe`r`n  Args: mcp" 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeTrue
+    Test-WsMcpCommand "agent-memory:`n  Command: C:\Users\bruno\.local\bin\memoria.exe`n  Args: mcp" 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeFalse
+    Test-WsMcpCommand 'agent-memory: C:\Users\ana\.local\bin\agent-memory.exe mcp - Connected' 'C:\Users\ana\.local\bin\agent-memory.exe' | Should -BeTrue
+    Test-WsMcpCommand '' 'C:\x.exe' | Should -BeFalse
+    $script:Cur = '10'; $script:ClaudeExe = 'claude.exe'; $script:Calls = @()
+    $script:Reg = @{ 'agent-memory' = 'C:\old\memoria.exe'; memoria = 'C:\old\memoria.exe' }
+    Mock Register-WsExtra { }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments); $script:Calls += ($a -join ' ')
+      if ($a[1] -eq 'get') { if ($script:Reg.ContainsKey($a[2])) { return @{ ExitCode = 0; StdOut = ($a[2] + ":`n  Type: stdio`n  Command: " + $script:Reg[$a[2]] + "`n  Args: mcp") } }; return @{ ExitCode = 1; StdOut = '' } }
+      if ($a[1] -eq 'remove') { $script:Reg.Remove($a[-1]); return @{ ExitCode = 0; StdOut = '' } }
+      if ($a[1] -eq 'add') { $script:Reg[$a[4]] = $a[6]; return @{ ExitCode = 0; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $exe = 'C:\u\.local\bin\agent-memory.exe'
+    Test-WsMemoryMcp $exe | Should -BeFalse
+    Register-WsMemoryMcp $exe | Should -BeTrue
+    $script:Reg.ContainsKey('memoria') | Should -BeFalse
+    $script:Reg['agent-memory'] | Should -BeExactly $exe
+    $script:T['10'].Notas | Should -Contain (M 's10_mcp_substituido' @{ ANTIGO = 'C:\old\memoria.exe' })
+    Test-WsMemoryMcp $exe | Should -BeTrue
+    $script:Reg['memoria'] = 'C:\old\memoria.exe'
+    Test-WsMemoryMcp $exe | Should -BeFalse -Because 'o registo antigo "memoria" ainda esta la'
+  }
+
+  It 'JSON estrito como o do Claude Code: uma virgula a mais falha; o BOM e chaves so com maiusculas diferentes passam' {
+    $r = Test-WsStrictJson '{"a":1,}'
+    $r | Should -BeOfType [bool] -Because 'sem leitor estrito o setup nao verifica o ~\.claude.json (no 5.1: Windows.Data.Json)'
+    $r | Should -BeFalse
+    Test-WsStrictJson '{"a":[1,2,],"b":1}' | Should -BeFalse
+    Test-WsStrictJson '{"a":1} // nota' | Should -BeFalse
+    Test-WsStrictJson (([string][char]0xFEFF) + '{"a":1}') | Should -BeTrue
+    Test-WsStrictJson '{"projects":{"C:/Users/ana/p":{"x":1},"c:/Users/ana/p":{"x":2}}}' | Should -BeTrue
+  }
+
+  It 'passo 2: um ~\.claude.json invalido para o setup antes de qualquer comando do Claude Code (E-CC-04)' {
+    $script:Cur = '2'; $script:Tmp = $TestDrive
+    $f = Join-Path $script:UserHome '.claude.json'
+    [IO.File]::WriteAllText($f, '{"mcpServers":{"x":{"type":"http"}},}')
+    Mock Get-WsClaude { return 'claude.exe' }
+    Mock Invoke-WsDownload { return $true }
+    Test-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly ('E-CC-04|' + $f)
+    Should -Invoke Get-WsClaude -Times 0 -Exactly
+    $script:T = New-WsStateTable
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha[0] | Should -Be 'E-CC-04'
+    Should -Invoke Invoke-WsDownload -Times 0 -Exactly
+    [IO.File]::WriteAllBytes($f, [byte[]](@(0xEF, 0xBB, 0xBF) + [Text.Encoding]::ASCII.GetBytes('{"a":1}')))
+    Test-WsClaudeJson | Should -BeTrue
+    [IO.File]::WriteAllText($f, "  `r`n")
+    Test-WsClaudeJson | Should -BeTrue
+    Remove-Item -LiteralPath $f -Force
+    Test-WsClaudeJson | Should -BeTrue
+    $cd = Join-Path $TestDrive 'cfgdir'; New-Item -ItemType Directory -Path $cd -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $cd '.claude.json'), '{,}')
+    $env:CLAUDE_CONFIG_DIR = $cd
+    $script:T = New-WsStateTable
+    Test-WsClaudeJson | Should -BeFalse
+    $script:T['2'].Falha[1] | Should -BeExactly (Join-Path $cd '.claude.json')
+  }
+
+  It 'passo 2: se o instalador oficial ja trocou o ~\.claude.json, mostra a copia (E-CC-04) e nao E-CC-01' {
+    $script:Cur = '2'; $script:Tmp = $TestDrive
+    $script:C = @{ CLAUDE_INSTALL_PS1_URL = 'https://claude.exemplo/install.ps1'; CLAUDE_CODE_VERSION = '2.1.292' }
+    Mock Invoke-WsDownload { return $true }
+    Mock Get-WsWinPowerShell { return 'powershell.exe' }
+    Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = "Installing...`r`nClaude configuration file at C:\u\.claude.json is corrupted. Backed up to: C:\u\.claude\backups\.claude.json.corrupted.1760000000000`r`nDone"; StdErr = '' } }
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly 'E-CC-04|C:\u\.claude\backups\.claude.json.corrupted.1760000000000'
+    $script:T = New-WsStateTable
+    Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = 'boom'; StdErr = '' } }
+    Install-WsStep2 | Should -BeFalse
+    $script:T['2'].Falha -join '|' | Should -BeExactly 'E-CC-01|install.ps1'
+  }
+
+  It 'passo 5: o uv do workshop primeiro; um uv antigo primeiro no PATH so da o aviso E-UV-02' {
+    $script:Cur = '5'
+    $script:C = @{ UV_MIN_VERSION = '0.6.8' }
+    $local = Join-Path $script:UserHome '.local\bin\uv.exe'
+    New-Item -ItemType Directory -Path (Split-Path $local) -Force | Out-Null
+    Set-Content -LiteralPath $local -Value 'x'
+    $script:OldUv = Join-Path $TestDrive 'old-uv.exe'; Set-Content -LiteralPath $script:OldUv -Value 'x'
+    $script:Versions = @{ $local = 'uv 0.13.1 (abc 2026-09-01)'; $script:OldUv = 'uv 0.4.30' }
+    Mock Get-Command { return [pscustomobject]@{ Source = $script:OldUv } } -ParameterFilter { $Name -eq 'uv' }
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:Versions[$FilePath] } }
+    Test-WsStep5 | Should -BeTrue
+    $script:UvExe | Should -BeExactly $local
+    $script:UvVer | Should -BeExactly '0.13.1'
+    $script:T['5'].Avisos[0] -join '|' | Should -BeExactly ('E-UV-02|' + $script:OldUv + ': uv 0.4.30')
+    Get-WsUv | Should -BeExactly $local
+    # so o antigo: o passo instala o do workshop
+    Remove-Item -LiteralPath $local
+    $script:T = New-WsStateTable
+    Test-WsStep5 | Should -BeFalse
+    $script:UvExe | Should -BeNullOrEmpty
+    # um uv bom no PATH serve, sem aviso; sem UV_MIN_VERSION o minimo e 0.6.8
+    $script:Versions[$script:OldUv] = 'uv 0.7.2'
+    $script:T = New-WsStateTable
+    Test-WsStep5 | Should -BeTrue
+    $script:UvExe | Should -BeExactly $script:OldUv
+    $script:T['5'].Avisos.Count | Should -Be 0
+    $script:C = @{}; $script:Versions[$script:OldUv] = 'uv 0.6.7'
+    Test-WsStep5 | Should -BeFalse
+  }
+}
+
+Describe 'chaos G5-arena-git' {
+  BeforeAll {
+    $script:GitExe = Get-WsGit
+    # Um repositorio de teste isolado da configuracao global de quem corre os testes (assinaturas, hooks).
+    function New-TestRepo([string]$Dir, [string]$Tag) {
+      $c = @('-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', '-c', 'core.hooksPath=.git/no-hooks', '-c', 'user.name=t', '-c', 'user.email=t@t.invalid')
+      New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+      & $script:GitExe -C $Dir init -q '--template=' | Out-Null
+      & $script:GitExe -C $Dir @c commit -q --allow-empty -m init | Out-Null
+      if ($Tag) { & $script:GitExe -C $Dir @c tag $Tag | Out-Null }
+    }
+    function New-TestProj([string]$Dir, [string]$Mark, [string]$Json) {
+      New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $Dir $Mark), $Json)
+      [IO.File]::WriteAllText((Join-Path $Dir 'README.md'), 'x')
+    }
+  }
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+  }
+
+  It 'o git so olha para o .git da propria pasta e nunca assina a tag' {
+    $a = Get-WsGitOwnArgs (Join-Path $TestDrive 'demo-project')
+    $a[0] | Should -BeExactly ('--git-dir=' + (Join-Path (Join-Path $TestDrive 'demo-project') '.git'))
+    $a[1..2] -join ' ' | Should -BeExactly '-c tag.gpgsign=false'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Not -Match "'-C', \`$(Dir|demo)"
+    ${function:Test-WsGitTag}.ToString() | Should -Match 'Get-WsGitOwnArgs \$Dir'
+    ${function:Invoke-WsStep9Migrate}.ToString() | Should -Match "\(Get-WsGitOwnArgs \`$demo\) \+ @\('tag', 'arena-start', 'arena-inicial'\)"
+  }
+
+  It 'estado de um projeto: vazia, alheia, incompleta, ok e propria' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    $m = '.arena-kit.json'; $ref = 'refs/tags/arena-start'; $real = '{"version":"v1","language":"en"}'
+    Get-WsProjState (Join-Path $TestDrive 'nao-existe') $m $ref | Should -BeExactly 'vazia'
+    $d = Join-Path $TestDrive 'vazia'; New-Item -ItemType Directory -Path $d | Out-Null
+    Get-WsProjState $d $m $ref | Should -BeExactly 'vazia'
+    $d = Join-Path $TestDrive 'alheia'; New-Item -ItemType Directory -Path $d | Out-Null; [IO.File]::WriteAllText((Join-Path $d 'notas.txt'), 'x')
+    Get-WsProjState $d $m $ref | Should -BeExactly 'alheia'
+    $d = Join-Path $TestDrive 'copia'; New-TestProj $d $m '{"status":"incomplete","language":"en"}'
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    $d = Join-Path $TestDrive 'semgit'; New-TestProj $d $m $real
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    # Um %USERPROFILE% com os dotfiles em git (e ate uma tag arena-start): a Arena sem .git continua incompleta.
+    $up = Join-Path $TestDrive 'perfil'; New-TestRepo $up 'arena-start'
+    $d = Join-Path $up 'workshop-claude/demo-project'; New-TestProj $d $m $real
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    # ... e com um .git vazio (git init interrompido) o git nao vai buscar o HEAD e a tag do repositorio de cima.
+    New-Item -ItemType Directory -Path (Join-Path $d '.git') | Out-Null
+    Test-WsGitTag $d 'refs/tags/arena-start' | Should -BeFalse
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    $d = Join-Path $TestDrive 'ok'; New-TestProj $d $m $real; New-TestRepo $d 'arena-start'
+    Get-WsProjState $d $m $ref | Should -BeExactly 'ok'
+    $d = Join-Path $TestDrive 'propria'; New-TestProj $d $m $real; New-TestRepo $d ''
+    Get-WsProjState $d $m $ref | Should -BeExactly 'propria'
+    Get-WsProjState $d '.sandbox-kit.json' 'HEAD' | Should -BeExactly 'alheia'
+    $d = Join-Path $TestDrive 'treino'; New-TestProj $d '.sandbox-kit.json' $real; New-TestRepo $d ''
+    Get-WsProjState $d '.sandbox-kit.json' 'HEAD' | Should -BeExactly 'ok'
+    # Um git que nem arrancou (bloqueado pela seguranca): nao se sabe, e o projeto nao e tocado.
+    $keep = $script:GitExe
+    try {
+      $script:GitExe = Join-Path $TestDrive 'bloqueado/git.exe'
+      Get-WsProjState (Join-Path $TestDrive 'ok') $m $ref | Should -BeExactly 'semgit'
+      Get-WsProjState (Join-Path $TestDrive 'semgit') $m $ref | Should -BeExactly 'incompleta'
+      Get-WsProjState (Join-Path $TestDrive 'copia') $m $ref | Should -BeExactly 'incompleta'
+    } finally { $script:GitExe = $keep }
+  }
+
+  It 'mostra os caminhos com barras do Windows e a pasta do perfil como %USERPROFILE%' {
+    Format-WsShowPath 'C:/Users/ana/.workshop-claude/backup/2026-10-17T10-00-00/demo-project' 'C:\Users\ana' | Should -BeExactly '%USERPROFILE%\.workshop-claude\backup\2026-10-17T10-00-00\demo-project'
+    Format-WsShowPath 'c:/users/ANA/x' 'C:\Users\ana\' | Should -BeExactly '%USERPROFILE%\x'
+    Format-WsShowPath 'C:\Users\anabela\x' 'C:\Users\ana' | Should -BeExactly 'C:\Users\anabela\x'
+    Format-WsShowPath 'D:/backup/x' 'C:\Users\ana' | Should -BeExactly 'D:\backup\x'
+    $script:UserHome = 'C:\Users\rui'
+    Format-WsShowPath 'C:/Users/rui/.workshop-claude/backup' | Should -BeExactly '%USERPROFILE%\.workshop-claude\backup'
+  }
+
+  It 'passo 9: o --force so vai para uma montagem incompleta, nunca para uma Arena sem a tag' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Not -Match "\`$ref = 'refs/tags/arena-start'"
+    $text | Should -Match "Invoke-WsAssemble 'assemble-demo\.mjs' \(Join-Path \`$script:Proj 'demo-project'\) '\.arena-kit\.json' 'refs/tags/arena-start' @\("
+    $text | Should -Match "Invoke-WsAssemble 'assemble-sandbox\.mjs' \(Join-Path \`$script:Proj \`$script:PracticeDir\) '\.sandbox-kit\.json' 'HEAD' @\("
+    $f = ${function:Invoke-WsAssemble}.ToString()
+    $f | Should -Match "'incompleta' \{ \`$force = @\('--force'\) \}"
+    ([regex]::Matches($f, '--force')).Count | Should -Be 1
+  }
+
+  It 'Invoke-WsAssemble decide pelo estado, mostra a causa de uma falha e o backup' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $node) { Set-ItResult -Skipped -Because 'sem node'; return }
+    $script:NodeExe = $node.Source
+    $script:KitSrc = Join-Path $TestDrive 'kit'
+    $script:WsHome = Join-Path $TestDrive 'wsg5'
+    $script:UserHome = 'C:\Users\x'
+    $script:Literals = @()
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer'), $script:WsHome -Force | Out-Null
+    $argsFile = Join-Path $TestDrive 'args.txt'
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-ok.mjs'), (
+        "import { writeFileSync } from 'node:fs';`n" +
+        "writeFileSync(process.env.WS_G5_ARGS, process.argv.slice(2).join('|'));`n" +
+        "console.log('copying...');`n" +
+        "console.log(JSON.stringify({ status: 'assembled', version: 'v1', backup: 'C:/Users/x/.workshop-claude/backup/2026-10-17T10-00-00/demo-project' }));`n"))
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-fail.mjs'), (
+        "console.error('ERROR: git commit -q -m x failed: error: gpg failed to sign the data (token=sk-ant-abcdef123456)');`n" +
+        "process.exit(1);`n"))
+    # O git escreve as suas linhas "error:"/"fatal:" a seguir: so a linha "ERROR: " (maiusculas) do assembler conta.
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-fail3.mjs'), (
+        "console.error('ERROR: git add -A failed: error: open(x): Filename too long\nerror: unable to index file x\nfatal: adding files failed');`n" +
+        "process.exit(1);`n"))
+    $env:WS_G5_ARGS = $argsFile
+    try {
+      # vazia: monta sem --force e mostra onde ficou o backup
+      $script:Cur = '9'
+      $d = Join-Path $TestDrive 'p-vazia'
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @('--language', 'en') | Should -BeTrue
+      [IO.File]::ReadAllText($argsFile) | Should -Not -Match '--force'
+      $script:T['9'].Notas -join ' ' | Should -BeExactly 'Your previous folder is saved in %USERPROFILE%\.workshop-claude\backup\2026-10-17T10-00-00\demo-project.'
+      # incompleta: --force (o assembler guarda a pasta no backup antes de montar)
+      $script:T = New-WsStateTable
+      $d = Join-Path $TestDrive 'p-inc'; New-TestProj $d '.arena-kit.json' '{"version":"v1","language":"en"}'
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @('--language', 'en') | Should -BeTrue
+      [IO.File]::ReadAllText($argsFile) | Should -Match '\|--force$'
+      # propria: aviso E-DEMO-04, o assembler nem corre
+      $script:T = New-WsStateTable
+      Remove-Item -LiteralPath $argsFile
+      $d = Join-Path $TestDrive 'p-propria'; New-TestProj $d '.arena-kit.json' '{"version":"v1","language":"en"}'; New-TestRepo $d ''
+      Invoke-WsAssemble 'fake-fail.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeTrue
+      $script:T['9'].Falha | Should -BeNullOrEmpty
+      $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-04'
+      Test-Path -LiteralPath $argsFile | Should -BeFalse
+      # alheia: E-DEMO-03
+      $script:T = New-WsStateTable
+      $d = Join-Path $TestDrive 'p-alheia'; New-Item -ItemType Directory -Path $d | Out-Null; [IO.File]::WriteAllText((Join-Path $d 'x.txt'), 'x')
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-03'
+      # semgit (git bloqueado): falha sem correr o assembler, e a pasta fica onde esta
+      $script:T = New-WsStateTable
+      $keep = $script:GitExe
+      try {
+        $script:GitExe = Join-Path $TestDrive 'bloqueado/git.exe'
+        Invoke-WsAssemble 'fake-ok.mjs' (Join-Path $TestDrive 'p-propria') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      } finally { $script:GitExe = $keep }
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+      $script:T['9'].Falha[1] | Should -Match '^git rev-parse HEAD: '
+      Test-Path -LiteralPath $argsFile | Should -BeFalse
+      # falha do assembler: a causa no detalhe (sem segredos), e nao so o nome do script
+      $script:T = New-WsStateTable
+      Invoke-WsAssemble 'fake-fail.mjs' (Join-Path $TestDrive 'p-falha') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+      $script:T['9'].Falha[1] | Should -BeExactly 'fake-fail.mjs: git commit -q -m x failed: error: gpg failed to sign the data (token=***'
+      $script:T = New-WsStateTable
+      Invoke-WsAssemble 'fake-fail3.mjs' (Join-Path $TestDrive 'p-falha3') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[1] | Should -BeExactly 'fake-fail3.mjs: git add -A failed: error: open(x): Filename too long'
+    } finally { Remove-Item Env:WS_G5_ARGS -ErrorAction SilentlyContinue }
+  }
+
+  It 'Test-WsStep9: historico proprio da Arena e um aviso (E-DEMO-04), e nao E-DEMO-01' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    Mock Initialize-WsKit { return $true }
+    $script:Proj = Join-Path $TestDrive 'proj9'
+    $script:KitSrc = Join-Path $TestDrive 'kit9'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+    $script:Mode = 'install'
+    $script:Cur = '9'
+    New-Item -ItemType Directory -Path $script:KitSrc -Force | Out-Null
+    $demo = Join-Path $script:Proj 'demo-project'
+    Test-WsStep9 | Should -BeFalse
+    $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+    $script:T = New-WsStateTable
+    New-TestProj $demo '.arena-kit.json' '{"version":"v1","language":"en"}'; New-TestRepo $demo ''
+    Test-WsStep9 | Should -BeTrue
+    $script:T['9'].Falha | Should -BeNullOrEmpty
+    $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-04'
+    $script:T = New-WsStateTable
+    & $script:GitExe -C $demo -c tag.gpgsign=false tag arena-start | Out-Null
+    Test-WsStep9 | Should -BeTrue
+    $script:T['9'].Avisos.Count | Should -Be 0
+  }
+
+  It 'passo 8 e -Uninstall: as skills/agentes alterados pela pessoa e as versoes anteriores' {
+    $script:Cur = '8'
+    $script:UserHome = 'C:\Users\x'
+    Read-WsInstallUserOutput "skills`t7`nagentes`t6`neditado`tC:/Users/x/.workshop-claude/backup/t/edited/skills/task-plan`nanteriores`tC:/Users/x/.workshop-claude/backup/t/previous`n"
+    $n = $script:T['8'].Notas
+    $n[0] | Should -BeExactly 'You had changed task-plan: your copy is saved in %USERPROFILE%\.workshop-claude\backup\t\edited\skills\task-plan, and the kit''s version is back in its place.'
+    $n[1] | Should -Match ([regex]::Escape('%USERPROFILE%\.workshop-claude\backup\t\previous'))
+    $f = ${function:Invoke-WsUninstall}.ToString()
+    $f | Should -Match "'editado' \{ Write-WsSay \('  ' \+ \(M 'desinst_editado'"
+    $f | Should -Match "'anteriores' \{ Write-WsSay \('  ' \+ \(M 's8_anteriores'"
+  }
+
+  It 'Write-WsCode: os comandos PS> usam $env:USERPROFILE (o PowerShell nao expande %USERPROFILE%)' {
+    $keep = $script:Fill
+    $script:Said = New-Object System.Collections.Generic.List[string]
+    Mock Write-WsSay { $script:Said.Add($Text) }
+    try {
+      $script:Fill = @{ PROJETOS = '%USERPROFILE%\workshop-claude' }
+      Write-WsCode 'E-DEMO-04' '' ''
+      $ps = @($script:Said | Where-Object { $_ -like '    PS> *' })
+      $ps.Count | Should -Be 1
+      $ps[0] | Should -BeExactly '    PS> Rename-Item $env:USERPROFILE\workshop-claude\demo-project demo-project-old'
+      # As frases para ler ficam com %USERPROFILE%.
+      $script:Said.Clear()
+      Write-WsCode 'E-SO-03' '' ''
+      $script:Said -join ' ' | Should -Match ([regex]::Escape('The projects are in %USERPROFILE%\workshop-claude.'))
+      # Nenhum comando PS> do catalogo fica com %USERPROFILE% nem com {PROJETOS} por preencher.
+      $script:Said.Clear()
+      foreach ($k in $script:Msgs.erros.PSObject.Properties.Name) { Write-WsCode $k '' '' }
+      $ps = @($script:Said | Where-Object { $_ -like '    PS> *' })
+      $ps.Count | Should -BeGreaterThan 4
+      foreach ($l in $ps) { $l | Should -Not -Match '%USERPROFILE%|\{PROJETOS\}' }
+      @($ps | Where-Object { $_ -like '*$env:USERPROFILE\workshop-claude*' }).Count | Should -BeGreaterOrEqual 4
+    } finally { $script:Fill = $keep }
+  }
+
+  It 'as mensagens novas existem nos dois catalogos' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($cat in @($script:Msgs, $pt)) {
+      foreach ($k in @('s9_backup', 's8_editado', 's8_anteriores', 'desinst_editado')) { $cat.ui.PSObject.Properties.Name | Should -Contain $k }
+      $cat.erros.'E-DEMO-04'.windows[0] | Should -Match 'Rename-Item \{PROJETOS\}\\demo-project demo-project-old'
+    }
+    $script:Msgs.ui.s9_backup | Should -Match '\{PASTA\}'
+    $script:Msgs.ui.s8_editado | Should -Match '\{NOME\}.*\{PASTA\}'
+  }
+}
+
+# --- chaos G6-lifecycle: lock, -Check/-Doctor com a ultima instalacao, copia guardada, kit-src, permissoes, atalho,
+# pasta das memorias, settings.json e resumo (port de setup-mac.sh)
+Describe 'chaos G6-lifecycle' {
+  BeforeAll {
+    function Start-WsTestProc([string]$Exe, [string[]]$ArgList) {
+      if ($env:OS -eq 'Windows_NT') { return (Start-Process -FilePath $Exe -ArgumentList $ArgList -WindowStyle Hidden -PassThru) }
+      return (Start-Process -FilePath $Exe -ArgumentList $ArgList -PassThru)
+    }
+    # Pastas sem escrita com chmod: so em macOS/Linux, e nunca como root (no Windows seriam ACL).
+    $script:Unix = (Test-Path -LiteralPath '/bin/sh') -and ([Environment]::UserName -ne 'root')
+    $script:Titles = @{}
+    foreach ($p in $script:Msgs.passos.PSObject.Properties) { $script:Titles[$p.Name] = $p.Value }
+    $script:KeepLog = $script:LogFile
+    $script:G6Log = @(
+      '10:00:01 === step 10: Agent Memory app (mode install)',
+      '10:00:01 --- command output (step 10) ---',
+      'error: invalid peer certificate: UnknownIssuer',
+      '--- end ---',
+      '10:00:02 result step 10: aviso E-MEM-03|uv tool install',
+      '10:00:03 result step 1: ja',
+      '10:05:00 === step 10: Agent Memory app (mode doctor)',
+      '10:05:00 --- command output (step 10) ---',
+      '[claude-code:x] y',
+      '--- end ---'
+    )
+  }
+  AfterAll { $script:LogFile = $script:KeepLog }
+  BeforeEach {
+    $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Blocked = ''; $script:GpoBlocks = $false; $script:ProxyAuth = $false; $script:Emoji = $false
+    $script:LogFile = $script:KeepLog
+  }
+
+  It 'lock: o PID de outro programa, o proprio PID e um .lock vazio velho nao bloqueiam; um setup vivo bloqueia com a mensagem do catalogo' {
+    $d = Join-Path $TestDrive 'lk'
+    New-Item -ItemType Directory -Path $d -Force | Out-Null
+    $lock = Join-Path $d '.lock'
+    if ($env:OS -eq 'Windows_NT') { $other = Start-WsTestProc 'cmd.exe' @('/c', 'ping -n 30 127.0.0.1 >nul') } else { $other = Start-WsTestProc '/bin/sleep' @('30') }
+    $ps = Start-WsTestProc (Get-Process -Id $PID).Path @('-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep 30')
+    try {
+      Start-Sleep -Milliseconds 500
+      [IO.File]::WriteAllText($lock, [string]$other.Id)
+      Enter-WsLock $lock | Should -BeTrue
+      ([IO.File]::ReadAllLines($lock))[0] | Should -BeExactly ([string]$PID)
+      [IO.File]::WriteAllText($lock, [string]$PID)
+      Enter-WsLock $lock | Should -BeTrue
+      $ticks = (Get-Process -Id $ps.Id).StartTime.ToUniversalTime().Ticks
+      [IO.File]::WriteAllText($lock, ([string]$ps.Id + "`r`n" + $ticks))
+      Enter-WsLock $lock | Should -BeFalse
+      ($script:Said -join "`n") | Should -Match ('already running in another window \(PID ' + $ps.Id + ', since \d\d:\d\d\)')
+      ([IO.File]::ReadAllLines($lock))[0] | Should -BeExactly ([string]$ps.Id)
+      # O mesmo PowerShell com outra hora de arranque: o PID foi reutilizado.
+      [IO.File]::WriteAllText($lock, ([string]$ps.Id + "`r`n" + ($ticks - 10000000)))
+      Enter-WsLock $lock | Should -BeTrue
+      # .lock acabado de criar (ainda sem PID): bloqueia; com mais de 10 s e velho.
+      [IO.File]::WriteAllText($lock, '')
+      Enter-WsLock $lock | Should -BeFalse
+      (Get-Item -LiteralPath $lock -Force).LastWriteTime = (Get-Date).AddMinutes(-1)
+      Enter-WsLock $lock | Should -BeTrue
+      ([IO.File]::ReadAllLines($lock))[0] | Should -BeExactly ([string]$PID)
+    } finally {
+      Stop-Process -Id $other.Id -Force -ErrorAction SilentlyContinue
+      Stop-Process -Id $ps.Id -Force -ErrorAction SilentlyContinue
+    }
+    Test-WsLockHeld ([string]$PID) @{ Name = 'pwsh'; StartTicks = 0 } $PID | Should -BeFalse
+    Test-WsLockHeld '99999999999999999999999' @{ Name = 'pwsh'; StartTicks = 0 } | Should -BeFalse
+  }
+
+  It 'lock: o finally so apaga o .lock deste setup; o lock vem antes do titulo e o WsHome sem escrita antes do lock' {
+    $lock = Join-Path $TestDrive 'ex.lock'
+    [IO.File]::WriteAllText($lock, "99999999`r`n1")
+    Exit-WsLock $lock
+    Test-Path -LiteralPath $lock | Should -BeTrue
+    [IO.File]::WriteAllText($lock, ([string]$PID + "`r`n1"))
+    Exit-WsLock $lock
+    Test-Path -LiteralPath $lock | Should -BeFalse
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $main = $text.Substring($text.IndexOf('function Invoke-WsMain'))
+    $main.IndexOf('Test-WsDirWritable $script:WsHome') | Should -BeLessThan $main.IndexOf('Enter-WsLock $lock')
+    $main.IndexOf('setup.log.unwritable-') | Should -BeLessThan $main.IndexOf('Enter-WsLock $lock')
+    $main.IndexOf('Enter-WsLock $lock') | Should -BeLessThan $main.IndexOf('(Update-WsSelf)')
+    $main.IndexOf('(Update-WsSelf)') | Should -BeLessThan $main.IndexOf("M 'titulo'")
+    $main | Should -Match "\`$script:Mode -ne 'uninstall' -and \(Update-WsSelf\)"
+    $main | Should -Match 'Exit-WsLock \$lock'
+    $text | Should -Not -Match 'The setup is already running \(PID'
+  }
+
+  It 'resultado de cada instalacao no setup.log: o -Check mostra a falha da ultima, e uma instalacao boa depois apaga-a' {
+    $log = Join-Path $TestDrive 'g6-setup.log'
+    [IO.File]::WriteAllText($log, (($script:G6Log -join "`r`n") + "`r`n"))
+    $r = Get-WsLastInstallResult '10' $log
+    $r[0] | Should -BeExactly 'E-MEM-03'
+    $r[1] | Should -BeExactly 'uv tool install'
+    Get-WsLastInstallResult '1' $log | Should -BeNullOrEmpty
+    Get-WsLastInstallResult '9' $log | Should -BeNullOrEmpty
+    Get-WsLastInstallResult '10' (Join-Path $TestDrive 'nao-ha.log') | Should -BeNullOrEmpty
+    $script:LogFile = $log; $script:Mode = 'check'; $script:UserHome = $TestDrive
+    Mock Test-WsStep10 { Set-WsFail 'E-MEM-01' ''; return $false }
+    Invoke-WsStep 10
+    $script:T['10'].Estado | Should -Be 'aviso'
+    (@($script:T['10'].Avisos | ForEach-Object { $_ -join '|' }) -join ';') | Should -BeExactly 'E-SETUP-01|E-MEM-01;E-MEM-03|uv tool install'
+    $script:T['10'].Detalhe | Should -BeExactly 'This step is not done yet (E-SETUP-01)'
+    [IO.File]::AppendAllText($log, "10:06:00 result step 10: ja`r`n")
+    Get-WsLastInstallResult '10' $log | Should -BeNullOrEmpty
+  }
+
+  It 'instalacao: a falha fica no setup.log antes de virar aviso; um erro de permissao na saida ganha ao codigo do passo' {
+    $log = Join-Path $TestDrive 'g6-install.log'
+    $script:LogFile = $log; $script:Mode = 'install'; $script:UserHome = 'C:\Users\x'
+    Mock Test-WsDirWritable { return $false }
+    Mock Invoke-WsHelper { return $false }
+    Mock Test-WsStep10 { return $false }
+    Mock Install-WsStep10 { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
+    Invoke-WsStep 10
+    $script:T['10'].Estado | Should -Be 'aviso'
+    @(Get-Content -LiteralPath $log | Where-Object { $_ -match ' result step 10: ' })[0] | Should -Match ' result step 10: aviso E-MEM-03\|uv tool install$'
+    (Get-WsLastInstallResult '10' $log) -join '|' | Should -BeExactly 'E-MEM-03|uv tool install'
+    Mock Test-WsStep8 { return $false }
+    Mock Install-WsStep8 { Add-WsStepLog "Copying...`nEACCES: permission denied, mkdir 'C:\Users\x\.claude\skills'"; return $false }
+    Invoke-WsStep 8
+    $script:T['8'].Estado | Should -Be 'falhou'
+    $script:T['8'].Falha -join '|' | Should -BeExactly "E-PERM-01|EACCES: permission denied, mkdir '~\.claude\skills'"
+    @(Get-Content -LiteralPath $log | Where-Object { $_ -match ' result step 8: ' })[0] | Should -Match " result step 8: falhou E-PERM-01\|EACCES: permission denied, mkdir '~\\\.claude\\skills'$"
+  }
+
+  It 'reclassificacao: so os erros de permissao contam (rede, publickey, E-CFG-05 e o antivirus ficam)' {
+    Get-WsPermLine ("Downloading...`nEACCES: permission denied, mkdir 'C:\Users\x\.claude\skills'`n") 'C:\Users\x' | Should -BeExactly "EACCES: permission denied, mkdir '~\.claude\skills'"
+    Get-WsPermLine "Access to the path 'C:\USERS\X\.local\bin\uv.exe' is denied." 'C:\Users\x' | Should -BeExactly "Access to the path '~\.local\bin\uv.exe' is denied."
+    Get-WsPermLine "EPERM: operation not permitted, open 'C:\Users\xavier\a'" 'C:\Users\x' | Should -BeExactly "EPERM: operation not permitted, open 'C:\Users\xavier\a'"
+    Get-WsPermLine "git@host: Permission denied (publickey).`ncurl: (6) Could not resolve host" 'C:\Users\x' | Should -BeExactly ''
+    (Get-WsPermLine ('EACCES ' + ('x' * 300)) '').Length | Should -Be 160
+    $script:Cur = '2'; $script:UserHome = 'C:\Users\x'
+    Add-WsStepLog 'curl: (6) Could not resolve host'
+    Set-WsFail 'E-NET-02' 'x'; Invoke-WsPermReclass
+    $script:T['2'].Falha[0] | Should -Be 'E-NET-02'
+    Add-WsStepLog "mkdir: C:\Users\x\.claude\downloads: Permission denied"
+    Set-WsFail 'E-CC-01' 'install.ps1'; Invoke-WsPermReclass
+    $script:T['2'].Falha -join '|' | Should -BeExactly 'E-PERM-01|mkdir: ~\.claude\downloads: Permission denied'
+    foreach ($c in @('E-CFG-05', 'E-PERM-02', 'E-SO-07', 'E-AUTH-01', 'E-SMOKE-02')) { Set-WsFail $c 'x'; Invoke-WsPermReclass; $script:T['2'].Falha[0] | Should -Be $c }
+    # O FullyQualifiedErrorId de um script bloqueado pela execution policy nao e um erro de permissao.
+    Get-WsPermLine "+ FullyQualifiedErrorId : UnauthorizedAccess`n+ CategoryInfo : SecurityError: (:) [], PSSecurityException" 'C:\Users\x' | Should -BeExactly ''
+    Get-WsPermLine "+ CategoryInfo : PermissionDenied: (C:\Users\x\.claude:String) [New-Item], UnauthorizedAccessException" 'C:\Users\x' | Should -Match 'UnauthorizedAccessException$'
+  }
+
+  It 'reclassificacao: um ficheiro em uso (pasta de cima com escrita) fica com o codigo do passo; sem escrita e E-PERM-01' {
+    $script:Cur = '10'; $script:UserHome = Join-Path $TestDrive 'perfil-uso'; $script:T = New-WsStateTable
+    $tools = Join-Path $script:UserHome 'AppData/Roaming/uv/tools'
+    New-Item -ItemType Directory -Path (Join-Path $tools 'agent-memory') -Force | Out-Null
+    $script:StepLog = New-Object System.Text.StringBuilder
+    Add-WsStepLog ('error: failed to remove directory `' + (Join-Path $tools 'agent-memory') + '`: Access is denied. (os error 5)')
+    Set-WsFail 'E-MEM-03' 'uv tool install'; Invoke-WsPermReclass
+    $script:T['10'].Falha -join '|' | Should -BeExactly 'E-MEM-03|uv tool install'
+    Mock Test-WsDirWritable { return $false } -ParameterFilter { $Dir -like '*uv*tools' }
+    Invoke-WsPermReclass
+    $script:T['10'].Falha[0] | Should -Be 'E-PERM-01'
+    $script:T['10'].Falha[1] | Should -Match '^error: failed to remove directory `~.AppData.Roaming.uv.tools.agent-memory`: Access is denied'
+  }
+
+  It 'comandos que devolvem um caminho a pessoa e caminhos com ~' {
+    Get-WsPermFixCmd 'C:\Users\x\.claude' 'dir' 'EMP\x' | Should -BeExactly 'icacls "C:\Users\x\.claude" /grant "EMP\x:(OI)(CI)F" /T'
+    Get-WsPermFixCmd 'C:\Users\x\.claude.json' 'file' 'EMP\x' | Should -BeExactly 'icacls "C:\Users\x\.claude.json" /grant "EMP\x:F"'
+    Get-WsPermFixCmd 'C:\Users\x\.claude.json' 'readonly' 'EMP\x' | Should -BeExactly 'attrib -R "C:\Users\x\.claude.json"'
+    Get-WsPermFixCmd 'C:\Users\x\.local\bin' 'notdir' 'EMP\x' | Should -BeExactly 'Rename-Item -LiteralPath "C:\Users\x\.local\bin" -NewName "bin.old"'
+    Format-WsHomePath 'C:\Users\x\.local\bin' 'C:\Users\x' | Should -BeExactly '~\.local\bin'
+    Format-WsHomePath 'C:\USERS\X' 'C:\Users\x\' | Should -BeExactly '~'
+    Format-WsHomePath 'C:\Users\xavier\a' 'C:\Users\x' | Should -BeExactly 'C:\Users\xavier\a'
+    Format-WsHomePath 'D:\dados' 'C:\Users\x' | Should -BeExactly 'D:\dados'
+    $f = Join-Path $TestDrive 'pf-file'
+    Set-Content -LiteralPath $f -Value 'x'
+    Get-WsPermFix $f | Should -Match '^Rename-Item -LiteralPath ".*pf-file" -NewName "pf-file\.old"$'
+    $script:UserHome = Split-Path -Parent $TestDrive
+    Get-WsPermFix (Join-Path $TestDrive 'nao/existe') | Should -Match ('^icacls "' + [regex]::Escape($TestDrive) + '" /grant ".+:\(OI\)\(CI\)F" /T$')
+    # Nunca um icacls /T na pasta do perfil, nem numa pasta de cima fora do perfil; um caminho que existe fora dele conta.
+    $script:UserHome = $TestDrive
+    Get-WsPermFix (Join-Path $TestDrive 'nao/existe') | Should -BeExactly ''
+    Get-WsPermFix $TestDrive | Should -BeExactly ''
+    $script:UserHome = Join-Path $TestDrive 'perfil'
+    Get-WsPermFix (Join-Path $TestDrive 'fora/nao/existe') | Should -BeExactly ''
+    Get-WsPermFix $f | Should -Match '^Rename-Item -LiteralPath ".*pf-file"'
+    Test-WsDirWritable $TestDrive | Should -BeTrue
+    Test-WsDirWritable (Join-Path $TestDrive 'nao/existe') | Should -BeTrue
+    Test-WsDirWritable $f | Should -BeFalse
+    @(Get-ChildItem -LiteralPath $TestDrive -Force -Filter '.ws-write-*').Count | Should -Be 0
+  }
+
+  It 'restos de outro utilizador: aviso E-PERM-01 com os caminhos, um comando por caminho, e os passos 2 e 5 nao descarregam' {
+    $h = Join-Path $TestDrive 'home com espaco'
+    foreach ($s in @('.claude', '.local', '.workshop-claude')) { New-Item -ItemType Directory -Path (Join-Path $h $s) -Force | Out-Null }
+    Set-Content -LiteralPath (Join-Path $h '.local/bin') -Value 'x'
+    $cj = Join-Path $h '.claude.json'
+    Set-Content -LiteralPath $cj -Value '{}'
+    (Get-Item -LiteralPath $cj -Force).IsReadOnly = $true
+    if ($script:Unix) { chmod 555 (Join-Path $h '.claude') }
+    $script:UserHome = $h; $script:WsHome = Join-Path $h '.workshop-claude'; $script:ClaudeDir = Join-Path $h '.claude'; $script:Cur = '0'
+    $keep = @{ APPDATA = $env:APPDATA; LOCALAPPDATA = $env:LOCALAPPDATA; CLAUDE_CONFIG_DIR = $env:CLAUDE_CONFIG_DIR }
+    try {
+      foreach ($k in $keep.Keys) { Remove-Item ('Env:' + $k) -ErrorAction SilentlyContinue }
+      Test-WsPermScan
+    } finally {
+      foreach ($k in $keep.Keys) { if ($keep[$k]) { Set-Item ('Env:' + $k) $keep[$k] } }
+      if ($script:Unix) { chmod 755 (Join-Path $h '.claude') }
+      (Get-Item -LiteralPath $cj -Force).IsReadOnly = $false
+    }
+    $w = $script:T['0'].Avisos[0]
+    $w[0] | Should -Be 'E-PERM-01'
+    $exp = '~\.local\bin (not a folder) ~\.claude.json'
+    if ($script:Unix) { $exp = '~\.claude ' + $exp }
+    ($w[1] -replace '/', '\') | Should -BeExactly $exp
+    $notes = $script:T['0'].Notas -join "`n"
+    $notes | Should -Match 'run the setup again: Rename-Item -LiteralPath ".*[\\/]\.local[\\/]bin" -NewName "bin\.old"'
+    $notes | Should -Match 'run the setup again: attrib -R ".*[\\/]\.claude\.json"'
+    if ($script:Unix) { $notes | Should -Match 'run the setup again: icacls ".*[\\/]\.claude" /grant ".+:\(OI\)\(CI\)F" /T' }
+    $script:Cur = '5'
+    Test-WsPermBlocked @((Join-Path $h '.local\bin\uv.exe')) | Should -BeTrue
+    ($script:T['5'].Falha -join '|') -replace '/', '\' | Should -BeExactly 'E-PERM-01|~\.local\bin'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    foreach ($f in @('Install-WsStep2', 'Install-WsStep5')) {
+      $body = $text.Substring($text.IndexOf('function ' + $f + ' {'))
+      $body.IndexOf('Test-WsPermBlocked') | Should -BeLessThan $body.IndexOf('Invoke-WsDownload')
+    }
+    # Uma pasta pessoal normal nao avisa.
+    Remove-Item -LiteralPath (Join-Path $h '.local/bin') -Force
+    $script:T = New-WsStateTable; $script:Cur = '0'
+    try { foreach ($k in $keep.Keys) { Remove-Item ('Env:' + $k) -ErrorAction SilentlyContinue }; Test-WsPermScan }
+    finally { foreach ($k in $keep.Keys) { if ($keep[$k]) { Set-Item ('Env:' + $k) $keep[$k] } } }
+    $script:T['0'].Avisos.Count | Should -Be 0
+    $script:T['0'].Notas.Count | Should -Be 0
+    @($script:PermBad).Count | Should -Be 0
+  }
+
+  It '-Doctor: manda a saida da ultima instalacao de cada passo com problema, sem as linhas [claude-code:...], e diz que nao ha ferramentas' {
+    $log = Join-Path $TestDrive 'g6-doctor.log'
+    [IO.File]::WriteAllText($log, (($script:G6Log -join "`r`n") + "`r`n"))
+    @(Get-WsLastStepOutput '10' $script:G6Log) -join '|' | Should -BeExactly 'error: invalid peer certificate: UnknownIssuer'
+    @(Get-WsLastStepOutput '1' $script:G6Log).Count | Should -Be 0
+    $script:LogFile = $log
+    foreach ($k in @($script:T.Keys)) { $script:T[$k].Estado = 'ok' }
+    $script:T['10'].Estado = 'aviso'; $script:T['10'].Avisos = @(, @('E-SETUP-01', 'E-MEM-01'))
+    $script:AuthOk = $true; $script:NetApiOk = $true
+    Mock Get-WsVersionsLine { return 'versions' }
+    Mock Invoke-WsClaudeHelper { $script:Prompt = $Prompt; return $null }
+    Invoke-WsDoctor
+    $script:Prompt | Should -Match 'You cannot use tools, run commands or read files: answer now'
+    $script:Prompt | Should -Match 'Last recorded install output of each step with a problem'
+    $script:Prompt | Should -Match '--- step 10 \(.+\) ---\nerror: invalid peer certificate: UnknownIssuer'
+    $script:Prompt | Should -Not -Match '\[claude-code:'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $helper = $text.Substring($text.IndexOf('function Invoke-WsHelper'))
+    $helper.Substring(0, $helper.IndexOf('function Invoke-WsDoctor')) | Should -Match "Where-Object \{ \`$_ -notmatch '\^\\\[claude-code:' \}"
+  }
+
+  It 'copia guardada desatualizada: substitui-se pela da release (SHA256SUMS), so com os valores injetados; sem rede fica a local' {
+    $script:WsHome = Join-Path $TestDrive 'sws'; $script:Tmp = Join-Path $TestDrive 'stmp'; $script:Rel = Join-Path $TestDrive 'srel'
+    foreach ($p in @($script:WsHome, $script:Tmp, $script:Rel)) { New-Item -ItemType Directory -Path $p -Force | Out-Null }
+    $dst = Join-Path $script:WsHome 'setup-windows.ps1'
+    $other = Join-Path $TestDrive 'outra-copia.ps1'
+    Set-Content -LiteralPath $other -Value '# other'
+    [IO.File]::WriteAllText($dst, "# old copy`r`n")
+    $rel = Join-Path $script:Rel 'setup-windows.ps1'
+    [IO.File]::WriteAllText($rel, ("# release`r`n`$script:WsInjKitSha256 = '" + ('a' * 64) + "'`r`n"))
+    $sum = Get-WsSha256 $rel
+    [IO.File]::WriteAllText((Join-Path $script:Rel 'SHA256SUMS'), ($sum + '  setup-windows.ps1' + "`n"))
+    $script:Dev = $false; $script:ReExec = $false; $script:Net = $false
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Invoke-WsDownload { if (-not $script:Net) { return $false }; Copy-Item -LiteralPath (Join-Path $script:Rel ($Url.Split('/')[-1])) -Destination $OutFile -Force; return $true }
+    Update-WsSelf -Self $dst | Should -BeFalse
+    [IO.File]::ReadAllText($dst) | Should -BeExactly "# old copy`r`n"
+    $script:Net = $true
+    Update-WsSelf -Self $other | Should -BeFalse
+    $script:ReExec = $true
+    Update-WsSelf -Self $dst | Should -BeFalse
+    $script:ReExec = $false
+    Update-WsSelf -Self $dst | Should -BeTrue
+    Get-WsSha256 $dst | Should -Be $sum
+    Update-WsSelf -Self $dst | Should -BeFalse
+    [IO.File]::WriteAllText($rel, "# source copy, no injected values`r`n")
+    [IO.File]::WriteAllText((Join-Path $script:Rel 'SHA256SUMS'), ((Get-WsSha256 $rel) + '  setup-windows.ps1' + "`n"))
+    [IO.File]::WriteAllText($dst, "# old copy`r`n")
+    Update-WsSelf -Self $dst | Should -BeFalse
+    [IO.File]::ReadAllText($dst) | Should -BeExactly "# old copy`r`n"
+  }
+
+  It 'a copia nova corre noutro processo, com as mesmas opcoes, WS_REEXEC=1 e sem o .lock deste' {
+    $script:WsHome = Join-Path $TestDrive 'rws'
+    New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    $lock = Join-Path $script:WsHome '.lock'
+    $out = Join-Path $TestDrive 'reexec.txt'
+    $child = "param([switch]`$Check, [switch]`$NoDesktop, [switch]`$Yes)`r`n" +
+      "[IO.File]::WriteAllText('" + $out + "', ('reexec=' + `$env:WS_REEXEC + ' check=' + [bool]`$Check + ' nodesktop=' + [bool]`$NoDesktop + ' yes=' + [bool]`$Yes + ' lock=' + (Test-Path -LiteralPath '" + $lock + "')))`r`n" +
+      "exit 7`r`n"
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'setup-windows.ps1'), $child)
+    [IO.File]::WriteAllText($lock, [string]$PID)
+    $script:Params = @{ Check = $true; Doctor = $false; Desinstalar = $false; SemDesktop = $true; Sim = $false; SubstituirStatusline = $false; Ajuda = $false }
+    Mock Get-WsWinPowerShell { return (Get-Process -Id $PID).Path }
+    Invoke-WsUpdatedSelf $lock | Should -Be 7
+    [IO.File]::ReadAllText($out) | Should -BeExactly 'reexec=1 check=True nodesktop=True yes=False lock=False'
+    $env:WS_REEXEC | Should -BeNullOrEmpty
+  }
+
+  It 'kit-src: uma release republicada (outro SHA-256) volta a ser descarregada; sem rede fica o antigo; o -Check usa o que houver' {
+    $script:WsHome = Join-Path $TestDrive 'kws'; $script:Tmp = Join-Path $TestDrive 'ktmp'
+    New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
+    $script:C = @{ WORKSHOP_VERSION = 'v9' }
+    $src = Join-Path $TestDrive 'krel/workshop-kit-v9'
+    New-Item -ItemType Directory -Path (Join-Path $src 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $src 'installer/install-user.mjs') -Value ''
+    Set-Content -LiteralPath (Join-Path $src 'marca') -Value 'novo'
+    $script:KitZip = Join-Path $TestDrive 'workshop-kit-v9.zip'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($src, $script:KitZip, [IO.Compression.CompressionLevel]::Fastest, $true)
+    $old = Join-Path $script:WsHome 'kit-src/v9'
+    New-Item -ItemType Directory -Path (Join-Path $old 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $old 'installer/install-user.mjs') -Value ''
+    Set-Content -LiteralPath (Join-Path $old '.ws-kit-ok') -Value (Get-Date -Format o)
+    $script:InjKitSha = Get-WsSha256 $script:KitZip
+    $script:Net = $false
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Get-WsGit { return $null }
+    Mock Invoke-WsDownload { if (-not $script:Net) { return $false }; Copy-Item -LiteralPath $script:KitZip -Destination $OutFile -Force; return $true }
+    $script:Mode = 'check'; $script:KitSrc = ''
+    Initialize-WsKit | Should -BeTrue
+    Test-Path -LiteralPath (Join-Path $script:KitSrc 'marca') | Should -BeFalse
+    $script:Mode = 'install'; $script:KitSrc = ''
+    Initialize-WsKit | Should -BeTrue
+    Test-Path -LiteralPath (Join-Path $script:KitSrc 'marca') | Should -BeFalse
+    $script:Net = $true; $script:KitSrc = ''
+    Initialize-WsKit | Should -BeTrue
+    (Get-Content -LiteralPath (Join-Path $script:KitSrc 'marca')) | Should -BeExactly 'novo'
+    ([IO.File]::ReadAllText((Join-Path $old '.ws-kit-ok'))).Trim() | Should -BeExactly $script:InjKitSha
+    $script:Net = $false; $script:KitSrc = ''
+    Initialize-WsKit | Should -BeTrue
+    Should -Invoke Invoke-WsDownload -Times 2 -Exactly
+    $script:InjKitSha = ''
+  }
+
+  It 'kit-src: um kit antigo que nao sai todo (ficheiro aberto) deixa de contar, e o clone nao vai para dentro dele' {
+    $script:WsHome = Join-Path $TestDrive 'kws2'; $script:Tmp = Join-Path $TestDrive 'ktmp2'; $script:Mode = 'install'; $script:KitSrc = ''
+    New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
+    $script:C = @{ WORKSHOP_VERSION = 'v9'; WORKSHOP_REPO_URL = 'https://git.invalid/kit.git' }
+    $src = Join-Path $TestDrive 'krel2/workshop-kit-v9'
+    New-Item -ItemType Directory -Path (Join-Path $src 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $src 'installer/install-user.mjs') -Value ''
+    $script:KitZip2 = Join-Path $TestDrive 'krel2.zip'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($src, $script:KitZip2, [IO.Compression.CompressionLevel]::Fastest, $true)
+    $script:InjKitSha = Get-WsSha256 $script:KitZip2
+    $script:KitOld2 = Join-Path $script:WsHome 'kit-src/v9'
+    $old = $script:KitOld2
+    New-Item -ItemType Directory -Path (Join-Path $old 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $old '.ws-kit-ok') -Value 'outro'
+    $script:StepLog = New-Object System.Text.StringBuilder
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Invoke-WsDownload { Copy-Item -LiteralPath $script:KitZip2 -Destination $OutFile -Force; return $true }
+    # O Remove-Item -Recurse do kit antigo nao apaga nada (um ficheiro aberto la dentro).
+    Mock Remove-Item { } -ParameterFilter { $Recurse -and (($LiteralPath -join '') -replace '[\\/]+$', '') -eq $script:KitOld2 }
+    Mock Get-WsGit { return 'git' }
+    Mock Invoke-WsProcess { New-Item -ItemType Directory -Path $Arguments[-1] -Force | Out-Null; return @{ ExitCode = 0; StdOut = ''; StdErr = '' } }
+    Initialize-WsKit | Should -BeFalse
+    Test-Path -LiteralPath (Join-Path $old '.ws-kit-ok') | Should -BeFalse
+    Test-Path -LiteralPath (Join-Path $old 'clone') | Should -BeFalse
+    $script:KitSrc | Should -BeNullOrEmpty
+    $script:StepLog.ToString() | Should -Match 'kit-src not replaced'
+    Should -Invoke Invoke-WsProcess -Times 1 -Exactly
+    $script:InjKitSha = ''
+  }
+
+  It 'passo 8: settings.json com comentarios mostra o caminho e a linha, sem o "0 skills" nem as notas da lingua' {
+    $script:Cur = '8'; $script:ClaudeDir = Join-Path $TestDrive '.claude'; $script:Lang = 'en'; $script:LangKit = 'en'
+    $p = Join-Path $script:ClaudeDir 'settings.json'
+    Read-WsInstallUserOutput ("erro`tE-CFG-05`nerro_detalhe`tnot valid JSON at line 2, column 3: a comment`nskills`t0`n")
+    $script:T['8'].Falha -join '|' | Should -BeExactly ('E-CFG-05|' + $p + ' - not valid JSON at line 2, column 3: a comment')
+    $script:T['8'].Detalhe | Should -BeNullOrEmpty
+    Mock Initialize-WsKit { return $true }
+    $script:T = New-WsStateTable
+    $script:T['8'].Notas = @('note from the check'); $script:T['8'].Detalhe = '0 skills, 0 agents'
+    $script:IuOut = @{ ExitCode = 3; StdOut = "lingua`t1`nerro`tE-CFG-05`nerro_detalhe`tline 2, column 3`n"; StdErr = '' }
+    Mock Invoke-WsInstallUser { return $script:IuOut }
+    Install-WsStep8 | Should -BeFalse
+    $script:T['8'].Falha -join '|' | Should -BeExactly ('E-CFG-05|' + $p + ' - line 2, column 3')
+    $script:T['8'].Detalhe | Should -BeNullOrEmpty
+    $script:T['8'].Notas.Count | Should -Be 0
+    $script:T = New-WsStateTable
+    $script:IuOut = @{ ExitCode = 3; StdOut = "skills`t0`n"; StdErr = '' }
+    Install-WsStep8 | Should -BeFalse
+    $script:T['8'].Falha -join '|' | Should -BeExactly ('E-CFG-05|' + $p)
+    $script:T['8'].Detalhe | Should -BeNullOrEmpty
+  }
+
+  It 'passo 10: selftest sem escrita na pasta das memorias = E-MEM-07 com o comando; outra falha = E-MEM-05' {
+    $script:Cur = '10'
+    $mh = Join-Path $TestDrive 'mem7'
+    New-Item -ItemType Directory -Path $mh -Force | Out-Null
+    Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'mem7') }
+    $script:SelfOut = "Agent Memory 0.5.0 . Python 3.12.13`n  [OK] x`n  [FAIL] Cannot write to C:\x: [WinError 5] Access is denied"
+    Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = $script:SelfOut; StdErr = '' } }
+    Invoke-WsMemorySelftest 'agent-memory.exe' '0.5.0' | Should -BeFalse
+    $script:T['10'].Avisos[0][0] | Should -Be 'E-MEM-07'
+    ($script:T['10'].Notas -join "`n") | Should -Match ('run the setup again: icacls "' + [regex]::Escape($mh) + '" /grant ".+:\(OI\)\(CI\)F" /T')
+    $script:T = New-WsStateTable
+    $script:SelfOut = "  [OK] x`n  [FAIL] FTS5 is not available"
+    Invoke-WsMemorySelftest 'agent-memory.exe' '0.5.0' | Should -BeFalse
+    $script:T['10'].Avisos[0] -join '|' | Should -BeExactly 'E-MEM-05|FTS5 is not available'
+    $script:T['10'].Notas.Count | Should -Be 0
+  }
+
+  It 'passo 10: o atalho que nao se cria e E-MEM-06 (erro no log do passo); config.json numa pasta sem escrita devolve $false' {
+    $script:Cur = '10'; $script:UserHome = $TestDrive
+    Mock Get-WsOldShortcutPath { return (Join-Path $TestDrive 'old.lnk') }
+    Mock Get-WsShortcutPath { return (Join-Path $TestDrive 'Programs/Agent Memory.lnk') }
+    # No Windows o WScript.Shell existe: bloqueado como por uma politica do IT. Fora do Windows o -ComObject nem existe.
+    Mock New-Object { throw 'COM blocked by policy' } -ParameterFilter { $ComObject -eq 'WScript.Shell' }
+    New-WsMemoryShortcut 'gui.exe' | Should -BeFalse
+    $script:T['10'].Avisos[0][0] | Should -Be 'E-MEM-06'
+    ($script:T['10'].Avisos[0][1] -replace '/', '\') | Should -BeExactly '~\Programs'
+    $script:StepLog.ToString() | Should -Match '^shortcut: '
+    $script:StepLog = [Text.StringBuilder]::new()
+    $script:C = @{ MEMORY_APP_REPO_URL = 'https://h/o/app'; RELEASE_DOWNLOAD_URL = 'https://h/{file}'; PYTHON_VERSION = '3.12.13' }; $script:UvExe = $null
+    Set-Content -LiteralPath (Join-Path $TestDrive 'mhfile') -Value 'x'
+    Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'mhfile') }
+    Write-WsMemoryConfig | Should -BeFalse
+    $script:StepLog.ToString() | Should -Match '^config\.json: '
+    Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'mhok') }
+    Write-WsMemoryConfig | Should -BeTrue
+    ([IO.File]::ReadAllText((Join-Path $TestDrive 'mhok/config.json')) | ConvertFrom-Json).PYTHON_VERSION | Should -Be '3.12.13'
+  }
+
+  It 'passo 10: sem config.json nem atalho, a instalacao refaz os dois sem reinstalar a app; no -Check, a pasta do atalho sem escrita e E-MEM-06' {
+    $script:Cur = '10'; $script:UserHome = $TestDrive
+    $script:C = @{ MEMORY_APP_VERSION = 'v0.5.0' }
+    $script:ClaudeExe = 'claude.exe'; $script:UvExe = 'uv.exe'
+    Mock Get-WsUvBin { return 'C:\u\.local\bin' }
+    Mock Get-WsMemoryExe { return 'C:\u\.local\bin\agent-memory.exe' }
+    Mock Get-WsMemoryGui { return 'C:\u\.local\bin\agent-memory-gui.exe' }
+    Mock Get-WsWebView2Version { return '1.0' }
+    Mock Invoke-WsMemorySelftest { return $true }
+    Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'mh10') }
+    Mock Get-WsShortcutPath { return (Join-Path $TestDrive 'pr10/Agent Memory.lnk') }
+    Mock Invoke-WsProcess {
+      if ((@($Arguments) -join ' ') -eq 'tool list') { return @{ ExitCode = 0; StdOut = 'agent-memory v0.5.0' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    $script:Fixed = @()
+    Mock Write-WsMemoryConfig { $script:Fixed += 'config'; return $true }
+    Mock New-WsMemoryShortcut { $script:Fixed += 'shortcut'; return $true }
+    $script:Mode = 'install'
+    Test-WsStep10 | Should -BeTrue
+    $script:Fixed -join ',' | Should -BeExactly 'config,shortcut'
+    $script:T['10'].Falha | Should -BeNullOrEmpty
+    $script:Mode = 'check'; $script:T = New-WsStateTable
+    Test-WsStep10 | Should -BeFalse
+    $script:T['10'].Falha -join ' ' | Should -BeExactly 'E-MEM-03 config.json'
+    if (-not $script:Unix) { return }
+    New-Item -ItemType Directory -Path (Join-Path $TestDrive 'mh10'), (Join-Path $TestDrive 'pr10') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $TestDrive 'mh10/config.json') -Value '{}'
+    chmod 555 (Join-Path $TestDrive 'pr10')
+    try {
+      $script:T = New-WsStateTable
+      Test-WsStep10 | Should -BeTrue
+      ($script:T['10'].Avisos[0] -join '|') -replace '/', '\' | Should -BeExactly 'E-MEM-06|~\pr10'
+    } finally { chmod 755 (Join-Path $TestDrive 'pr10') }
+  }
+
+  It 'passo 10: uv com erro de certificado repete uma vez com UV_SYSTEM_CERTS=true; ja com ele, ou a falhar outra vez, e E-NET-04' {
+    $script:Cur = '10'
+    $script:C = @{ MEMORY_APP_VERSION = 'v0.5.0'; PYTHON_VERSION = '3.12.13'; MEMORY_APP_REPO_URL = 'https://h/o/app'; RELEASE_DOWNLOAD_URL = 'https://h/{file}' }
+    $script:Tmp = Join-Path $TestDrive 'uvtmp'
+    New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
+    $script:UvExe = 'uv.exe'; $script:ClaudeExe = $null
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Invoke-WsDownload { Set-Content -LiteralPath $OutFile -Value 'x'; return $true }
+    Mock Get-WsMemoryWheel { return 'agent_memory-0.5.0-py3-none-any.whl' }
+    Mock Get-WsSumFor { return 'abc' }
+    Mock Get-WsSha256 { return 'abc' }
+    Mock Install-WsWebView2 { return $true }
+    Mock Register-WsExtra { }
+    Mock Get-WsUvBin { return 'C:\u\bin' }
+    Mock Get-WsMemoryExe { return 'C:\u\bin\agent-memory.exe' }
+    Mock Get-WsMemoryGui { return 'C:\u\bin\agent-memory-gui.exe' }
+    Mock Add-WsUserPath { }
+    Mock Register-WsMemoryMcp { return $true }
+    Mock Write-WsMemoryConfig { return $true }
+    Mock New-WsMemoryShortcut { return $true }
+    Mock Invoke-WsMemorySelftest { return $false }
+    Mock Invoke-WsProcess {
+      if ((@($Arguments) -join ' ') -like 'tool install*') {
+        $c = ''
+        if ($Environment) { $c = [string]$Environment['UV_SYSTEM_CERTS'] }
+        $script:UvCalls += ('certs=' + $c)
+        if ($c -eq 'true') { return @{ ExitCode = $script:RetryCode; StdOut = ''; StdErr = 'x' } }
+        return @{ ExitCode = 1; StdOut = ''; StdErr = $script:UvErr }
+      }
+      return @{ ExitCode = 0; StdOut = 'agent-memory v0.5.0'; StdErr = '' }
+    }
+    $keep = $env:UV_SYSTEM_CERTS
+    Remove-Item Env:UV_SYSTEM_CERTS -ErrorAction SilentlyContinue
+    try {
+      $script:UvErr = 'error: invalid peer certificate: UnknownIssuer'; $script:RetryCode = 0; $script:UvCalls = @()
+      Install-WsStep10 | Should -BeTrue
+      $script:UvCalls -join ',' | Should -BeExactly 'certs=,certs=true'
+      $script:T = New-WsStateTable; $script:RetryCode = 1; $script:UvCalls = @()
+      Install-WsStep10 | Should -BeFalse
+      $script:T['10'].Falha -join '|' | Should -BeExactly 'E-NET-04|uv: github.com / pypi.org'
+      $env:UV_SYSTEM_CERTS = 'true'
+      $script:T = New-WsStateTable; $script:UvCalls = @()
+      Install-WsStep10 | Should -BeFalse
+      $script:UvCalls -join ',' | Should -BeExactly 'certs='
+      $script:T['10'].Falha[0] | Should -Be 'E-NET-04'
+      Remove-Item Env:UV_SYSTEM_CERTS -ErrorAction SilentlyContinue
+      $script:T = New-WsStateTable; $script:UvErr = 'No solution found when resolving dependencies'; $script:UvCalls = @()
+      Install-WsStep10 | Should -BeFalse
+      $script:UvCalls -join ',' | Should -BeExactly 'certs='
+      $script:T['10'].Falha -join '|' | Should -BeExactly 'E-MEM-03|uv tool install'
+    } finally { if ($keep) { $env:UV_SYSTEM_CERTS = $keep } else { Remove-Item Env:UV_SYSTEM_CERTS -ErrorAction SilentlyContinue } }
+  }
+
+  It 'resumo: sem detalhe, a linha mostra o titulo da falha ou do primeiro aviso; os avisos contam tambem quando falta um passo' {
+    foreach ($k in @($script:T.Keys)) { $script:T[$k].Estado = 'ok' }
+    $script:T['10'].Estado = 'aviso'; $script:T['10'].Avisos = @(, @('E-MEM-06', '~\Programs'))
+    $script:T['2'].Estado = 'falta'; $script:T['2'].Falha = @('E-SETUP-01', 'E-CC-01')
+    $script:Mode = 'check'; $script:OsText = 'Windows'; $script:WsHome = $TestDrive; $script:Resumo = Join-Path $TestDrive 'summary.txt'; $script:TodoMcp = $false
+    Write-WsResult '10'
+    $script:T['10'].Detalhe | Should -BeExactly "Couldn't create the Agent Memory shortcut (E-MEM-06)"
+    Write-WsResult '2'
+    $script:T['2'].Detalhe | Should -BeExactly 'This step is not done yet (E-SETUP-01)'
+    $script:Said = @()
+    Write-WsSummary | Should -Be 1
+    ($script:Said -join "`n") | Should -Match 'There are 1 warnings above'
+    ($script:Said -join "`n") | Should -Match "Couldn't create the Agent Memory shortcut \(E-MEM-06\)"
+  }
+}
+
+# --- chaos G7-language: WORKSHOP_LANG validado, lingua guardada na instalacao, notas dos passos 0, 8 e 9
+Describe 'chaos G7-language' {
+  BeforeAll {
+    $script:LangEnvBefore = $env:WORKSHOP_LANG
+    function Set-LangFile([string]$Name, [string]$Text, [switch]$Bom) {
+      $d = Join-Path $script:WsHome 'kit'
+      New-Item -ItemType Directory -Path $d -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $d $Name), $Text, (New-Object System.Text.UTF8Encoding($Bom.IsPresent)))
+    }
+  }
+  AfterAll {
+    if ($null -eq $script:LangEnvBefore) { Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue } else { $env:WORKSHOP_LANG = $script:LangEnvBefore }
+  }
+
+  It 'o que nao e uma etiqueta de lingua nao da informacao (language-cases.json invalidas)' {
+    foreach ($c in (Read-Fixture 'language-cases.json').invalidas) {
+      ConvertTo-WsLangTag $c.in | Should -BeExactly '' -Because $c.in
+    }
+    ConvertTo-WsLangTag ('Portugu' + [char]0x00EA + 's') | Should -BeExactly ''
+    ConvertTo-WsLangTag ('pt-' + [char]0x0661 + [char]0x0662) | Should -BeExactly '' -Because 'algarismos arabes: [0-9] e nao \d'
+    ConvertTo-WsLangTag ([string][char]0x0130 + 't') | Should -BeExactly '' -Because 'I com ponto (turco)'
+    ConvertTo-WsLangTag ('en-' + [char]0x212A + 'K') | Should -BeExactly '' -Because 'sinal de Kelvin'
+    ConvertTo-WsLangTag 'pt-abcdefghi' | Should -BeExactly '' -Because 'subetiqueta de 9 caracteres'
+    ConvertTo-WsLangTag 'pt-abcdefgh' | Should -BeExactly 'pt-abcdefgh'
+    ConvertTo-WsLangTag 'pt_BR.UTF-8' | Should -BeExactly 'pt-BR'
+    ConvertTo-WsLangTag 'iw_IL' | Should -BeExactly 'he-IL'
+    ConvertTo-WsLangTag 'br' | Should -BeExactly 'br' -Because 'bretao e uma etiqueta (rejeitada um nivel acima)'
+    ConvertTo-WsLangTag "pt`n.UTF-8" | Should -BeExactly '' -Because 'no .NET o $ tambem aceita um \n no fim (como o etiqueta() do Node)'
+  }
+  It 'a validacao nao depende da cultura (maquina turca)' {
+    $old = [Threading.Thread]::CurrentThread.CurrentCulture
+    try { [Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('tr-TR') } catch { Set-ItResult -Skipped -Because 'sem dados da cultura tr-TR'; return }
+    try {
+      ConvertTo-WsLangTag ([string][char]0x0130 + 't') | Should -BeExactly ''
+      ConvertTo-WsLangTag 'hi_IN' | Should -BeExactly 'hi-IN'
+      Test-WsLangOk 'HI' | Should -BeTrue
+      Test-WsLangOk 'POSIX' | Should -BeFalse
+    } finally { [Threading.Thread]::CurrentThread.CurrentCulture = $old }
+  }
+  It 'so pt, en, hi e he contam como WORKSHOP_LANG (Test-WsLangOk)' {
+    foreach ($v in @('pt', 'pt-BR', 'pt_PT.UTF-8', 'EN', 'en-US', 'hi-IN', 'he', 'iw', ' pt-BR ')) { Test-WsLangOk $v | Should -BeTrue -Because $v }
+    foreach ($v in @('', '   ', 'br', 'es', 'brasil', 'pt-*', 'en,pt', 'UTF-8', 'C', 'POSIX', 'pts', 'ptx-BR', ('Portugu' + [char]0x00EA + 's'))) { Test-WsLangOk $v | Should -BeFalse -Because $v }
+  }
+  It 'um WORKSHOP_LANG desconhecido nao ganha a lingua do sistema' {
+    Select-WsLang 'br' 'pt-BR' 'pt-BR' | Should -BeExactly 'pt-BR'
+    Select-WsLang 'pt-*' 'pt-BR' 'en-US' | Should -BeExactly 'pt-BR'
+    Select-WsLang 'es' 'en-US' 'en-US' | Should -BeExactly 'en-US'
+    Select-WsLang 'iw_IL' 'pt-BR' 'pt-BR' | Should -BeExactly 'he-IL'
+    Select-WsLang 'en' 'pt-BR' 'pt-BR' | Should -BeExactly 'en'
+    Select-WsLang 'brasil' '' '' | Should -BeExactly 'en'
+  }
+  It 'mantem a lingua guardada na instalacao (kit\language.json) sem WORKSHOP_LANG' {
+    Mock Get-UICulture { [pscustomobject]@{ Name = 'en-US' } }
+    Mock Get-Culture { [pscustomobject]@{ Name = 'en-US' } }
+    $script:WsHome = Join-Path $TestDrive 'ws-lang'
+    try {
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'sem ficheiro'
+      $script:LangSaved | Should -BeExactly ''
+      $script:LangMachine | Should -BeExactly 'en-US'
+
+      Set-LangFile 'language.json' '{"language":"pt","machine":"pt"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangKit | Should -BeExactly 'pt'
+      $script:LangSaved | Should -BeExactly 'pt'
+      $script:LangMachine | Should -BeExactly 'en-US'
+      $script:LangIgnored | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = 'en'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en'
+      $script:LangKit | Should -BeExactly 'en'
+      $script:LangSaved | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = 'br'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangSaved | Should -BeExactly 'pt'
+      $script:LangIgnored | Should -BeExactly 'br'
+
+      $env:WORKSHOP_LANG = '   '
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt' -Because 'so espacos e como sem WORKSHOP_LANG'
+      $script:LangIgnored | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = ('pt' + [char]27 + '[31m' + ('x' * 60))
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangIgnored.Length | Should -Be 39 -Because 'cortado a 40 e sem o ESC'
+      $script:LangIgnored | Should -Not -Match '[\x00-\x1F\x7F]'
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+
+      Set-LangFile 'language.json' '{"language":"en","machine":"br"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'um "br" guardado pelo erro antigo nao conta'
+      $script:LangSaved | Should -BeExactly ''
+
+      Remove-Item -LiteralPath (Join-Path (Join-Path $script:WsHome 'kit') 'language.json')
+      Set-LangFile 'lingua.json' '{"kit":"pt","maquina":"pt-BR"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-BR' -Because 'instalacoes antigas: kit\lingua.json "maquina"'
+      $script:LangKit | Should -BeExactly 'pt'
+
+      Set-LangFile 'language.json' '{"language":"pt","machine":"pt-PT"}' -Bom
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-PT' -Because 'language.json primeiro, mesmo com BOM'
+
+      Set-LangFile 'language.json' ''
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-BR' -Because 'language.json vazio: passa ao lingua.json'
+      Set-LangFile 'language.json' '{nao e json'
+      Set-LangFile 'lingua.json' '[]'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'ficheiros estragados: a lingua do sistema'
+    } finally {
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+    }
+  }
+  It 'passo 0: nota do WORKSHOP_LANG ignorado e da lingua guardada' {
+    $script:T = New-WsStateTable
+    $script:Cur = '0'
+    $script:Lang = 'pt'; $script:LangIgnored = 'br'; $script:LangSaved = 'pt'; $script:LangMachine = 'en-US'
+    Add-WsStep0LangNotes
+    $n = $script:T['0'].Notas
+    $n.Count | Should -Be 3
+    $n[0] | Should -BeExactly 'Machine language: pt'
+    $n[1] | Should -Match '^WORKSHOP_LANG=br is not one of the workshop languages .* used pt\.$'
+    $n[2] | Should -Match '^Kept the language chosen at install \(pt\); this computer is in en-US\.'
+    $script:T = New-WsStateTable
+    $script:Lang = 'pt-BR'; $script:LangIgnored = ''; $script:LangSaved = 'pt-BR'; $script:LangMachine = 'pt-BR'
+    Add-WsStep0LangNotes
+    $script:T['0'].Notas.Count | Should -Be 1 -Because 'a lingua guardada e a da maquina: so a primeira nota'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '(?s)function Test-WsStep0 \{.*?Add-WsStep0LangNotes'
+  }
+  It 'passo 8 em -Check: explica a mudanca de lingua (falta lingua do kit / language do Claude)' {
+    $script:Lang = 'en'; $script:LangKit = 'en'
+    $out = "skills`t7`nagentes`t6`nfalta`tlingua do kit (pt -> en)`nlingua`ten`nlingua_kit`tpt`nlanguage`t`nlanguage_nossa`t0`n"
+    $script:T = New-WsStateTable; $script:Cur = '8'; $script:Mode = 'check'
+    Read-WsInstallUserOutput $out
+    $muda = @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' })
+    $muda.Count | Should -Be 1
+    $muda[0] | Should -BeExactly 'Language installed here: Portuguese. This run asks for English (WORKSHOP_LANG): nothing is broken. Run the full setup (without --check) to switch.'
+    $script:T = New-WsStateTable; $script:Mode = 'install'
+    Read-WsInstallUserOutput $out
+    @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'na instalacao a lingua muda mesmo'
+    $script:T = New-WsStateTable; $script:Mode = 'doctor'
+    Read-WsInstallUserOutput "falta`tlingua do kit (pt -> pt)`nfalta`tlanguage do Claude (European Portuguese -> Brazilian Portuguese)`nlingua`tpt-BR`nlingua_kit`tpt`nlanguage`tEuropean Portuguese`nlanguage_nossa`t1`n"
+    ($script:T['8'].Notas -join ' ') | Should -Match 'Language installed here: European Portuguese\. This run asks for Brazilian Portuguese'
+    $script:T = New-WsStateTable; $script:Mode = 'check'
+    Read-WsInstallUserOutput "falta`tlingua do kit (- -> en)`nfalta`tskill x`nlingua`ten`nlingua_kit`t`nlanguage`t`nlanguage_nossa`t0`n"
+    @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'sem lingua do kit instalada nao ha mudanca a explicar'
+  }
+  It 'passo 8 na instalacao: a nota da lingua do verificar nao fica repetida (pt -> pt-BR)' {
+    Mock Initialize-WsKit { $true }
+    Mock Sync-WsExtras {}
+    Mock Invoke-WsInstallUser { @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`nlingua`tpt-BR`nlingua_kit`tpt`nlanguage`tBrazilian Portuguese`nlanguage_nossa`t1`n" } }
+    $script:Lang = 'pt-BR'; $script:LangKit = 'pt'
+    $script:T = New-WsStateTable; $script:Cur = '8'; $script:Mode = 'install'
+    $script:T['8'].Notas = @('Claude answers in European Portuguese (Claude Code "language" setting). Workshop texts: Portuguese.')
+    Install-WsStep8 | Should -BeTrue
+    $n = @($script:T['8'].Notas | Where-Object { $_ -match '^Claude answers in' })
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match 'Brazilian Portuguese'
+  }
+  It 'passo 9: nota quando um projeto ja montado esta noutra lingua' {
+    $script:Proj = Join-Path $TestDrive 'proj-lang'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+    $demo = Join-Path $script:Proj 'demo-project'
+    $sb = Join-Path $script:Proj $script:PracticeDir
+    New-Item -ItemType Directory -Path $demo -Force | Out-Null
+    New-Item -ItemType Directory -Path $sb -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"version":"1.0.0","language":"pt"}')
+    [IO.File]::WriteAllText((Join-Path $sb '.sandbox-kit.json'), '{"lingua":"en"}')
+    $script:T = New-WsStateTable; $script:Cur = '9'; $script:LangKit = 'en'
+    Add-WsStep9LangNote
+    $n = @($script:T['9'].Notas)
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match '^%USERPROFILE%\\workshop-claude\\demo-project is in Portuguese, and the workshop texts are now in English\.'
+    $script:T = New-WsStateTable; $script:LangKit = 'pt'
+    Add-WsStep9LangNote
+    $n = @($script:T['9'].Notas)
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match ('^%USERPROFILE%\\workshop-claude\\' + $script:PracticeDir + ' is in English, and the workshop texts are now in Portuguese\.')
+    [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"status":"incomplete"}')
+    [IO.File]::WriteAllText((Join-Path $sb '.sandbox-kit.json'), '{estragado')
+    $script:T = New-WsStateTable
+    Add-WsStep9LangNote
+    @($script:T['9'].Notas).Count | Should -Be 0 -Because 'sem lingua no marcador (ou marcador estragado) nao ha nota'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '(?s)function Test-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote.*?Test-WsAppTests'
+    $text | Should -Match '(?s)function Install-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote\s+return \(Test-WsAppTests\)'
+  }
+  It 'as mensagens novas existem nos dois catalogos, com os mesmos marcadores' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $keys = @{ s0_lingua_ignorada = @('{VALOR}', '{LINGUA}'); s0_lingua_guardada = @('{LINGUA}', '{MAQUINA}'); s8_lingua_muda = @('{DE}', '{PARA}'); s9_lingua_diferente = @('{CAMINHO}', '{LINGUA}', '{KIT}') }
+    foreach ($k in $keys.Keys) {
+      foreach ($cat in @($script:Msgs, $pt)) {
+        $t = [string]$cat.ui.$k
+        $t | Should -Not -BeNullOrEmpty -Because $k
+        foreach ($m in $keys[$k]) { $t.Contains($m) | Should -BeTrue -Because ($k + ' ' + $m) }
+      }
+    }
+  }
+  It 'a ajuda diz que a lingua escolhida fica e como a mudar' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $help = ([regex]::Match($text, '(?s)<#.*?#>')).Value
+    $help | Should -Match 'chosen\s+at the first install is kept on later runs'
+    $help | Should -Match "\`$env:WORKSHOP_LANG='pt-BR'"
+    $help | Should -Match 'pt-BR, pt-PT, en, hi or he'
+  }
+}
+

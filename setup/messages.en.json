@@ -149,6 +149,7 @@
     "s12_custo_desconhecido": "model has no price in pricing.json",
     "interrompido": "Interrupted. Run the same command again: steps already done are skipped.",
     "login_cancelado": "Login cancelled (Ctrl-C). The setup carries on; you can log in later.",
+    "login_janela": "The login opens in a new window: finish it there. Ctrl-C in that window cancels only the login.",
     "lock_ativo": "The setup is already running in another window (PID {PID}, since {HORA}). Wait for it to finish, or close that window, then run the same command again.",
     "lock_parado": "The setup is paused in a Terminal window, maybe this one (PID {PID}, since {HORA}; that window shows \"suspended\"). Type fg in that window and press Enter to continue it, or close that window and run the same command again.",
     "perm_corrigir": "To fix it, run this command, then run the setup again: {CMD}",
@@ -483,6 +484,7 @@
       "windows": [
         "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')",
         "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_VERTEX', $null, 'User')",
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_FOUNDRY', $null, 'User')",
         "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern CLAUDE_CODE_USE_"
       ]
     },
