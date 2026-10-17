@@ -362,3 +362,26 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - as chaves do `content*.mjs` e os nomes internos do `build.mjs`, que são código do organizador e não aparecem nos slides;
   - as entradas anteriores deste ficheiro, que descrevem o que se decidiu na altura.
 - **Testes (docs e slides):** `node tools/render.mjs` e `node tools/check-repo.mjs`; `cd slides && npm ci && node build.mjs` (as duas apresentações com 47 slides e 90 min, sem `{{…}}` nas notas); e uma análise do `workshop.en.pptx` (texto dos slides, notas, nomes dos layouts e das formas, texto alternativo) sem nenhuma palavra em português. A comparação com o build anterior confirma que o texto dos slides ficou igual e que só mudaram os nomes.
+
+## D-26 · Testes de caos do setup e da app, sem Docker (17 out. 2026)
+
+- **Pedido do organizador:** o setup e a app têm de funcionar para 100 pessoas, por mais estragado que esteja o portátil, ou parar com uma mensagem clara. Sem Docker (dá problemas e não é o ambiente real).
+- **Como se testou:** num Mac real, cada cenário num HOME novo e isolado (`env-chaos.sh`: PATH sem Homebrew, um `security` falso para não abrir diálogos do Keychain, o token só em memória), com o one-liner escrito num pty a sério (`run-install.py`: deteta "suspended", pendurado e o fim) e uma release servida localmente. Cada falha foi reproduzida outra vez por um verificador independente antes de contar.
+  - **Ronda 1:** 60 cenários (terminal, ferramentas já instaladas, perfis da shell, ficheiros e permissões, rede e proxy, login e definições, repetições e interrupções, app, línguas, git e a Arena). 56 falhas confirmadas, mais uma revisão estática do Windows com 12 problemas (F1–F12).
+  - **Ronda 2:** os 60 outra vez sobre as correções, mais 35 novos (variáveis de ambiente hostis, ficheiros de configuração, sistema, app e orquestrador sem o Claude). Das falhas da ronda 1 não voltou nenhuma; ficaram 46 (25 graves, quase todas nas categorias novas), todas corrigidas e verificadas com o cenário outra vez, menos uma parcial (HOME com mais de 500 caracteres: a app avisa, mas o SQLite não abre).
+- **Decisões de desenho que saíram dos testes:**
+  - o setup nunca corre o perfil interativo da pessoa no terminal: a sonda do "terminal novo" (`ws_newterm`) corre numa sessão sem terminal, com o ambiente do launchd e no máximo 15 s; "não sei" é uma nota, nunca um aviso;
+  - antes de cada pergunta e de cada login, o que foi escrito antes é deitado fora, e uma resposta que não é s/n repete a pergunta;
+  - todos os comandos que podem ficar à espera da rede têm limite de tempo (`ws_timeout` no Mac, `-TimeoutSec` no Windows); os downloads falham depressa numa rede parada e voltam a tentar uma vez num SHA-256 errado;
+  - o ambiente da pessoa só é limpo para os processos do setup (BASH_ENV, CDPATH, NODE_OPTIONS, cores forçadas, PYTHONHOME/PYTHONPATH, variáveis de certificados que apontam para ficheiros que não existem, entradas relativas no PATH, um TMPDIR estragado); nada fica mudado no terminal dela; o `.curlrc` e o `.netrc` dela não entram nos downloads do setup (`curl -q`);
+  - o setup nunca destrói trabalho: as pastas dos projetos que a pessoa mudou vão para o backup, o marcador da montagem é escrito antes de copiar, os ficheiros ligados por symlinks (stow, chezmoi) são escritos através da ligação, e um `settings.json` com comentários ou inválido nunca é reescrito;
+  - o git das montagens ignora a configuração global da pessoa (assinaturas, hooks da empresa, gitignore global, autocrlf);
+  - no Windows usa-se sempre a pasta do perfil (`USERPROFILE`), nunca o `$HOME` do PowerShell 5.1, que numa empresa com AD aponta para uma partilha de rede;
+  - os registos MCP decidem-se a partir do `~/.claude.json`, sem `claude mcp get` (que arrancava programas antigos);
+  - a app Agent Memory segue regras claras para a pasta dos dados (AGENT_MEMORY_HOME, MEMORIA_HOME, `~/.memoria` antigo), nunca esconde notas antigas e trata um índice só de leitura como permissões e não como "estragado".
+- **Para o organizador decidir:**
+  - com `CLAUDE_CODE_USE_BEDROCK`/Vertex/Foundry o passo 3 falha (E-CFG-04): quem usa mesmo uma cloud da empresa tem de tirar a variável para o workshop;
+  - `WORKSHOP_LANG=pt` simples continua a ser pt-PT, mesmo num Mac do Brasil (as docs recomendam `pt-BR` ou `pt-PT`);
+  - nos dois projetos de treino, os hooks da empresa e a assinatura de commits ficam desligados por configuração local do repositório (o gate do Projeto 2 tem a sua própria verificação de segredos);
+  - as cópias do `setup-mac.sh` guardadas pela rc.1 não se atualizam sozinhas: quem instalou com a rc.1 corre o one-liner outra vez uma vez.
+- **Ainda não testado:** nada correu num Windows real (só Pester e PSScriptAnalyzer num PowerShell 7 portátil, no macOS). A lista para o primeiro teste está em `docs/WINDOWS-CHECKLIST.md` (`docs/pt/WINDOWS-CHECKLIST.md`).
