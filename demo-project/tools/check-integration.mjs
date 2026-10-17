@@ -96,8 +96,8 @@ function excluded() {
   return out;
 }
 
-// Cards that are not part of the current plan (e.g. the 85 of the presenter mode when the plan is
-// a participant one) are left out too: nobody builds them in this run.
+// Cards that are not part of the current plan (for example in a plan written by an older kit, whose
+// participant mode had only 15 cards) are left out too: nobody builds them in this run.
 function outsidePlan() {
   const plan = readJson(join(ROOT, 'plan.json'));
   const tasks = planTasks(plan);
