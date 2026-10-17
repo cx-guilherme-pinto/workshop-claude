@@ -29,10 +29,16 @@ Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-c
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
+Use Windows PowerShell, not PowerShell ISE. Behind a company proxy that answers `(407) Proxy Authentication Required`, use this one instead (it sends your Windows login to the proxy):
+
+```powershell
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+```
+
 If PowerShell blocks the command above, download [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) and run, in the folder where you saved it:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
+Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 The setup speaks English on every machine. It asks a few questions (for example, the Console login, which opens the browser). Each step ends with one of four states: ✅ Done · ⏭️ Already done · ⚠️ Done with warning · ❌ Failed. When something fails, the setup tells you why and what to do, with the exact command.
@@ -44,7 +50,7 @@ The setup also detects the machine language. If you don't have Claude Code's `la
 At the end you see "Everything is ready for the workshop." or the list of what is missing. To check again, without installing anything:
 
 - macOS: `bash ~/.workshop-claude/setup-mac.sh --check`
-- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check`
+- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check`
 
 Then close and reopen the terminal (and VS Code).
 
@@ -52,7 +58,7 @@ Then close and reopen the terminal (and VS Code).
 
 - Run the same command again: finished steps are skipped.
 - Look up the error code in [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
-- Diagnosis with Claude's help (costs less than US$ 0.01): `bash ~/.workshop-claude/setup-mac.sh --doctor` or `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
+- Diagnosis with Claude's help (costs less than US$ 0.01): `bash ~/.workshop-claude/setup-mac.sh --doctor` or `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor`.
 - Send the organizer the file `~/.workshop-claude/summary.txt`. `setup.log` also helps and already comes without secrets.
 
 ## Verify before running (optional)

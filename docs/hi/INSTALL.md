@@ -32,7 +32,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 अगर PowerShell ऊपर वाली command को block करे, तो [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) download करें और जिस folder में उसे save किया है, वहीं यह चलाएँ:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
+Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 Setup हर machine पर English में ही बात करता है, इसलिए आपको सारे messages English में दिखेंगे। यह कुछ सवाल पूछता है (जैसे Console login, जो browser खोलता है)। हर step इन चार states में से किसी एक पर खत्म होता है: ✅ Done (हो गया) · ⏭️ Already done (पहले से हो चुका था) · ⚠️ Done with warning (हो गया, पर warning के साथ) · ❌ Failed (fail हो गया)। जब कुछ fail होता है, तो setup बताता है कि क्यों हुआ और अब क्या करना है, exact command के साथ।
@@ -44,7 +44,7 @@ Setup machine की language भी detect करता है। अगर Cla
 आखिर में आपको "Everything is ready for the workshop." दिखेगा, या फिर उन चीज़ों की list जो अभी missing हैं। बिना कुछ install किए दोबारा check करने के लिए:
 
 - macOS: `bash ~/.workshop-claude/setup-mac.sh --check`
-- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check`
+- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check`
 
 इसके बाद terminal (और VS Code) बंद करके फिर से खोलें।
 
@@ -52,7 +52,7 @@ Setup machine की language भी detect करता है। अगर Cla
 
 - वही command दोबारा चलाएँ: जो steps पूरे हो चुके हैं, वो skip हो जाते हैं।
 - Error code का मतलब और fix जानने के लिए [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (English में) देखें; आम सवालों के लिए [FAQ.md](../FAQ.md) (English में) देखें।
-- Claude की मदद से diagnosis (खर्च US$ 0.01 से भी कम): `bash ~/.workshop-claude/setup-mac.sh --doctor` या `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`।
+- Claude की मदद से diagnosis (खर्च US$ 0.01 से भी कम): `bash ~/.workshop-claude/setup-mac.sh --doctor` या `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor`।
 - Organizer को `~/.workshop-claude/summary.txt` file भेजें। `setup.log` भी काम आता है, और उसमें पहले से ही कोई secrets नहीं होते।
 
 ## चलाने से पहले verify करें (optional)

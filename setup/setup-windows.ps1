@@ -6,7 +6,7 @@
 .DESCRIPTION
   Usually run through the bootstrap:   irm <url>/bootstrap-windows.ps1 | iex
   Or directly:                         powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
-  After the first time:                powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check
+  After the first time:                powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check
 
   The setup speaks English (D-20). The machine language (WORKSHOP_LANG, Get-UICulture, Get-Culture) only
   configures Claude's answers (Claude Code "language" setting) and the language of the workshop texts (pt or en).
@@ -251,7 +251,9 @@ function ConvertTo-WsArgLine {
 
 function Get-WsNetCode {
   # Codigo do catalogo a partir do estado de uma WebException e do codigo HTTP.
+  # 'Blocked': o antivirus (ou outra seguranca) bloqueou ou apagou o ficheiro descarregado.
   param([string]$Status, [int]$Http)
+  if ($Status -eq 'Blocked') { return 'E-PERM-02' }
   if ($Http -eq 407) { return 'E-NET-03' }
   switch ($Status) {
     'NameResolutionFailure' { return 'E-NET-02' }
@@ -264,6 +266,59 @@ function Get-WsNetCode {
     'ReceiveFailure' { return 'E-NET-01' }
   }
   return 'E-NET-07'
+}
+
+# Codigos Win32 de "bloqueado pela seguranca do computador": 225 e 226 antivirus (ficheiro com virus ou apagado),
+# 1260 AppLocker ou Software Restriction Policies, 4551 WDAC (Application Control), 4580 a 4583 Smart App Control.
+$script:BlockedWin32 = @(225, 226, 1260, 4551, 4580, 4581, 4582, 4583)
+
+function Get-WsBlockedCode {
+  # Procura numa excecao (e nas interiores) um codigo Win32 de bloqueio, em NativeErrorCode ou num HRESULT
+  # 0x8007xxxx. -AccessDenied tambem conta o 5 (acesso negado: ao arrancar um programa e quase sempre um EDR).
+  # Devolve o codigo, ou 0.
+  param($Exception, [switch]$AccessDenied)
+  $e = $Exception
+  for ($i = 0; $e -and $i -lt 10; $i++) {
+    $codes = @()
+    if ($e -is [ComponentModel.Win32Exception]) { $codes += [int]$e.NativeErrorCode }
+    $hr = 0
+    try { $hr = [int]$e.HResult } catch { $hr = 0 }
+    if ((($hr -shr 16) -band 0xFFFF) -eq 0x8007) { $codes += ($hr -band 0xFFFF) }
+    foreach ($c in $codes) { if ($script:BlockedWin32 -contains $c -or ($AccessDenied -and $c -eq 5)) { return [int]$c } }
+    $e = $e.InnerException
+  }
+  return 0
+}
+
+function Get-WsWebErrorInfo {
+  # Estado e codigo HTTP de uma falha de download, para o Get-WsNetCode: a WebException do PowerShell 5.1 e as
+  # HttpResponseException e HttpRequestException do PowerShell 7 (que antes caiam todas em E-NET-07).
+  # Devolve @{ Status; Http }, com os nomes do WebExceptionStatus (e 'Blocked' quando foi a seguranca).
+  param($Exception)
+  $ex = $Exception
+  if (-not $ex) { return @{ Status = ''; Http = 0 } }
+  if (Get-WsBlockedCode $ex) { return @{ Status = 'Blocked'; Http = 0 } }
+  $st = ''; $http = 0
+  if ($ex -is [System.Net.WebException]) { $st = [string]$ex.Status }
+  if (($ex.PSObject.Properties.Name -contains 'Response') -and $ex.Response) { try { $http = [int]$ex.Response.StatusCode } catch { $http = 0 } }
+  $e = $ex
+  for ($i = 0; $e -and -not $st -and $i -lt 10; $i++) {
+    if ($e -is [System.Net.Sockets.SocketException]) {
+      switch ([string]$e.SocketErrorCode) {
+        'HostNotFound' { $st = 'NameResolutionFailure' }
+        'TryAgain' { $st = 'NameResolutionFailure' }
+        'NoData' { $st = 'NameResolutionFailure' }
+        'TimedOut' { $st = 'Timeout' }
+        default { $st = 'ConnectFailure' }
+      }
+    } elseif ($e -is [System.Security.Authentication.AuthenticationException]) { $st = 'TrustFailure' }
+    elseif ($e -is [TimeoutException] -or $e.GetType().Name -eq 'TaskCanceledException') { $st = 'Timeout' }
+    $e = $e.InnerException
+  }
+  # PowerShell 7: um 407 do proxy no CONNECT so aparece no texto ("... failed with status code '407'").
+  if ($http -eq 0 -and [string]$ex.Message -match '\b407\b') { $http = 407 }
+  if ($http -gt 0 -and -not $st) { $st = 'ProtocolError' }
+  return @{ Status = $st; Http = $http }
 }
 
 function Test-WsPublicCa {
@@ -326,11 +381,13 @@ function Get-WsLangKit {
 
 function Get-WsInstallUserArgs {
   # Argumentos para "node install-user.mjs <sub>": caminhos completos, um argumento cada (espacos e acentos).
-  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang)
+  # -NoProxy: o NO_PROXY completo (Merge-WsNoProxy); sem ele o install-user grava so localhost,127.0.0.1.
+  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang, [string]$NoProxy)
   $a = @([IO.Path]::Combine($KitSrc, 'installer', 'install-user.mjs'), $Sub, '--node', $NodePath, '--kit-src', $KitSrc)
   if ($Lang) { $a += @('--lingua-maquina', $Lang) }
   if ($CaPem) { $a += @('--ca-pem', $CaPem) }
   if ($Proxy) { $a += @('--https-proxy', $Proxy) }
+  if ($NoProxy) { $a += @('--no-proxy', $NoProxy) }
   if ($SubstituirStatusline) { $a += '--substituir-statusline' }
   return , $a
 }
@@ -443,6 +500,163 @@ function ConvertTo-WsPem {
   return $sb.ToString()
 }
 
+function Get-WsUserHome {
+  # A pasta do perfil (C:\Users\<nome>): a mesma que o Claude Code, o Node, o uv e o install.ps1 usam.
+  # No Windows PowerShell 5.1 o $HOME e HOMEDRIVE+HOMEPATH, que com uma pasta pessoal do AD e H:\ (uma partilha
+  # de rede, offline sem VPN): o setup instalava num sitio e procurava noutro.
+  param([string]$FolderPath, [string]$UserProfile, [string]$PsHomeVar)
+  foreach ($p in @($FolderPath, $UserProfile, $PsHomeVar)) { if ($p) { return $p } }
+  return ''
+}
+
+function Find-WsInFolder {
+  # A primeira pasta de -Paths que fica dentro de -Root (a pasta do OneDrive, por exemplo), ou ''.
+  param([string]$Root, [string[]]$Paths)
+  if (-not $Root) { return '' }
+  $r = $Root.TrimEnd('\', '/')
+  foreach ($p in $Paths) {
+    if (-not $p) { continue }
+    if ($p -ieq $r -or $p.StartsWith($r + '\', [StringComparison]::OrdinalIgnoreCase) -or $p.StartsWith($r + '/', [StringComparison]::OrdinalIgnoreCase)) { return $p }
+  }
+  return ''
+}
+
+function Test-WsNetworkPath {
+  # Caminho numa partilha de rede: \\servidor\pasta, \\?\UNC\... ou uma letra de unidade de rede (DriveType).
+  param([string]$Path, [string]$DriveType)
+  if (-not $Path) { return $false }
+  if ($Path -match '^\\\\\?\\UNC\\') { return $true }
+  if ($Path -match '^\\\\[^\\?.]') { return $true }
+  return ($DriveType -eq 'Network')
+}
+
+function Get-WsWinPowerShellPath {
+  # O Windows PowerShell 5.1 de 64 bits. Num PowerShell de 32 bits (x86) o System32 e redirecionado para o
+  # SysWOW64 e so o Sysnative chega ao de 64 bits (o install.ps1 do Claude Code recusa 32 bits); no PowerShell 7
+  # o $PSHOME nao tem powershell.exe.
+  param([string]$SystemRoot, [bool]$Is64BitOs, [bool]$Is64BitProcess)
+  $sub = 'System32'
+  if ($Is64BitOs -and -not $Is64BitProcess) { $sub = 'Sysnative' }
+  return (Join-Path $SystemRoot ($sub + '\WindowsPowerShell\v1.0\powershell.exe'))
+}
+
+function Get-WsRelaunchReason {
+  # Porque e que o setup tem de recomecar no Windows PowerShell 5.1 de 64 bits: 'core' (PowerShell 7), 'x86'
+  # (PowerShell de 32 bits num Windows de 64 bits) ou '' (nao e preciso, ou ja e o processo que recomecou).
+  param([string]$Edition, [bool]$Is64BitOs, [bool]$Is64BitProcess, [string]$Relaunched)
+  if ($Relaunched -eq '1') { return '' }
+  if ($Edition -eq 'Core') { return 'core' }
+  if ($Is64BitOs -and -not $Is64BitProcess) { return 'x86' }
+  return ''
+}
+
+function Get-WsSelfArgs {
+  # As opcoes desta execucao (nomes ingleses), para voltar a chamar o setup noutra janela ou noutro PowerShell.
+  param([hashtable]$Params)
+  $map = [ordered]@{ Check = '-Check'; Doctor = '-Doctor'; Desinstalar = '-Uninstall'; SemDesktop = '-NoDesktop'; Sim = '-Yes'; SubstituirStatusline = '-ReplaceStatusline'; Ajuda = '-Help' }
+  $out = @()
+  foreach ($k in $map.Keys) { if ($Params -and $Params[$k]) { $out += $map[$k] } }
+  return , $out
+}
+
+function Test-WsIse {
+  # PowerShell ISE: nao tem consola, e um programa que pergunta alguma coisa (o login do Claude, do gh, do acli)
+  # fica a espera para sempre.
+  param([string]$HostName, [bool]$HasIseVar)
+  return ($HasIseVar -or ([string]$HostName -match '\bISE\b'))
+}
+
+function Get-WsGpoPolicy {
+  # Politica de execucao imposta por Group Policy ao Windows PowerShell (a da maquina ganha a do utilizador), das
+  # chaves ...\Policies\Microsoft\Windows\PowerShell: EnableScripts 0 = Restricted; 1 = o valor de ExecutionPolicy.
+  # Ganha sempre ao "-ExecutionPolicy Bypass". Cada argumento e @{ EnableScripts; ExecutionPolicy } ou $null.
+  # Devolve @{ Policy; Scope; Blocks } ou $null. Blocks: nenhum script sem assinatura corre (AllSigned, Restricted).
+  param($Machine, $User)
+  foreach ($pair in @(@('MachinePolicy', $Machine), @('UserPolicy', $User))) {
+    $v = $pair[1]
+    if (-not $v -or $null -eq $v['EnableScripts'] -or [string]$v['EnableScripts'] -eq '') { continue }
+    $pol = 'Restricted'
+    if ([int]$v['EnableScripts'] -ne 0) { $pol = [string]$v['ExecutionPolicy'] }
+    if (-not $pol) { continue }
+    return @{ Policy = $pol; Scope = $pair[0]; Blocks = (@('Restricted', 'AllSigned') -contains $pol) }
+  }
+  return $null
+}
+
+function Merge-WsNoProxy {
+  # NO_PROXY para as ferramentas (Claude Code, git, gh, uv): localhost,127.0.0.1, o que ja la estava, as excecoes
+  # do proxy do Windows (ProxyOverride: "*.empresa.pt" passa a ".empresa.pt"; "<local>" e os outros curingas nao
+  # tem equivalente) e os servidores que o PAC manda direto (-Extra). Sem repetidos.
+  param([string]$Existing, [string]$Override, [string[]]$Extra)
+  $items = @('localhost', '127.0.0.1') + @(([string]$Existing) -split ',')
+  foreach ($o in (([string]$Override) -split '[;\s]+')) {
+    $t = $o.Trim() -replace '^[A-Za-z][A-Za-z0-9+.-]*://', ''
+    if ($t -eq '' -or $t -eq '<local>') { continue }
+    if ($t.StartsWith('*.')) { $t = $t.Substring(1) }
+    if ($t.Contains('*')) { continue }
+    $items += $t
+  }
+  $items += @($Extra)
+  $out = @()
+  foreach ($i in $items) {
+    $t = ([string]$i).Trim()
+    if (-not $t) { continue }
+    if (@($out | Where-Object { $_ -ieq $t }).Count -eq 0) { $out += $t }
+  }
+  return ($out -join ',')
+}
+
+function Get-WsGitBashCandidates {
+  # Onde pode estar o bash.exe do Git for Windows: ao lado do git.exe (Git\bin), uma ou duas pastas acima
+  # (Git\cmd, Git\mingw64\bin), tres acima do "git --exec-path" (resolve os shims do scoop e do choco) e nas
+  # pastas habituais do Git for Windows (-Roots).
+  param([string]$Git, [string]$ExecPath, [string[]]$Roots)
+  $c = @()
+  if ($Git) {
+    $d = Split-Path -Parent $Git
+    if ($d) { $c += (Join-Path $d 'bash.exe') }
+    $up = $d
+    for ($i = 0; $i -lt 2 -and $up; $i++) {
+      $up = Split-Path -Parent $up
+      if ($up) { $c += (Join-Path $up 'bin\bash.exe'); $c += (Join-Path $up 'usr\bin\bash.exe') }
+    }
+  }
+  if ($ExecPath) {
+    $r = $ExecPath.Trim().Replace('/', [string][IO.Path]::DirectorySeparatorChar)
+    for ($i = 0; $i -lt 3 -and $r; $i++) { $r = Split-Path -Parent $r }
+    if ($r) { $c += (Join-Path $r 'bin\bash.exe'); $c += (Join-Path $r 'usr\bin\bash.exe') }
+  }
+  foreach ($r in @($Roots)) { if ($r) { $c += (Join-Path $r 'bin\bash.exe') } }
+  return , @($c | Select-Object -Unique)
+}
+
+function Test-WsLockHeld {
+  # O .lock tem o PID (versoes antigas) ou o PID e a hora de arranque desse processo (ticks UTC). So esta ocupado
+  # se esse PID ainda e um PowerShell e, quando o .lock a tem, com a mesma hora de arranque: um PID que o Windows
+  # reutilizou (por exemplo depois de reiniciar) nao bloqueia o setup. $Proc: @{ Name; StartTicks } ou $null.
+  param([string]$LockText, $Proc)
+  $lines = @(([string]$LockText) -split "`r?`n" | Where-Object { $_ -match '\S' })
+  if ($lines.Count -eq 0 -or $lines[0].Trim() -notmatch '^\d+$') { return $false }
+  if (-not $Proc) { return $false }
+  if ([string]$Proc.Name -notmatch '^(powershell|pwsh|powershell_ise)$') { return $false }
+  if ($lines.Count -gt 1 -and $lines[1].Trim() -match '^\d+$' -and [int64]$Proc.StartTicks -gt 0) { return ([int64]$lines[1].Trim() -eq [int64]$Proc.StartTicks) }
+  return $true
+}
+
+function Resolve-WsFailCode {
+  # Quando ha uma causa mais certa que o codigo do passo, e essa que se mostra: E-SO-07 (a Group Policy bloqueia
+  # scripts e os instaladores oficiais sao scripts), E-PERM-02 (a seguranca bloqueou um programa ou apagou um
+  # ficheiro) e E-NET-03 (o proxy pede o login do Windows, que o Claude Code, o Node e o uv nao enviam).
+  # Em -Check so o bloqueio conta: o resto e "ainda nao instalado". Devolve @(codigo, detalhe).
+  param([string]$Code, [string]$Detail, [string]$Step, [string]$Mode, [string]$Blocked, [bool]$GpoBlocks, [bool]$ProxyAuth)
+  if ($Code -like 'E-AUTH-*' -or $Code -eq 'E-SO-07' -or $Code -eq 'E-PERM-02') { return @($Code, $Detail) }
+  if ($Mode -eq 'install' -and $GpoBlocks -and @('E-CC-01', 'E-UV-01') -contains $Code) { return @('E-SO-07', $Code) }
+  if ($Blocked -and $Code -notlike 'E-NET-*') { return @('E-PERM-02', $Blocked) }
+  if ($Mode -ne 'install') { return @($Code, $Detail) }
+  if ($ProxyAuth -and @('2', '5', '10', '12') -contains $Step -and @('E-CC-01', 'E-UV-01', 'E-MEM-03', 'E-SMOKE-01', 'E-NET-01', 'E-NET-05', 'E-NET-07') -contains $Code) { return @('E-NET-03', $Code) }
+  return @($Code, $Detail)
+}
+
 # =============================================================== mensagens, log e saida
 
 function M {
@@ -521,26 +735,65 @@ function Invoke-WsProcess {
   $p = New-Object System.Diagnostics.Process
   $p.StartInfo = $psi
   try { [void]$p.Start() } catch {
+    # Antivirus, AppLocker, WDAC ou um EDR: o passo mostra E-PERM-02 (e nao "rede, tenta de novo").
+    $bc = Get-WsBlockedCode $_.Exception -AccessDenied
+    if ($bc) { $script:Blocked = $FilePath; Write-WsLog ('  -> blocked by the computer security (Win32 {0})' -f $bc) }
     Write-WsLog ('  -> did not start: {0}' -f $_.Exception.Message)
     return @{ ExitCode = -1; StdOut = ''; StdErr = $_.Exception.Message }
   }
   $outTask = $p.StandardOutput.ReadToEndAsync()
   $errTask = $p.StandardError.ReadToEndAsync()
-  if ($StdinText) {
-    $bytes = [Text.Encoding]::UTF8.GetBytes($StdinText)
-    $p.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
-  }
-  $p.StandardInput.Close()
-  if (-not $p.WaitForExit($TimeoutSec * 1000)) {
-    try { $p.Kill() } catch { }
-    Write-WsLog '  -> timed out'
-    return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' }
+  # Espera aos bocados (e nao um WaitForExit longo): assim o Ctrl-C chega ao PowerShell, o finally deste passo e
+  # o do Invoke-WsMain correm (o .lock sai) e o programa filho nao fica a correr sozinho, escondido.
+  $deadline = (Get-Date).AddSeconds($TimeoutSec)
+  $done = $false
+  try {
+    if ($StdinText) {
+      $bytes = [Text.Encoding]::UTF8.GetBytes($StdinText)
+      $p.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+    }
+    $p.StandardInput.Close()
+    while (-not $p.WaitForExit(500)) {
+      if ((Get-Date) -gt $deadline) {
+        $done = $true
+        Stop-WsProcessTree $p
+        Write-WsLog '  -> timed out'
+        return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' }
+      }
+    }
+    $done = $true
+  } finally {
+    if (-not $done) { Stop-WsProcessTree $p; Write-WsLog '  -> stopped (Ctrl-C)' }
   }
   $p.WaitForExit()
-  $r = @{ ExitCode = $p.ExitCode; StdOut = $outTask.Result; StdErr = $errTask.Result }
+  # Um processo neto que herdou o stdout (um instalador que abre a app, por exemplo) pode deixa-lo aberto:
+  # nunca esperar por ele mais de 30 s.
+  $until = (Get-Date).AddSeconds(30)
+  while (-not ($outTask.IsCompleted -and $errTask.IsCompleted) -and (Get-Date) -lt $until) { [void]$outTask.Wait(200) }
+  $out = ''; $err = ''
+  if ($outTask.IsCompleted) { $out = $outTask.Result } else { Write-WsLog '  -> output still open (a child process kept it)' }
+  if ($errTask.IsCompleted) { $err = $errTask.Result }
+  $r = @{ ExitCode = $p.ExitCode; StdOut = $out; StdErr = $err }
   Add-WsStepLog ($r.StdOut + "`n" + $r.StdErr)
   Write-WsLog ('  -> exit {0}' -f $r.ExitCode)
   return $r
+}
+
+function Stop-WsProcessTree {
+  # Termina o processo e os filhos (o taskkill /T apanha o msiexec de um instalador, por exemplo). So chamadas
+  # .NET: tambem corre num finally depois de um Ctrl-C.
+  param($Process)
+  try {
+    if ($Process.HasExited) { return }
+    $tk = [IO.Path]::Combine([string]$env:SystemRoot, 'System32', 'taskkill.exe')
+    if ($env:SystemRoot -and [IO.File]::Exists($tk)) {
+      $si = [Diagnostics.ProcessStartInfo]::new($tk, ('/T /F /PID ' + $Process.Id))
+      $si.UseShellExecute = $false; $si.CreateNoWindow = $true
+      $k = [Diagnostics.Process]::Start($si)
+      [void]$k.WaitForExit(10000)
+    }
+  } catch { }
+  try { if (-not $Process.HasExited) { $Process.Kill() } } catch { }
 }
 
 function Add-WsStepLog {
@@ -549,8 +802,15 @@ function Add-WsStepLog {
 }
 
 function Get-WsSha256 {
+  # '' se o ficheiro desapareceu ou nao se deixa ler logo depois do download: quase sempre o antivirus
+  # ($script:Blocked, e o passo mostra E-PERM-02 em vez de um SHA-256 errado).
   param([string]$Path)
-  return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+  try {
+    if (Test-Path -LiteralPath $Path) { return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path -ErrorAction Stop).Hash.ToLowerInvariant() }
+  } catch { Write-WsLog ('  -> cannot read {0}: {1}' -f $Path, $_.Exception.Message) }
+  Write-WsLog ('  -> file gone or unreadable: ' + $Path)
+  $script:Blocked = $Path
+  return ''
 }
 
 function Get-WsSumFor {
@@ -578,20 +838,32 @@ function Invoke-WsDownload {
   }
   try {
     Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $part -Headers $headers -UserAgent $script:UA -TimeoutSec 600 -ErrorAction Stop
-    Move-Item -LiteralPath $part -Destination $OutFile -Force
-    $script:DlHttp = 200
-    return $true
   } catch {
     $ex = $_.Exception
-    if ($ex -is [System.Net.WebException]) {
-      $script:DlStatus = [string]$ex.Status
-      if ($ex.Response) { try { $script:DlHttp = [int]$ex.Response.StatusCode } catch { } }
-    }
+    $info = Get-WsWebErrorInfo $ex
+    $script:DlStatus = $info.Status; $script:DlHttp = $info.Http
+    if ($info.Status -eq 'Blocked') { $script:Blocked = $OutFile }
     Write-WsLog ('  -> failed: {0} (HTTP {1}, {2})' -f $ex.Message, $script:DlHttp, $script:DlStatus)
-    Add-WsStepLog ('download falhou: ' + $Url + ' ' + $ex.Message)
+    Add-WsStepLog ('download failed: ' + $Url + ' ' + $ex.Message)
     Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
     return $false
   }
+  # O antivirus pode estar a ler o ficheiro (o rename falha uns instantes) ou apaga-lo: tenta umas vezes e
+  # confirma que o ficheiro ficou la.
+  $moved = $false
+  for ($i = 0; $i -lt 6 -and -not $moved; $i++) {
+    try { Move-Item -LiteralPath $part -Destination $OutFile -Force -ErrorAction Stop; $moved = $true }
+    catch { Write-WsLog ('  -> rename: ' + $_.Exception.Message); if (-not (Test-Path -LiteralPath $part)) { break }; Start-Sleep -Milliseconds 500 }
+  }
+  if (-not $moved -or -not (Test-Path -LiteralPath $OutFile)) {
+    $script:DlStatus = 'Blocked'; $script:Blocked = $OutFile
+    Write-WsLog ('  -> the file was removed or locked right after the download: ' + $OutFile)
+    Add-WsStepLog ('download removed or locked (antivirus?): ' + $OutFile)
+    Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
+    return $false
+  }
+  $script:DlHttp = 200
+  return $true
 }
 
 function Get-WsDlCode { return (Get-WsNetCode $script:DlStatus $script:DlHttp) }
@@ -611,7 +883,7 @@ function Update-WsSessionPath {
   $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $user = [Environment]::GetEnvironmentVariable('Path', 'User')
   $p = ($machine, $user | Where-Object { $_ }) -join ';'
-  foreach ($d in @((Join-Path $script:WsHome 'bin'), (Join-Path $script:WsHome 'node'), (Join-Path $HOME '.local\bin'))) {
+  foreach ($d in @((Join-Path $script:WsHome 'bin'), (Join-Path $script:WsHome 'node'), (Join-Path $script:UserHome '.local\bin'))) {
     $p = Add-WsPathEntry $p $d
   }
   $env:Path = $p
@@ -655,7 +927,11 @@ function Set-WsUserEnv {
 
 # =============================================================== estado dos passos
 
-function Set-WsWarn { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Avisos += , @($Code, $Detail); Write-WsLog ('warning {0} {1}' -f $Code, $Detail) }
+function Set-WsWarn {
+  param([string]$Code, [string]$Detail)
+  foreach ($w in $script:T[$script:Cur].Avisos) { if ($w[0] -eq $Code -and $w[1] -eq $Detail) { return } }   # o mesmo aviso uma vez so
+  $script:T[$script:Cur].Avisos += , @($Code, $Detail); Write-WsLog ('warning {0} {1}' -f $Code, $Detail)
+}
 function Set-WsFail { param([string]$Code, [string]$Detail) $script:T[$script:Cur].Falha = @($Code, $Detail); Write-WsLog ('failure {0} {1}' -f $Code, $Detail) }
 function Set-WsDetail { param([string]$Text) $script:T[$script:Cur].Detalhe = $Text }
 function Add-WsNote { param([string]$Text) $script:T[$script:Cur].Notas += $Text }
@@ -717,6 +993,7 @@ function Invoke-WsStep {
   $key = "$N"
   $script:Cur = $key
   $script:StepLog = New-Object System.Text.StringBuilder
+  $script:Blocked = ''
   $script:T[$key] = @{ Estado = ''; Detalhe = ''; Avisos = @(); Falha = $null; Notas = @() }
   $title = $script:Titles[$key]
   Write-WsSay ''
@@ -738,7 +1015,9 @@ function Invoke-WsStep {
     else { $s.Estado = 'ok' }
   } elseif ($script:Mode -ne 'install') {
     if (-not $s.Falha) { Set-WsFail (Get-WsDefaultCode $key) '' }
-    if (Test-WsMissingCode $script:T[$key].Falha[0]) { Set-WsFail 'E-SETUP-01' $script:T[$key].Falha[0] }
+    $rc = Resolve-WsFailCode $s.Falha[0] $s.Falha[1] $key $script:Mode $script:Blocked $script:GpoBlocks $script:ProxyAuth
+    if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] }
+    elseif (Test-WsMissingCode $script:T[$key].Falha[0]) { Set-WsFail 'E-SETUP-01' $script:T[$key].Falha[0] }
     $s = $script:T[$key]
     if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falta' }
   } else {
@@ -749,6 +1028,9 @@ function Invoke-WsStep {
     if ($ok) { if ($s.Avisos.Count -gt 0) { $s.Estado = 'aviso' } else { $s.Estado = 'feito' } }
     else {
       if (-not $s.Falha) { Set-WsFail (Get-WsDefaultCode $key) '' }
+      $rc = Resolve-WsFailCode $s.Falha[0] $s.Falha[1] $key $script:Mode $script:Blocked $script:GpoBlocks $script:ProxyAuth
+      if ($rc[0] -ne $s.Falha[0]) { Set-WsFail $rc[0] $rc[1] }
+      $s = $script:T[$key]
       if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falhou' }
     }
   }
@@ -846,8 +1128,17 @@ function Get-WsReleaseUrl {
   return (Expand-WsPattern $script:C.RELEASE_DOWNLOAD_URL $p)
 }
 
-function Get-WsUv { $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; $p = Join-Path $HOME '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; return $null }
-function Get-WsClaude { $p = Join-Path $HOME '.local\bin\claude.exe'; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; if (Test-Path -LiteralPath $p) { return $p }; return $null }
+function Get-WsWinPowerShell {
+  # Para os instaladores oficiais (install.ps1 do Claude Code e do uv) e para o "terminal novo" do passo 4.
+  if ($env:SystemRoot) {
+    $p = Get-WsWinPowerShellPath $env:SystemRoot ([Environment]::Is64BitOperatingSystem) ([Environment]::Is64BitProcess)
+    if (Test-Path -LiteralPath $p) { return $p }
+  }
+  return 'powershell.exe'
+}
+
+function Get-WsUv { $c = Get-Command uv -ErrorAction SilentlyContinue; if ($c) { return $c.Source }; $p = Join-Path $script:UserHome '.local\bin\uv.exe'; if (Test-Path -LiteralPath $p) { return $p }; return $null }
+function Get-WsClaude { $p = Join-Path $script:UserHome '.local\bin\claude.exe'; $c = Get-Command claude -ErrorAction SilentlyContinue; if ($c -and $c.CommandType -eq 'Application') { return $c.Source }; if (Test-Path -LiteralPath $p) { return $p }; return $null }
 
 function Get-WsGit {
   $c = Get-Command git -ErrorAction SilentlyContinue
@@ -862,14 +1153,19 @@ function Test-WsWinget {
   if ($script:OsBuild -lt 18362) { return $false }
   $w = Get-Command winget -ErrorAction SilentlyContinue
   if (-not $w) { return $false }
+  # Um winget bloqueado (AppLocker, comum nas empresas) e so "sem winget": nao conta como E-PERM-02.
+  $keep = $script:Blocked
   $r = Invoke-WsProcess $w.Source @('--version') -TimeoutSec 60
+  $script:Blocked = $keep
   return ($r.ExitCode -eq 0)
 }
 
 function Invoke-WsWinget {
   param([string]$Id)
   $w = (Get-Command winget -ErrorAction SilentlyContinue).Source
+  $keep = $script:Blocked
   $r = Invoke-WsProcess $w @('install', '--id', $Id, '-e', '--scope', 'user', '--source', 'winget', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') -TimeoutSec 1800
+  $script:Blocked = $keep
   Update-WsSessionPath
   return ($r.ExitCode -eq 0)
 }
@@ -910,16 +1206,21 @@ function Test-WsStep0 {
   }
 
   try {
-    $drive = Get-PSDrive -Name ($HOME.Substring(0, 1)) -ErrorAction Stop
+    $drive = Get-PSDrive -Name ($script:UserHome.Substring(0, 1)) -ErrorAction Stop
     $gb = [math]::Floor($drive.Free / 1GB)
     Add-WsNote (M 's0_disco' @{ GB = $gb })
     if ($drive.Free -lt 3GB) { Set-WsWarn 'E-SO-06' ('{0} GB' -f $gb) }
   } catch { }
-  $od = $env:OneDrive
-  if ($od) {
-    foreach ($pth in @($HOME, [Environment]::GetFolderPath('MyDocuments'), [Environment]::GetFolderPath('Desktop'), $script:Proj)) {
-      if ($pth -and $pth.StartsWith($od, [StringComparison]::OrdinalIgnoreCase)) { Set-WsWarn 'E-SO-03' $pth; break }
-    }
+  # So as pastas onde o kit escreve (como no Mac). Os Documentos e o Ambiente de Trabalho no OneDrive (o
+  # "Known Folder Move", normal nos portateis da empresa) nao tem nada do kit.
+  $inOd = Find-WsInFolder $env:OneDrive @($script:UserHome, $script:Proj, $script:ClaudeDir)
+  if ($inOd) { Set-WsWarn 'E-SO-03' $inOd }
+  Write-WsLog ('home: profile {0}; $HOME {1}' -f $script:UserHome, $HOME)
+  Test-WsRoamingAppData
+  $gpo = Get-WsGpoPolicy (Read-WsGpoKey 'LocalMachine') (Read-WsGpoKey 'CurrentUser')
+  if ($gpo) {
+    Write-WsLog ('execution policy from Group Policy: {0} ({1})' -f $gpo.Policy, $gpo.Scope)
+    if ($gpo.Blocks) { $script:GpoBlocks = $true; Set-WsWarn 'E-SO-07' ('{0} ({1})' -f $gpo.Policy, $gpo.Scope) }
   }
 
   Test-WsProxy
@@ -930,24 +1231,103 @@ function Test-WsStep0 {
 }
 function Install-WsStep0 { return (Test-WsStep0) }
 
+function Read-WsGpoKey {
+  # Valores da Group Policy do Windows PowerShell (vista de 64 bits, tambem num PowerShell de 32 bits ou no 7).
+  param([string]$Hive)
+  try {
+    $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($Hive, [Microsoft.Win32.RegistryView]::Registry64)
+    $k = $base.OpenSubKey('SOFTWARE\Policies\Microsoft\Windows\PowerShell')
+    if (-not $k) { return $null }
+    return @{ EnableScripts = $k.GetValue('EnableScripts'); ExecutionPolicy = $k.GetValue('ExecutionPolicy') }
+  } catch { return $null }
+}
+
+function Get-WsDriveType {
+  param([string]$Path)
+  try { if ($Path -match '^([A-Za-z]):') { return [string]([IO.DriveInfo]::new($Matches[1])).DriveType } } catch { }
+  return ''
+}
+
+function Test-WsRoamingAppData {
+  # AppData\Roaming numa partilha (Folder Redirection, VDI): o uv guarda la os ambientes das ferramentas e o
+  # Python gerido, e a app Agent Memory ficava a correr de \\servidor (lenta, e parada sem rede). Passam para o
+  # AppData\Local, com variaveis do utilizador (o -Uninstall repoe-nas) para os updates da app usarem o mesmo.
+  $roam = [Environment]::GetFolderPath('ApplicationData')
+  if (-not (Test-WsNetworkPath $roam (Get-WsDriveType $roam))) { return }
+  $local = [Environment]::GetFolderPath('LocalApplicationData')
+  if (-not $local -or (Test-WsNetworkPath $local (Get-WsDriveType $local))) { Write-WsLog ('AppData on a network share, and LocalAppData too: ' + $local); return }
+  $uvLocal = Join-Path $local 'uv'
+  Add-WsNote (M 's0_appdata_rede' @{ CAMINHO = $roam; LOCAL = $uvLocal })
+  if ($script:Mode -ne 'install') { return }
+  foreach ($pair in @(@('UV_TOOL_DIR', 'uv\tools'), @('UV_PYTHON_INSTALL_DIR', 'uv\python'))) {
+    if ([Environment]::GetEnvironmentVariable($pair[0]) -or (Get-WsUserEnvRaw $pair[0])) { continue }
+    Set-WsUserEnv $pair[0] (Join-Path $local $pair[1])
+  }
+}
+
 function Test-WsProxy {
   $script:Proxy = ''
-  if ($env:HTTPS_PROXY) { $script:Proxy = $env:HTTPS_PROXY; Add-WsNote (M 's0_proxy_sistema' @{ PROXY = $env:HTTPS_PROXY + ' (HTTPS_PROXY)' }); return }
-  try {
-    $sys = [System.Net.WebRequest]::GetSystemWebProxy()
-    $target = [Uri]'https://api.anthropic.com/'
-    if (-not $sys.IsBypassed($target)) {
-      $px = $sys.GetProxy($target)
-      if ($px -and $px.AbsoluteUri -ne $target.AbsoluteUri) {
-        $script:Proxy = ('http://{0}:{1}' -f $px.Host, $px.Port)
-        $env:HTTPS_PROXY = $script:Proxy
-        $env:NO_PROXY = 'localhost,127.0.0.1'
-        Add-WsNote (M 's0_proxy_sistema' @{ PROXY = $script:Proxy })
-        return
+  $script:NoProxy = ''
+  $override = ''
+  $direct = @()
+  if ($env:HTTPS_PROXY) {
+    $script:Proxy = $env:HTTPS_PROXY
+    Add-WsNote (M 's0_proxy_sistema' @{ PROXY = (Protect-WsText $env:HTTPS_PROXY @()) + ' (HTTPS_PROXY)' })
+  } else {
+    try {
+      $sys = [System.Net.WebRequest]::GetSystemWebProxy()
+      $target = [Uri]'https://api.anthropic.com/'
+      if (-not $sys.IsBypassed($target)) {
+        $px = $sys.GetProxy($target)
+        if ($px -and $px.AbsoluteUri -ne $target.AbsoluteUri) {
+          $script:Proxy = ('http://{0}:{1}' -f $px.Host, $px.Port)
+          $env:HTTPS_PROXY = $script:Proxy
+          Add-WsNote (M 's0_proxy_sistema' @{ PROXY = $script:Proxy })
+          # As excecoes do proxy do Windows e os servidores do kit que o PAC manda direto (GitHub Enterprise,
+          # por exemplo) ficam no NO_PROXY: sem isso o git, o gh e o uv iam pelo proxy para servidores internos.
+          try { $override = [string](Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyOverride -ErrorAction Stop).ProxyOverride } catch { $override = '' }
+          foreach ($h in @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) {
+            if ($h) { try { if ($sys.IsBypassed([Uri]('https://' + $h + '/'))) { $direct += $h } } catch { } }
+          }
+        }
       }
+    } catch { Write-WsLog ('proxy: ' + $_.Exception.Message) }
+  }
+  if (-not $script:Proxy) { Add-WsNote (M 's0_sem_proxy'); return }
+  # O NO_PROXY que ja existia fica (como no Mac); acrescenta-se, nunca se substitui.
+  $script:NoProxy = Merge-WsNoProxy $env:NO_PROXY $override $direct
+  $env:NO_PROXY = $script:NoProxy
+  Write-WsLog ('NO_PROXY: ' + $script:NoProxy)
+}
+
+function Test-WsProxyAuth {
+  # O passo 0 manda as credenciais do Windows ao proxy (NTLM/Kerberos); o Claude Code, o Node e o uv nao as sabem
+  # mandar. Um pedido sem elas mostra o que esses vao ter: 407 = o proxy so deixa passar com o login do Windows.
+  # Devolve o codigo HTTP (0 sem resposta).
+  if (-not $script:Proxy) { return 0 }
+  $http = 0
+  try {
+    $addr = $script:Proxy
+    if ($addr -notmatch '^[A-Za-z][A-Za-z0-9+.-]*://') { $addr = 'http://' + $addr }
+    $u = [Uri]$addr
+    $wp = [System.Net.WebProxy]::new($u.Scheme + '://' + $u.Authority)
+    $wp.UseDefaultCredentials = $false
+    if ($u.UserInfo) {
+      $ui = $u.UserInfo.Split(':', 2)
+      $pw = ''
+      if ($ui.Count -gt 1) { $pw = [Uri]::UnescapeDataString($ui[1]) }
+      $wp.Credentials = [System.Net.NetworkCredential]::new([Uri]::UnescapeDataString($ui[0]), $pw)
     }
-  } catch { Write-WsLog ('proxy: ' + $_.Exception.Message) }
-  Add-WsNote (M 's0_sem_proxy')
+    $req = [System.Net.WebRequest]::Create('https://api.anthropic.com/')
+    $req.Method = 'HEAD'; $req.Timeout = 12000; $req.UserAgent = $script:UA; $req.AllowAutoRedirect = $false
+    $req.Proxy = $wp
+    try { $r = $req.GetResponse(); $http = [int]$r.StatusCode; $r.Close() }
+    catch [System.Net.WebException] {
+      if ($_.Exception.Response) { try { $http = [int]$_.Exception.Response.StatusCode } catch { }; $_.Exception.Response.Close() }
+    }
+  } catch { Write-WsLog ('proxy without Windows credentials: ' + $_.Exception.Message) }
+  Write-WsLog ('proxy without Windows credentials: HTTP ' + $http)
+  return $http
 }
 
 function Test-WsTls {
@@ -1013,18 +1393,42 @@ function Test-WsNetwork {
     if (-not $script:NetApiOk) { Set-WsWarn 'E-NET-05' 'api.anthropic.com' }
     foreach ($c in ($codes | Sort-Object -Unique)) { Set-WsWarn $c ($fails -join ', ') }
   }
+  # Os pedidos acima levam o login do Windows ao proxy; o Claude Code, o Node e o uv nao. Se o proxy so aceita esse
+  # login, diz-se ja aqui (E-NET-03), e nao com E-CC-01, E-UV-01 ou E-MEM-03 nos passos seguintes.
+  $script:ProxyAuth = $false
+  if ($script:Proxy -and $script:NetApiOk -and (Test-WsProxyAuth) -eq 407) {
+    $script:ProxyAuth = $true
+    Add-WsNote (M 's0_proxy_ntlm')
+    if ($codes -notcontains 'E-NET-03') { Set-WsWarn 'E-NET-03' ((Protect-WsText $script:Proxy @()) + ': 407') }
+  }
 }
 
 # =============================================================== PASSO 1 - git
 
 function Set-WsGitBash {
+  # Encontra o bash.exe (Get-WsGitBashCandidates) e grava CLAUDE_CODE_GIT_BASH_PATH. Um valor que o utilizador ja
+  # tinha e que aponta para um bash.exe que existe fica como esta. Sem bash: $script:GitBashMissing e E-GIT-03.
   param([string]$Git)
-  $root = Split-Path (Split-Path $Git)
-  $bash = Join-Path $root 'bin\bash.exe'
-  if (-not (Test-Path -LiteralPath $bash)) { $bash = Join-Path $root 'usr\bin\bash.exe' }
-  if (-not (Test-Path -LiteralPath $bash)) { Set-WsWarn 'E-GIT-03' $root; return }
+  $script:GitBashMissing = $false
+  # Cada chamada volta a decidir: tira o E-GIT-03 de uma tentativa anterior (antes de instalar o Git for Windows).
+  $keep = @()
+  foreach ($w in $script:T[$script:Cur].Avisos) { if ($w[0] -ne 'E-GIT-03') { $keep += , $w } }
+  $script:T[$script:Cur].Avisos = $keep
+  $cur = Get-WsUserEnvRaw 'CLAUDE_CODE_GIT_BASH_PATH'
+  if ($cur) { $cur = [Environment]::ExpandEnvironmentVariables($cur) } else { $cur = $env:CLAUDE_CODE_GIT_BASH_PATH }
+  if ($cur -and (Test-Path -LiteralPath $cur -PathType Leaf)) { Write-WsLog ('git bash (already set): ' + $cur); return }
+  $exec = ''
+  $r = Invoke-WsProcess $Git @('--exec-path') -TimeoutSec 60
+  if ($r.ExitCode -eq 0) { $exec = ([string]$r.StdOut).Trim() }
+  $roots = @()
+  if ($env:LOCALAPPDATA) { $roots += (Join-Path $env:LOCALAPPDATA 'Programs\Git') }
+  foreach ($pf in @($env:ProgramW6432, $env:ProgramFiles)) { if ($pf) { $roots += (Join-Path $pf 'Git') } }
+  $bash = $null
+  foreach ($c in (Get-WsGitBashCandidates $Git $exec $roots)) { if (Test-Path -LiteralPath $c -PathType Leaf) { $bash = $c; break } }
+  if (-not $bash) { $script:GitBashMissing = $true; Set-WsWarn 'E-GIT-03' (Split-Path -Parent $Git); return }
+  Write-WsLog ('git bash: ' + $bash)
   if ($script:Mode -eq 'install') { Set-WsUserEnv 'CLAUDE_CODE_GIT_BASH_PATH' $bash }
-  elseif ((Get-WsUserEnvRaw 'CLAUDE_CODE_GIT_BASH_PATH') -ne $bash -and $env:CLAUDE_CODE_GIT_BASH_PATH -ne $bash) { Set-WsWarn 'E-GIT-03' 'CLAUDE_CODE_GIT_BASH_PATH' }
+  else { Set-WsWarn 'E-GIT-03' 'CLAUDE_CODE_GIT_BASH_PATH' }
 }
 
 function Test-WsStep1 {
@@ -1036,6 +1440,8 @@ function Test-WsStep1 {
   $script:GitVer = Get-WsVersionOf $r.StdOut
   Set-WsDetail (M 's1_ja' @{ VERSAO = $script:GitVer })
   Set-WsGitBash $g
+  # Um git sem Git Bash (MinGit de outra aplicacao, por exemplo): instala-se o Git for Windows uma vez.
+  if ($script:GitBashMissing -and $script:Mode -eq 'install' -and -not $script:GitBashTried) { return $false }
   if ($script:CaPem -and $script:Mode -eq 'install') {
     $cur = Invoke-WsProcess $g @('config', '--global', '--get', 'http.sslBackend')
     if ($cur.StdOut.Trim() -ne 'schannel') {
@@ -1047,8 +1453,21 @@ function Test-WsStep1 {
 }
 
 function Install-WsStep1 {
+  # Com um git que ja funciona (so faltava o Git Bash), falhar a instalacao do Git for Windows nao falha o passo:
+  # fica o aviso E-GIT-03 (e o motivo da falha), como antes, e os passos que precisam do git correm.
+  $hadGit = [bool]$script:GitBashMissing
+  $script:GitBashTried = $true
+  if (Install-WsGitForWindows) { return $true }
+  if (-not $hadGit) { return $false }
+  $f = $script:T[$script:Cur].Falha
+  $script:T[$script:Cur].Falha = $null
+  if ($f) { Set-WsWarn $f[0] $f[1] }
+  return (Test-WsStep1)
+}
+
+function Install-WsGitForWindows {
   Write-WsSay ('  ' + (M 'a_instalar'))
-  if ((Test-WsWinget) -and (Invoke-WsWinget 'Git.Git')) { if (Test-WsStep1) { return $true } }
+  if ((Test-WsWinget) -and (Invoke-WsWinget 'Git.Git')) { if ((Test-WsStep1) -and -not $script:GitBashMissing) { return $true } }
   $file = $script:C.GIT_WINDOWS_FILE_X64; $want = $script:C.GIT_WINDOWS_SHA256_X64
   if ($script:Arch -eq 'arm64') { $file = $script:C.GIT_WINDOWS_FILE_ARM64; $want = $script:C.GIT_WINDOWS_SHA256_ARM64 }
   $url = Expand-WsPattern $script:C.GIT_WINDOWS_URL @{ version = $script:C.GIT_WINDOWS_VERSION; file = $file }
@@ -1057,7 +1476,7 @@ function Install-WsStep1 {
   if (-not (Invoke-WsDownload $url $exe)) { Set-WsFail (Get-WsDlCode) $url; return $false }
   if ((Get-WsSha256 $exe) -ne $want.ToLowerInvariant()) { Set-WsFail 'E-GIT-02' ('SHA-256 ' + $file); return $false }
   $r = Invoke-WsProcess $exe @('/VERYSILENT', '/CURRENTUSER', '/NORESTART', '/SUPPRESSMSGBOXES', '/SP-', '/NOCANCEL') -TimeoutSec 1800
-  if ($r.ExitCode -ne 0) { Set-WsFail 'E-GIT-02' ('instalador ' + $r.ExitCode); return $false }
+  if ($r.ExitCode -ne 0) { Set-WsFail 'E-GIT-02' ('installer ' + $r.ExitCode); return $false }
   Update-WsSessionPath
   return (Test-WsStep1)
 }
@@ -1083,10 +1502,10 @@ function Install-WsStep2 {
   Write-WsSay ('  ' + (M 'a_instalar'))
   $f = Join-Path $script:Tmp 'claude-install.ps1'
   if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) $script:C.CLAUDE_INSTALL_PS1_URL; return $false }
-  $r = Invoke-WsProcess (Join-Path $PSHOME 'powershell.exe') @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, $script:C.CLAUDE_CODE_VERSION) -TimeoutSec 1800
+  $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, $script:C.CLAUDE_CODE_VERSION) -TimeoutSec 1800
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-CC-01' 'install.ps1'; return $false }
-  Add-WsUserPath (Join-Path $HOME '.local\bin')
-  $c = Join-Path $HOME '.local\bin\claude.exe'
+  Add-WsUserPath (Join-Path $script:UserHome '.local\bin')
+  $c = Join-Path $script:UserHome '.local\bin\claude.exe'
   if (-not (Test-Path -LiteralPath $c)) { Set-WsFail 'E-CC-01' $c; return $false }
   $v = Invoke-WsProcess $c @('--version') -TimeoutSec 120
   if ($v.ExitCode -ne 0) { Set-WsFail 'E-PERM-02' 'claude --version'; return $false }
@@ -1149,7 +1568,9 @@ function Install-WsStep3 {
   }
   if (-not (Test-WsInteractive)) { Set-WsFail 'E-AUTH-01' ''; return $false }
   Write-WsLog '$ claude auth login --console (interactive)'
-  & $script:ClaudeExe auth login --console
+  # "| Out-Default" nos logins: o programa fica com a consola (ve o teclado e mostra o URL e o codigo). Sem isso a
+  # saida era capturada pelo [bool](& Install-WsStep3) do Invoke-WsStep e a pessoa nao via nada.
+  & $script:ClaudeExe auth login --console | Out-Default
   return (Test-WsStep3)
 }
 
@@ -1168,7 +1589,7 @@ function Get-WsFreshNodeMajor {
   $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
   $user = [Environment]::GetEnvironmentVariable('Path', 'User')
   $p = [Environment]::ExpandEnvironmentVariables((($machine, $user | Where-Object { $_ }) -join ';'))
-  $ps = Join-Path $PSHOME 'powershell.exe'
+  $ps = Get-WsWinPowerShell
   $r = Invoke-WsProcess $ps @('-NoProfile', '-NonInteractive', '-Command', 'node -v') -Environment @{ Path = $p } -TimeoutSec 120
   $m = [regex]::Match($r.StdOut, 'v([0-9]+)')
   if ($m.Success) { return [int]$m.Groups[1].Value }
@@ -1184,6 +1605,9 @@ function Test-WsStep4 {
   $found = $null
   foreach ($x in $cands) {
     if (-not (Test-Path -LiteralPath $x)) { continue }
+    # Os hooks e a statusline correm este node a cada passo do Claude: numa partilha (o H:\ de uma versao antiga
+    # do setup, por exemplo) ficavam lentos e parados sem rede. Instala-se um local.
+    if (Test-WsNetworkPath $x (Get-WsDriveType $x)) { Write-WsLog ('node on a network share, not used: ' + $x); continue }
     if ((Get-WsNodeMajor $x) -ge [int]$script:C.NODE_MIN_MAJOR) { $found = $x; break }
   }
   $script:NodeExe = $found
@@ -1246,9 +1670,9 @@ function Install-WsStep5 {
   $f = Join-Path $script:Tmp 'uv-install.ps1'
   $url = Expand-WsPattern $script:C.UV_INSTALL_PS1_URL @{ version = $script:C.UV_VERSION }
   if (-not (Invoke-WsDownload $url $f)) { Set-WsFail (Get-WsDlCode) $url; return $false }
-  $r = Invoke-WsProcess (Join-Path $PSHOME 'powershell.exe') @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f) -Environment @{ UV_NO_MODIFY_PATH = '1'; UV_INSTALL_DIR = (Join-Path $HOME '.local\bin') } -TimeoutSec 900
+  $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f) -Environment @{ UV_NO_MODIFY_PATH = '1'; UV_INSTALL_DIR = (Join-Path $script:UserHome '.local\bin') } -TimeoutSec 900
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-UV-01' 'install.ps1'; return $false }
-  Add-WsUserPath (Join-Path $HOME '.local\bin')
+  Add-WsUserPath (Join-Path $script:UserHome '.local\bin')
   if (-not (Test-WsStep5)) { Set-WsFail 'E-UV-01' 'uv --version'; return $false }
   return $true
 }
@@ -1273,7 +1697,7 @@ function Test-WsStep6 {
       $script:GhAsked = $true
       if (Read-WsYesNo (M 's6_pergunta_login') $true) {
         Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
-        & $exe auth login --hostname github.com --git-protocol https --web
+        & $exe auth login --hostname github.com --git-protocol https --web | Out-Default
       }
     }
     if ((Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec 60).ExitCode -ne 0) {
@@ -1342,7 +1766,8 @@ function Test-WsAcli {
   if ($exe) { $r = Invoke-WsProcess $exe @('--version') -TimeoutSec 60 }
   if (-not $exe -or $r.ExitCode -ne 0) {
     if ($script:Mode -eq 'install' -and -not $Tried) { return $false }
-    Set-WsWarn 'E-ACLI-01' $script:AcliErr
+    if ([string]$script:Blocked -match 'acli') { Set-WsWarn 'E-PERM-02' $script:Blocked }
+    else { Set-WsWarn 'E-ACLI-01' $script:AcliErr }
     return $true
   }
   Set-WsDetail (M 's7_ja_acli' @{ VERSAO = (Get-WsVersionOf $r.StdOut) })
@@ -1351,7 +1776,7 @@ function Test-WsAcli {
     $script:AcliAsked = $true
     if (Read-WsYesNo (M 's7_pergunta_acli') $true) {
       Write-WsLog '$ acli auth login (interactive)'
-      & $exe auth login
+      & $exe auth login | Out-Default
     }
   }
   if (-not (Test-WsAcliLogin $exe)) { Add-WsNote (M 's7_acli_login') }
@@ -1413,7 +1838,7 @@ function Install-WsStep7 {
 
 function Invoke-WsInstallUser {
   param([string]$Sub)
-  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl) -Lang $script:Lang
+  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl) -Lang $script:Lang -NoProxy $script:NoProxy
   return (Invoke-WsProcess $script:NodeExe $a -TimeoutSec 600)
 }
 
@@ -1568,11 +1993,11 @@ function Get-WsWebView2Version {
 
 function Get-WsUvBin {
   if (-not $script:UvExe) { $script:UvExe = Get-WsUv }
-  if (-not $script:UvExe) { return (Join-Path $HOME '.local\bin') }
+  if (-not $script:UvExe) { return (Join-Path $script:UserHome '.local\bin') }
   $r = Invoke-WsProcess $script:UvExe @('tool', 'dir', '--bin') -TimeoutSec 60
   $d = $r.StdOut.Trim()
   if ($r.ExitCode -eq 0 -and $d) { return $d }
-  return (Join-Path $HOME '.local\bin')
+  return (Join-Path $script:UserHome '.local\bin')
 }
 
 function Get-WsShortcutPath {
@@ -1598,7 +2023,10 @@ function Get-WsMemoryExe {
 function Get-WsMemoryHome {
   # The app's data folder (the app's own rule): AGENT_MEMORY_HOME; MEMORIA_HOME; ~\.memoria if it exists and
   # ~\.agent-memory does not; otherwise ~\.agent-memory. Nothing is ever moved or deleted.
-  param([hashtable]$EnvValues = $null, [string]$UserHome = $HOME)
+  # ~ e a pasta do perfil ($script:UserHome), como na app (Path.home() = USERPROFILE), nunca o H:\ do $HOME.
+  param([hashtable]$EnvValues = $null, [string]$UserHome = '')
+  if (-not $UserHome) { $UserHome = $script:UserHome }
+  if (-not $UserHome) { $UserHome = Get-WsUserHome ([Environment]::GetFolderPath('UserProfile')) $env:USERPROFILE $HOME }
   if ($null -eq $EnvValues) { $EnvValues = @{ AGENT_MEMORY_HOME = $env:AGENT_MEMORY_HOME; MEMORIA_HOME = $env:MEMORIA_HOME } }
   if ($EnvValues['AGENT_MEMORY_HOME']) { return [string]$EnvValues['AGENT_MEMORY_HOME'] }
   if ($EnvValues['MEMORIA_HOME']) { return [string]$EnvValues['MEMORIA_HOME'] }
@@ -1636,21 +2064,52 @@ function Invoke-WsMemorySelftest {
   Set-WsDetail (M 's10_ja' @{ VERSAO = $Ver })
   $d = ($st.Falhas -join '; ')
   if (-not $d) { $d = [IO.Path]::GetFileNameWithoutExtension($Exe) + ' selftest (' + $r.ExitCode + ')' }
-  Set-WsWarn 'E-MEM-05' $d
+  if ($script:Blocked -eq $Exe) { Set-WsWarn 'E-PERM-02' $Exe } else { Set-WsWarn 'E-MEM-05' $d }
   return $false
 }
 
+function Get-WsMemoryGui {
+  # agent-memory-gui.exe (ou memoria-gui.exe), para o atalho; sem ele, o proprio agent-memory.exe.
+  param([string]$Bin, [string]$Exe)
+  foreach ($n in @('agent-memory-gui.exe', 'memoria-gui.exe')) { $p = Join-Path $Bin $n; if (Test-Path -LiteralPath $p) { return $p } }
+  return $Exe
+}
+
+function New-WsMemoryShortcut {
+  # O atalho "Agent Memory" no menu Iniciar. Falhar aqui (WScript.Shell bloqueado por um EDR, a pasta Programas
+  # numa partilha offline) e so um aviso: o MCP e a app funcionam sem atalho.
+  param([string]$Gui)
+  try {
+    # The old shortcut ("Memoria" with an accent) was ours: it goes.
+    $oldLnk = Get-WsOldShortcutPath
+    if (Test-Path -LiteralPath $oldLnk) { Remove-Item -LiteralPath $oldLnk -Force -ErrorAction SilentlyContinue }
+    $lnk = Get-WsShortcutPath
+    $sh = New-Object -ComObject WScript.Shell
+    $s = $sh.CreateShortcut($lnk)
+    $s.TargetPath = $Gui
+    $s.WorkingDirectory = $script:UserHome
+    $s.Description = 'Agent Memory (Claude workshop)'
+    $s.Save()
+    Register-WsExtra 'atalho' 'agent-memory' $lnk '' ''
+    return $true
+  } catch { Set-WsWarn 'E-MEM-03' ('shortcut: ' + $_.Exception.Message); return $false }
+}
+
 function Test-WsStep10 {
+  # O MCP vem antes do atalho: e o MCP que o workshop usa, e um atalho que nao se consegue criar nao pode
+  # esconder (nem impedir) o registo do MCP.
   $ver = $script:C.MEMORY_APP_VERSION.TrimStart('v')
   $bin = Get-WsUvBin
   $exe = Get-WsMemoryExe $bin
   if (-not $exe) { Set-WsFail 'E-MEM-01' ''; return $false }
   $l = Invoke-WsProcess $script:UvExe @('tool', 'list') -TimeoutSec 60
   if ($l.StdOut -notmatch ('(?m)^(agent-memory|agent_memory|memoria) v?' + [regex]::Escape($ver) + '(\s|$)')) { Set-WsFail 'E-MEM-03' ('version ' + $ver); return $false }
-  if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) { Set-WsFail 'E-MEM-03' 'shortcut'; return $false }
-  if (-not (Test-Path -LiteralPath (Join-Path (Get-WsMemoryHome) 'config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
   if ($script:ClaudeExe) {
     if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120).ExitCode -ne 0) { Set-WsFail 'E-MEM-03' 'mcp'; return $false }
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path (Get-WsMemoryHome) 'config.json'))) { Set-WsFail 'E-MEM-03' 'config.json'; return $false }
+  if (-not (Test-Path -LiteralPath (Get-WsShortcutPath))) {
+    if ($script:Mode -eq 'install') { [void](New-WsMemoryShortcut (Get-WsMemoryGui $bin $exe)) } else { Set-WsWarn 'E-MEM-03' 'shortcut' }
   }
   if (-not (Get-WsWebView2Version)) { Set-WsWarn 'E-MEM-04' '' }
   [void](Invoke-WsMemorySelftest $exe $ver)
@@ -1660,10 +2119,13 @@ function Test-WsStep10 {
 function Install-WsWebView2 {
   if (Get-WsWebView2Version) { return $true }
   $f = Join-Path $script:Tmp 'MicrosoftEdgeWebview2Setup.exe'
-  if (-not (Invoke-WsDownload $script:C.WEBVIEW2_URL $f)) { return $false }
-  if (-not (Test-WsSignature $f 'Microsoft')) { Write-WsLog 'WebView2: invalid signature'; return $false }
-  [void](Invoke-WsProcess $f @('/silent', '/install') -TimeoutSec 900)
-  return [bool](Get-WsWebView2Version)
+  # Opcional (o aviso e E-MEM-04): um bloqueio aqui nao muda o codigo do passo.
+  $keep = $script:Blocked
+  $ok = Invoke-WsDownload $script:C.WEBVIEW2_URL $f
+  if ($ok -and -not (Test-WsSignature $f 'Microsoft')) { Write-WsLog 'WebView2: invalid signature'; $ok = $false }
+  if ($ok) { [void](Invoke-WsProcess $f @('/silent', '/install') -TimeoutSec 900) }
+  $script:Blocked = $keep
+  return ($ok -and [bool](Get-WsWebView2Version))
 }
 
 function Install-WsStep10 {
@@ -1704,24 +2166,11 @@ function Install-WsStep10 {
   $bin = Get-WsUvBin
   $exe = Get-WsMemoryExe $bin
   if (-not $exe) { Set-WsFail 'E-MEM-03' (Join-Path $bin 'agent-memory.exe'); return $false }
-  $gui = $exe
-  foreach ($n in @('agent-memory-gui.exe', 'memoria-gui.exe')) { if (Test-Path -LiteralPath (Join-Path $bin $n)) { $gui = Join-Path $bin $n; break } }
   Add-WsUserPath $bin
-  Write-WsMemoryConfig
-  try {
-    # The old shortcut ("Memoria" with an accent) was ours: it goes.
-    $oldLnk = Get-WsOldShortcutPath
-    if (Test-Path -LiteralPath $oldLnk) { Remove-Item -LiteralPath $oldLnk -Force -ErrorAction SilentlyContinue }
-    $lnk = Get-WsShortcutPath
-    $sh = New-Object -ComObject WScript.Shell
-    $s = $sh.CreateShortcut($lnk)
-    $s.TargetPath = $gui
-    $s.WorkingDirectory = $HOME
-    $s.Description = 'Agent Memory (Claude workshop)'
-    $s.Save()
-    Register-WsExtra 'atalho' 'agent-memory' $lnk '' ''
-  } catch { Set-WsFail 'E-MEM-03' ('shortcut: ' + $_.Exception.Message); return $false }
+  # Primeiro o MCP (e o que o workshop usa), depois a configuracao e o atalho (que so pode dar um aviso).
   if (-not (Register-WsMemoryMcp $exe)) { Set-WsFail 'E-MEM-03' ('claude mcp add ' + $script:McpName); return $false }
+  Write-WsMemoryConfig
+  [void](New-WsMemoryShortcut (Get-WsMemoryGui $bin $exe))
   if (Invoke-WsMemorySelftest $exe $ver) {
     $g = Invoke-WsProcess $exe @('selftest', '--gui', '--timeout', '30') -TimeoutSec 120 -Environment @{ PYTHONUTF8 = '1' }
     if ($g.ExitCode -eq 3) { Set-WsWarn 'E-MEM-04' 'selftest --gui' } elseif ($g.ExitCode -ne 0) { Set-WsWarn 'E-MEM-05' 'selftest --gui' }
@@ -1858,7 +2307,8 @@ function Invoke-WsHelper {
   param([string]$N)
   if (-not $script:AuthOk) { return $false }
   $code = $script:T[$N].Falha[0]
-  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*') { return $false }
+  # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui.
+  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02') { return $false }
   Write-WsSay ''
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
@@ -2051,6 +2501,8 @@ function Initialize-WsFill {
   $f['KIT_URL_WINDOWS'] = Get-WsReleaseUrl 'workshop' ('workshop-kit-' + $script:C.WORKSHOP_VERSION + '.zip')
   $f['ONE_LINER_MAC'] = 'curl -fsSL ' + $f['SETUP_MAC_URL'] + ' | bash'
   $f['ONE_LINER_WINDOWS'] = 'irm ' + (Get-WsReleaseUrl 'workshop' 'bootstrap-windows.ps1') + ' | iex'
+  # O mesmo, para um proxy que pede o login do Windows (407 logo no primeiro irm): igual ao installer/lib/conf.mjs.
+  $f['ONE_LINER_WINDOWS_PROXY'] = '[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; ' + $f['ONE_LINER_WINDOWS']
   $f['UV_INSTALL_SH_URL_V'] = Expand-WsPattern $script:C.UV_INSTALL_SH_URL @{ version = $script:C.UV_VERSION }
   $f['UV_INSTALL_PS1_URL_V'] = Expand-WsPattern $script:C.UV_INSTALL_PS1_URL @{ version = $script:C.UV_VERSION }
   $f['PROJETOS'] = $script:ProjShow
@@ -2074,7 +2526,7 @@ function Initialize-WsLang {
 }
 
 function Save-WsSelf {
-  # Copia local do script, para "powershell ... -File $HOME\.workshop-claude\setup-windows.ps1 -Check".
+  # Copia local do script, para "powershell ... -File $env:USERPROFILE\.workshop-claude\setup-windows.ps1 -Check".
   $dst = Join-Path $script:WsHome 'setup-windows.ps1'
   if ($script:Dev) {
     $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Join-Path $PSScriptRoot 'setup-windows.ps1')))
@@ -2085,8 +2537,49 @@ function Save-WsSelf {
     return
   }
   if ($PSCommandPath -and ((Resolve-Path -LiteralPath $PSCommandPath).Path -ne $dst)) {
-    try { Copy-Item -LiteralPath $PSCommandPath -Destination $dst -Force } catch { }
+    # Um ficheiro novo, escrito pelo setup: o Copy-Item copiava tambem o Zone.Identifier ("veio da Internet") de um
+    # setup-windows.ps1 descarregado no browser, e com RemoteSigned imposto por Group Policy o -Check deixava de correr.
+    try {
+      $bytes = [IO.File]::ReadAllBytes($PSCommandPath)
+      Remove-Item -LiteralPath $dst -Force -ErrorAction SilentlyContinue
+      [IO.File]::WriteAllBytes($dst, $bytes)
+    } catch { Write-WsLog ('saved copy: ' + $_.Exception.Message) }
   }
+}
+
+function Invoke-WsRelaunch {
+  # O setup so corre bem no Windows PowerShell 5.1 de 64 bits, numa consola:
+  # - PowerShell ISE: sem consola, os logins (claude, gh, acli) ficavam a espera para sempre -> nova janela;
+  # - PowerShell 7 (sem powershell.exe no $PSHOME, outras excecoes de rede) ou de 32 bits (o install.ps1 do Claude
+  #   Code recusa 32 bits; System32 e Program Files redirecionados) -> recomeca no de 64 bits, com as mesmas opcoes.
+  # Nunca contorna a Group Policy: com AllSigned ou Restricted nao recomeca (o -File falhava) e o passo 0 explica.
+  # Devolve o codigo de saida, ou $null para continuar neste processo.
+  param([hashtable]$Params)
+  $self = Get-WsSelfArgs $Params
+  $ps = Get-WsWinPowerShell
+  if (Test-WsIse $Host.Name ([bool](Get-Variable -Name psISE -ValueOnly -ErrorAction SilentlyContinue))) {
+    if ($PSCommandPath) {
+      try {
+        Start-Process -FilePath $ps -ArgumentList (ConvertTo-WsArgLine (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-NoExit', '-File', $PSCommandPath) + $self)) -ErrorAction Stop
+        Write-WsSay (M 'ise_nova_janela') 'White'
+        return 0
+      } catch { Write-WsLog ('ISE: new window failed: ' + $_.Exception.Message) }
+    }
+    Write-WsCode 'E-SO-08' '' '  '
+    return 2
+  }
+  $why = Get-WsRelaunchReason ([string]$PSVersionTable.PSEdition) ([Environment]::Is64BitOperatingSystem) ([Environment]::Is64BitProcess) $env:WS_RELAUNCHED
+  Remove-Item Env:WS_RELAUNCHED -ErrorAction SilentlyContinue
+  if (-not $why -or -not $PSCommandPath -or $ps -eq 'powershell.exe') { return $null }
+  $gpo = Get-WsGpoPolicy (Read-WsGpoKey 'LocalMachine') (Read-WsGpoKey 'CurrentUser')
+  if ($gpo -and $gpo.Blocks) { return $null }
+  if ($why -eq 'core') { Write-WsSay (M 'relancar_core') 'DarkGray' } else { Write-WsSay (M 'relancar_x86') 'DarkGray' }
+  $env:WS_RELAUNCHED = '1'
+  # "| Out-Default": o outro PowerShell escreve direto na consola (e le o teclado); sem isso a saida dele ficava
+  # capturada como resultado desta funcao, e as perguntas nunca apareciam.
+  try { & $ps -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @self | Out-Default; $code = $LASTEXITCODE }
+  finally { Remove-Item Env:WS_RELAUNCHED -ErrorAction SilentlyContinue }
+  return $code
 }
 
 function Invoke-WsMain {
@@ -2105,35 +2598,61 @@ function Invoke-WsMain {
   try { [Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials } catch { }
   $script:Emoji = [bool]($env:WT_SESSION -or $PSVersionTable.PSVersion.Major -ge 7)
 
-  $script:WsHome = Join-Path $HOME '.workshop-claude'
+  # A pasta do perfil (USERPROFILE), e nao o $HOME do PowerShell 5.1: com uma pasta pessoal do AD, o $HOME e H:\.
+  $script:UserHome = Get-WsUserHome ([Environment]::GetFolderPath('UserProfile')) $env:USERPROFILE $HOME
+  $script:WsHome = Join-Path $script:UserHome '.workshop-claude'
   $script:LogFile = Join-Path $script:WsHome 'setup.log'
   $script:Resumo = Join-Path $script:WsHome 'summary.txt'
   $script:ClaudeDir = $env:CLAUDE_CONFIG_DIR
-  if (-not $script:ClaudeDir) { $script:ClaudeDir = Join-Path $HOME '.claude' }
-  $script:Proj = Join-Path $HOME 'workshop-claude'
+  if (-not $script:ClaudeDir) { $script:ClaudeDir = Join-Path $script:UserHome '.claude' }
+  $script:Proj = Join-Path $script:UserHome 'workshop-claude'
   $script:ProjShow = '%USERPROFILE%\workshop-claude'
   $script:UA = 'workshop-claude-setup (PowerShell; Windows)'
-  New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
-  $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('ws-setup-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
-  New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
   $script:Literals = Get-WsSecretLiterals
   $script:StepLog = New-Object System.Text.StringBuilder
-  $script:AuthOk = $false; $script:NetApiOk = $true; $script:CaPem = ''; $script:Proxy = ''; $script:OsBuild = 99999; $script:Arch = 'x64'
+  $script:AuthOk = $false; $script:NetApiOk = $true; $script:CaPem = ''; $script:Proxy = ''; $script:NoProxy = ''; $script:OsBuild = 99999; $script:Arch = 'x64'
+  $script:Blocked = ''; $script:GpoBlocks = $false; $script:ProxyAuth = $false; $script:GitBashMissing = $false; $script:GitBashTried = $false
 
   if (-not (Initialize-WsConfig)) { Write-Host 'This script must come from the release (with the injected values) or run inside the repository.'; return 2 }
   Initialize-WsFill
+  # ISE, PowerShell 7 ou 32 bits: antes de escrever o que quer que seja.
+  $again = Invoke-WsRelaunch $o
+  if ($null -ne $again) { return $again }
+
+  New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+  $script:Tmp = Join-Path ([IO.Path]::GetTempPath()) ('ws-setup-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+  New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
   Initialize-WsLang
   $script:Titles = @{}
   foreach ($p in $script:Msgs.passos.PSObject.Properties) { $script:Titles[$p.Name] = $p.Value }
   $script:T = New-WsStateTable
   Update-WsSessionPath
 
+  # O .lock tem o PID e a hora de arranque: um setup fechado a forca (ou um PID reutilizado) nao bloqueia o seguinte.
   $lock = Join-Path $script:WsHome '.lock'
   if (Test-Path -LiteralPath $lock) {
-    $old = (Get-Content -LiteralPath $lock -ErrorAction SilentlyContinue | Select-Object -First 1)
-    if ($old -and (Get-Process -Id ([int]$old) -ErrorAction SilentlyContinue)) { Write-Host ('The setup is already running (PID {0}).' -f $old); return 1 }
+    $txt = ''
+    try { $txt = [IO.File]::ReadAllText($lock) } catch { $txt = '' }
+    $first = ([string](($txt -split "`r?`n") | Select-Object -First 1)).Trim()
+    $proc = $null
+    if ($first -match '^\d+$') {
+      $gp = Get-Process -Id ([int]$first) -ErrorAction SilentlyContinue
+      if ($gp) {
+        $ticks = 0
+        try { $ticks = $gp.StartTime.ToUniversalTime().Ticks } catch { $ticks = 0 }
+        $proc = @{ Name = $gp.ProcessName; StartTicks = $ticks }
+      }
+    }
+    if (Test-WsLockHeld $txt $proc) {
+      Write-WsSay (M 'ja_a_correr' @{ PID = $first; LOCK = $lock }) 'Yellow'
+      Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue
+      return 1
+    }
+    Write-WsLog ('old lock ignored (that setup is no longer running): ' + $txt.Replace("`r`n", ' '))
   }
-  [IO.File]::WriteAllText($lock, [string]$PID)
+  $myTicks = 0
+  try { $myTicks = (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks } catch { $myTicks = 0 }
+  [IO.File]::WriteAllText($lock, ([string]$PID + "`r`n" + $myTicks))
   try {
     [IO.File]::AppendAllText($script:LogFile, ("`r`n==================== {0} - mode {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
     Write-WsSay (M 'titulo') 'White'

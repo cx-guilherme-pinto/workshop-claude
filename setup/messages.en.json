@@ -38,6 +38,10 @@
     "sn": "[Y/n]",
     "ns": "[y/N]",
     "sem_tty": "No interactive terminal: I assume \"no\".",
+    "ise_nova_janela": "PowerShell ISE cannot answer the questions of the setup, so I opened the setup in a new PowerShell window. Continue there.",
+    "relancar_core": "This is PowerShell 7: I am starting the setup again in Windows PowerShell 5.1 (64-bit).",
+    "relancar_x86": "This is the 32-bit PowerShell (x86): I am starting the setup again in the 64-bit Windows PowerShell 5.1.",
+    "ja_a_correr": "The setup is already running in another window (PID {PID}). Wait for it to finish, or close that window. If no other setup is running, delete {LOCK} and run the setup again.",
     "tty_fg": "Another program took over the terminal. If you see \"zsh: suspended\", type fg and press Enter: the setup carries on.",
     "resumo": "Summary",
     "resumo_cab_passo": "Step",
@@ -88,6 +92,8 @@
     "s0_rede_ok": "Network: {OK} of {TOTAL} domains reachable.",
     "s0_rede_falha": "No access to: {LISTA}",
     "s0_disco": "Free space: {GB} GB",
+    "s0_appdata_rede": "Your AppData folder is on a network share ({CAMINHO}). uv keeps the Python and the tools of the Agent Memory app in {LOCAL} instead.",
+    "s0_proxy_ntlm": "The proxy only lets programs through with your Windows login (NTLM or Kerberos). Claude Code, Node and uv cannot send it, so they will get error 407.",
     "s1_ja": "git {VERSAO}",
     "s2_ja": "Claude Code {VERSAO}",
     "s3_console": "Console ({EMAIL})",
@@ -193,7 +199,8 @@
       "causa": "The network only goes out through a proxy, and the request was refused (for example, error 407).",
       "fazer": [
         "Set the proxy for this session and run the setup again.",
-        "If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains."
+        "If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.",
+        "On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy."
       ],
       "mac": [
         "export HTTPS_PROXY=http://proxy.company:8080",
@@ -201,7 +208,8 @@
       ],
       "windows": [
         "$env:HTTPS_PROXY = 'http://proxy.company:8080'",
-        "$env:NO_PROXY = 'localhost,127.0.0.1'"
+        "$env:NO_PROXY = 'localhost,127.0.0.1'",
+        "{ONE_LINER_WINDOWS_PROXY}"
       ]
     },
     "E-NET-04": {
@@ -287,7 +295,7 @@
     "E-SO-03": {
       "titulo": "Your home folder is in OneDrive",
       "so": "todos",
-      "causa": "Your home folder (or Documents) is synced by OneDrive. Syncing can lock files while the agents are working.",
+      "causa": "Your home folder, or the folder of the workshop projects, is synced by OneDrive. Syncing can lock files while the agents are working.",
       "fazer": [
         "During the workshop, pause OneDrive syncing (OneDrive icon > Pause syncing).",
         "The projects are in {PROJETOS}. If that folder is inside OneDrive, move it out."
@@ -332,6 +340,32 @@
       ],
       "windows": [
         "Get-PSDrive C"
+      ]
+    },
+    "E-SO-07": {
+      "titulo": "A company policy blocks PowerShell scripts",
+      "so": "windows",
+      "causa": "Group Policy sets the PowerShell execution policy, and it wins over \"-ExecutionPolicy Bypass\". With AllSigned or Restricted, no unsigned script can run: not the setup, and not the official installers of Claude Code and uv.",
+      "fazer": [
+        "Ask IT for an exception for the workshop (scripts from your user folder), or do the setup on another computer.",
+        "If the policy is RemoteSigned and you downloaded setup-windows.ps1 with the browser, unblock the file first (second command) and run it again."
+      ],
+      "mac": [],
+      "windows": [
+        "Get-ExecutionPolicy -List",
+        "Unblock-File -LiteralPath .\\setup-windows.ps1"
+      ]
+    },
+    "E-SO-08": {
+      "titulo": "PowerShell ISE can't run the setup",
+      "so": "windows",
+      "causa": "PowerShell ISE has no real console: the programs that ask you something (the Claude Code, GitHub and Jira logins) would wait forever.",
+      "fazer": [
+        "Open \"Windows PowerShell\" from the Start menu (not \"Windows PowerShell ISE\") and run the setup command there."
+      ],
+      "mac": [],
+      "windows": [
+        "{ONE_LINER_WINDOWS}"
       ]
     },
     "E-CFG-01": {
@@ -421,7 +455,7 @@
         "bash ~/.workshop-claude/setup-mac.sh --replace-statusline"
       ],
       "windows": [
-        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
+        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
       ]
     },
     "E-CFG-07": {
@@ -458,7 +492,7 @@
     "E-PERM-02": {
       "titulo": "A program was blocked by the computer's security",
       "so": "todos",
-      "causa": "An antivirus, EDR, AppLocker or Gatekeeper stopped a program installed in your home folder from running.",
+      "causa": "An antivirus, EDR, AppLocker, WDAC or Gatekeeper stopped a program installed in your home folder from running, or removed a file right after the download.",
       "fazer": [
         "Show IT the program name from the log and ask for an exception.",
         "On a Mac, if you see \"cannot be opened\", open System Settings > Privacy & Security and choose \"Open Anyway\"."
@@ -510,7 +544,7 @@
     "E-GIT-03": {
       "titulo": "I couldn't find Git Bash (bash.exe)",
       "so": "windows",
-      "causa": "On Windows, Claude Code uses Git Bash to run commands and hooks. git is there, but bash.exe is not next to it.",
+      "causa": "On Windows, Claude Code uses Git Bash to run commands and hooks. git is there, but I couldn't find bash.exe next to it or in the usual Git for Windows folders.",
       "fazer": [
         "Reinstall Git for Windows (it includes Git Bash) and run the setup again.",
         "If bash.exe is in another folder, set the variable below to the right path."
