@@ -6,6 +6,8 @@ Estes testes têm de ser feitos numa máquina real antes de publicar. Para cada 
 
 ## Windows 10 e Windows 11 (utilizador sem admin)
 
+Checklist passo a passo para um portátil (as correções do Windows, cerca de 60 a 90 minutos): [WINDOWS-CHECKLIST.md](WINDOWS-CHECKLIST.md) · [English](../WINDOWS-CHECKLIST.md).
+
 | # | Passo | Resultado esperado |
 |---|---|---|
 | W1 | Numa conta **sem admin**, num PowerShell 5.1 normal (não o 7), corre o one-liner do README | Começa sem erros de política de execução; o cabeçalho aparece em inglês, sem caracteres trocados |

@@ -6,6 +6,8 @@ These tests must be done on a real machine before publishing. For each one, reco
 
 ## Windows 10 and Windows 11 (user without admin rights)
 
+Step-by-step checklist for one laptop (the Windows fixes, about 60 to 90 minutes): [WINDOWS-CHECKLIST.md](WINDOWS-CHECKLIST.md) · [Português](pt/WINDOWS-CHECKLIST.md).
+
 | # | Step | Expected result |
 |---|---|---|
 | W1 | On an account **without admin rights**, in a normal PowerShell 5.1 (not 7), run the one-liner from the README | Starts without execution policy errors; the header shows up in English, with no garbled characters |
