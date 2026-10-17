@@ -52,7 +52,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-AUTH-02` | O login é de uma assinatura claude.ai, não da Console | [macOS](#mac-e-auth-02) · [Windows](#windows-e-auth-02) |
 | `E-AUTH-03` | O Claude Code usa outro método de autenticação | [macOS](#mac-e-auth-03) · [Windows](#windows-e-auth-03) |
 | `E-NODE-01` | Não consegui instalar o Node.js | [macOS](#mac-e-node-01) · [Windows](#windows-e-node-01) |
-| `E-NODE-02` | Há um Node antigo à frente no PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
+| `E-NODE-02` | Há um Node antigo ou avariado à frente no PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
 | `E-UV-01` | Não consegui instalar o uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-GH-01` | Não consegui instalar o GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
 | `E-GH-02` | Falta o login no GitHub (obrigatório) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
@@ -502,16 +502,18 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://nodejs.org/dist/
 
 <a id="mac-e-node-02"></a>
 
-### E-NODE-02 · Há um Node antigo à frente no PATH
+### E-NODE-02 · Há um Node antigo ou avariado à frente no PATH
 
-- **Porquê:** O terminal encontra primeiro um Node com versão inferior a 22. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.
+- **Porquê:** Um terminal novo encontra primeiro um Node com versão inferior a 22, ou um que não arranca. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.
 - **O que fazer:**
-  - Fecha e volta a abrir o terminal. Se usas nvm, escolhe o Node novo com o comando abaixo.
+  - Fecha e volta a abrir o terminal e vê com o primeiro comando abaixo qual é o node que aparece primeiro.
+  - Se usas nvm, escolhe o Node novo com o nvm. Se o primeiro node não arranca (num Mac, muitas vezes um node do Homebrew avariado), reinstala-o ou remove-o: brew reinstall node ou brew uninstall node.
   - Confirma com node -v.
 
 Comandos (macOS):
 
 ```
+type -a node
 nvm install 22 && nvm alias default 22
 node -v
 ```
@@ -1285,11 +1287,12 @@ winget install --id OpenJS.NodeJS.LTS -e --scope user --source winget
 
 <a id="windows-e-node-02"></a>
 
-### E-NODE-02 · Há um Node antigo à frente no PATH
+### E-NODE-02 · Há um Node antigo ou avariado à frente no PATH
 
-- **Porquê:** O terminal encontra primeiro um Node com versão inferior a 22. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.
+- **Porquê:** Um terminal novo encontra primeiro um Node com versão inferior a 22, ou um que não arranca. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.
 - **O que fazer:**
-  - Fecha e volta a abrir o terminal. Se usas nvm, escolhe o Node novo com o comando abaixo.
+  - Fecha e volta a abrir o terminal e vê com o primeiro comando abaixo qual é o node que aparece primeiro.
+  - Se usas nvm, escolhe o Node novo com o nvm. Se o primeiro node não arranca (num Mac, muitas vezes um node do Homebrew avariado), reinstala-o ou remove-o: brew reinstall node ou brew uninstall node.
   - Confirma com node -v.
 
 Comandos (Windows):

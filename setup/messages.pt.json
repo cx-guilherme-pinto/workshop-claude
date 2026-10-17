@@ -37,6 +37,7 @@
     "a_verificar_rede": "A testar a ligação a {N} domínios…",
     "sn": "[S/n]",
     "ns": "[s/N]",
+    "sn_repetir": "Responde s (sim) ou n (não).",
     "sem_tty": "Sem terminal interativo: assumo «não».",
     "tty_fg": "Outro programa ficou com o terminal. Se aparecer \"zsh: suspended\", escreve fg e carrega em Enter: o setup continua.",
     "resumo": "Resumo",
@@ -96,7 +97,9 @@
     "s3_pergunta_trocar": "Tens login com uma assinatura claude.ai. O workshop usa a Console (paga por uso). Trocar para a Console?",
     "s3_manter": "Mantive o login atual (assinatura claude.ai).",
     "s3_login_sim": "Modo --yes: não faço login interativo.",
+    "s3_sem_tty": "Esta janela não é um terminal interativo (um agente de IA, uma tarefa do IDE ou um script), por isso o setup não consegue fazer aqui o teu login. Abre uma janela normal do terminal (Terminal no Mac, PowerShell no Windows) e corre lá o mesmo comando do setup.",
     "s4_ja": "Node {VERSAO} em {CAMINHO}",
+    "s4_terminal_sem_resposta": "Não consegui confirmar que Node encontra um terminal novo: os ficheiros de arranque do teu shell (~/.zprofile, ~/.zshrc) não responderam em {SEGUNDOS} s, ou arrancam outro programa (como o tmux). Abre um terminal novo e confirma com node -v: deve mostrar v{NODE_MIN_MAJOR} ou mais recente.",
     "s5_ja": "uv {VERSAO}",
     "s6_ja": "gh {VERSAO}",
     "s6_pergunta_login": "Fazer agora o login no GitHub? (abre o browser)",
@@ -630,14 +633,16 @@
       ]
     },
     "E-NODE-02": {
-      "titulo": "Há um Node antigo à frente no PATH",
+      "titulo": "Há um Node antigo ou avariado à frente no PATH",
       "so": "todos",
-      "causa": "O terminal encontra primeiro um Node com versão inferior a {NODE_MIN_MAJOR}. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.",
+      "causa": "Um terminal novo encontra primeiro um Node com versão inferior a {NODE_MIN_MAJOR}, ou um que não arranca. Os hooks usam o Node novo, mas os testes do projeto podem usar o antigo.",
       "fazer": [
-        "Fecha e volta a abrir o terminal. Se usas nvm, escolhe o Node novo com o comando abaixo.",
+        "Fecha e volta a abrir o terminal e vê com o primeiro comando abaixo qual é o node que aparece primeiro.",
+        "Se usas nvm, escolhe o Node novo com o nvm. Se o primeiro node não arranca (num Mac, muitas vezes um node do Homebrew avariado), reinstala-o ou remove-o: brew reinstall node ou brew uninstall node.",
         "Confirma com node -v."
       ],
       "mac": [
+        "type -a node",
         "nvm install {NODE_MIN_MAJOR} && nvm alias default {NODE_MIN_MAJOR}",
         "node -v"
       ],

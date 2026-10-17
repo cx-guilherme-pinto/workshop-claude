@@ -229,5 +229,117 @@ grep -q 'ws_warn E-CFG-01' "$ROOT/setup/setup-mac.sh" && ko "E-CFG-01 ainda e um
 # --- alinhamento com acentos
 eq "$(ws_pad 'Memória' 9)|" "Memória  |" ws_pad
 
+# --- chaos G1-tty: o terminal novo (passo 4) nunca usa o terminal da pessoa; teclas escritas antes das perguntas; sem tty
+G1="$WS_TMP/g1"; mkdir -p "$G1/old/bin"
+printf '#!/bin/sh\necho v18.20.4\n' > "$G1/old/bin/node"; chmod +x "$G1/old/bin/node"
+# corre "$@" no maximo $1 segundos (o macOS nao tem timeout); devolve 124 se teve de o matar
+g1_timeout() { local s=$1 p i=0; shift; "$@" <&0 & p=$!; while kill -0 "$p" 2>/dev/null; do [ "$i" -ge $((s * 5)) ] && { kill -9 "$p" 2>/dev/null; wait "$p" 2>/dev/null; return 124; }; sleep 0.2; i=$((i + 1)); done; wait "$p"; }
+# HOME com o node do kit (falso, v24) e o bloco do workshop (o ws_profile_update a serio); $2 vai para o fim do .zshrc
+g1_home() {
+  local h="$G1/$1"; mkdir -p "$h/.workshop-claude/node/bin"
+  printf '#!/bin/sh\necho v24.22.0\n' > "$h/.workshop-claude/node/bin/node"; chmod +x "$h/.workshop-claude/node/bin/node"
+  ( HOME=$h; SHELL=/bin/zsh; WS_HOME="$h/.workshop-claude"; WS_MODE=install; WS_NODE_BIN_DIR="$h/.workshop-claude/node/bin"; KIT_SRC=""; ws_profile_update )
+  [ -z "${2:-}" ] || printf '%s\n' "$2" >> "$h/.zshrc"
+  printf '%s' "$h"
+}
+# major e segundos; o PATH do setup ja tem um node antigo a frente (o terminal novo nao o herda)
+g1_probe() {
+  local t0 m; t0=$(date +%s)
+  m=$(HOME=$1; SHELL=/bin/zsh; WS_NODE=$NODE; WS_NEWTERM_SECS=3; PATH="$G1/old/bin:$1/.workshop-claude/node/bin:$PATH"; ws_login_node_major 2>"$G1/err")
+  printf '%s %s' "$m" $(( $(date +%s) - t0 ))
+}
+g1_le2() { [ "${1#* }" -le "$2" ] 2>/dev/null; }
+if [ -n "$NODE" ] && [ -x /bin/zsh ]; then
+  r=$(g1_probe "$(g1_home base)"); eq "${r%% *}" 24 "G1 terminal novo: o node do kit, nao o antigo herdado do PATH do setup"
+  r=$(g1_probe "$(g1_home ler 'read -q "?go [y]? "; read -r x </dev/tty')"); eq "${r%% *}" 24 "G1 terminal novo: .zshrc que le do terminal"
+  g1_le2 "$r" 2 && ok || ko "G1 terminal novo: .zshrc que le do terminal demorou [$r]"
+  r=$(g1_probe "$(g1_home monitor 'setopt monitor')"); eq "${r%% *}" 24 "G1 terminal novo: setopt monitor no .zshrc"
+  r=$(g1_probe "$(g1_home execfalse 'exec false')"); eq "${r%% *}" unknown "G1 terminal novo: exec no .zshrc = unknown (nao e um Node antigo)"
+  h=$(g1_home lento '"$HOME/rc-lento.sh"'); printf '#!/bin/sh\nsleep 30\n' > "$h/rc-lento.sh"; chmod +x "$h/rc-lento.sh"
+  r=$(g1_probe "$h"); eq "${r%% *}" unknown "G1 terminal novo: .zshrc que nao acaba = unknown"
+  g1_le2 "$r" 5 && ok || ko "G1 terminal novo: limite de tempo nao cumprido [$r]"
+  sleep 0.3; pgrep -f "$h/rc-lento.sh" >/dev/null && ko "G1 terminal novo: ficou um processo do .zshrc a correr" || ok
+  h=$(g1_home fundo '"$HOME/rc-fundo.sh" &!'); printf '#!/bin/sh\nsleep 30\n' > "$h/rc-fundo.sh"; chmod +x "$h/rc-fundo.sh"
+  r=$(g1_probe "$h"); eq "${r%% *}" 24 "G1 terminal novo: processo deixado a correr pelo .zshrc"
+  g1_le2 "$r" 2 && ok || ko "G1 terminal novo: esperou pelo processo do .zshrc [$r]"
+  sleep 0.3; pgrep -f "$h/rc-fundo.sh" >/dev/null && ko "G1 terminal novo: o processo do .zshrc ficou a correr" || ok
+  # Homebrew com um node que rebenta (dyld): no .zprofile antes do bloco o kit ganha; no .zshrc depois dele e um aviso verdadeiro
+  h=$(g1_home brew); mkdir -p "$h/hb/bin"; printf '#!/bin/sh\necho "dyld: Library not loaded" >&2\nkill -ABRT $$\n' > "$h/hb/bin/node"; chmod +x "$h/hb/bin/node"
+  { printf 'export PATH="$HOME/hb/bin:$PATH"\n'; cat "$h/.zprofile"; } > "$h/zp" && mv "$h/zp" "$h/.zprofile"
+  r=$(g1_probe "$h"); eq "${r%% *}" 24 "G1 terminal novo: brew shellenv antes do bloco do workshop"
+  [ -s "$G1/err" ] && ko "G1 terminal novo: escreveu no ecra [$(head -c 200 "$G1/err")]" || ok
+  printf 'export PATH="$HOME/hb/bin:$PATH"\n' >> "$h/.zshrc"
+  r=$(g1_probe "$h"); eq "${r%% *}" none "G1 terminal novo: node que rebenta a frente = none (aviso E-NODE-02)"
+  [ -s "$G1/err" ] && ko "G1 terminal novo: 'Abort trap' no ecra [$(head -c 200 "$G1/err")]" || ok
+  # num terminal a serio (pty do script): a sonda nao tem terminal de controlo e o compinit/read -q nao aparece
+  if command -v script >/dev/null 2>&1; then
+    printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; WS_TMP=$2; WS_LOG=/dev/null; WS_NODE=$3; WS_NEWTERM_SECS=5' \
+      '{ : </dev/tty; } 2>/dev/null && echo CONTROLO-COM-TTY' \
+      'echo "NT-$(HOME=$4; SHELL=/bin/zsh; ws_newterm "{ : </dev/tty; } 2>/dev/null && echo COM-TTY || echo SEM-TTY")"' \
+      'echo "MAJOR-$(HOME=$4; SHELL=/bin/zsh; ws_login_node_major)"' > "$G1/pty-probe.sh"
+    g1_timeout 20 script -q /dev/null /bin/bash "$G1/pty-probe.sh" "$ROOT/setup/setup-mac.sh" "$G1" "$NODE" "$G1/ler" </dev/null > "$G1/pty.out" 2>&1
+    eq "$?" 0 "G1 pty: a sonda acabou"
+    grep -q CONTROLO-COM-TTY "$G1/pty.out" && grep -q 'NT-SEM-TTY' "$G1/pty.out" && ok || ko "G1 pty: a sonda ainda tem o terminal [$(tr -d '\r' < "$G1/pty.out" | tr '\n' ' ')]"
+    grep -q 'MAJOR-24' "$G1/pty.out" && ok || ko "G1 pty: major com .zshrc que le do terminal [$(tr -d '\r' < "$G1/pty.out" | tr '\n' ' ')]"
+    grep -q 'go \[y\]' "$G1/pty.out" && ko "G1 pty: a pergunta do .zshrc apareceu no terminal" || ok
+  fi
+else ko "G1: sem node ou sem /bin/zsh para testar o terminal novo"; fi
+
+# passo 4: --uninstall nao corre o perfil; um shell que nao responde da uma nota e nao o E-NODE-02; um node antigo da o aviso
+if [ -n "$NODE" ]; then
+  FS="$G1/shell-falso"; printf '#!/bin/sh\necho chamado >> "$HOME/chamado"\n[ -f "$HOME/lento" ] && exec sleep 20\necho WS-NEWTERM; echo v18.1.0\n' > "$FS"; chmod +x "$FS"
+  g1_s4() { ( HOME=$G1/s4; mkdir -p "$HOME"; SHELL=$FS; WS_MODE=$1; WS_NODE=$NODE; WS_HOME="$HOME/.workshop-claude"; C_NODE_MIN_MAJOR=22; C_NODE_VERSION=24.22.0
+    WS_NEWTERM_SECS=2; WS_CUR=4; SW_4=""; SN_4=""; SD_4=""; KIT_SRC=""; ws_s4_detect >/dev/null 2>&1; printf '%s#%s' "$SW_4" "$SN_4" ); }
+  r=$(g1_s4 check); eq "${r%%#*}" "E-NODE-02|v18
+" "G1 s4: node antigo num terminal novo = E-NODE-02"
+  rm -f "$G1/s4/chamado"; g1_s4 uninstall >/dev/null; [ -f "$G1/s4/chamado" ] && ko "G1 s4: o --uninstall correu o perfil da pessoa" || ok
+  : > "$G1/s4/lento"; r=$(g1_s4 check)
+  case "$r" in "#Could not check which Node a new terminal finds"*"2 s"*) ok ;; *) ko "G1 s4: shell sem resposta deu [$r]" ;; esac
+fi
+
+# perguntas: o que foi escrito antes e deitado fora; respostas que nao sao s/n repetem a pergunta (pty do script)
+if command -v script >/dev/null 2>&1 && [ -n "${M_ui_sn_repetir:-}" ]; then
+  ( for v in $(set | sed -n 's/^\(M_ui_[A-Za-z0-9_]*\)=.*/\1/p'); do printf '%s=%q\n' "$v" "${!v}"; done ) > "$G1/msgs.sh"
+  printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; WS_LOG=$2; WS_SIM=0; WS_FILL_KEYS=""; . "$3"; sleep 1' \
+    'if ws_ask "Log in to GitHub now?" s; then echo RESULT=yes; else echo RESULT=no; fi' \
+    'case "$(stty -a </dev/tty)" in *-icanon*) echo TTY=raw ;; *) echo TTY=normal ;; esac' > "$G1/ask.sh"
+  g1_ask() { # antes respostas... -> RESULT=... TTY=... e quantas vezes repetiu
+    local antes=$1 a i=0; shift; : > "$G1/ask.out"
+    { printf '%b' "$antes"
+      while ! grep -q '? Log in' "$G1/ask.out" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.2; i=$((i + 1)); done
+      for a in "$@"; do sleep 0.3; printf '%b' "$a"; done; sleep 1; } |
+      g1_timeout 20 script -q /dev/null /bin/bash "$G1/ask.sh" "$ROOT/setup/setup-mac.sh" /dev/null "$G1/msgs.sh" > "$G1/ask.out" 2>&1
+    printf '%s %s %s' "$(grep -o 'RESULT=[a-z]*' "$G1/ask.out")" "$(grep -o 'TTY=[a-z]*' "$G1/ask.out")" "$(grep -cF "$M_ui_sn_repetir" "$G1/ask.out")"
+  }
+  eq "$(g1_ask '\n' 'n\n')" "RESULT=no TTY=normal 0" "G1 ask: um Enter escrito antes nao responde"
+  eq "$(g1_ask '\n\ncurl -fsSL http://x/setup-mac.sh | bash\n' 'n\n')" "RESULT=no TTY=normal 0" "G1 ask: o comando colado outra vez nao responde"
+  eq "$(g1_ask 'abc' 'n\n')" "RESULT=no TTY=normal 0" "G1 ask: texto meio escrito antes"
+  eq "$(g1_ask '' 'maybe\n' 'y\n')" "RESULT=yes TTY=normal 1" "G1 ask: resposta que nao e s/n repete a pergunta"
+  eq "$(g1_ask '' 'a\n' 'b\n' 'c\n')" "RESULT=no TTY=normal 2" "G1 ask: tres respostas invalidas = nao"
+  eq "$(g1_ask '' '\n')" "RESULT=yes TTY=normal 0" "G1 ask: Enter = o defeito"
+  eq "$(g1_ask '' '  N \n')" "RESULT=no TTY=normal 0" "G1 ask: espacos a volta da resposta"
+fi
+
+# sem terminal (agente de IA, tarefa do IDE): o passo 3 diz onde fazer o login; cores so num terminal que as mostra
+r=$( ws_has_tty() { return 1; }; WS_CUR=3; WS_SIM=0; WS_AUTH_LOGGED=false; SN_3=""; SF_3=""; ws_s3_install >/dev/null 2>&1; printf '%s#%s' "$SF_3" "$SN_3" )
+case "$r" in "E-AUTH-01|#"*"Open a normal terminal window"*) ok ;; *) ko "G1 s3 sem terminal: [$r]" ;; esac
+grep -q 'E-AUTH-01 "sem terminal"' "$ROOT/setup/setup-mac.sh" && ko "G1: detalhe em portugues no E-AUTH-01" || ok
+eq "$(ws_color_detect; printf '%s' "$WS_COLOR")" 0 "G1 cores: stdout que nao e terminal"
+if command -v script >/dev/null 2>&1; then
+  printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; ws_color_detect; printf "C%s\n" "$WS_COLOR"' > "$G1/cor.sh"
+  for c in "xterm-256color||C1" "dumb||C0" "xterm-256color|1|C0"; do
+    IFS='|' read -r t nc want <<EOF
+$c
+EOF
+    TERM=$t NO_COLOR=$nc g1_timeout 10 script -q /dev/null /bin/bash "$G1/cor.sh" "$ROOT/setup/setup-mac.sh" </dev/null > "$G1/cor.out" 2>&1
+    grep -q "$want" "$G1/cor.out" && ok || ko "G1 cores: TERM=$t NO_COLOR=$nc deu [$(tr -d '\r\n' < "$G1/cor.out")], esperado $want"
+  done
+fi
+# E-GH-02 (sem login no GitHub, a correcao ja esta no ecra): nao oferece a analise paga; os outros codigos sim
+eq "$( WS_AUTH_OK=1; SF_6="E-GH-02|"; ws_ask() { printf ASKED; return 1; }; ws_helper_offer 6 2>/dev/null )" "" "G1 ajudante: nao pergunta no E-GH-02"
+eq "$( WS_AUTH_OK=1; SF_6="E-GH-01|x"; ws_ask() { printf ASKED; return 1; }; ws_helper_offer 6 2>/dev/null | tr -d '\n' )" "ASKED" "G1 ajudante: pergunta no E-GH-01"
+# so o ws_newterm abre um shell interativo (sessao nova, sem terminal, com limite de tempo)
+awk '/^ws_newterm\(\)/ {f = 1} f && /^}/ {f = 0; next} !f && /-[a-z]*i[a-z]*c / && /"\$sh"|zsh|bash/ && !/^ *#/' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "G1: shell interativo fora do ws_newterm" || ok
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

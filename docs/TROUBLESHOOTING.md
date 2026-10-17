@@ -52,7 +52,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-AUTH-02` | The login is a claude.ai subscription, not the Console | [macOS](#mac-e-auth-02) · [Windows](#windows-e-auth-02) |
 | `E-AUTH-03` | Claude Code uses another authentication method | [macOS](#mac-e-auth-03) · [Windows](#windows-e-auth-03) |
 | `E-NODE-01` | I couldn't install Node.js | [macOS](#mac-e-node-01) · [Windows](#windows-e-node-01) |
-| `E-NODE-02` | An old Node comes first in the PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
+| `E-NODE-02` | An old or broken Node comes first in the PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
 | `E-UV-01` | I couldn't install uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-GH-01` | I couldn't install GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
 | `E-GH-02` | GitHub login missing (required) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
@@ -502,16 +502,18 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://nodejs.org/dist/
 
 <a id="mac-e-node-02"></a>
 
-### E-NODE-02 · An old Node comes first in the PATH
+### E-NODE-02 · An old or broken Node comes first in the PATH
 
-- **Why:** The terminal finds a Node older than 22 first. The hooks use the new Node, but the project tests may use the old one.
+- **Why:** A new terminal finds first a Node older than 22, or one that does not start. The hooks use the new Node, but the project tests may use the old one.
 - **What to do:**
-  - Close and reopen the terminal. If you use nvm, select the new Node with the command below.
+  - Close and reopen the terminal, then see which node comes first with the first command below.
+  - If you use nvm, select the new Node with nvm. If the first node does not start (on a Mac, often a broken Homebrew node), reinstall or remove it: brew reinstall node or brew uninstall node.
   - Check with node -v.
 
 Commands (macOS):
 
 ```
+type -a node
 nvm install 22 && nvm alias default 22
 node -v
 ```
@@ -1285,11 +1287,12 @@ winget install --id OpenJS.NodeJS.LTS -e --scope user --source winget
 
 <a id="windows-e-node-02"></a>
 
-### E-NODE-02 · An old Node comes first in the PATH
+### E-NODE-02 · An old or broken Node comes first in the PATH
 
-- **Why:** The terminal finds a Node older than 22 first. The hooks use the new Node, but the project tests may use the old one.
+- **Why:** A new terminal finds first a Node older than 22, or one that does not start. The hooks use the new Node, but the project tests may use the old one.
 - **What to do:**
-  - Close and reopen the terminal. If you use nvm, select the new Node with the command below.
+  - Close and reopen the terminal, then see which node comes first with the first command below.
+  - If you use nvm, select the new Node with nvm. If the first node does not start (on a Mac, often a broken Homebrew node), reinstall or remove it: brew reinstall node or brew uninstall node.
   - Check with node -v.
 
 Commands (Windows):
