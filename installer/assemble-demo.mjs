@@ -91,6 +91,7 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
         'Edit(.workshop/**)',
         'mcp__agent-memory__memory_search',
         'mcp__agent-memory__memory_related',
+        'mcp__agent-memory__memory_add',
       ],
       deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)'],
     },

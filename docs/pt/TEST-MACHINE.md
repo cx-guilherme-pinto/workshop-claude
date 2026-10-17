@@ -65,10 +65,10 @@ Para repetir só uma parte, usa `--only` com os números das fases, por exemplo 
 
 | Fase | O que testa | Escreve? | Custo | Tempo |
 |---|---|---|---|---|
-| 1. Kit | `tools/test-all.sh`, os testes do setup e os da app Memória (se o clone estiver ao lado) | não | — | 3 a 5 min |
-| 5. Release | A release no GitHub corporativo: os 6 ficheiros, os SHA-256, se o `repos.conf` da release aponta para lá, se o `curl \| bash` dos participantes funciona sem login e com token, e a release da app Memória | não | — | 1 min |
+| 1. Kit | `tools/test-all.sh`, os testes do setup e os da app Agent Memory (se o clone estiver ao lado) | não | — | 3 a 5 min |
+| 5. Release | A release no GitHub corporativo: os 6 ficheiros, os SHA-256, se o `repos.conf` da release aponta para lá, se o `curl \| bash` dos participantes funciona sem login e com token, e a release da app Agent Memory | não | — | 1 min |
 | 2. Setup | `--install` corre o setup a sério; depois corre sempre o `--check`. Usa o script da release, se a fase 5 o descarregou | só com `--install` (no teu perfil, como um participante) | — | 3 a 15 min |
-| 3. Contas | Login e um pedido de teste ao Claude; `gh` no servidor da empresa e a permissão no repositório; o MCP do Jira a responder; `acli` com login a ler a issue e a página (mede o tamanho em `storage` e `view`); app Memória e o MCP dela | não | ~US$ 0,01 | 1 min |
+| 3. Contas | Login e um pedido de teste ao Claude; `gh` no servidor da empresa e a permissão no repositório; o MCP do Jira a responder; `acli` com login a ler a issue e a página (mede o tamanho em `storage` e `view`); app Agent Memory e o MCP dela | não | ~US$ 0,01 | 1 min |
 | 4. Projeto 2 | `/task-intake <issue>` numa cópia do projeto de treino, primeiro pelo MCP e depois com o MCP desligado, para obrigar a usar o `acli`. Confirma o `tarefa.json` (fonte, id, épico, `via`) e a secção do Confluence | só na pasta do teste | ~US$ 0,15 a 0,30 | 2 a 4 min |
 | 6. Arena | Só com `--arena`: a sessão completa do participante (`/demo-plan` → `/demo-swarm` → `/demo-review` → `/demo-cost`) | só na pasta do teste | ~US$ 1 | ~5 min |
 | 7. Escrita | Só com `--write`: publica 1 comentário de teste na issue com o `acli`, depois do teu "sim" | **sim**, 1 comentário | — | segundos |
@@ -88,7 +88,7 @@ tools/switch-repos.sh --workshop-url https://github.empresa.com/equipa/workshop-
 
 - **Configurar:** no `repos.conf`, muda para `RELEASE_PROVIDER=github`. Num GitHub Enterprise com servidor próprio, muda também `GITHUB_API_URL=https://github.empresa.com/api/v3` e `GITHUB_UPLOADS_URL=https://github.empresa.com/api/uploads`.
 - **Publicar:** commit, tag e `git push empresa main --tags`. Depois `tools/build-release.sh <versão>`, `tools/publish-release.sh <versão> --dry-run` e `tools/publish-release.sh <versão> --prerelease`. O token vem do `gh auth login` nesse servidor.
-- **App Memória:** faz o mesmo no repositório dela.
+- **App Agent Memory:** faz o mesmo no repositório dela.
 - **Confirmar:** volta a correr o teste com `--github-host` e `--github-repo`.
 
 ## 6. O relatório

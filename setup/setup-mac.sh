@@ -260,6 +260,16 @@ ws_bold() { if [ "$WS_COLOR" = 1 ]; then printf '\033[1m%s\033[0m' "$1"; else pr
 ws_dim() { if [ "$WS_COLOR" = 1 ]; then printf '\033[2m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 
 ws_has_tty() { [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null; }
+# Se outro programa ficou com o terminal, ler dele suspende o setup ("zsh: suspended (tty input)").
+# Avisa antes, para a pessoa saber que "fg" + Enter continua.
+ws_tty_fg_check() {
+  local pg tp
+  pg=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' '); tp=$(ps -o tpgid= -p $$ 2>/dev/null | tr -d ' ')
+  if [ -n "$pg" ] && [ -n "$tp" ] && [ "$tp" != "$pg" ] && [ "$tp" != "-1" ]; then
+    ws_log "tty: setup not in the foreground (pgid $pg, tpgid $tp)"
+    printf '\n  %s\n' "$(ws_m tty_fg)" > /dev/tty
+  fi
+}
 
 # Pergunta sim/nao. $1 texto, $2 defeito (s|n), $3 "nunca-sim" para nao aceitar o --sim.
 ws_ask() {
@@ -268,6 +278,7 @@ ws_ask() {
   if [ "$WS_SIM" = 1 ] && [ "$nosim" != nunca-sim ]; then ws_say "  ? $q $hint y (--yes)"; return 0; fi
   if [ "$WS_SIM" = 1 ]; then ws_say "  ? $q $hint n (--yes)"; return 1; fi
   if ! ws_has_tty; then ws_say "  ? $q $hint n · $(ws_m sem_tty)"; return 1; fi
+  ws_tty_fg_check
   printf '  ? %s %s ' "$q" "$hint" > /dev/tty
   IFS= read -r ans < /dev/tty || ans=""
   ws_log "question: $q -> ${ans:-<enter>}"
@@ -588,7 +599,8 @@ ws_s0_detect() {
   ws_ver_ge "$ver" 13 || ws_warn E-SO-04 "macOS $ver"
 
   for f in "/Library/Application Support/ClaudeCode/managed-settings.json" "/Library/Application Support/ClaudeCode/managed-settings.d" "/Library/Managed Preferences/com.anthropic.claudecode.plist"; do
-    [ -e "$f" ] && ws_warn E-CFG-01 "$f"
+    # Comum em portateis da empresa: so uma nota (a ajuda E-CFG-01 fica no TROUBLESHOOTING, se um passo for bloqueado).
+    [ -e "$f" ] && { ws_note "$(ws_msg s0_gerido CAMINHO="$f")"; ws_log "managed settings: $f"; }
   done
   [ -n "${ANTHROPIC_API_KEY:-}" ] && ws_warn E-CFG-02 "ANTHROPIC_API_KEY"
   [ -n "${ANTHROPIC_BASE_URL:-}" ] && ws_warn E-CFG-03 "ANTHROPIC_BASE_URL"
@@ -844,9 +856,15 @@ ws_node_candidates() {
 
 # Major do node que um terminal novo encontra (as skills e os testes chamam "node" pelo PATH).
 ws_login_node_major() {
+  # Um terminal novo: shell de login interativo (le o .zprofile e o .zshrc). +m desliga o controlo de
+  # tarefas: sem ele, o zsh -i fica com o terminal e o setup e suspenso na pergunta seguinte
+  # ("zsh: suspended (tty input) bash" com curl | bash).
   local sh=${SHELL:-/bin/zsh}
   [ -x "$sh" ] || sh=/bin/zsh
-  "$sh" -lic 'node -v' </dev/null 2>/dev/null | tail -n 1 | sed -nE 's/^v([0-9]+).*/\1/p'
+  case "$sh" in
+    */zsh|*/bash) "$sh" +m -lic 'node -v' </dev/null 2>/dev/null ;;
+    *) "$sh" -lc 'node -v' </dev/null 2>/dev/null ;;
+  esac | tail -n 1 | sed -nE 's/^v([0-9]+).*/\1/p'
 }
 
 ws_s4_detect() {

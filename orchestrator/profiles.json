@@ -59,12 +59,12 @@
       "output": 2825
     },
     "orchestrator_participant": {
-      "requests": 3,
-      "input": 9,
+      "requests": 5,
+      "input": 17,
       "cache_write_5m": 0,
-      "cache_write_1h": 5281,
-      "cache_read": 182518,
-      "output": 1142
+      "cache_write_1h": 9665,
+      "cache_read": 752968,
+      "output": 2055
     },
     "orchestrator_presenter": {
       "requests": 4,
@@ -75,6 +75,6 @@
       "output": 2481
     }
   },
-  "calibration": "11 benchmark runs (participant and presenter)",
+  "calibration": "11 benchmark runs (participant and presenter); orchestrator_participant: an interactive run with 100 tasks (17 Oct 2026)",
   "margin": 0.15
 }

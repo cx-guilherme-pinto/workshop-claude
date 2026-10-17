@@ -65,10 +65,10 @@ To repeat only part of it, use `--only` with the phase numbers, for example `--o
 
 | Phase | What it tests | Writes? | Cost | Time |
 |---|---|---|---|---|
-| 1. Kit | `tools/test-all.sh`, the setup tests and the Memória app tests (if the clone sits next to it) | no | — | 3 to 5 min |
-| 5. Release | The release on the corporate GitHub: the 6 files, the SHA-256s, whether the release's `repos.conf` points there, whether the participants' `curl \| bash` works without login and with a token, and the Memória app release | no | — | 1 min |
+| 1. Kit | `tools/test-all.sh`, the setup tests and the Agent Memory app tests (if the clone sits next to it) | no | — | 3 to 5 min |
+| 5. Release | The release on the corporate GitHub: the 6 files, the SHA-256s, whether the release's `repos.conf` points there, whether the participants' `curl \| bash` works without login and with a token, and the Agent Memory app release | no | — | 1 min |
 | 2. Setup | `--install` runs the real setup; `--check` always runs afterwards. Uses the release script if phase 5 downloaded it | only with `--install` (in your profile, as a participant) | — | 3 to 15 min |
-| 3. Accounts | Login and a test request to Claude; `gh` on the company server and the permission on the repository; the Jira MCP answering; `acli` logged in, reading the issue and the page (measures the size in `storage` and `view`); the Memória app and its MCP | no | ~US$ 0.01 | 1 min |
+| 3. Accounts | Login and a test request to Claude; `gh` on the company server and the permission on the repository; the Jira MCP answering; `acli` logged in, reading the issue and the page (measures the size in `storage` and `view`); the Agent Memory app and its MCP | no | ~US$ 0.01 | 1 min |
 | 4. Project 2 | `/task-intake <issue>` in a copy of the practice project, first through the MCP and then with the MCP turned off, to force the use of `acli`. Checks `tarefa.json` (source, id, epic, `via`) and the Confluence section | only in the test folder | ~US$ 0.15 to 0.30 | 2 to 4 min |
 | 6. Arena | Only with `--arena`: the full participant session (`/demo-plan` → `/demo-swarm` → `/demo-review` → `/demo-cost`) | only in the test folder | ~US$ 1 | ~5 min |
 | 7. Write | Only with `--write`: posts 1 test comment on the issue with `acli`, after your "yes" | **yes**, 1 comment | — | seconds |
@@ -88,7 +88,7 @@ tools/switch-repos.sh --workshop-url https://github.empresa.com/equipa/workshop-
 
 - **Configure:** in `repos.conf`, switch to `RELEASE_PROVIDER=github`. On a self-hosted GitHub Enterprise server, also set `GITHUB_API_URL=https://github.empresa.com/api/v3` and `GITHUB_UPLOADS_URL=https://github.empresa.com/api/uploads`.
 - **Publish:** commit, tag and `git push empresa main --tags`. Then `tools/build-release.sh <version>`, `tools/publish-release.sh <version> --dry-run` and `tools/publish-release.sh <version> --prerelease`. The token comes from `gh auth login` on that server.
-- **Memória app:** do the same in its repository.
+- **Agent Memory app:** do the same in its repository.
 - **Confirm:** run the test again with `--github-host` and `--github-repo`.
 
 ## 6. The report

@@ -50,7 +50,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 | 7 | הגדרת Jira MCP (Atlassian) ב-user scope | `~/.claude.json` |
 | 8 | ה-skills, ה-agents מסוג `ws-*`, ה-hooks של העלויות וה-statusline, עם merge בטוח של `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | פרויקטי הסדנה | `~/workshop-claude/` |
-| 10 | אפליקציית Memória v0.4.1 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
+| 10 | אפליקציית Agent Memory v0.4.1 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
 | 11 | התקנת Claude Desktop (אופציונלי; ה-flag `--no-desktop / -NoDesktop` מדלג עליו) | `~/Applications` |
 | 12 | בדיקה סופית עם Haiku וחישוב העלות לפי `pricing.json` | — |
 
