@@ -94,6 +94,7 @@ const M = 0.6;
 // Estado da lingua que esta a ser construida (as linguas constroem-se uma de cada vez).
 let T; // textos fixos
 let V; // valores {{...}}
+let LINGUA; // a lingua que se esta a construir
 let pres;
 
 // ---------- Valores dinamicos ----------
@@ -131,7 +132,12 @@ function valores() {
     }
   }
   const dados = join(AQUI, 'dados.json'); // escrito depois do benchmark/gravacao (numeros como em pt: "US$ 0,0017")
-  if (existsSync(dados)) for (const [k, x] of Object.entries(JSON.parse(readFileSync(dados, 'utf8')))) v[k] = dec(x);
+  // "CHAVE@en": o valor so para essa lingua (por exemplo os numeros da gravacao em ingles, que e outra execucao).
+  if (existsSync(dados)) {
+    const e = Object.entries(JSON.parse(readFileSync(dados, 'utf8')));
+    for (const [k, x] of e) if (!k.includes('@')) v[k] = dec(x);
+    for (const [k, x] of e) if (k.endsWith(`@${LINGUA}`)) v[k.slice(0, -LINGUA.length - 1)] = dec(x);
+  }
   return v;
 }
 
@@ -581,6 +587,7 @@ const mmss = (m) => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStar
 // ---------- Construir uma lingua ----------
 async function construir(lingua) {
   T = TEXTOS[lingua];
+  LINGUA = lingua;
   V = valores();
   pres = novaApresentacao();
   const { SLIDES } = await import(T.conteudo);
