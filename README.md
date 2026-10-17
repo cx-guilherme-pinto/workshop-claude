@@ -50,7 +50,7 @@ Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TRO
 | 7 | Jira MCP (Atlassian), user scope | `~/.claude.json` |
 | 8 | Skills, `ws-*` agents, cost hooks and statusline, with a safe merge of `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Workshop projects | `~/workshop-claude/` |
-| 10 | Agent Memory app v0.4.1 (optional, does not block) | `uv tool`, `~/.agent-memory` |
+| 10 | Agent Memory app v0.5.0 (optional, does not block) | `uv tool`, `~/.agent-memory` |
 | 11 | Claude Desktop (optional, `--no-desktop / -NoDesktop` skips it) | `~/Applications` |
 | 12 | Final test with Haiku and the cost from `pricing.json` | — |
 

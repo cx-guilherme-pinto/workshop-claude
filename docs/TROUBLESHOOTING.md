@@ -711,7 +711,7 @@ mv ~/workshop-claude ~/workshop-claude-old
 
 ### E-MEM-01 · The Agent Memory app release is not published yet
 
-- **Why:** I couldn't find the files for the Agent Memory app v0.4.1 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Agent Memory app v0.5.0 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 
@@ -1494,7 +1494,7 @@ Rename-Item ~/workshop-claude workshop-claude-old
 
 ### E-MEM-01 · The Agent Memory app release is not published yet
 
-- **Why:** I couldn't find the files for the Agent Memory app v0.4.1 on the server. The app is optional: the skills work without it.
+- **Why:** I couldn't find the files for the Agent Memory app v0.5.0 on the server. The app is optional: the skills work without it.
 - **What to do:**
   - You can continue. Closer to the workshop, run the setup again to install it.
 

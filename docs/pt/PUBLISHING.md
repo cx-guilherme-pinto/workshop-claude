@@ -21,7 +21,7 @@ Hoje o kit aponta para **https://github.com/cx-guilherme-pinto/workshop-claude**
 
 2. **Gerar outra vez os slides e a documentação.** `node tools/render.mjs` (os READMEs de todas as línguas, `docs/pt/INSTALL.md`, `docs/pt/TROUBLESHOOTING.md`, este ficheiro e as versões em `docs/`, `docs/hi/` e `docs/he/`) e o build dos slides, que leem o `repos.conf` diretamente.
 
-3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-rc.1` e app `v0.4.1`:
+3. **Criar as releases públicas com as mesmas versões.** Kit `v1.0.0-rc.1` e app `v0.5.0`:
 
    ```bash
    tools/build-release.sh v1.0.0-rc.1
