@@ -16,8 +16,8 @@
 # Todo o codigo esta dentro de main(), chamado na ultima linha: um download incompleto nao executa nada.
 # As perguntas e os logins leem de /dev/tty, por isso "curl | bash" funciona.
 # O setup fala so ingles (D-20): os textos vem de setup/messages.en.json (o mesmo catalogo de docs/TROUBLESHOOTING.md).
-# A lingua da maquina (WORKSHOP_LANG, AppleLanguages, LC_ALL, LC_MESSAGES, LANG) so configura o resto: a "language"
-# do Claude Code e a lingua dos textos do kit e dos projetos (pt ou en).
+# A lingua da maquina (WORKSHOP_LANG, a lingua guardada na instalacao, AppleLanguages, LC_ALL, LC_MESSAGES, LANG)
+# so configura o resto: a "language" do Claude Code e a lingua dos textos do kit e dos projetos (pt ou en).
 
 # >>> WS-INJETADO >>>
 # Na fonte este bloco esta vazio. tools/build-release.sh injeta aqui os valores do repos.conf,
@@ -128,39 +128,75 @@ ws_conf_parse() {
   done
 }
 
-# Lingua da maquina (D-20): etiqueta como "pt-PT", "he" ou "en". Mesmas regras que installer/lib/linguas.mjs;
-# casos partilhados em tools/test/lingua-cases.json.
-ws_lang_tag() { # texto -> etiqueta normalizada (vazio se nao houver informacao: '', C, POSIX)
+# Lingua da maquina (D-20): etiqueta como "pt-PT", "he" ou "en". Mesmas regras que installer/lib/languages.mjs;
+# casos partilhados em tools/test/language-cases.json.
+ws_lang_tag() { # texto -> etiqueta normalizada (vazio se nao houver informacao: '', C, POSIX, ou nao for uma etiqueta)
   local t=${1%%.*} base rest out p
   t=${t%%@*}; t=${t//_/-}; t=$(ws_trim "$t")
   case "$t" in ''|C|c|POSIX|posix) return 0 ;; esac
-  base=$(printf '%s' "${t%%-*}" | tr '[:upper:]' '[:lower:]'); [ "$base" = iw ] && base=he
+  # So letras e algarismos ASCII e '-': acentos, bytes Latin-1, '*', ',' e espacos nao sao etiquetas
+  # (assim o "for p in $rest" abaixo nunca expande nomes de ficheiros e o tr nunca ve bytes invalidos).
+  case "$t" in *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-]*) return 0 ;; esac
+  base=$(printf '%s' "${t%%-*}" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+  case "$base" in [a-z][a-z]|[a-z][a-z][a-z]) ;; *) return 0 ;; esac   # klingon, portuguese, brasil: sem informacao
+  [ "$base" = utf ] && return 0                                        # "UTF-8" e um charset, nao uma lingua
+  [ "$base" = iw ] && base=he
   out=$base
   case "$t" in *-*) rest=${t#*-} ;; *) rest="" ;; esac
   local IFS=-
   for p in $rest; do
     [ -n "$p" ] || continue
+    [ "${#p}" -le 8 ] || return 0                                      # subetiquetas BCP 47: 1 a 8 caracteres
     case ${#p} in
-      2) p=$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]') ;;
-      4) p="$(printf '%s' "${p:0:1}" | tr '[:lower:]' '[:upper:]')$(printf '%s' "${p:1}" | tr '[:upper:]' '[:lower:]')" ;;
+      2) p=$(printf '%s' "$p" | LC_ALL=C tr '[:lower:]' '[:upper:]') ;;
+      4) p="$(printf '%s' "${p:0:1}" | LC_ALL=C tr '[:lower:]' '[:upper:]')$(printf '%s' "${p:1}" | LC_ALL=C tr '[:upper:]' '[:lower:]')" ;;
     esac
     out="$out-$p"
   done
   printf '%s' "$out"
 }
+# WORKSHOP_LANG (e a lingua guardada na instalacao) so contam se forem uma das linguas do workshop: uma
+# gralha como "br", "brasil" ou "pt-*" nao pode ganhar a lingua da maquina (o kit ficava em ingles).
+ws_lang_ok() { case "$(ws_lang_tag "$1")" in pt|pt-*|en|en-*|hi|hi-*|he|he-*) return 0 ;; esac; return 1; }
 ws_lang_pick() { # WORKSHOP_LANG "defaults read -g AppleLanguages" LC_ALL LC_MESSAGES LANG -> etiqueta (en se nada servir)
-  local t c
-  t=$(ws_lang_tag "$1")
+  local t="" c
+  ws_lang_ok "$1" && t=$(ws_lang_tag "$1")
   if [ -z "$t" ]; then
-    c=$(printf '%s\n' "$2" | sed -n 's/^[[:space:]]*"\{0,1\}\([A-Za-z][A-Za-z0-9_-]*\)"\{0,1\},\{0,1\}[[:space:]]*$/\1/p' | head -n 1)
+    c=$(printf '%s\n' "$2" | LC_ALL=C sed -n 's/^[[:space:]]*"\{0,1\}\([A-Za-z][A-Za-z0-9_-]*\)"\{0,1\},\{0,1\}[[:space:]]*$/\1/p' | head -n 1)
     t=$(ws_lang_tag "$c")
   fi
   for c in "$3" "$4" "$5"; do [ -n "$t" ] && break; t=$(ws_lang_tag "$c"); done
   printf '%s' "${t:-en}"
 }
 ws_lang_kit() { case "$1" in pt|pt-*) printf pt ;; *) printf en ;; esac; }  # o kit so tem textos pt e en
+# Valor de texto de um campo num JSON simples escrito pelo kit ($2: nomes alternativos, ex.: 'language|lingua').
+ws_json_field() { LC_ALL=C sed -n -E "s/.*\"($2)\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\2/p" "$1" 2>/dev/null | head -n 1; }
+# Etiqueta guardada na instalacao (kit/language.json "machine"; lingua.json "maquina" nas instalacoes antigas).
+ws_lang_saved() {
+  local f v
+  for f in "$WS_HOME/kit/language.json" "$WS_HOME/kit/lingua.json"; do
+    [ -f "$f" ] || continue
+    v=$(ws_json_field "$f" 'machine|maquina')
+    ws_lang_ok "$v" && { ws_lang_tag "$v"; return 0; }
+  done
+  return 0
+}
+# Ordem: WORKSHOP_LANG (se for uma lingua do workshop), a lingua guardada na instalacao, a lingua da maquina.
+# A lingua guardada vem primeiro para uma janela nova, o --check ou "VAR=x curl | bash" (a variavel fica no curl)
+# nao trocarem a lingua escolhida na instalacao pela do sistema; so o WORKSHOP_LANG a muda.
+# WS_LANG_IGNORADA: WORKSHOP_LANG nao reconhecido (para a nota do passo 0); WS_LANG_MAQUINA: a lingua do sistema.
 ws_lang_detect() {
-  WS_LANG=$(ws_lang_pick "${WORKSHOP_LANG:-}" "$(defaults read -g AppleLanguages 2>/dev/null </dev/null)" "${LC_ALL:-}" "${LC_MESSAGES:-}" "${LANG:-}")
+  local w=${WORKSHOP_LANG:-} apple saved=""
+  WS_LANG_IGNORADA=""; WS_LANG_GUARDADA=""
+  if [ -n "$(ws_trim "$w")" ] && ! ws_lang_ok "$w"; then
+    WS_LANG_IGNORADA=$(printf '%s' "${w:0:40}" | LC_ALL=C tr -d '\000-\037\177'); w=""
+  fi
+  apple=$(defaults read -g AppleLanguages 2>/dev/null </dev/null)
+  WS_LANG_MAQUINA=$(ws_lang_pick "" "$apple" "${LC_ALL:-}" "${LC_MESSAGES:-}" "${LANG:-}")
+  [ -z "$w" ] && saved=$(ws_lang_saved)
+  if [ -n "$w" ]; then WS_LANG=$(ws_lang_tag "$w")
+  elif [ -n "$saved" ]; then WS_LANG=$saved; WS_LANG_GUARDADA=$saved
+  else WS_LANG=$WS_LANG_MAQUINA; fi
   WS_LANG_KIT=$(ws_lang_kit "$WS_LANG")
 }
 
@@ -587,6 +623,15 @@ xcode_ok() {
 }
 
 # ================================================================= PASSO 0 - ambiente
+# Lingua: a escolhida, um WORKSHOP_LANG ignorado (gralha) e a lingua guardada quando o sistema diz outra.
+ws_s0_lang_notes() {
+  ws_note "$(ws_msg s0_lingua LINGUA="${WS_LANG:-en}")"
+  [ -n "${WS_LANG_IGNORADA:-}" ] && ws_note "$(ws_msg s0_lingua_ignorada VALOR="$WS_LANG_IGNORADA" LINGUA="${WS_LANG:-en}")"
+  if [ -n "${WS_LANG_GUARDADA:-}" ] && [ "$WS_LANG_GUARDADA" != "${WS_LANG_MAQUINA:-}" ]; then
+    ws_note "$(ws_msg s0_lingua_guardada LINGUA="$WS_LANG_GUARDADA" MAQUINA="${WS_LANG_MAQUINA:-en}")"
+  fi
+  return 0
+}
 ws_s0_detect() {
   local ver arch extra f
   ver=$(sw_vers -productVersion 2>/dev/null)
@@ -595,7 +640,7 @@ ws_s0_detect() {
   [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ] && extra=" (Rosetta)"
   WS_OS="macOS $ver $arch${extra:-}"
   ws_note "$(ws_msg s0_so SO="$WS_OS")"
-  ws_note "$(ws_msg s0_lingua LINGUA="${WS_LANG:-en}")"
+  ws_s0_lang_notes
   ws_ver_ge "$ver" 13 || ws_warn E-SO-04 "macOS $ver"
 
   for f in "/Library/Application Support/ClaudeCode/managed-settings.json" "/Library/Application Support/ClaudeCode/managed-settings.d" "/Library/Managed Preferences/com.anthropic.claudecode.plist"; do
@@ -747,8 +792,10 @@ ws_s1_install() {
   url=$(ws_expand "$C_GIT_MAC_URL" "" "" "" "" "$C_GIT_MAC_VERSION" "$file" "")
   d="$WS_TMP/git"; mkdir -p "$d" "$WS_HOME/bin" || { ws_fail E-PERM-01 "$WS_HOME"; return 1; }
   if ! ws_dl "$url" "$d/$file"; then ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; fi
-  if [ "$(shasum -a 256 "$d/$file" | cut -d' ' -f1)" != "$sha" ]; then ws_fail E-GIT-04 "SHA-256 $file"; return 1; fi
-  rm -rf "$WS_HOME/git.tmp" && mkdir -p "$WS_HOME/git.tmp" && tar -xzf "$d/$file" -C "$WS_HOME/git.tmp" ||
+  # ws_sha256 e o stderr do tar no log: com um locale invalido (LC_ALL=en_US.utf8 vindo do Linux) o shasum (perl)
+  # e o tar escrevem avisos de locale, que nao devem aparecer no terminal.
+  if [ "$(ws_sha256 "$d/$file")" != "$sha" ]; then ws_fail E-GIT-04 "SHA-256 $file"; return 1; fi
+  rm -rf "$WS_HOME/git.tmp" && mkdir -p "$WS_HOME/git.tmp" && tar -xzf "$d/$file" -C "$WS_HOME/git.tmp" 2>>"$WS_STEP_LOG" ||
     { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
   rm -rf "$WS_HOME/git" && mv "$WS_HOME/git.tmp" "$WS_HOME/git" || { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
   # O wrapper define as variaveis do git portatil so para o proprio git (nao mexe no ambiente).
@@ -1064,19 +1111,26 @@ ws_iu() { # subcomando [extra]
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
 ws_s8_parse() { # le a saida TSV de install-user
-  local k v skills=0 agentes=0 lang="" nossa=0 kit=""
+  local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       skills) skills=$v ;; agentes) agentes=$v ;;
       language) lang=$v ;; language_nossa) nossa=$v ;; lingua_kit) kit=$v ;;
       aviso) [ "$v" = E-CFG-06 ] && ws_note "$(ws_m s8_statusline_mantida)"; ws_warn "$v" "statusLine" ;;
       erro) ws_fail "$v" "" ;;
-      falta) ws_log "missing: $v" ;;
+      falta) ws_log "missing: $v"
+        # "lingua do kit (pt -> en)" ou "language do Claude (European Portuguese -> Brazilian Portuguese)"
+        case "$v" in "lingua do kit ("*" -> "*")"|"language do Claude ("*" -> "*")")
+          de=${v#*"("}; de=${de%%" -> "*}; para=${v##*" -> "}; para=${para%")"}
+          case "$v" in "lingua do kit"*) case "$de" in pt|en) de=$(ws_m "lingua_$de"); para=$(ws_m "lingua_$para") ;; *) de="" ;; esac ;; esac ;;
+        esac ;;
     esac
   done <<EOF
 $1
 EOF
   ws_detail "$(ws_msg s8_ja SKILLS="$skills" AGENTES="$agentes")"
+  # Em --check, a lingua instalada diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio: diz-se qual e.
+  [ "${WS_MODE:-}" != install ] && [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_muda DE="$de" PARA="$para")"
   kit=$(ws_m "lingua_${kit:-${WS_LANG_KIT:-en}}")
   if [ -z "$lang" ]; then ws_note "$(ws_msg s8_lingua_nenhuma LINGUA="${WS_LANG:-en}" KIT="$kit")"
   elif [ "$nossa" = 1 ]; then ws_note "$(ws_msg s8_lingua_nossa NOME="$lang" KIT="$kit")"
@@ -1129,15 +1183,33 @@ ws_s9_detect() {
     [ -f "$sb/.sandbox-kit.json" ] && git -C "$sb" rev-parse -q --verify HEAD >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$sb"; return 1; }
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
+  ws_s9_lang_check
   [ "$WS_MODE" = install ] || ws_s9_tests
   return 0
 }
+# Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
+# (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
+ws_s9_lang_check() {
+  local f l nome
+  for f in "demo-project/.arena-kit.json" "$WS_PRACTICE/.sandbox-kit.json"; do
+    [ -f "$WS_PROJ/$f" ] || continue
+    l=$(ws_json_field "$WS_PROJ/$f" 'language|lingua')
+    case "$l" in pt|en) ;; *) continue ;; esac
+    [ "$l" = "${WS_LANG_KIT:-en}" ] && continue
+    nome="$WS_PROJ_SHOW/${f%%/*}"
+    ws_note "$(ws_msg s9_lingua_diferente CAMINHO="$nome" LINGUA="$(ws_m "lingua_$l")" KIT="$(ws_m "lingua_${WS_LANG_KIT:-en}")")"
+  done
+  return 0
+}
+# Numero de testes que passaram na saida do "node --test" ("ℹ pass 16"; TAP antigo: "# pass 7").
+# Alternativa e LC_ALL=C, e nao [#ℹ]: no locale C (LANG vazio ou invalido) o sed le o ℹ como 3 bytes soltos.
+ws_count_pass() { LC_ALL=C sed -n -E 's/^(#|ℹ) *pass ([0-9]+).*/\2/p' | tail -n 1; }
 ws_s9_tests() {
   local demo="$WS_PROJ/demo-project" out n
   if [ ! -f "$demo/test/app.test.js" ]; then ws_note "$(ws_m s9_sem_testes)"; return 0; fi
   out=$(cd "$demo" && "$WS_NODE" --test test/app.test.js 2>&1 </dev/null); local rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
-  n=$(printf '%s\n' "$out" | sed -n 's/^[#ℹ] *pass \([0-9]*\).*/\1/p' | tail -n 1)
+  n=$(printf '%s\n' "$out" | ws_count_pass)
   if [ "$rc" = 0 ]; then ws_note "$(ws_msg s9_testes_ok OK="${n:-?}")"; return 0; fi
   ws_fail E-DEMO-02 "node --test test/app.test.js"; return 1
 }
@@ -1170,6 +1242,7 @@ ws_s9_install() {
     ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json --language "${WS_LANG_KIT:-en}" || return 1
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
+  ws_s9_lang_check
   ws_s9_tests
 }
 
@@ -1565,8 +1638,11 @@ Options:
   --yes                    answer yes to simple questions (tests)
   --replace-statusline     use the workshop statusline instead of yours
   --help                   this help
-The setup speaks English. WORKSHOP_LANG=pt-PT (or en, hi, he...) overrides the machine language
-that configures Claude's answers and the workshop texts.
+The setup speaks English. The machine language configures Claude's answers and the workshop texts;
+the language chosen at the first install is kept on later runs. To choose it, put WORKSHOP_LANG
+(pt-BR, pt-PT, en, hi or he) right before bash, after the pipe:
+  curl -fsSL <url>/setup-mac.sh | WORKSHOP_LANG=pt-BR bash
+  WORKSHOP_LANG=pt-BR bash ~/.workshop-claude/setup-mac.sh
 __WS_USO__
 }
 
@@ -1687,6 +1763,7 @@ EOF
   ws_lang_detect
 
   { printf '\n'; printf '=%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; printf ' %s · mode %s · %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$WS_MODE" "$C_WORKSHOP_VERSION"; } >> "$WS_LOG"
+  ws_log "language: $WS_LANG (kit $WS_LANG_KIT) · saved ${WS_LANG_GUARDADA:--} · machine $WS_LANG_MAQUINA${WS_LANG_IGNORADA:+ · WORKSHOP_LANG ignored: $WS_LANG_IGNORADA}"
 
   ws_say "$(ws_bold "$(ws_msg titulo)")"
   case "$WS_MODE" in

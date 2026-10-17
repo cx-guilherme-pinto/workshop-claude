@@ -294,6 +294,13 @@ export function verificar(flags, env = process.env) {
       if (lm) {
         const kit = linguaKitInstalada(P);
         if (kit !== lm.kit) faltam.push(`lingua do kit (${kit ?? '-'} -> ${lm.kit})`);
+        // The workshop's own "language" that the install would change (pt -> pt-BR: European -> Brazilian
+        // Portuguese, same kit texts). Without this, "WORKSHOP_LANG=pt-BR" after a "pt" install changed nothing.
+        const rec = manifest?.settings?.record;
+        const atual = cur.obj.language;
+        if (lm.claude && rec?.language_criado && atual === rec.language_valor && atual !== lm.claude) {
+          faltam.push(`language do Claude (${atual} -> ${lm.claude})`);
+        }
         saidaLingua(lm, kit, cur.obj.language, manifest?.settings?.record);
       }
     }

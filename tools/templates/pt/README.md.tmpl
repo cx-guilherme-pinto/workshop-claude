@@ -54,7 +54,7 @@ Algo falhou? Cada erro tem um código. Vê [docs/pt/TROUBLESHOOTING.md](docs/pt/
 
 Tudo o que é instalado fica registado em `~/.workshop-claude/manifest.json`. O `settings.json` tem backup em `~/.workshop-claude/backup/`. O log (sem segredos) está em `~/.workshop-claude/setup.log`.
 
-**Línguas.** O setup fala só inglês, e as opções também (as antigas, em português, continuam a funcionar). Deteta a língua da máquina e, se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills e os agentes estão em inglês e respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes; `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` força uma delas.
+**Línguas.** O setup fala só inglês, e as opções também (as antigas, em português, continuam a funcionar). Deteta a língua da máquina e, se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills e os agentes estão em inglês e respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes. Para escolheres tu a língua, dá ao setup o `WORKSHOP_LANG` com `pt-BR`, `pt-PT`, `en`, `hi` ou `he`: no macOS escreve-o depois do pipe, mesmo antes de `bash` (`curl -fsSL {{SETUP_MAC_URL}} | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` só chega ao `curl`), e no Windows corre primeiro `$env:WORKSHOP_LANG='pt-BR'`. A língua escolhida na instalação mantém-se quando voltas a correr o setup; só o `WORKSHOP_LANG` a muda, e um valor que o setup não conhece é ignorado, com uma nota.
 
 ## Estrutura
 
