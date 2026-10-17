@@ -252,20 +252,134 @@ function ConvertTo-WsArgLine {
 function Get-WsNetCode {
   # Codigo do catalogo a partir do estado de uma WebException e do codigo HTTP.
   # 'Blocked': o antivirus (ou outra seguranca) bloqueou ou apagou o ficheiro descarregado.
+  # 'HtmlPage': veio uma pagina web (bloqueio de um proxy ou de um filtro, portal de uma rede WiFi) em vez do ficheiro.
+  # 403 e 451 sao a recusa de um filtro. $script:ProxyDead: o proxy do sistema (o dos downloads deste PowerShell) nao
+  # responde, e "nao liga" ou "nao resolve" sao dele. $script:DlPartial: ja tinham chegado bytes e a transferencia
+  # parou ou partiu-se a meio (uma falha passageira, nao um bloqueio).
   param([string]$Status, [int]$Http)
   if ($Status -eq 'Blocked') { return 'E-PERM-02' }
   if ($Http -eq 407) { return 'E-NET-03' }
+  if ($Http -eq 403 -or $Http -eq 451 -or $Status -eq 'HtmlPage') { return 'E-NET-01' }
+  if ($script:DlPartial -and @('Timeout', 'ReceiveFailure', 'ConnectionClosed', 'KeepAliveFailure', 'ConnectFailure', 'PipelineFailure', 'RequestCanceled') -contains $Status) { return 'E-NET-07' }
   switch ($Status) {
-    'NameResolutionFailure' { return 'E-NET-02' }
+    'NameResolutionFailure' { if ($script:ProxyDead) { return 'E-NET-03' }; return 'E-NET-02' }
     'ProxyNameResolutionFailure' { return 'E-NET-03' }
     'TrustFailure' { return 'E-NET-04' }
     'SecureChannelFailure' { return 'E-NET-04' }
-    'ConnectFailure' { return 'E-NET-01' }
+    'ConnectFailure' { if ($script:ProxyDead) { return 'E-NET-03' }; return 'E-NET-01' }
     'Timeout' { return 'E-NET-01' }
     'ConnectionClosed' { return 'E-NET-01' }
     'ReceiveFailure' { return 'E-NET-01' }
   }
   return 'E-NET-07'
+}
+
+function Format-WsProxyShow {
+  # Proxy para mostrar no ecra, sem utilizador nem palavra-passe (http://u:p@proxy:8080 -> http://proxy:8080).
+  param([string]$Proxy)
+  if ($Proxy -match '://') { return ($Proxy -replace '://[^/]*@', '://') }
+  return ($Proxy -replace '^[^/]*@', '')
+}
+
+function Get-WsNetProbeUrls {
+  # Os URLs do teste de rede do passo 0: https://<servidor>/ de cada um e a raiz do servidor do kit, sem repetidos.
+  # A raiz do claude.ai responde 403 a quem nao e um browser, mesmo numa rede aberta: no lugar dela testa-se o
+  # instalador (-Probe, 302 com a rede aberta), para o 403 de um filtro nao passar por "acessivel".
+  param([string[]]$Hosts, [string]$KitUrl, [string]$Probe)
+  $pb = ''
+  try { $pu = [Uri]$Probe; $pb = $pu.Scheme + '://' + $pu.Authority + '/' } catch { $pb = '' }
+  $out = @()
+  foreach ($h in $Hosts) {
+    if (-not $h) { continue }
+    $u = 'https://' + $h + '/'
+    if ($pb -and $u -eq $pb) { $u = $Probe }
+    if ($out -notcontains $u) { $out += $u }
+  }
+  try { $k = [Uri]$KitUrl; $b = $k.Scheme + '://' + $k.Authority + '/'; if ($out -notcontains $b) { $out += $b } } catch { }
+  return , $out
+}
+
+function Get-WsNetWarnings {
+  # Os avisos do teste de rede do passo 0, por ordem: @(codigo, detalhe) de cada um. Se a causa e o proxy (E-NET-03),
+  # o E-NET-05 ("define o HTTPS_PROXY") so confundia, e o detalhe e o proxy (-ProxyShow), nao a lista de servidores.
+  # -ProxyWarned: o Test-WsProxy ja avisou que o proxy nao responde (o E-NET-03 nao se repete).
+  param([string[]]$Fails, [string[]]$Codes, [bool]$ApiOk, [string]$ProxyShow, [bool]$ProxyWarned)
+  $out = @()
+  if (@($Fails).Count -eq 0) { return , $out }
+  $list = (@($Fails) -join ', ')
+  $u = @($Codes | Where-Object { $_ } | Sort-Object -Unique)
+  if (-not $ApiOk -and ($u -notcontains 'E-NET-03')) { $out += , @('E-NET-05', 'api.anthropic.com') }
+  foreach ($c in $u) {
+    $d = $list
+    if ($c -eq 'E-NET-03') {
+      if ($ProxyWarned) { continue }
+      if ($ProxyShow) { $d = $ProxyShow }
+    }
+    $out += , @($c, $d)
+  }
+  return , $out
+}
+
+function Test-WsHtmlFile {
+  # Uma pagina web (bloqueio de um proxy ou de um filtro, portal de uma rede WiFi) em vez do ficheiro: comeca por uma
+  # marca HTML, depois de tirar os espacos e o BOM. Os scripts, as listas de SHA-256 e os arquivos que o setup
+  # descarrega nunca comecam assim, e a marca tem de estar no inicio (um script que fala de <html> mais abaixo nao conta).
+  param([string]$Path)
+  $head = ''
+  $fs = $null
+  try {
+    $fs = [IO.File]::OpenRead($Path)
+    $buf = New-Object byte[] 512
+    $k = $fs.Read($buf, 0, 512)
+    $head = ([Text.Encoding]::UTF8.GetString($buf, 0, $k)) -replace '[\s\uFEFF]', ''
+  } catch { return $false }
+  finally { if ($fs) { $fs.Close() } }
+  return ($head -match '^(<\?xml[^>]*>)?(<!--[^>]*-->)?<(!doctypehtml|html|head|body)')
+}
+
+function Get-WsDlFinalHost {
+  # O servidor final de um download que falhou, so se nao for o do URL pedido: o pedido foi redirecionado (ex.:
+  # github.com -> release-assets.githubusercontent.com, e esse que o IT tem de libertar). Vem do URI da resposta
+  # (PowerShell 5.1 e 7) ou, sem resposta, do texto de um "nome que nao resolve". Nunca o URL completo: os de
+  # release-assets levam uma assinatura na query string.
+  param($Exception, [string]$Status, [string]$UrlHost)
+  $h = ''
+  try {
+    $resp = $null
+    if ($Exception -and ($Exception.PSObject.Properties.Name -contains 'Response')) { $resp = $Exception.Response }
+    if ($resp) {
+      $names = $resp.PSObject.Properties.Name
+      if (($names -contains 'ResponseUri') -and $resp.ResponseUri) { $h = [string]$resp.ResponseUri.Host }
+      elseif (($names -contains 'RequestMessage') -and $resp.RequestMessage) { $h = [string]$resp.RequestMessage.RequestUri.Host }
+    }
+  } catch { $h = '' }
+  if (-not $h -and $Status -eq 'NameResolutionFailure' -and $Exception) {
+    $msg = [string]$Exception.Message
+    if ($msg -match "'([A-Za-z0-9.-]+)'") { $h = $Matches[1] }   # PowerShell 5.1: ... could not be resolved: 'servidor'
+    elseif ($msg -match '\(([A-Za-z0-9.-]+):\d+\)') { $h = $Matches[1] }   # PowerShell 7: ... (servidor:443)
+  }
+  if ($h -and $h -ieq $UrlHost) { $h = '' }
+  return $h
+}
+
+function Format-WsMb {
+  # Bytes -> MB para mostrar: uma casa decimal abaixo de 10 MB (2.0), sem casas a partir dai (213).
+  param([double]$Bytes)
+  $m = $Bytes / 1MB
+  if ($m -lt 0) { $m = 0 }
+  if ($m -lt 10) { return $m.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture) }
+  return ([Math]::Floor($m)).ToString([Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Get-WsSettingsProxy {
+  # HTTPS_PROXY do "env" do settings.json do Claude Code: o Claude Code aplica-o por cima do ambiente do terminal.
+  # As propriedades do PowerShell nao distinguem maiusculas, por isso tambem apanha o https_proxy.
+  param([string]$File)
+  if (-not $File -or -not (Test-Path -LiteralPath $File)) { return '' }
+  $j = $null
+  try { $j = [IO.File]::ReadAllText($File) | ConvertFrom-Json } catch { return '' }
+  if ($j -and $j.env -and $j.env.HTTPS_PROXY) { return [string]$j.env.HTTPS_PROXY }
+  return ''
 }
 
 # Codigos Win32 de "bloqueado pela seguranca do computador": 225 e 226 antivirus (ficheiro com virus ou apagado),
@@ -381,13 +495,14 @@ function Get-WsLangKit {
 
 function Get-WsInstallUserArgs {
   # Argumentos para "node install-user.mjs <sub>": caminhos completos, um argumento cada (espacos e acentos).
-  # -NoProxy: o NO_PROXY completo (Merge-WsNoProxy); sem ele o install-user grava so localhost,127.0.0.1.
+  # -NoProxy: o NO_PROXY completo (Merge-WsNoProxy); sem ele o install-user grava so localhost,127.0.0.1. So vai com
+  # o --ca-pem ou o --https-proxy (como no Mac): sem nenhum, o install-user tira o NO_PROXY que um setup anterior gravou.
   param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang, [string]$NoProxy)
   $a = @([IO.Path]::Combine($KitSrc, 'installer', 'install-user.mjs'), $Sub, '--node', $NodePath, '--kit-src', $KitSrc)
   if ($Lang) { $a += @('--lingua-maquina', $Lang) }
   if ($CaPem) { $a += @('--ca-pem', $CaPem) }
   if ($Proxy) { $a += @('--https-proxy', $Proxy) }
-  if ($NoProxy) { $a += @('--no-proxy', $NoProxy) }
+  if ($NoProxy -and ($CaPem -or $Proxy)) { $a += @('--no-proxy', $NoProxy) }
   if ($SubstituirStatusline) { $a += '--substituir-statusline' }
   return , $a
 }
@@ -717,7 +832,9 @@ function Read-WsYesNo {
 
 function Invoke-WsProcess {
   # Corre um executavel com argumentos exatos (incluindo vazios), sem janela, com stdout/stderr em UTF-8.
-  param([string]$FilePath, [string[]]$Arguments, [string]$StdinText, [int]$TimeoutSec = 900, [hashtable]$Environment, [string]$WorkingDirectory, [string[]]$RemoveEnv)
+  # -WatchPaths: pastas onde o programa descarrega; enquanto corre, mostra de 30 em 30 s quanto ja chegou (o que
+  # mais cresceu desde o arranque), para nunca ficar mais de meio minuto sem nada no ecra.
+  param([string]$FilePath, [string[]]$Arguments, [string]$StdinText, [int]$TimeoutSec = 900, [hashtable]$Environment, [string]$WorkingDirectory, [string[]]$RemoveEnv, [string[]]$WatchPaths)
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $FilePath
   $psi.Arguments = ConvertTo-WsArgLine $Arguments
@@ -734,6 +851,9 @@ function Invoke-WsProcess {
   Write-WsLog ('$ {0} {1}' -f $FilePath, $psi.Arguments)
   $p = New-Object System.Diagnostics.Process
   $p.StartInfo = $psi
+  $hbBase = @{}; $hbNext = $null; $hbEvery = 30
+  if ($script:HbEvery) { $hbEvery = [int]$script:HbEvery }
+  if ($WatchPaths) { foreach ($w in $WatchPaths) { $hbBase[$w] = Get-WsPathBytes $w }; $hbNext = (Get-Date).AddSeconds($hbEvery) }
   try { [void]$p.Start() } catch {
     # Antivirus, AppLocker, WDAC ou um EDR: o passo mostra E-PERM-02 (e nao "rede, tenta de novo").
     $bc = Get-WsBlockedCode $_.Exception -AccessDenied
@@ -759,6 +879,15 @@ function Invoke-WsProcess {
         Stop-WsProcessTree $p
         Write-WsLog '  -> timed out'
         return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' }
+      }
+      if ($hbNext -and (Get-Date) -gt $hbNext) {
+        # Um erro aqui nunca para o programa (o finally terminava-o): so se perde esta linha de progresso.
+        try {
+          $grow = [int64]0
+          foreach ($w in $WatchPaths) { $g = (Get-WsPathBytes $w) - $hbBase[$w]; if ($g -gt $grow) { $grow = $g } }
+          Write-WsSay ('  ' + (M 'a_descarregar_mb' @{ MB = (Format-WsMb $grow) }))
+        } catch { }
+        $hbNext = (Get-Date).AddSeconds($hbEvery)
       }
     }
     $done = $true
@@ -822,17 +951,29 @@ function Get-WsSumFor {
   return ''
 }
 
+function Get-WsPathBytes {
+  # Tamanho de um ficheiro ou de uma pasta (com as subpastas), em bytes; 0 se nao existe.
+  param([string]$Path)
+  try {
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return [int64]0 }
+    $s = (Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+    if ($s) { return [int64]$s }
+  } catch { }
+  return [int64]0
+}
+
 function Invoke-WsDownload {
   # Download via .part. -Auth envia o REPO_TOKEN so ao servidor dos repositorios (nunca vai para o log).
-  # Define $script:DlHttp e $script:DlStatus.
+  # Define $script:DlHttp, $script:DlStatus ('HtmlPage' se veio uma pagina web em vez do ficheiro), $script:DlHost
+  # (o servidor final, so se o pedido foi redirecionado para outro) e $script:DlPartial (ja tinham chegado bytes).
   param([string]$Url, [string]$OutFile, [switch]$Auth)
   $part = $OutFile + '.part'
   Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
-  $script:DlHttp = 0; $script:DlStatus = ''
+  $script:DlHttp = 0; $script:DlStatus = ''; $script:DlHost = ''; $script:DlPartial = $false
   Write-WsLog ('download: {0}' -f $Url)
   $headers = @{}
-  $hostName = ''
-  try { $hostName = ([Uri]$Url).Authority } catch { }
+  $hostName = ''; $urlHost = ''
+  try { $hostName = ([Uri]$Url).Authority; $urlHost = ([Uri]$Url).Host } catch { }
   if ($Auth -and $env:REPO_TOKEN -and ($hostName -eq $script:Fill.REPO_HOST -or $hostName -eq $script:Fill.MEMORY_HOST)) {
     $headers['Authorization'] = 'token ' + $env:REPO_TOKEN
   }
@@ -843,9 +984,23 @@ function Invoke-WsDownload {
     $info = Get-WsWebErrorInfo $ex
     $script:DlStatus = $info.Status; $script:DlHttp = $info.Http
     if ($info.Status -eq 'Blocked') { $script:Blocked = $OutFile }
-    Write-WsLog ('  -> failed: {0} (HTTP {1}, {2})' -f $ex.Message, $script:DlHttp, $script:DlStatus)
+    # Bytes ja escritos: a resposta chegou e a transferencia parou ou partiu-se a meio (E-NET-07, nao um bloqueio).
+    try { if ((Test-Path -LiteralPath $part) -and (Get-Item -LiteralPath $part).Length -gt 0) { $script:DlPartial = $true } } catch { }
+    $script:DlHost = Get-WsDlFinalHost $ex $info.Status $urlHost
+    $more = ''
+    if ($script:DlPartial) { $more += ', partial' }
+    if ($script:DlHost) { $more += ', redirected to ' + $script:DlHost }
+    Write-WsLog ('  -> failed: {0} (HTTP {1}, {2}{3})' -f $ex.Message, $script:DlHttp, $script:DlStatus, $more)
     Add-WsStepLog ('download failed: ' + $Url + ' ' + $ex.Message)
     Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
+    return $false
+  }
+  # Uma pagina web no lugar do ficheiro (bloqueio de um proxy ou de um filtro, portal de uma rede WiFi) nunca e usada.
+  if (Test-WsHtmlFile $part) {
+    Write-WsLog '  -> HTML page instead of the file (proxy, content filter or WiFi login page)'
+    Add-WsStepLog ('download: a web page came instead of the file: ' + $Url)
+    Remove-Item -LiteralPath $part -Force -ErrorAction SilentlyContinue
+    $script:DlHttp = 200; $script:DlStatus = 'HtmlPage'
     return $false
   }
   # O antivirus pode estar a ler o ficheiro (o rename falha uns instantes) ou apaga-lo: tenta umas vezes e
@@ -867,6 +1022,35 @@ function Invoke-WsDownload {
 }
 
 function Get-WsDlCode { return (Get-WsNetCode $script:DlStatus $script:DlHttp) }
+
+function Get-WsDlDetail {
+  # Detalhe de um download falhado (depois do Invoke-WsDownload): o servidor final, se o pedido foi redirecionado
+  # (e esse que o IT tem de libertar), o que falhou e o codigo HTTP (>= 400) ou "veio uma pagina web".
+  param([string]$What)
+  $d = $What
+  if ($script:DlHost) { $d = $script:DlHost + ' - ' + $d }
+  if ($script:DlStatus -eq 'HtmlPage') { $d = $d + ' - ' + (M 'dl_html') }
+  elseif ($script:DlHttp -ge 400) { $d = $d + ' - HTTP ' + $script:DlHttp }
+  return $d
+}
+
+function Invoke-WsDownloadChecked {
+  # Download com SHA-256. Se nao bater certo (ficheiro truncado ou alterado pelo caminho), apaga-o e descarrega uma
+  # segunda vez. 0 = ok; 1 = o download falhou (Get-WsDlCode e Get-WsDlDetail); 2 = o SHA-256 nao bate certo, ou nao
+  # ha nenhum para comparar. Um ficheiro que desaparece logo (antivirus) nao se descarrega outra vez: o Get-WsSha256
+  # ja marcou o $script:Blocked e o passo mostra E-PERM-02.
+  param([string]$Url, [string]$OutFile, [string]$Want, [switch]$Auth)
+  $w = ([string]$Want).Trim().ToLowerInvariant()
+  foreach ($n in 1, 2) {
+    if (-not (Invoke-WsDownload $Url $OutFile -Auth:$Auth)) { return 1 }
+    $got = Get-WsSha256 $OutFile
+    if ($w -and $got -eq $w) { return 0 }
+    Write-WsLog ('  -> SHA-256 {0} != {1} (try {2})' -f $got, $w, $n)
+    Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+    if (-not $w -or -not $got) { return 2 }
+  }
+  return 2
+}
 
 function Test-WsSignature {
   # Assinatura Authenticode valida e do editor esperado.
@@ -973,6 +1157,14 @@ function Write-WsResult {
   foreach ($w in $s.Avisos) {
     Write-WsSay ('     ' + (Get-WsSymbol 'aviso' $script:Emoji) + ' ' + (M 'estado_aviso')) 'Yellow'
     Write-WsCode $w[0] $w[1] '        '
+  }
+  # Sem detalhe, o resumo mostra o titulo do codigo (da falha ou do primeiro aviso): um passo nao bloqueante que
+  # falhou (10, 11) fica "aviso" sem falha, e a linha dele no resumo ficava vazia.
+  if (-not $s.Detalhe) {
+    $c = $null
+    if ($s.Falha -and ($s.Estado -eq 'falhou' -or $s.Estado -eq 'falta')) { $c = $s.Falha[0] }
+    elseif ($s.Estado -eq 'aviso' -and @($s.Avisos).Count -gt 0) { $c = $s.Avisos[0][0] }
+    if ($c) { $e = Get-WsErr $c; if ($e) { $s.Detalhe = (Format-WsFill $e.titulo) + ' (' + $c + ')' } }
   }
 }
 
@@ -1083,9 +1275,14 @@ function Initialize-WsKit {
   New-Item -ItemType Directory -Path (Join-Path $tmpd 'x') -Force | Out-Null
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $name }))
   $zip = Join-Path $tmpd $name
-  if (Invoke-WsDownload (Get-WsReleaseUrl 'workshop' $name) $zip -Auth) {
-    $sum = Get-WsSha256 $zip
-    if ($script:InjKitSha -and $sum -ne $script:InjKitSha) {
+  $kitUrl = Get-WsReleaseUrl 'workshop' $name
+  # Com o SHA-256 injetado (release), um arquivo truncado ou alterado e descarregado uma segunda vez.
+  $rc = 1
+  if ($script:InjKitSha) { $rc = Invoke-WsDownloadChecked $kitUrl $zip $script:InjKitSha -Auth }
+  elseif (Invoke-WsDownload $kitUrl $zip -Auth) { $rc = 0 }
+  if ($rc -ne 1) {
+    if ($rc -eq 2) {
+      Write-WsLog ('kit SHA-256 mismatch (expected {0})' -f $script:InjKitSha)
       Set-WsWarn 'E-KIT-02' $name
     } else {
       try {
@@ -1226,6 +1423,9 @@ function Test-WsStep0 {
   Test-WsProxy
   Test-WsTls
   Test-WsNetwork
+  # O Claude Code usa o proxy do settings.json mesmo que o terminal ja nao tenha nenhum (o passo 8 tira o que o setup gravou).
+  $spd = Get-WsSettingsProxyDead
+  if ($spd) { Add-WsNote (M 's0_proxy_settings' @{ PROXY = $spd }) }
   Set-WsDetail ($script:OsText + ' - ' + $script:Lang + ' - ' + (M 's0_rede_ok' @{ OK = $script:NetOk; TOTAL = $script:NetTotal }))
   return $true
 }
@@ -1266,38 +1466,98 @@ function Test-WsRoamingAppData {
 }
 
 function Test-WsProxy {
+  # Proxy da sessao. $script:Proxy vai para o settings.json do Claude Code (--https-proxy): o HTTPS_PROXY ou o proxy
+  # do sistema, e nunca um proxy que nao responde (um que ficou da rede do escritorio ou de uma VPN antiga).
+  # $script:ProxyShow e o proxy em uso, para mostrar (sem palavra-passe). O PowerShell 5.1 descarrega pelo proxy do
+  # sistema (ignora o HTTPS_PROXY); o Claude Code, o uv, o Node e o git usam o HTTPS_PROXY. Por isso:
+  # $script:ProxyDead = o do sistema nao responde (Get-WsNetCode); $script:EnvProxyDead = o HTTPS_PROXY nao responde.
   $script:Proxy = ''
   $script:NoProxy = ''
+  $script:ProxyShow = ''; $script:ProxyDead = $false; $script:EnvProxyDead = $false
   $override = ''
   $direct = @()
-  if ($env:HTTPS_PROXY) {
-    $script:Proxy = $env:HTTPS_PROXY
-    Add-WsNote (M 's0_proxy_sistema' @{ PROXY = (Protect-WsText $env:HTTPS_PROXY @()) + ' (HTTPS_PROXY)' })
-  } else {
-    try {
-      $sys = [System.Net.WebRequest]::GetSystemWebProxy()
-      $target = [Uri]'https://api.anthropic.com/'
-      if (-not $sys.IsBypassed($target)) {
-        $px = $sys.GetProxy($target)
-        if ($px -and $px.AbsoluteUri -ne $target.AbsoluteUri) {
-          $script:Proxy = ('http://{0}:{1}' -f $px.Host, $px.Port)
-          $env:HTTPS_PROXY = $script:Proxy
-          Add-WsNote (M 's0_proxy_sistema' @{ PROXY = $script:Proxy })
-          # As excecoes do proxy do Windows e os servidores do kit que o PAC manda direto (GitHub Enterprise,
-          # por exemplo) ficam no NO_PROXY: sem isso o git, o gh e o uv iam pelo proxy para servidores internos.
-          try { $override = [string](Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyOverride -ErrorAction Stop).ProxyOverride } catch { $override = '' }
-          foreach ($h in @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) {
-            if ($h) { try { if ($sys.IsBypassed([Uri]('https://' + $h + '/'))) { $direct += $h } } catch { } }
-          }
-        }
-      }
-    } catch { Write-WsLog ('proxy: ' + $_.Exception.Message) }
+  $sysP = ''; $sys = $null
+  try {
+    $sys = [System.Net.WebRequest]::GetSystemWebProxy()
+    $target = [Uri]'https://api.anthropic.com/'
+    if (-not $sys.IsBypassed($target)) {
+      $px = $sys.GetProxy($target)
+      if ($px -and $px.AbsoluteUri -ne $target.AbsoluteUri) { $sysP = ('http://{0}:{1}' -f $px.Host, $px.Port) }
+    }
+  } catch { Write-WsLog ('proxy: ' + $_.Exception.Message) }
+  $envP = [string]$env:HTTPS_PROXY
+  if ($envP) {
+    $script:Proxy = $envP
+    $script:ProxyShow = (Format-WsProxyShow $envP) + ' (HTTPS_PROXY)'
+  } elseif ($sysP) {
+    $script:Proxy = $sysP
+    $script:ProxyShow = $sysP
+    # As excecoes do proxy do Windows e os servidores do kit que o PAC manda direto (GitHub Enterprise,
+    # por exemplo) ficam no NO_PROXY: sem isso o git, o gh e o uv iam pelo proxy para servidores internos.
+    try { $override = [string](Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyOverride -ErrorAction Stop).ProxyOverride } catch { $override = '' }
+    foreach ($h in @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) {
+      if ($h) { try { if ($sys.IsBypassed([Uri]('https://' + $h + '/'))) { $direct += $h } } catch { } }
+    }
   }
-  if (-not $script:Proxy) { Add-WsNote (M 's0_sem_proxy'); return }
+  # Sem proxy, o NO_PROXY tambem vai com o certificado da empresa (--ca-pem): o da pessoa nunca se perde.
+  if (-not $script:Proxy) { $script:NoProxy = Merge-WsNoProxy $env:NO_PROXY '' @(); Add-WsNote (M 's0_sem_proxy'); return }
+  Add-WsNote (M 's0_proxy_sistema' @{ PROXY = $script:ProxyShow })
+  if ($sysP -and (Test-WsProxyDead $sysP)) { $script:ProxyDead = $true; Write-WsLog ('system proxy does not answer: ' + $sysP) }
+  if ($envP -and (Test-WsProxyDead $envP)) { $script:EnvProxyDead = $true; Write-WsLog ('proxy does not answer: ' + $script:ProxyShow) }
+  # HTTPS_PROXY vivo, mas os downloads deste PowerShell vao pelo proxy do sistema, que nao responde.
+  if ($script:ProxyDead -and $envP -and -not $script:EnvProxyDead) { Set-WsWarn 'E-NET-03' $sysP }
+  if (($envP -and $script:EnvProxyDead) -or (-not $envP -and $script:ProxyDead)) {
+    # Nunca vai para o settings.json (o passo 8 tira o que um setup anterior gravou) nem para os programas filhos.
+    Set-WsWarn 'E-NET-03' $script:ProxyShow
+    $script:Proxy = ''
+    $script:NoProxy = Merge-WsNoProxy $env:NO_PROXY '' @()
+    return
+  }
+  if (-not $envP) { $env:HTTPS_PROXY = $script:Proxy }
   # O NO_PROXY que ja existia fica (como no Mac); acrescenta-se, nunca se substitui.
   $script:NoProxy = Merge-WsNoProxy $env:NO_PROXY $override $direct
   $env:NO_PROXY = $script:NoProxy
   Write-WsLog ('NO_PROXY: ' + $script:NoProxy)
+}
+
+function Test-WsProxyDead {
+  # $true se o proxy nao responde: nome que nao resolve, ligacao recusada, ou nem aceita a ligacao em 5 s. Um proxy que
+  # aceita a ligacao conta como vivo (as recusas, como o 407 ou o 403, sao do Get-WsNetCode). Basta uma ligacao TCP.
+  # Cada proxy e testado uma vez por execucao ($script:ProxyProbe).
+  param([string]$Proxy, [int]$TimeoutMs = 5000)
+  if (-not $Proxy) { return $false }
+  if (-not $script:ProxyProbe) { $script:ProxyProbe = @{} }
+  if ($script:ProxyProbe.ContainsKey($Proxy)) { return [bool]$script:ProxyProbe[$Proxy] }
+  $dead = $true
+  $c = $null
+  try {
+    $addr = $Proxy
+    if ($addr -notmatch '^[A-Za-z][A-Za-z0-9+.-]*://') { $addr = 'http://' + $addr }
+    $u = [Uri]$addr
+    $port = $u.Port
+    if ($port -le 0) { if ($u.Scheme -like 'socks*') { $port = 1080 } else { $port = 80 } }
+    $c = New-Object Net.Sockets.TcpClient
+    $ar = $c.BeginConnect($u.DnsSafeHost, $port, $null, $null)
+    if ($ar.AsyncWaitHandle.WaitOne($TimeoutMs)) { $c.EndConnect($ar); $dead = $false }
+  } catch { $dead = $true }
+  finally { if ($c) { try { $c.Close() } catch { } } }
+  $res = 'answers'
+  if ($dead) { $res = 'no answer' }
+  Write-WsLog ('proxy probe: {0} -> {1}' -f (Format-WsProxyShow $Proxy), $res)
+  $script:ProxyProbe[$Proxy] = $dead
+  return $dead
+}
+
+function Get-WsSettingsProxyDead {
+  # O proxy do settings.json do Claude Code, se nao responde nesta rede (ex.: o do escritorio, gravado por um setup
+  # anterior): o proxy (sem palavra-passe) e o ficheiro, para mostrar. '' se nao ha proxy ou se ele responde.
+  $f = Join-Path $script:ClaudeDir 'settings.json'
+  $p = Get-WsSettingsProxy $f
+  if (-not $p -or -not (Test-WsProxyDead $p)) { return '' }
+  $show = $f
+  $h = ([string]$script:UserHome).TrimEnd('\', '/')
+  if ($h -and $f.StartsWith($h + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { $show = '%USERPROFILE%' + $f.Substring($h.Length) }
+  return ((Format-WsProxyShow $p) + ' - ' + $show)
 }
 
 function Test-WsProxyAuth {
@@ -1358,10 +1618,9 @@ function Test-WsTls {
 }
 
 function Test-WsNetwork {
-  $hosts = @()
-  foreach ($h in ($script:C.NET_CHECK_HOSTS -split '\s+')) { if ($h) { $hosts += ('https://' + $h + '/') } }
-  foreach ($h in @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) { if ($h -and ($hosts -notcontains ('https://' + $h + '/'))) { $hosts += ('https://' + $h + '/') } }
-  try { $u = [Uri]$script:Fill.KIT_URL_WINDOWS; $b = $u.Scheme + '://' + $u.Authority + '/'; if ($hosts -notcontains $b) { $hosts += $b } } catch { }
+  # No lugar da raiz do claude.ai (403 a quem nao e um browser) testa-se o instalador: ai um 403 ou 451 e um bloqueio.
+  $cprobe = [string]$script:C.CLAUDE_INSTALL_PS1_URL
+  $hosts = Get-WsNetProbeUrls (@($script:C.NET_CHECK_HOSTS -split '\s+') + @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) $script:Fill.KIT_URL_WINDOWS $cprobe
   $script:NetTotal = $hosts.Count
   Write-WsSay ('  ' + (M 'a_verificar_rede' @{ N = $hosts.Count }))
   $jobs = @()
@@ -1382,17 +1641,15 @@ function Test-WsNetwork {
         if ($_.Exception.Response) { try { $http = [int]$_.Exception.Response.StatusCode } catch { }; $_.Exception.Response.Close(); if ($http -ne 407) { $okH = $true } }
       } catch { $st = 'Unknown' }
     } else { try { $req.Abort() } catch { }; $st = 'Timeout' }
+    if ($okH -and $h -eq $cprobe -and ($http -eq 403 -or $http -eq 451)) { $okH = $false; if (-not $st) { $st = 'ProtocolError' } }
     Write-WsLog ('network: {0} -> {1} HTTP {2}' -f $h, $st, $http)
     if ($okH) { $script:NetOk++; continue }
-    $fails += $h.Replace('https://', '').TrimEnd('/')
+    $fails += ([Uri]$h).Authority
     if ($h -match 'api\.anthropic\.com') { $script:NetApiOk = $false }
     $codes += (Get-WsNetCode $st $http)
   }
-  if ($fails.Count -gt 0) {
-    Add-WsNote (M 's0_rede_falha' @{ LISTA = ($fails -join ', ') })
-    if (-not $script:NetApiOk) { Set-WsWarn 'E-NET-05' 'api.anthropic.com' }
-    foreach ($c in ($codes | Sort-Object -Unique)) { Set-WsWarn $c ($fails -join ', ') }
-  }
+  if ($fails.Count -gt 0) { Add-WsNote (M 's0_rede_falha' @{ LISTA = ($fails -join ', ') }) }
+  foreach ($w in (Get-WsNetWarnings $fails $codes $script:NetApiOk $script:ProxyShow ($script:ProxyDead -or $script:EnvProxyDead))) { Set-WsWarn $w[0] $w[1] }
   # Os pedidos acima levam o login do Windows ao proxy; o Claude Code, o Node e o uv nao. Se o proxy so aceita esse
   # login, diz-se ja aqui (E-NET-03), e nao com E-CC-01, E-UV-01 ou E-MEM-03 nos passos seguintes.
   $script:ProxyAuth = $false
@@ -1473,8 +1730,9 @@ function Install-WsGitForWindows {
   $url = Expand-WsPattern $script:C.GIT_WINDOWS_URL @{ version = $script:C.GIT_WINDOWS_VERSION; file = $file }
   $exe = Join-Path $script:Tmp $file
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
-  if (-not (Invoke-WsDownload $url $exe)) { Set-WsFail (Get-WsDlCode) $url; return $false }
-  if ((Get-WsSha256 $exe) -ne $want.ToLowerInvariant()) { Set-WsFail 'E-GIT-02' ('SHA-256 ' + $file); return $false }
+  $rc = Invoke-WsDownloadChecked $url $exe $want
+  if ($rc -eq 1) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
+  if ($rc -eq 2) { Set-WsFail 'E-GIT-02' ('SHA-256 ' + $file); return $false }
   $r = Invoke-WsProcess $exe @('/VERYSILENT', '/CURRENTUSER', '/NORESTART', '/SUPPRESSMSGBOXES', '/SP-', '/NOCANCEL') -TimeoutSec 1800
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-GIT-02' ('installer ' + $r.ExitCode); return $false }
   Update-WsSessionPath
@@ -1501,8 +1759,10 @@ function Test-WsStep2 {
 function Install-WsStep2 {
   Write-WsSay ('  ' + (M 'a_instalar'))
   $f = Join-Path $script:Tmp 'claude-install.ps1'
-  if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) $script:C.CLAUDE_INSTALL_PS1_URL; return $false }
-  $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, $script:C.CLAUDE_CODE_VERSION) -TimeoutSec 1800
+  if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $script:C.CLAUDE_INSTALL_PS1_URL); return $false }
+  # O install.ps1 descarrega mais de 200 MB sem mostrar nada: o progresso vai aparecendo enquanto descarrega.
+  $watch = @((Join-Path $script:UserHome '.claude\downloads'), (Join-Path $script:ClaudeDir 'downloads'), (Join-Path $script:UserHome '.local\share\claude')) | Select-Object -Unique
+  $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f, $script:C.CLAUDE_CODE_VERSION) -TimeoutSec 1800 -WatchPaths $watch
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-CC-01' 'install.ps1'; return $false }
   Add-WsUserPath (Join-Path $script:UserHome '.local\bin')
   $c = Join-Path $script:UserHome '.local\bin\claude.exe'
@@ -1635,9 +1895,11 @@ function Install-WsStep4 {
   $sumsUrl = Expand-WsPattern $script:C.NODE_DIST_URL @{ version = $script:C.NODE_VERSION; file = 'SHASUMS256.txt' }
   $url = Expand-WsPattern $script:C.NODE_DIST_URL @{ version = $script:C.NODE_VERSION; file = $file }
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
-  if (-not (Invoke-WsDownload $sumsUrl (Join-Path $d 'SHASUMS256.txt')) -or -not (Invoke-WsDownload $url (Join-Path $d $file))) { Set-WsFail (Get-WsDlCode) $url; return $false }
+  if (-not (Invoke-WsDownload $sumsUrl (Join-Path $d 'SHASUMS256.txt'))) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $sumsUrl); return $false }
   $want = Get-WsSumFor (Join-Path $d 'SHASUMS256.txt') $file
-  if (-not $want -or $want -ne (Get-WsSha256 (Join-Path $d $file))) { Set-WsFail 'E-NODE-01' ('SHA-256 ' + $file); return $false }
+  $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
+  if ($rc -eq 1) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
+  if ($rc -eq 2) { Set-WsFail 'E-NODE-01' ('SHA-256 ' + $file); return $false }
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), (Join-Path $d 'x'))
   $inner = Join-Path $d ('x\node-v{0}-win-{1}' -f $script:C.NODE_VERSION, $a)
@@ -1669,7 +1931,7 @@ function Test-WsStep5 {
 function Install-WsStep5 {
   $f = Join-Path $script:Tmp 'uv-install.ps1'
   $url = Expand-WsPattern $script:C.UV_INSTALL_PS1_URL @{ version = $script:C.UV_VERSION }
-  if (-not (Invoke-WsDownload $url $f)) { Set-WsFail (Get-WsDlCode) $url; return $false }
+  if (-not (Invoke-WsDownload $url $f)) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
   $r = Invoke-WsProcess (Get-WsWinPowerShell) @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $f) -Environment @{ UV_NO_MODIFY_PATH = '1'; UV_INSTALL_DIR = (Join-Path $script:UserHome '.local\bin') } -TimeoutSec 900
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-UV-01' 'install.ps1'; return $false }
   Add-WsUserPath (Join-Path $script:UserHome '.local\bin')
@@ -1726,9 +1988,11 @@ function Install-WsStep6 {
   $sums = Expand-WsPattern $script:C.GH_RELEASE_URL @{ version = $script:C.GH_VERSION; file = ('gh_{0}_checksums.txt' -f $script:C.GH_VERSION) }
   $url = Expand-WsPattern $script:C.GH_RELEASE_URL @{ version = $script:C.GH_VERSION; file = $file }
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
-  if (-not (Invoke-WsDownload $sums (Join-Path $d 'sums')) -or -not (Invoke-WsDownload $url (Join-Path $d $file))) { Set-WsFail (Get-WsDlCode) $url; return $false }
+  if (-not (Invoke-WsDownload $sums (Join-Path $d 'sums'))) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $sums); return $false }
   $want = Get-WsSumFor (Join-Path $d 'sums') $file
-  if (-not $want -or $want -ne (Get-WsSha256 (Join-Path $d $file))) { Set-WsFail 'E-GH-01' ('SHA-256 ' + $file); return $false }
+  $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
+  if ($rc -eq 1) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
+  if ($rc -eq 2) { Set-WsFail 'E-GH-01' ('SHA-256 ' + $file); return $false }
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), (Join-Path $d 'x'))
   $src = Get-ChildItem -Path (Join-Path $d 'x') -Recurse -Filter 'gh.exe' | Select-Object -First 1
@@ -1803,8 +2067,9 @@ function Install-WsAcli {
   Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Path (Join-Path $d 'x') -Force | Out-Null
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
-  if (-not (Invoke-WsDownload $url (Join-Path $d $file))) { $script:AcliErr = (Get-WsDlCode) + ' ' + $url; return $false }
-  if ((Get-WsSha256 (Join-Path $d $file)) -ne $want) { $script:AcliErr = 'SHA-256 ' + $file; return $false }
+  $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
+  if ($rc -eq 1) { $script:AcliErr = (Get-WsDlCode) + ' ' + (Get-WsDlDetail $url); return $false }
+  if ($rc -eq 2) { $script:AcliErr = 'SHA-256 ' + $file; return $false }
   try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $d $file), (Join-Path $d 'x'))
@@ -2134,19 +2399,19 @@ function Install-WsStep10 {
   Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Path $d -Force | Out-Null
   if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'memory' 'SHA256SUMS') (Join-Path $d 'SHA256SUMS') -Auth)) {
-    if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $script:C.MEMORY_APP_VERSION } else { Set-WsFail (Get-WsDlCode) 'SHA256SUMS' }
+    if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $script:C.MEMORY_APP_VERSION } else { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail 'SHA256SUMS') }
     return $false
   }
   $whl = Get-WsMemoryWheel (Join-Path $d 'SHA256SUMS') $ver
   $dist = $whl.Split('-')[0]
   Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $whl }))
   foreach ($f in @($whl, 'constraints.txt')) {
-    if (-not (Invoke-WsDownload (Get-WsReleaseUrl 'memory' $f) (Join-Path $d $f) -Auth)) {
-      if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $f } else { Set-WsFail 'E-NET-07' $f }
+    $rc = Invoke-WsDownloadChecked (Get-WsReleaseUrl 'memory' $f) (Join-Path $d $f) (Get-WsSumFor (Join-Path $d 'SHA256SUMS') $f) -Auth
+    if ($rc -eq 1) {
+      if (@(403, 404, 410) -contains $script:DlHttp) { Set-WsFail 'E-MEM-01' $f } else { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $f) }
       return $false
     }
-    $want = Get-WsSumFor (Join-Path $d 'SHA256SUMS') $f
-    if (-not $want -or $want -ne (Get-WsSha256 (Join-Path $d $f))) { Set-WsFail 'E-MEM-02' $f; return $false }
+    if ($rc -eq 2) { Set-WsFail 'E-MEM-02' $f; return $false }
   }
   if (-not (Install-WsWebView2)) { Set-WsWarn 'E-MEM-04' '' }
   Write-WsSay ('  ' + (M 'a_instalar'))
@@ -2229,7 +2494,7 @@ function Install-WsStep11 {
   $url = $script:C.DESKTOP_WIN_X64_URL
   if ($script:Arch -eq 'arm64') { $url = $script:C.DESKTOP_WIN_ARM64_URL }
   $f = Join-Path $script:Tmp 'ClaudeSetup.exe'
-  if (-not (Invoke-WsDownload $url $f)) { Set-WsFail 'E-DESK-02' ('HTTP ' + $script:DlHttp); Set-WsWarn 'E-DESK-01' ''; return $false }
+  if (-not (Invoke-WsDownload $url $f)) { Set-WsFail 'E-DESK-02' (Get-WsDlDetail $url); Set-WsWarn 'E-DESK-01' ''; return $false }
   if (-not (Test-WsSignature $f 'Anthropic')) { Set-WsFail 'E-DESK-02' 'assinatura'; return $false }
   [void](Invoke-WsProcess $f @() -TimeoutSec 1800)
   if (Test-WsStep11) { return $true }
@@ -2264,6 +2529,11 @@ function Test-WsStep12 {
 
 function Install-WsStep12 {
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
+  # Um proxy morto no settings.json (ou, sem nenhum la, no HTTPS_PROXY deste terminal) faz o claude -p tentar em
+  # silencio durante uns 3 minutos e acabar num E-NET-05 enganador: falha ja, com a causa.
+  $spd = Get-WsSettingsProxyDead
+  if ($spd) { Set-WsFail 'E-NET-08' $spd; return $false }
+  if ($script:EnvProxyDead -and $env:HTTPS_PROXY -and -not (Get-WsSettingsProxy (Join-Path $script:ClaudeDir 'settings.json'))) { Set-WsFail 'E-NET-03' $script:ProxyShow; return $false }
   $t0 = Get-Date
   $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '') -WorkingDirectory $script:Tmp -TimeoutSec 300
   $secs = [int]((Get-Date) - $t0).TotalSeconds
@@ -2612,6 +2882,7 @@ function Invoke-WsMain {
   $script:StepLog = New-Object System.Text.StringBuilder
   $script:AuthOk = $false; $script:NetApiOk = $true; $script:CaPem = ''; $script:Proxy = ''; $script:NoProxy = ''; $script:OsBuild = 99999; $script:Arch = 'x64'
   $script:Blocked = ''; $script:GpoBlocks = $false; $script:ProxyAuth = $false; $script:GitBashMissing = $false; $script:GitBashTried = $false
+  $script:ProxyShow = ''; $script:ProxyDead = $false; $script:EnvProxyDead = $false; $script:ProxyProbe = @{}; $script:DlHost = ''; $script:DlPartial = $false
 
   if (-not (Initialize-WsConfig)) { Write-Host 'This script must come from the release (with the injected values) or run inside the repository.'; return 2 }
   Initialize-WsFill
