@@ -356,7 +356,8 @@ function ConvertTo-WsLangTag {
   # algarismos. "brasil", "Portugues" com acento, "pt-*", "en,pt", "pt BR" e "UTF-8" nao dao informacao.
   # [0-9] e nao \d (no .NET o \d aceita algarismos Unicode) e -cnotmatch com as duas caixas: sem distinguir
   # maiusculas, o .NET usa a cultura atual e numa maquina turca o [a-z] tambem aceitava o I com ponto.
-  if ($t -cnotmatch '^[A-Za-z]{2,3}(-[A-Za-z0-9]{0,8})*$' -or $t -match '^utf(-|$)') { return '' }
+  # \z e nao $: no .NET o $ tambem aceita um \n no fim ("pt`n.UTF-8" passava como "pt`n").
+  if ($t -cnotmatch '^[A-Za-z]{2,3}(-[A-Za-z0-9]{0,8})*\z' -or $t -match '^utf(-|$)') { return '' }
   $parts = @($t.Split('-') | Where-Object { $_ -ne '' })
   $base = $parts[0].ToLowerInvariant()
   if ($base -eq 'iw') { $base = 'he' }
@@ -1913,6 +1914,7 @@ function Test-WsStep8 {
 }
 
 function Install-WsStep8 {
+  $script:T['8'].Notas = @()   # as notas do verificar (lingua antes da instalacao) nao valem: o instalar volta a escreve-las (como o ws_s8_install)
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   $r = Invoke-WsInstallUser 'instalar'
   Read-WsInstallUserOutput $r.StdOut

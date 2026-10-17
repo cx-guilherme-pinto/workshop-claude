@@ -834,6 +834,7 @@ Describe 'chaos G7-language' {
     ConvertTo-WsLangTag 'pt_BR.UTF-8' | Should -BeExactly 'pt-BR'
     ConvertTo-WsLangTag 'iw_IL' | Should -BeExactly 'he-IL'
     ConvertTo-WsLangTag 'br' | Should -BeExactly 'br' -Because 'bretao e uma etiqueta (rejeitada um nivel acima)'
+    ConvertTo-WsLangTag "pt`n.UTF-8" | Should -BeExactly '' -Because 'no .NET o $ tambem aceita um \n no fim (como o etiqueta() do Node)'
   }
   It 'a validacao nao depende da cultura (maquina turca)' {
     $old = [Threading.Thread]::CurrentThread.CurrentCulture
@@ -960,6 +961,18 @@ Describe 'chaos G7-language' {
     $script:T = New-WsStateTable; $script:Mode = 'check'
     Read-WsInstallUserOutput "falta`tlingua do kit (- -> en)`nfalta`tskill x`nlingua`ten`nlingua_kit`t`nlanguage`t`nlanguage_nossa`t0`n"
     @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'sem lingua do kit instalada nao ha mudanca a explicar'
+  }
+  It 'passo 8 na instalacao: a nota da lingua do verificar nao fica repetida (pt -> pt-BR)' {
+    Mock Initialize-WsKit { $true }
+    Mock Sync-WsExtras {}
+    Mock Invoke-WsInstallUser { @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`nlingua`tpt-BR`nlingua_kit`tpt`nlanguage`tBrazilian Portuguese`nlanguage_nossa`t1`n" } }
+    $script:Lang = 'pt-BR'; $script:LangKit = 'pt'
+    $script:T = New-WsStateTable; $script:Cur = '8'; $script:Mode = 'install'
+    $script:T['8'].Notas = @('Claude answers in European Portuguese (Claude Code "language" setting). Workshop texts: Portuguese.')
+    Install-WsStep8 | Should -BeTrue
+    $n = @($script:T['8'].Notas | Where-Object { $_ -match '^Claude answers in' })
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match 'Brazilian Portuguese'
   }
   It 'passo 9: nota quando um projeto ja montado esta noutra lingua' {
     $script:Proj = Join-Path $TestDrive 'proj-lang'
