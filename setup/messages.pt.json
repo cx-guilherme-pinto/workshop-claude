@@ -58,6 +58,7 @@
     "final_falta1": "Falta 1 passo: {LISTA}.",
     "final_aviso1": "Há 1 aviso acima. Não impede o workshop, mas lê-o.",
     "final_avisos": "Há {N} avisos acima. Não impedem o workshop, mas lê-os.",
+    "final_aviso1": "Há 1 aviso acima. Não impede o workshop, mas lê-o.",
     "final_voltar": "Depois de corrigires, corre outra vez o mesmo comando. Os passos feitos são saltados.",
     "final_voltar_check": "Isto foi só uma verificação: não instalei nem alterei nada. Corrige o que está acima, ou corre o setup sem --check para instalar o que falta. Depois volta a verificar.",
     "final_reiniciar": "Fecha e volta a abrir o terminal (e o VS Code) para os comandos novos ficarem disponíveis.",
@@ -101,6 +102,7 @@
     "s0_proxy_pac": "Proxy automático (PAC): {PAC}",
     "s0_proxy_settings": "O Claude Code está configurado com um proxy que não responde nesta rede: {PROXY}. Correr o setup tira-o, se foi o setup que o gravou (E-NET-08).",
     "s0_sem_proxy": "Sem proxy.",
+    "s0_proxy_curlrc": "O {FICHEIRO} define um proxy ({PROXY}). O setup e o Claude Code não o usam: se esta rede precisar desse proxy, define o HTTPS_PROXY (código E-NET-05).",
     "s0_tls_ok": "Certificado da API emitido por: {EMISSOR}",
     "s0_tls_corp": "Interceção TLS detetada (emissor: {EMISSOR}). Exportei os certificados da empresa para {CA}.",
     "s0_rede_ok": "Rede: {OK} de {TOTAL} domínios acessíveis.",
@@ -139,6 +141,7 @@
     "s8_editado": "Tinhas alterado {NOME}: a tua cópia ficou guardada em {PASTA} e a versão do kit voltou ao seu lugar.",
     "s8_anteriores": "As versões anteriores das skills e dos agentes do kit ficaram guardadas em {PASTA}, caso tenhas alterado alguma.",
     "s8_claude_dir": "Pasta do Claude Code (CLAUDE_CONFIG_DIR): {CAMINHO}",
+    "s8_alheio": "O teu {NOME} tem o mesmo nome que um do kit: ficou guardado em {PASTA} e volta se desinstalares o kit.",
     "s9_ja": "{PROJETOS}",
     "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
@@ -152,6 +155,7 @@
     "s11_aviso": "O Claude Desktop só entra com uma conta claude.ai, e o separador Code exige assinatura. O hands-on do workshop corre todo no Claude Code (terminal).",
     "s12_prompt": "responde só OK",
     "s12_a_testar": "A pedir uma resposta curta ao Claude (até {SEG} s)…",
+    "s12_sem_hooks": "Sem resposta com os teus hooks ({HOOKS}). A tentar mais uma vez sem eles…",
     "s12_ok": "Resposta «{RESPOSTA}» em {SEG} s · custo {USD}",
     "s12_custo_desconhecido": "modelo sem preço no pricing.json",
     "interrompido": "Interrompido. Volta a correr o mesmo comando: os passos feitos são saltados.",
@@ -254,19 +258,16 @@
     "E-NET-04": {
       "titulo": "A empresa interceta o tráfego HTTPS (certificado próprio)",
       "so": "todos",
-      "causa": "Um site de que o setup precisa (api.anthropic.com, github.com ou pypi.org) mostra um certificado que não vem de uma autoridade pública: a rede da empresa abre e volta a cifrar o tráfego. O setup exporta os certificados da empresa para ~/.workshop-claude/ca.pem e configura o Claude Code e o uv para os usarem.",
+      "causa": "Um site de que o setup precisa (api.anthropic.com, github.com ou pypi.org) mostra um certificado que não vem de uma autoridade pública: a rede da empresa abre o tráfego e volta a cifrá-lo. O setup exporta os certificados da empresa do sistema para ~/.workshop-claude/ca-company.pem, junta o teu ~/.workshop-claude/ca.pem se o tiveres, e configura o Claude Code para os usar e o uv para usar os certificados do sistema.",
       "fazer": [
-        "Normalmente não precisas de fazer nada: o setup já configurou NODE_EXTRA_CA_CERTS e UV_SYSTEM_CERTS.",
-        "Se o teste final falhar com erro de certificado, pede ao IT o certificado raiz da empresa em formato PEM e guarda-o em ~/.workshop-claude/ca.pem. Depois volta a correr o setup.",
-        "Se a app Agent Memory falhar com um erro de certificado, instala o Python dela com os certificados do sistema (último comando abaixo) e volta a correr o setup."
+        "Normalmente não precisas de fazer nada: o setup já definiu NODE_EXTRA_CA_CERTS e UV_SYSTEM_CERTS.",
+        "Se o teste final ou a app Agent Memory continuarem a falhar com um erro de certificado, pede ao IT o certificado raiz da empresa em formato PEM e guarda-o como ~/.workshop-claude/ca.pem (o setup nunca escreve por cima desse ficheiro). Depois corre o setup outra vez."
       ],
       "mac": [
-        "security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem",
-        "UV_SYSTEM_CERTS=true uv python install {PYTHON_VERSION}"
+        "ls -l ~/.workshop-claude/ca.pem ~/.workshop-claude/ca-company.pem"
       ],
       "windows": [
-        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer",
-        "$env:UV_SYSTEM_CERTS = 'true'; uv python install {PYTHON_VERSION}"
+        "Get-ChildItem Cert:\\LocalMachine\\Root, Cert:\\CurrentUser\\Root | Select-Object Subject, Issuer"
       ]
     },
     "E-NET-05": {
@@ -344,6 +345,23 @@
       "windows": [
         "Get-ChildItem Env: | Where-Object Name -match 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS'",
         "[Environment]::SetEnvironmentVariable('SSL_CERT_FILE', $null, 'User')"
+      ]
+    },
+    "E-NET-10": {
+      "titulo": "O uv não confia no certificado da empresa",
+      "so": "todos",
+      "causa": "O download do Python da app (github.com) ou dos pacotes (pypi.org) falhou com um erro de certificado, mesmo com os certificados do sistema (UV_SYSTEM_CERTS) e com o ~/.workshop-claude/ca.pem, se o tiveres. O certificado raiz da empresa não está entre eles.",
+      "fazer": [
+        "Pede ao IT o certificado raiz da empresa em formato PEM e guarda-o como ~/.workshop-claude/ca.pem. O setup nunca escreve por cima desse ficheiro.",
+        "Depois corre o setup outra vez: ele passa esse certificado ao uv. Os comandos abaixo fazem o mesmo à mão. A app é opcional: as skills funcionam sem ela."
+      ],
+      "mac": [
+        "cat /etc/ssl/cert.pem ~/.workshop-claude/ca.pem > ~/.workshop-claude/ca-bundle-uv.pem",
+        "SSL_CERT_FILE=~/.workshop-claude/ca-bundle-uv.pem uv python install {PYTHON_VERSION}"
+      ],
+      "windows": [
+        "$env:SSL_CERT_FILE = \"$env:USERPROFILE\\.workshop-claude\\ca-bundle-uv.pem\"",
+        "uv python install {PYTHON_VERSION}"
       ]
     },
     "E-SO-01": {
@@ -631,6 +649,21 @@
         "Get-ChildItem Env: | Where-Object Name -match 'ANTHROPIC_.*MODEL|CLAUDE_CODE_SUBAGENT_MODEL'"
       ]
     },
+    "E-CFG-11": {
+      "titulo": "Os hooks do Claude Code estão desligados",
+      "so": "todos",
+      "causa": "O ~/.claude/settings.json tem \"disableAllHooks\": true. Assim o Claude Code não corre hooks nem a statusline, e os hooks de custo e a statusline do workshop não funcionam.",
+      "fazer": [
+        "Tira a linha \"disableAllHooks\": true do ~/.claude/settings.json, ou põe-na a false.",
+        "Depois abre uma sessão nova do Claude. Não precisas de correr o setup outra vez."
+      ],
+      "mac": [
+        "grep -n disableAllHooks ~/.claude/settings.json"
+      ],
+      "windows": [
+        "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern disableAllHooks"
+      ]
+    },
     "E-PERM-01": {
       "titulo": "Sem permissão para escrever na pasta pessoal",
       "so": "todos",
@@ -778,6 +811,22 @@
       "windows": [
         "node -e \"JSON.parse(require('fs').readFileSync(process.env.USERPROFILE + '/.claude.json', 'utf8'))\""
       ]
+    },
+    "E-CC-05": {
+      "titulo": "Um terminal novo corre outro claude",
+      "so": "mac",
+      "causa": "Um terminal novo não corre o Claude Code que o setup instalou (~/.local/bin/claude). Acima: o que o terminal corre. Vem primeiro um alias, uma função ou uma cópia antiga, muitas vezes o alias de 2025 para ~/.claude/local/claude, que já não existe.",
+      "fazer": [
+        "Encontra a linha alias claude= com o primeiro comando e apaga-a desse ficheiro.",
+        "Tira-o também deste terminal, abre um terminal novo e confirma que o claude --version mostra {CLAUDE_CODE_MIN_VERSION} ou mais recente."
+      ],
+      "mac": [
+        "grep -ns 'alias claude=' ~/.zshrc ~/.zprofile ~/.aliases ~/.zsh_aliases ~/.bashrc ~/.bash_profile ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/*.zsh",
+        "unalias claude",
+        "type -a claude",
+        "claude --version"
+      ],
+      "windows": []
     },
     "E-AUTH-01": {
       "titulo": "O Claude Code não tem login",
@@ -943,6 +992,37 @@
       ],
       "windows": [
         "Get-Command uv -All"
+      ]
+    },
+    "E-UV-03": {
+      "titulo": "Não consigo ler o ficheiro de definições do uv",
+      "so": "todos",
+      "causa": "O uv para porque o ficheiro de definições dele (acima, com a linha) tem um erro de sintaxe. A sintaxe do pip.conf ([global], index-url = ...) não é a do uv.toml: no uv.toml os valores levam aspas.",
+      "fazer": [
+        "Corrige o ficheiro, ou muda-lhe o nome (comando abaixo), e corre o setup outra vez.",
+        "A app Agent Memory é opcional: as skills funcionam sem ela."
+      ],
+      "mac": [
+        "mv ~/.config/uv/uv.toml ~/.config/uv/uv.toml.bak"
+      ],
+      "windows": [
+        "Rename-Item \"$env:APPDATA\\uv\\uv.toml\" uv.toml.bak"
+      ]
+    },
+    "E-UV-04": {
+      "titulo": "O mirror da empresa nas definições do uv não responde",
+      "so": "todos",
+      "causa": "As tuas definições do uv (acima: o ficheiro e o servidor) mandam o download do Python e dos pacotes da app para um servidor da empresa (python-install-mirror ou um index), e esse servidor não responde. Normalmente só responde na VPN.",
+      "fazer": [
+        "Liga a VPN e corre o setup outra vez.",
+        "Ou corre o setup uma vez sem as tuas definições do uv (comando abaixo). A app é opcional: as skills funcionam sem ela."
+      ],
+      "mac": [
+        "curl -fsSL {SETUP_MAC_URL} | UV_NO_CONFIG=1 bash"
+      ],
+      "windows": [
+        "$env:UV_NO_CONFIG = '1'",
+        "{ONE_LINER_WINDOWS}"
       ]
     },
     "E-GH-01": {
@@ -1388,6 +1468,39 @@
       ],
       "mac": [],
       "windows": []
+    },
+    "E-SMOKE-05": {
+      "titulo": "Um hook teu bloqueou o pedido de teste",
+      "so": "todos",
+      "causa": "Um hook nas definições do Claude Code (~/.claude/settings.json, ou um gerido pela empresa) bloqueou o pedido antes de chegar ao Claude. Acima: o evento (normalmente UserPromptSubmit) e o motivo do hook. Todos os prompts do workshop seriam bloqueados da mesma maneira.",
+      "fazer": [
+        "Faz o que a mensagem do hook pede, ou pede a quem criou esse hook que deixe passar os prompts do workshop.",
+        "Ou tira esse hook do ~/.claude/settings.json durante o workshop (o comando abaixo mostra-o) e corre o setup outra vez."
+      ],
+      "mac": [
+        "grep -n -A12 '\"hooks\"' ~/.claude/settings.json"
+      ],
+      "windows": [
+        "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern '\"hooks\"' -Context 0,12"
+      ]
+    },
+    "E-SMOKE-06": {
+      "titulo": "Um hook teu faz o Claude ficar à espera",
+      "so": "todos",
+      "causa": "Com os teus hooks (acima: os eventos e o ficheiro), o Claude não respondeu a tempo. Sem eles respondeu, por isso o login e a rede estão bem. Um hook como o SessionStart está à espera de alguma coisa, muitas vezes um servidor que só responde na VPN, e todas as sessões do Claude no workshop iam esperar por ele também.",
+      "fazer": [
+        "Liga a VPN se o hook precisar dela, ou dá a esse hook um \"timeout\" curto (em segundos).",
+        "Ou tira esse hook do ~/.claude/settings.json durante o workshop (o primeiro comando mostra-o) e corre o setup outra vez.",
+        "O segundo comando testa o Claude sem os teus hooks."
+      ],
+      "mac": [
+        "grep -n -A12 '\"hooks\"' ~/.claude/settings.json",
+        "claude -p \"Reply in English with only the word OK\" --model claude-haiku-5-5 --settings '{\"disableAllHooks\":true}'"
+      ],
+      "windows": [
+        "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern '\"hooks\"' -Context 0,12",
+        "claude -p \"Reply in English with only the word OK\" --model claude-haiku-5-5 --settings '{\\\"disableAllHooks\\\":true}'"
+      ]
     },
     "E-GIT-04": {
       "titulo": "O download do git portátil está corrompido",

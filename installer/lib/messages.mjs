@@ -59,7 +59,7 @@ const TXT = {
     proxyLinhas: [
       '- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY` no `env` do `~/.claude/settings.json`. O `NO_PROXY` mantém o valor que já lá estava e junta `localhost,127.0.0.1`, as entradas do teu `NO_PROXY` e as exceções do proxy do sistema (os endereços que não passam pelo proxy; no Windows, também os servidores que o PAC manda direto).',
       '- Se voltares a correr o setup numa rede sem esse proxy (por exemplo, no local do workshop depois de instalar no escritório), ele tira o `HTTPS_PROXY` e o `NO_PROXY` que gravou (ver `E-NET-08`). De volta ao escritório, corre o setup outra vez.',
-      '- Se a empresa intercetar o HTTPS, o setup exporta as raízes da empresa para `~/.workshop-claude/ca.pem` e define `NODE_EXTRA_CA_CERTS` e `UV_SYSTEM_CERTS=true`.',
+      '- Se a empresa intercetar o HTTPS, o setup exporta as raízes da empresa para `~/.workshop-claude/ca-company.pem` (com o teu `~/.workshop-claude/ca.pem`, se o tiveres; o setup nunca o escreve) e define `NODE_EXTRA_CA_CERTS` e `UV_SYSTEM_CERTS=true`.',
       '- Proxies só com NTLM ou Kerberos não são suportados (ver `E-NET-06`).',
     ],
   },
@@ -85,7 +85,7 @@ const TXT = {
     proxyLinhas: [
       '- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` in the `env` of `~/.claude/settings.json`. `NO_PROXY` keeps the value that was already there and adds `localhost,127.0.0.1`, your own `NO_PROXY` entries and the exceptions of the system proxy (the addresses that skip the proxy; on Windows, also the servers that the PAC file sends direct).',
       '- If you run the setup again on a network without that proxy (for example, at the workshop venue after installing at the office), it removes the `HTTPS_PROXY` and `NO_PROXY` it saved (see `E-NET-08`). Back at the office, run the setup again.',
-      '- If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca.pem` and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.',
+      '- If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca-company.pem` (together with your `~/.workshop-claude/ca.pem`, if you have one; the setup never writes it) and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.',
       '- Proxies that only accept NTLM or Kerberos are not supported (see `E-NET-06`).',
     ],
   },

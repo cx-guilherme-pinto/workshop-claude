@@ -146,9 +146,9 @@ eq "$(ws_memory_wheel 0.5.0 "$WS_TMP/sums")" agent_memory-0.5.0-py3-none-any.whl
 eq "$(ws_memory_wheel 0.4.1 "$WS_TMP/sums")" memoria-0.4.1-py3-none-any.whl "wheel antigo quando nao esta no SHA256SUMS"
 CM="$WS_TMP/cm"; mkdir -p "$CM/ws"; : > "$CM/memoria"
 printf '#!/bin/sh\nd=%s\ncase "$1 $2" in\n "mcp get") [ -f "$d/$3" ] && cat "$d/$3";;\n "mcp remove") rm -f "$d/$5";;\n "mcp add") printf "%%s\\n" "$*" > "$d/$5";;\nesac\n' "$CM" > "$CM/claude"; chmod +x "$CM/claude"
-( WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1
+( CLAUDE_CONFIG_DIR="$CM/sem-claude-json"; WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1
 [ ! -f "$CM/memoria" ] && grep -q 'mcp add --scope user agent-memory -e PYTHONHOME= -e PYTHONPATH= -e PYTHONSTARTUP= -- /u/bin/agent-memory mcp' "$CM/agent-memory" && ok || ko "mcp: o registo memoria sai e entra agent-memory"
-( WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1; eq "$(grep -c . "$CM/agent-memory")" 1 "mcp: ja registado com o mesmo programa, nao muda"
+( CLAUDE_CONFIG_DIR="$CM/sem-claude-json"; WS_CLAUDE="$CM/claude"; WS_HOME="$CM/ws"; KIT_SRC=""; WS_STEP_LOG="$WS_TMP/s10.log"; ws_memory_mcp /u/bin/agent-memory ) >/dev/null 2>&1; eq "$(grep -c . "$CM/agent-memory")" 1 "mcp: ja registado com o mesmo programa, nao muda"
 
 # --- passo 9: migracao do projeto de treino e da tag da Arena (sem perder trabalho)
 M9="$WS_TMP/m9"; mkdir -p "$M9/demo-project" "$M9/exemplo-projeto-real"; : > "$M9/demo-project/.arena-kit.json"; : > "$M9/exemplo-projeto-real/.sandbox-kit.json"; printf 'meu\n' > "$M9/exemplo-projeto-real/trabalho.txt"
@@ -555,7 +555,7 @@ dd if=/dev/zero of="$G3/big" bs=1024 count=2048 2>/dev/null
 ( WS_HB_EVERY=1; ws_hb_start "$G3/big"; p=$WS_HB; sleep 2.5; ws_hb_stop; sleep 0.2; kill -0 "$p" 2>/dev/null && echo VIVO ) > "$G3/hb" 2>&1
 grep -q 'Still downloading… 2.0 MB so far.' "$G3/hb" && ! grep -q VIVO "$G3/hb" && ok || ko "g3: progresso do download e sem processo deixado para tras [$(cat "$G3/hb")]"
 ( HOME="$G3/h"; unset CURL_HOME XDG_CONFIG_HOME; printf 'proxy = "http://p.corp:8080"' > "$HOME/.curlrc"; d=$(ws_curl_home); cat "$d/.curlrc"; CURL_HOME=$d /usr/bin/curl -sS -o /dev/null "file://$G3/p1" 2>&1 ) > "$G3/r"
-grep -qx 'proxy = "http://p.corp:8080"' "$G3/r" && grep -qx 'speed-time = 60' "$G3/r" && [ "$(tail -n 1 "$G3/r")" = "retry = 2" ] && ok || ko "g3: curlrc dos instaladores = o da pessoa + limites [$(cat "$G3/r")]"
+! grep -q 'p.corp' "$G3/r" && grep -qx 'speed-time = 60' "$G3/r" && [ "$(tail -n 1 "$G3/r")" = "retry = 2" ] && ok || ko "g3: curlrc dos instaladores = so os limites do setup, sem o da pessoa [$(cat "$G3/r")]"
 ( WS_STEP_LOG="$G3/inst.log"; printf 'curl: (6) Could not resolve host: antes.test\n' > "$WS_STEP_LOG"; n0=$(wc -c < "$WS_STEP_LOG")
   printf 'curl: (28) Operation too slow. Less than 1024 bytes/sec transferred the last 60 seconds\nDownload failed\n' >> "$WS_STEP_LOG"; a=$(ws_installer_net_code "$n0")
   printf 'curl: (6) Could not resolve host: downloads.claude.ai\n' > "$WS_STEP_LOG"; b=$(ws_installer_net_code 0)
@@ -666,7 +666,7 @@ E-AUTH-05|http://127.0.0.1:9/" "passo 0: gateway do settings.json que nao respon
 eq "$(g4 'WS_CUR=0; SW_0=""; ws_gw_detect; printf "%s|%s" "$WS_GW_DOWN" "$SW_0"')" "0|" "passo 0: sem gateway"
 eq "$(grep -c '^  ws_gw_detect$' "$ROOT/setup/setup-mac.sh")" 1 "passo 0: o gateway e testado uma so vez (depois do proxy)"
 # passo 3: Bedrock/Vertex pelo apiProvider -> falha E-CFG-04 sem oferecer o login; a origem da chave no aviso E-AUTH-03
-eq "$(G4_PROVIDER=bedrock G4_METHOD=third_party g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=install; WS_AUTH_OK=0; ws_s3_detect; r=$?; SF_3=""; ws_s3_install; printf "%s|%s|%s" "$r$?" "$SF_3" "$WS_AUTH_OK"')" "11|E-CFG-04|bedrock: managed settings|0" "passo 3: apiProvider bedrock -> E-CFG-04"
+eq "$(G4_PROVIDER=bedrock G4_METHOD=third_party g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=install; WS_AUTH_OK=0; ws_s3_detect; r=$?; SF_3=""; ws_s3_install; printf "%s|%s|%s" "$r$?" "$SF_3" "$WS_AUTH_OK"')" "11|E-CFG-04|bedrock: Claude Code settings|0" "passo 3: apiProvider bedrock -> E-CFG-04"
 eq "$(G4_METHOD=api_key G4_SOURCE=ANTHROPIC_API_KEY g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=check; SW_3=""; ws_s3_detect; printf "%s|%s" "$?" "$SW_3"')" "0|E-AUTH-03|ANTHROPIC_API_KEY" "passo 3: E-AUTH-03 diz a variavel"
 # passo 2: ~/.claude.json invalido para antes de qualquer comando do Claude Code (node e JXA)
 mkdir -p "$G4/cj"
@@ -687,7 +687,7 @@ eq "$(g4 'CLAUDE_CONFIG_DIR="$G4/cdir"; C_CLAUDE_INSTALL_SH_URL="file://$G4/inst
 printf 'atlassian:\n  Scope: User config\n  Status: ! Needs authentication\n  Type: sse\n  URL: https://mcp.atlassian.com/v1/sse\n' > "$G4/mcp-atlassian"
 printf 'agent-memory:\n  Scope: User config\n  Status: x Failed to connect\n  Type: stdio\n  Command: /Users/old user/.local/bin/agent-memory\n  Args: mcp\n' > "$G4/mcp-agent-memory"
 printf '#!/bin/sh\ncase "$1" in --version) echo "acli version 9.9.9-stable";; *) exit 0;; esac\n' > "$G4/bin/acli"; chmod +x "$G4/bin/acli"
-mcp() { g4 'WS_CLAUDE="$G4/claude"; WS_TMO_MCP=10; C_ATLASSIAN_MCP_URL=https://mcp.atlassian.com/v2/mcp; WS_HOME="$G4/ws"; KIT_SRC=""; WS_SIM=1; PATH="$G4/bin:$PATH"; '"$1"; }
+mcp() { g4 'CLAUDE_CONFIG_DIR="$G4/sem-claude-json"; WS_CLAUDE="$G4/claude"; WS_TMO_MCP=10; C_ATLASSIAN_MCP_URL=https://mcp.atlassian.com/v2/mcp; WS_HOME="$G4/ws"; KIT_SRC=""; WS_SIM=1; PATH="$G4/bin:$PATH"; '"$1"; }
 eq "$(mcp 'ws_mcp_get atlassian; ws_s7_url_ok; printf "%s|%s" "$?" "$(ws_mcp_field URL)"')" "1|https://mcp.atlassian.com/v1/sse" "s7: atlassian SSE antigo nao conta como feito"
 eq "$(mcp 'WS_CUR=7; WS_MODE=check; ws_s7_detect >/dev/null; printf "%s" "$SF_7"')" "E-MCP-01|atlassian: https://mcp.atlassian.com/v1/sse" "s7 check: registo antigo -> E-MCP-01 com o URL"
 eq "$(mcp 'WS_CUR=7; WS_MODE=install; SN_7=""; SF_7=""; ws_s7_install >/dev/null; printf "%s|%s|" "$?" "$SF_7"; printf "%s" "$SN_7" | grep -c "pointed to https://mcp.atlassian.com/v1/sse"')" "0||1" "s7 install: troca o registo antigo, com uma nota"
@@ -1247,6 +1247,151 @@ grep -q '"codigo \$rc"' "$ROOT/setup/setup-mac.sh" && ko "R1 teste final: detalh
 for c in E-NET-09 E-SO-09 E-SO-10 E-CFG-08 E-CFG-09 E-CFG-10 E-NODE-03 E-MEM-08 E-MEM-09 E-MEM-10; do
   [ -n "$(ws_err_field "$c" titulo)" ] && grep -q "\"$c\"" "$ROOT/setup/messages.pt.json" && ok || ko "R1 catalogo: $c"
 done
+# --- chaos round 2 R2-cfg-auth
+R2="$WS_TMP/r2cfg"; mkdir -p "$R2/bin" "$R2/h" "$R2/t" "$R2/cd" "$R2/cj"
+# curl -q em todos os curl do setup (o ~/.curlrc da pessoa nao conta); so ficam de fora o texto de ajuda e o log
+eq "$(grep -nE '(^|[^-a-z_])curl -' "$ROOT/setup/setup-mac.sh" | grep -v 'curl -q ' | grep -vE '^[0-9]+:[[:space:]]*#|<url>|D_ONE_LINER_MAC=' | head -n 3)" "" "r2 curlrc: todos os curl do setup comecam por -q"
+printf 'max-filesize = 1\nnetrc-optional\nproxy = "http://proxy.corp.invalid:8080"\n' > "$R2/h/.curlrc"; printf 'conteudo do ficheiro\n' > "$R2/f.txt"
+( HOME="$R2/h"; unset CURL_HOME XDG_CONFIG_HOME; curl -fsS -o /dev/null "file://$R2/f.txt" 2>/dev/null ) && ko "r2 curlrc: o curl sem -q devia ler o ~/.curlrc do teste" || ok
+( HOME="$R2/h"; unset CURL_HOME XDG_CONFIG_HOME; WS_STEP_LOG="$R2/dl.log"; WS_LOG="$R2/dl-setup.log"; ws_dl "file://$R2/f.txt" "$R2/o.txt"; printf '%s|%s' "$?" "$(cat "$R2/o.txt" 2>/dev/null)" ) > "$R2/r"
+eq "$(cat "$R2/r")" "0|conteudo do ficheiro" "r2 curlrc: ws_dl ignora o max-filesize/proxy/netrc do ~/.curlrc"
+eq "$(HOME="$R2/h"; unset CURL_HOME XDG_CONFIG_HOME; ws_curlrc_proxy)" "http://proxy.corp.invalid:8080" "r2 curlrc: proxy = \"...\""
+for c in 'proxy http://a.corp:3128|http://a.corp:3128' '--proxy=http://b.corp:80|http://b.corp:80' '-x socks5h://c:1080|socks5h://c:1080' 'socks5-hostname = "d:1080"|d:1080' '# proxy = http://nao|' 'noproxy = "*"|'; do
+  printf '%s\n' "${c%%|*}" > "$R2/h/.curlrc"
+  eq "$(HOME="$R2/h"; unset CURL_HOME XDG_CONFIG_HOME; ws_curlrc_proxy)" "${c#*|}" "r2 curlrc: ${c%%|*}"
+done
+printf '#!/bin/sh\nexit 0\n' > "$R2/bin/scutil"; chmod +x "$R2/bin/scutil"; printf 'proxy = "http://proxy.corp.invalid:8080"\n' > "$R2/h/.curlrc"
+( HOME="$R2/h"; PATH="$R2/bin:$PATH"; unset CURL_HOME XDG_CONFIG_HOME HTTPS_PROXY https_proxy ALL_PROXY all_proxy; WS_CUR=0; SN_0=""; WS_STEP_LOG="$R2/p.log"; ws_detect_proxy; printf '%s|%s|%s' "$WS_PROXY" "$WS_PROXY_DEAD" "$SN_0" ) > "$R2/r"
+case "$(cat "$R2/r")" in "|0|~/.curlrc sets a proxy (http://proxy.corp.invalid:8080)."*HTTPS_PROXY*) ok ;; *) ko "r2 curlrc: nota com o proxy do ~/.curlrc, que nao se usa [$(cat "$R2/r")]" ;; esac
+( HOME="$R2/h"; d=$(ws_curl_home); cat "$d/.curlrc" ) > "$R2/r"
+! grep -qE 'proxy|netrc|max-filesize' "$R2/r" && grep -qx 'retry = 2' "$R2/r" && ok || ko "r2 curlrc: o curlrc dos instaladores so tem os limites do setup"
+( WS_STEP_LOG="$R2/inst.log"; : > "$WS_STEP_LOG"
+  printf 'curl: (28) Operation timed out after 15000 milliseconds with 62847444 out of 267956720 bytes received\n' >> "$WS_STEP_LOG"; a=$(ws_installer_net_code 0)
+  : > "$WS_STEP_LOG"; printf 'curl: (28) Operation timed out after 15000 milliseconds with 0 out of 0 bytes received\n' >> "$WS_STEP_LOG"; b=$(ws_installer_net_code 0)
+  printf '%s|%s' "$a" "$b" ) > "$R2/r"
+eq "$(cat "$R2/r")" "E-NET-07|E-NET-01" "r2 curlrc: corte a meio (bytes recebidos) = E-NET-07; sem bytes nao"
+
+# passo 12: hooks da pessoa (bloqueio = E-SMOKE-05; SessionStart preso = 2.a tentativa sem hooks e E-SMOKE-06)
+CDS="$R2/cd/settings.json"
+cat > "$R2/bin/claude" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "$R2/claude.args"
+case "\$*" in
+  *no-hooks.json*) printf '%s' "\$R2_NOHOOKS" ;;
+  *) [ -n "\$R2_SLEEP" ] && sleep "\$R2_SLEEP"; printf '%s' "\$R2_OUT" ;;
+esac
+EOF
+chmod +x "$R2/bin/claude"
+r2s12() { ( export R2_OUT R2_NOHOOKS R2_SLEEP; WS_NODE=$NODE; WS_CLAUDE="$R2/bin/claude"; WS_TMP="$R2/t"; CLAUDE_DIR="$R2/cd"; WS_STEP_LOG="$R2/s12.log"; WS_LOG="$R2/s12-setup.log"; WS_CUR=12; SF_12=""; SD_12=""; WS_GW_DOWN=0; WS_GW_URL=""; WS_TMO_SMOKE=${R2_TMO:-20}
+  ws_settings_proxy_dead() { return 1; }; ws_say() { :; }
+  ws_s12_install; printf '%s|%s|%s' "$?" "$SF_12" "$SD_12" ); }
+printf '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"/opt/corp/ticket-check.sh"}]}]}}\n' > "$CDS"; : > "$R2/claude.args"
+o=$(R2_OUT='{"type":"result","subtype":"success","is_error":false,"num_turns":0,"result":"UserPromptSubmit operation blocked by hook:\nCompany policy: every prompt needs a ticket id (ABC-123)\n\nOriginal prompt: Reply in English with only the word OK","modelUsage":{}}' R2_NOHOOKS="" r2s12)
+eq "$o" "1|E-SMOKE-05|UserPromptSubmit: Company policy: every prompt needs a ticket id (ABC-123)|" "r2 s12: hook UserPromptSubmit que bloqueia = E-SMOKE-05, nao Done"
+o=$(R2_OUT='{"type":"result","subtype":"success","is_error":false,"num_turns":0,"result":"","modelUsage":{}}' r2s12); eq "$(printf '%s' "$o" | cut -d'|' -f1-3)" "1|E-SMOKE-01|no reply from the model (0 turns)" "r2 s12: 0 turnos sem hook conhecido = E-SMOKE-01"
+o=$(R2_OUT='{"type":"result","subtype":"success","is_error":false,"num_turns":1,"result":"OK","modelUsage":{"claude-haiku-5-5":{"inputTokens":10,"outputTokens":1}}}' r2s12); eq "$(printf '%s' "$o" | cut -d'|' -f1-2)" "0|" "r2 s12: resposta normal continua Done"
+o=$(R2_OUT='{"type":"result","is_error":false,"result":"OK","modelUsage":{}}' r2s12); eq "$(printf '%s' "$o" | cut -d'|' -f1-2)" "0|" "r2 s12: sem num_turns (versao antiga) continua Done"
+printf '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"cd ~/notes && sleep 600","timeout":600}]}],"Stop":[{"hooks":[{"type":"command","command":"\\"/u/n\\" \\"/u/.workshop-claude/kit/hooks/stop.mjs\\""}]}]}}\n' > "$CDS"
+eq "$(WS_NODE=$NODE; CLAUDE_DIR="$R2/cd"; ws_user_hooks)" "SessionStart" "r2 s12: ws_user_hooks ignora os hooks do kit"
+: > "$R2/claude.args"
+t0=$(date +%s); o=$(R2_TMO=2 R2_SLEEP=30 R2_OUT='x' R2_NOHOOKS='{"type":"result","is_error":false,"num_turns":1,"result":"OK","modelUsage":{}}' r2s12); t1=$(date +%s)
+eq "$(printf '%s' "$o" | cut -d'|' -f1-2)" "1|E-SMOKE-06" "r2 s12: SessionStart preso, sem hooks responde = E-SMOKE-06"
+case "$o" in *"SessionStart · "*settings.json*) ok ;; *) ko "r2 s12: E-SMOKE-06 diz o evento e o ficheiro [$o]" ;; esac
+[ $((t1 - t0)) -lt 15 ] && [ "$(grep -c . "$R2/claude.args")" = 2 ] && grep -q 'no-hooks.json' "$R2/claude.args" && [ "$(cat "$R2/t/no-hooks.json")" = '{"disableAllHooks":true}' ] && ok || ko "r2 s12: uma so 2.a tentativa, com --settings sem hooks [$(cat "$R2/claude.args")]"
+printf '{"model":"sonnet"}\n' > "$CDS"; : > "$R2/claude.args"
+o=$(R2_TMO=2 R2_SLEEP=30 R2_OUT='x' R2_NOHOOKS='{"is_error":false,"num_turns":1,"result":"OK"}' r2s12); eq "$(printf '%s' "$o" | cut -d'|' -f1-3)" "1|E-SMOKE-01|no answer in 2 s" "r2 s12: sem hooks da pessoa nao ha 2.a tentativa"
+eq "$(grep -c . "$R2/claude.args")" 1 "r2 s12: sem hooks da pessoa, um so claude -p"
+: > "$R2/claude.args"; printf 'pedido\n' > "$R2/p.txt"
+( export R2_NOHOOKS='{}'; WS_CLAUDE="$R2/bin/claude"; WS_TMP="$R2/t"; WS_LOG="$R2/h.log"; WS_GW_DOWN=0; ws_helper_call "$R2/p.txt" "$R2/o.json" '{"type":"object"}' 5 )
+grep -q -- '--settings .*no-hooks.json' "$R2/claude.args" && ok || ko "r2 helper: o ajudante corre sem os hooks da pessoa [$(cat "$R2/claude.args")]"
+grep -q 'E-GH-02|E-GH-03|E-SMOKE-05|E-SMOKE-06) return 1' "$ROOT/setup/setup-mac.sh" && ok || ko "r2 helper: E-SMOKE-05/06 nao oferecem o ajudante"
+
+# passo 8: disableAllHooks (E-CFG-11), itens da pessoa com o nome de um do kit (nota) e --replace-statusline
+( HOME="$R2/h"; CLAUDE_DIR="$R2/h/.claude"; WS_CUR=8; SW_8=""; SN_8=""; ws_s8_parse "$(printf 'skills\t7\nagentes\t6\naviso\tE-CFG-11\nalheio\t%s/h/.workshop-claude/backup/2026/skills/memory\n' "$R2")"; printf '%s|%s' "$SW_8" "$SN_8" ) > "$R2/r"
+case "$(cat "$R2/r")" in "E-CFG-11|~/.claude/settings.json: disableAllHooks"*"Your memory has the same name as one in the kit: it is saved in ~/.workshop-claude/backup/2026/skills"*) ok ;; *) ko "r2 s8: aviso E-CFG-11 e nota do item da pessoa [$(cat "$R2/r")]" ;; esac
+r2s8() { ( WS_MODE=$1; WS_SUBST_SL=$2; WS_CUR=8; SW_8=""; SN_8=""; SF_8=""; WS_STEP_LOG="$R2/s8.log"; ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }
+  ws_iu() { printf 'ok\t1\nskills\t7\nagentes\t6\nstatusline\talheia\naviso\tE-CFG-06\n'; }; ws_s8_detect; printf '%s' "$?" ); }
+eq "$(r2s8 install 1)$(r2s8 install 0)$(r2s8 check 1)" "100" "r2 s8: --replace-statusline com uma statusline alheia instala (so no install)"
+
+# passos 7 e 10: o registo do ~/.claude.json decide, sem o "mcp get" (que arranca um stdio antigo)
+cat > "$R2/bin/claude-mcp" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "$R2/mcp.calls"
+j="$R2/cj/.claude.json"
+case "\$1 \$2" in
+  "mcp get") grep -q v2/mcp "\$j" && echo "  URL: https://mcp.atlassian.com/v2/mcp" && exit 0; exit 1 ;;
+  "mcp remove") echo '{"mcpServers":{}}' > "\$j" ;;
+  "mcp add") echo '{"mcpServers":{"atlassian":{"type":"http","url":"https://mcp.atlassian.com/v2/mcp"}}}' > "\$j" ;;
+esac
+exit 0
+EOF
+chmod +x "$R2/bin/claude-mcp"
+printf '{"numStartups":3,"mcpServers":{"atlassian":{"type":"stdio","command":"npx","args":["-y","mcp-remote","https://mcp.atlassian.com/v1/sse","--header","Authorization: Bearer segredo123","--api-token=abc"]},"agent-memory":{"type":"stdio","command":"/u/bin/agent-memory","args":["mcp"]}}}\n' > "$R2/cj/.claude.json"
+r2mcp() { ( CLAUDE_CONFIG_DIR="$R2/cj"; WS_CLAUDE="$R2/bin/claude-mcp"; WS_NODE=$NODE; WS_TMO_MCP=5; C_ATLASSIAN_MCP_URL=https://mcp.atlassian.com/v2/mcp; WS_STEP_LOG="$R2/mcp.log"; WS_LOG="$R2/mcp-setup.log"; ws_registar() { :; }; eval "$1" ); }
+for engine in node jxa; do
+  if [ "$engine" = node ]; then [ -n "$NODE" ] || continue; E=$NODE; else command -v osascript >/dev/null || continue; E=""; fi
+  : > "$R2/mcp.calls"
+  eq "$(r2mcp 'WS_NODE=$E; WS_CUR=7; WS_MODE=check; SF_7=""; ws_s7_detect >/dev/null; printf "%s" "$SF_7"')" "E-MCP-01|atlassian: npx -y mcp-remote https://mcp.atlassian.com/v1/sse --header *** --api-token=***" "r2 s7 $engine: registo stdio antigo lido do ~/.claude.json, sem segredos"
+  eq "$(grep -c 'mcp get' "$R2/mcp.calls")" 0 "r2 s7 $engine: o registo antigo nao foi arrancado (sem mcp get)"
+  eq "$(r2mcp 'WS_NODE=$E; ws_memory_mcp_ok /u/bin/agent-memory; printf "%s|" "$?"; ws_memory_mcp_ok /outro/agent-memory; printf "%s" "$?"')" "0|1" "r2 s10 $engine: agent-memory decidido pelo ~/.claude.json"
+  eq "$(grep -c 'mcp get' "$R2/mcp.calls")" 0 "r2 s10 $engine: sem mcp get"
+done
+: > "$R2/mcp.calls"
+r2mcp 'WS_CUR=7; WS_MODE=install; SN_7=""; SF_7=""; ws_s7_detect >/dev/null; ws_s7_acli() { return 0; }; ws_acli() { echo acli; }; ws_s7_install >/dev/null; printf "%s|%s" "$?" "$SN_7"' > "$R2/r"
+grep -q 'mcp remove --scope user atlassian' "$R2/mcp.calls" && grep -q 'mcp add --transport http --scope user atlassian https://mcp.atlassian.com/v2/mcp' "$R2/mcp.calls" && grep -q '^0|.*pointed to npx -y mcp-remote' "$R2/r" && ok || ko "r2 s7 install: troca o registo antigo sem o voltar a ler [$(cat "$R2/r") / $(cat "$R2/mcp.calls")]"
+
+# passo 3: o "auth status" corre na pasta temporaria (o .claude/settings.json da pasta atual pode ligar o Bedrock)
+cat > "$R2/bin/claude-auth" <<EOF
+#!/bin/sh
+pwd -P > "$R2/auth.pwd"
+printf '{"loggedIn":true,"apiProvider":"firstParty"}'
+EOF
+chmod +x "$R2/bin/claude-auth"
+( cd "$R2/h" && WS_CLAUDE="$R2/bin/claude-auth"; WS_TMP="$R2/t"; WS_STEP_LOG="$R2/auth.log"; WS_LOG="$R2/auth-setup.log"; ws_auth_read )
+eq "$(cat "$R2/auth.pwd")" "$(cd "$R2/t" && pwd -P)" "r2 s3: claude auth status na pasta temporaria"
+
+# passo 10: definicoes do uv da pessoa (E-UV-03/04) e o certificado da empresa (UV_SYSTEM_CERTS, depois ca.pem, E-NET-10)
+mkdir -p "$R2/uvh/.config/uv"
+printf '[global]\nindex-url = https://artifactory.corp/api/pypi/simple\n' > "$R2/uvh/.config/uv/uv.toml"
+printf 'error: Failed to parse: `.config/uv/uv.toml`\n  Caused by: TOML parse error at line 2, column 13\n' > "$R2/uv1.log"
+eq "$(cd "$R2/uvh" && HOME="$R2/uvh"; unset XDG_CONFIG_HOME UV_CONFIG_FILE; WS_STEP_LOG="$R2/uv1.log"; ws_uv_config_cause; printf '%s|%s|%s' "$?" "$WS_UV_CFG" "$WS_UV_CFG_DETAIL")" "0|E-UV-03|~/.config/uv/uv.toml · TOML parse error at line 2, column 13" "r2 uv: erro de sintaxe no uv.toml = E-UV-03 com o caminho e a linha"
+printf 'python-install-mirror = "http://10.255.255.1/artifactory/github"\n' > "$R2/uvh/.config/uv/uv.toml"
+printf 'error: Failed to download http://10.255.255.1/artifactory/github/x/cpython-3.12.tar.gz\n  Caused by: operation timed out\n' > "$R2/uv2.log"
+eq "$(cd "$R2/uvh" && HOME="$R2/uvh"; unset XDG_CONFIG_HOME UV_CONFIG_FILE; WS_STEP_LOG="$R2/uv2.log"; ws_uv_config_cause; printf '%s|%s|%s' "$?" "$WS_UV_CFG" "$WS_UV_CFG_DETAIL")" "0|E-UV-04|~/.config/uv/uv.toml · 10.255.255.1" "r2 uv: mirror do uv.toml que nao responde = E-UV-04"
+printf 'error: Failed to fetch: `https://pypi.org/simple/x/`\n' > "$R2/uv3.log"
+eq "$(cd "$R2/uvh" && HOME="$R2/uvh"; unset XDG_CONFIG_HOME UV_CONFIG_FILE; WS_STEP_LOG="$R2/uv3.log"; ws_uv_config_cause; printf '%s' "$?")" "1" "r2 uv: um servidor que nao esta no uv.toml nao e da config"
+r2s10() { ( WS_CUR=10; HOME="$R2/uvh"; unset XDG_CONFIG_HOME UV_CONFIG_FILE; cd "$R2/uvh" || exit; WS_HOME="$R2/ws10"; mkdir -p "$WS_HOME"; WS_TMP="$R2/t"; WS_STEP_LOG="$R2/s10.log"; : > "$WS_STEP_LOG"; WS_LOG="$R2/s10-setup.log"; C_MEMORY_APP_VERSION=v0.5.0; SF_10=""; UV_SYSTEM_CERTS=$1
+  rm -f "$R2/uvh/.config/uv/uv.toml"; : > "$R2/uv.calls"
+  ws_release_url() { printf 'file:///nada/%s' "$2"; }; ws_say() { :; }
+  ws_dl() { printf '%s  agent_memory-0.5.0-py3-none-any.whl\n%s  constraints.txt\n' aaaa bbbb > "$2"; }
+  ws_dl_check() { : > "$2"; }
+  ws_uv_tool_install() { printf 'certs=%s ssl=%s\n' "${UV_SYSTEM_CERTS:-}" "${SSL_CERT_FILE:+bundle}" >> "$R2/uv.calls"
+    [ -n "${SSL_CERT_FILE:-}" ] && grep -q 'CA DO IT' "$SSL_CERT_FILE" && return 0
+    echo 'error: invalid peer certificate: UnknownIssuer' >> "$WS_STEP_LOG"; return 1; }
+  ws_memory_bin() { return 1; }; ws_registar() { :; }; WS_UV=/usr/bin/false
+  ws_s10_install >/dev/null; printf '%s|%s' "$SF_10" "$(tr '\n' ';' < "$R2/uv.calls")" ); }
+eq "$(r2s10 "")" "E-NET-10|uv: github.com / pypi.org|certs= ssl=;certs=true ssl=;" "r2 uv: sem ca.pem, UV_SYSTEM_CERTS e depois E-NET-10 (nao o E-NET-04 circular)"
+mkdir -p "$R2/ws10"; printf -- '-----BEGIN CERTIFICATE-----\nCA DO IT\n-----END CERTIFICATE-----\n' > "$R2/ws10/ca.pem"
+eq "$(r2s10 true)" "E-MEM-03|agent-memory|certs=true ssl=;certs=true ssl=bundle;" "r2 uv: com o ca.pem do IT, o uv recebe-o pelo SSL_CERT_FILE"
+# passo 0: o ~/.workshop-claude/ca.pem e da pessoa: o setup nunca o escreve, junta-o ao do Keychain
+printf '#!/bin/sh\nexit 0\n' > "$R2/bin/curl"; printf '#!/bin/sh\nprintf -- "-----BEGIN CERTIFICATE-----\\nKEYCHAIN\\n-----END CERTIFICATE-----\\n"\n' > "$R2/bin/security"; chmod +x "$R2/bin/curl" "$R2/bin/security"
+( PATH="$R2/bin:$PATH"; HOME="$R2/h"; WS_HOME="$R2/ws10"; WS_CUR=0; SN_0=""; SW_0=""; WS_STEP_LOG="$R2/tls.log"; WS_FORCAR_EMISSOR="CN=Corp Root"; ws_detect_tls; printf '%s' "$WS_CA_PEM" ) > "$R2/r"
+eq "$(cat "$R2/r")|$(grep -c 'CA DO IT' "$R2/ws10/ca.pem")|$(grep -c KEYCHAIN "$R2/ws10/ca.pem")|$(grep -c 'CA DO IT' "$R2/ws10/ca-company.pem")|$(grep -c KEYCHAIN "$R2/ws10/ca-company.pem")" "$R2/ws10/ca-company.pem|1|0|1|1" "r2 tls: ca.pem fica intacto; ca-company.pem = Keychain + ca.pem"
+
+# passo 4: o claude que um terminal novo corre (um alias noutro ficheiro, para o ~/.claude/local apagado = E-CC-05)
+if [ -n "$NODE" ] && [ -x /bin/zsh ]; then
+  mkdir -p "$R2/nt/.local/bin"; printf '#!/bin/sh\necho "2.1.292 (Claude Code)"\n' > "$R2/nt/.local/bin/claude"; chmod +x "$R2/nt/.local/bin/claude"
+  printf 'export PATH="$HOME/.local/bin:$PATH"\nsource ~/.aliases\n' > "$R2/nt/.zshrc"; printf 'alias claude="~/.claude/local/claude"\n' > "$R2/nt/.aliases"
+  r2nt() { ( HOME="$R2/nt"; SHELL=/bin/zsh; WS_NODE=$NODE; WS_NEWTERM_SECS=5; WS_CUR=4; SW_4=""; ST_2=$1; C_CLAUDE_CODE_MIN_VERSION=2.1.285; WS_LOG="$R2/nt.log"; ws_newterm_claude_check; printf '%s' "$SW_4" ); }
+  o=$(r2nt feito); case "$o" in "E-CC-05|claude is an alias for ~/.claude/local/claude"*) ok ;; *) ko "r2 s4: alias noutro ficheiro para um claude que ja nao existe = E-CC-05 [$o]" ;; esac
+  printf 'alias claude="claude --verbose"\n' > "$R2/nt/.aliases"
+  eq "$(r2nt feito)" "" "r2 s4: alias inofensivo para o claude certo passa"
+  printf 'alias claude="~/.claude/local/claude"\n' > "$R2/nt/.aliases"
+  eq "$(r2nt falhou)" "" "r2 s4: sem passo 2 feito nao se testa"
+fi
+grep -q '\[ "\$m" = unknown \] || ws_newterm_claude_check' "$ROOT/setup/setup-mac.sh" && ok || ko "r2 s4: o ws_s4_detect chama o ws_newterm_claude_check"
+# resumo: 1 aviso no singular
+eq "$(ws_m final_aviso1)" "There is 1 warning above. It doesn't block the workshop, but read it." "r2 resumo: 1 aviso no singular"
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
