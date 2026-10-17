@@ -18,6 +18,13 @@
     { "in": "API_KEY: zzzzzz", "out": "API_KEY: ***" },
     { "in": "linha normal sem segredos: versao 2.1.292", "out": "linha normal sem segredos: versao 2.1.292" },
     { "in": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt", "out": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt" },
-    { "in": "\"authMethod\": \"oauth_token\",", "out": "\"authMethod\": \"oauth_token\"," }
+    { "in": "\"authMethod\": \"oauth_token\",", "out": "\"authMethod\": \"oauth_token\"," },
+    { "in": "db_password: hunter2", "out": "db_password: ***" },
+    { "in": "{\"accessToken\": \"abc123\"}", "out": "{\"accessToken\": \"***\"}" }
+  ],
+  "nota_mac_node": "Casos ja cobertos pelo bash (ws_redact) e pelo Node (redact.mjs). Quando o Protect-WsText (setup-windows.ps1) tiver a mesma regra, passam para 'casos'.",
+  "casos_mac_node": [
+    { "in": "error: 1Password: agent returned an error", "out": "error: 1Password: agent returned an error" },
+    { "in": "x2_token=abcdef e 2FA secret: s3gr3do", "out": "x2_token=*** e 2FA secret: ***" }
   ]
 }

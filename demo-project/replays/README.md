@@ -2,6 +2,8 @@
 
 Uma repetição reconstrói uma execução do swarm no `/status` sem chamar a API: útil para ensaiar, para mostrar num projetor sem rede ou para comparar execuções.
 
+Corre `node server.js` e abre o endereço da repetição que ele mostra (normalmente o de baixo; se a porta 3000 estiver ocupada, o servidor usa a seguinte):
+
 ```
 node server.js
 http://localhost:3000/status?replay=example
@@ -51,5 +53,7 @@ mkdir -p replays/<name>
 cp .workshop/events.jsonl replays/<name>/events.jsonl
 curl -s http://localhost:3000/api/status > replays/<name>/snapshot.json
 ```
+
+(Se o servidor mostrou outra porta, usa-a no `curl`.)
 
 Abre `/status?replay=<name>` para confirmar.

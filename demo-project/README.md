@@ -7,7 +7,7 @@ Um jogo de desafios curtos sobre segurança. É o projeto demo do workshop Claud
 Precisas do Node 22 ou mais recente. Não há dependências para instalar.
 
 ```
-node server.js            # http://localhost:3000 (se a porta estiver ocupada, usa a seguinte)
+node server.js            # mostra o endereço: normalmente http://localhost:3000 (se a porta estiver ocupada, usa a seguinte)
 node server.js --port 4000
 node --test               # todos os testes
 ```

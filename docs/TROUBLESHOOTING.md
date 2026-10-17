@@ -883,15 +883,17 @@ uv python install 3.12
 
 ### E-MEM-05 · The Agent Memory app test failed
 
-- **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.
+- **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working, or the search index of the notes may be damaged. The skills work without the app.
 - **What to do:**
-  - Run the command below and send the result to the organizer.
+  - Run the first command below and send the result to the organizer.
+  - If a line mentions the index: close Claude Code and the Agent Memory app, then run agent-memory reindex (your notes stay in Markdown).
   - Run the setup again: uv reinstalls the app and its Python.
 
-Command (macOS):
+Commands (macOS):
 
 ```
 agent-memory selftest
+agent-memory reindex
 ```
 
 <a id="mac-e-mem-06"></a>
@@ -1902,15 +1904,17 @@ uv python install 3.12
 
 ### E-MEM-05 · The Agent Memory app test failed
 
-- **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working. The skills work without the app.
+- **Why:** The app is installed, but its self-test failed. The Python that uv installed, the note search (FTS5) or the memories folder is not working, or the search index of the notes may be damaged. The skills work without the app.
 - **What to do:**
-  - Run the command below and send the result to the organizer.
+  - Run the first command below and send the result to the organizer.
+  - If a line mentions the index: close Claude Code and the Agent Memory app, then run agent-memory reindex (your notes stay in Markdown).
   - Run the setup again: uv reinstalls the app and its Python.
 
-Command (Windows):
+Commands (Windows):
 
 ```
 agent-memory selftest
+agent-memory reindex
 ```
 
 <a id="windows-e-mem-06"></a>
@@ -2027,7 +2031,7 @@ Ask IT to allow HTTPS (port 443) to these domains:
 
 ## Corporate proxies and certificates
 
-- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` (`localhost,127.0.0.1` plus your own `NO_PROXY` entries) in the `env` of `~/.claude/settings.json`.
+- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` in the `env` of `~/.claude/settings.json`. `NO_PROXY` keeps the value that was already there and adds `localhost,127.0.0.1`, your own `NO_PROXY` entries and the exceptions of the system proxy (the addresses that skip the proxy; on Windows, also the servers that the PAC file sends direct).
 - If you run the setup again on a network without that proxy (for example, at the workshop venue after installing at the office), it removes the `HTTPS_PROXY` and `NO_PROXY` it saved (see `E-NET-08`). Back at the office, run the setup again.
 - If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca.pem` and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.
 - Proxies that only accept NTLM or Kerberos are not supported (see `E-NET-06`).

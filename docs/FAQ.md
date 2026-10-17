@@ -68,7 +68,7 @@ Press **Esc** in Claude Code. The running agents finish and no more are launched
 Yes: `/btw <question>`. The answer does not go into the main conversation. It opens in a panel: close it with Esc, because while it is open the agents' results wait and the swarm stands still.
 
 **Where can I see the agents working?**
-- In the browser: `node server.js` in the Arena folder, then `http://localhost:3000/status`.
+- In the browser: `node server.js` in the Arena folder, then the `/status` address it prints (usually `http://localhost:3000/status`; if port 3000 is taken, it uses the next one).
 - In another terminal: `node tools/workshop/orchestrator/dashboard.mjs`.
 
 **A card turned red. Now what?**

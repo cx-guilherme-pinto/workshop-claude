@@ -883,15 +883,17 @@ uv python install 3.12
 
 ### E-MEM-05 · O teste da app Agent Memory falhou
 
-- **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.
+- **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar, ou o índice de pesquisa das notas pode estar estragado. As skills funcionam sem a app.
 - **O que fazer:**
-  - Corre o comando abaixo e envia o resultado ao organizador.
+  - Corre o primeiro comando abaixo e envia o resultado ao organizador.
+  - Se uma linha falar do índice: fecha o Claude Code e a app Agent Memory e depois corre agent-memory reindex (as tuas notas continuam guardadas em Markdown).
   - Volta a correr o setup: o uv volta a instalar a app e o Python dela.
 
-Comando (macOS):
+Comandos (macOS):
 
 ```
 agent-memory selftest
+agent-memory reindex
 ```
 
 <a id="mac-e-mem-06"></a>
@@ -1902,15 +1904,17 @@ uv python install 3.12
 
 ### E-MEM-05 · O teste da app Agent Memory falhou
 
-- **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.
+- **Porquê:** A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar, ou o índice de pesquisa das notas pode estar estragado. As skills funcionam sem a app.
 - **O que fazer:**
-  - Corre o comando abaixo e envia o resultado ao organizador.
+  - Corre o primeiro comando abaixo e envia o resultado ao organizador.
+  - Se uma linha falar do índice: fecha o Claude Code e a app Agent Memory e depois corre agent-memory reindex (as tuas notas continuam guardadas em Markdown).
   - Volta a correr o setup: o uv volta a instalar a app e o Python dela.
 
-Comando (Windows):
+Comandos (Windows):
 
 ```
 agent-memory selftest
+agent-memory reindex
 ```
 
 <a id="windows-e-mem-06"></a>
@@ -2027,7 +2031,7 @@ Pede ao IT que estes domínios fiquem acessíveis por HTTPS (porta 443):
 
 ## Proxies e certificados da empresa
 
-- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY` (`localhost,127.0.0.1` e as entradas do teu `NO_PROXY`) no `env` do `~/.claude/settings.json`.
+- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY` no `env` do `~/.claude/settings.json`. O `NO_PROXY` mantém o valor que já lá estava e junta `localhost,127.0.0.1`, as entradas do teu `NO_PROXY` e as exceções do proxy do sistema (os endereços que não passam pelo proxy; no Windows, também os servidores que o PAC manda direto).
 - Se voltares a correr o setup numa rede sem esse proxy (por exemplo, no local do workshop depois de instalar no escritório), ele tira o `HTTPS_PROXY` e o `NO_PROXY` que gravou (ver `E-NET-08`). De volta ao escritório, corre o setup outra vez.
 - Se a empresa intercetar o HTTPS, o setup exporta as raízes da empresa para `~/.workshop-claude/ca.pem` e define `NODE_EXTRA_CA_CERTS` e `UV_SYSTEM_CERTS=true`.
 - Proxies só com NTLM ou Kerberos não são suportados (ver `E-NET-06`).

@@ -2,6 +2,8 @@
 
 A replay rebuilds a swarm run in `/status` without calling the API: useful for rehearsing, for showing it on a projector without a network, or for comparing runs.
 
+Run `node server.js` and open the replay address it prints (usually the one below; if port 3000 is taken, the server uses the next one):
+
 ```
 node server.js
 http://localhost:3000/status?replay=example
@@ -51,5 +53,7 @@ mkdir -p replays/<name>
 cp .workshop/events.jsonl replays/<name>/events.jsonl
 curl -s http://localhost:3000/api/status > replays/<name>/snapshot.json
 ```
+
+(If the server printed another port, use it in the `curl`.)
 
 Open `/status?replay=<name>` to check.

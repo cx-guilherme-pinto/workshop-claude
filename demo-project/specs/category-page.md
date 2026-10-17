@@ -89,4 +89,4 @@ export function renderCategory(container, { category, cards = [], progress = {},
 node --test pages/category.test.js
 ```
 
-passa sem erros. Para ver a página: `node server.js` e abre `http://localhost:3000/#/category/web`.
+passa sem erros. Para ver a página: `node server.js` e abre o endereço que ele mostra com `#/category/web` no fim (normalmente `http://localhost:3000/#/category/web`).

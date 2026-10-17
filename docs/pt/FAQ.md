@@ -68,7 +68,7 @@ Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lan�
 Sim: `/btw <pergunta>`. A resposta não entra na conversa principal. Abre num painel: fecha-o com Esc, porque enquanto está aberto os resultados dos agentes ficam à espera e o swarm não avança.
 
 **Onde vejo os agentes a trabalhar?**
-- No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/status`.
+- No browser: `node server.js` na pasta da Arena e depois o endereço `/status` que ele mostra (normalmente `http://localhost:3000/status`; se a porta 3000 estiver ocupada, usa a seguinte).
 - Noutro terminal: `node tools/workshop/orchestrator/dashboard.mjs`.
 
 **Um cartão ficou vermelho. E agora?**
