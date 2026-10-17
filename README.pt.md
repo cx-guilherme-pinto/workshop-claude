@@ -50,7 +50,7 @@ Algo falhou? Cada erro tem um código. Vê [docs/pt/TROUBLESHOOTING.md](docs/pt/
 | 7 | MCP do Jira (Atlassian), âmbito utilizador | `~/.claude.json` |
 | 8 | Skills, agentes `ws-*`, hooks de custo e statusline, com merge seguro do `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Projetos do workshop | `~/workshop-claude/` |
-| 10 | App Agent Memory v0.4.1 (opcional, não bloqueia) | `uv tool`, `~/.memoria` |
+| 10 | App Agent Memory v0.4.1 (opcional, não bloqueia) | `uv tool`, `~/.agent-memory` |
 | 11 | Claude Desktop (opcional, `--no-desktop / -NoDesktop` salta) | `~/Applications` |
 | 12 | Teste final com o Haiku e o custo pelo `pricing.json` | — |
 
@@ -64,9 +64,9 @@ Tudo o que é instalado fica registado em `~/.workshop-claude/manifest.json`. O 
 |---|---|
 | `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` e os catálogos de mensagens: `messages.en.json` (o que o setup mostra) e `messages.pt.json` (o TROUBLESHOOTING em português) |
 | `installer/` | Instalação em Node, igual nos dois sistemas (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
-| `hooks/`, `statusline/`, `orquestrador/` | Medição de custo e orquestração do swarm |
+| `hooks/`, `statusline/`, `orchestrator/` | Medição de custo e orquestração do swarm |
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills e agentes (em inglês; respondem na língua de quem os usa) |
-| `demo-project/`, `exemplo-projeto-real/` | Projetos práticos |
+| `demo-project/`, `practice-project/` | Projetos práticos |
 | `tools/` | `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` e os testes |
 | `docs/` | Guias em inglês: instalação, resolução de problemas, FAQ, publicação, organizador. Em português em `docs/pt/`; o guia de instalação também em `docs/hi/` e `docs/he/` |
 

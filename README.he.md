@@ -50,7 +50,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 | 7 | הגדרת Jira MCP (Atlassian) ב-user scope | `~/.claude.json` |
 | 8 | ה-skills, ה-agents מסוג `ws-*`, ה-hooks של העלויות וה-statusline, עם merge בטוח של `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | פרויקטי הסדנה | `~/workshop-claude/` |
-| 10 | אפליקציית Agent Memory v0.4.1 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.memoria` |
+| 10 | אפליקציית Agent Memory v0.4.1 (אופציונלי, לא חוסם את ה-setup) | `uv tool`, `~/.agent-memory` |
 | 11 | התקנת Claude Desktop (אופציונלי; ה-flag `--no-desktop / -NoDesktop` מדלג עליו) | `~/Applications` |
 | 12 | בדיקה סופית עם Haiku וחישוב העלות לפי `pricing.json` | — |
 
@@ -64,9 +64,9 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 |---|---|
 | `setup/` | הסקריפטים `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` וקטלוגי ההודעות: `messages.en.json` (מה שה-setup מציג) ו-`messages.pt.json` (ה-TROUBLESHOOTING בפורטוגזית) |
 | `installer/` | ה-installer ב-Node, זהה בשתי המערכות (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
-| `hooks/`, `statusline/`, `orquestrador/` | מדידת עלויות ו-orchestration של ה-swarm |
+| `hooks/`, `statusline/`, `orchestrator/` | מדידת עלויות ו-orchestration של ה-swarm |
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | ה-skills וה-agents (כתובים באנגלית; עונים בשפה של המשתמש) |
-| `demo-project/`, `exemplo-projeto-real/` | הפרויקטים המעשיים |
+| `demo-project/`, `practice-project/` | הפרויקטים המעשיים |
 | `tools/` | הכלים `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` והטסטים |
 | `docs/` | המדריכים באנגלית: התקנה, troubleshooting, FAQ, publishing ו-organizer. הגרסה בפורטוגזית ב-`docs/pt/`; מדריך ההתקנה נמצא גם ב-`docs/hi/` וב-`docs/he/` |
 

@@ -48,7 +48,7 @@ Something failed? Every error has a code. See [docs/TROUBLESHOOTING.md](docs/TRO
 | 7 | Jira MCP (Atlassian), user scope | `~/.claude.json` |
 | 8 | Skills, `ws-*` agents, cost hooks and statusline, with a safe merge of `settings.json` | `~/.claude/`, `~/.workshop-claude/kit` |
 | 9 | Workshop projects | `~/workshop-claude/` |
-| 10 | Agent Memory app {{MEMORY_APP_VERSION}} (optional, does not block) | `uv tool`, `~/.memoria` |
+| 10 | Agent Memory app {{MEMORY_APP_VERSION}} (optional, does not block) | `uv tool`, `~/.agent-memory` |
 | 11 | Claude Desktop (optional, `{{FLAG_SEM_DESKTOP}}` skips it) | `~/Applications` |
 | 12 | Final test with Haiku and the cost from `pricing.json` | — |
 
@@ -62,9 +62,9 @@ Everything installed is recorded in `~/.workshop-claude/manifest.json`. `setting
 |---|---|
 | `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` and the message catalogs: `messages.en.json` (what the setup shows) and `messages.pt.json` (the Portuguese TROUBLESHOOTING) |
 | `installer/` | Node installer, the same on both systems (`install-user.mjs`, `assemble-demo.mjs`, `assemble-sandbox.mjs`) |
-| `hooks/`, `statusline/`, `orquestrador/` | Cost measurement and swarm orchestration |
+| `hooks/`, `statusline/`, `orchestrator/` | Cost measurement and swarm orchestration |
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents (in English; they answer in the user's language) |
-| `demo-project/`, `exemplo-projeto-real/` | Hands-on projects |
+| `demo-project/`, `practice-project/` | Hands-on projects |
 | `tools/` | `render.mjs`, `build-release.sh`, `publish-release.sh`, `switch-repos.*`, `check-repo.mjs` and the tests |
 | `docs/` | Guides in English: install, troubleshooting, FAQ, publishing, organizer. Portuguese in `docs/pt/`; the install guide also in `docs/hi/` and `docs/he/` |
 

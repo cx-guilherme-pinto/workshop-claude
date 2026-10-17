@@ -78,7 +78,7 @@ The budget is backed by the benchmark, not by cuts. If someone goes over the tar
 
 [4:00 → 5:30] 1.5 min · you should be here at 4 min
 
-Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.1). To update only the memory app: memoria update. Before this slide, post the commands in Teams so everyone can copy them.
+Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.1). To update only the Agent Memory app: agent-memory update. Before this slide, post the commands in Teams so everyone can copy them.
 
 ### 5. Check your installation
 
@@ -162,7 +162,7 @@ Bridge into Project 1. What they are about to see is the cycle from the previous
 
 [26:00 → 28:30] 2.5 min · you should be here at 26 min
 
-Sped-up video of a real run with 100 tasks. On the left, the /estado page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /estado?replay=gravacao in the recorded Arena.
+Sped-up video of a real run with 100 tasks. On the left, the /status page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. The time and cost are the real ones. Plan B if the video fails: open /status?replay=recording in the recorded Arena.
 
 ### 19. The result: the game, ready to use
 
@@ -240,7 +240,7 @@ Plan mode only reads and proposes. claude -p is the basis for scripts and CI. Es
 
 [48:00 → 49:30] 1.5 min · CAN SKIP · you should be here at 48 min
 
-Skip if running late. Example routine: a daily security review with node tools/rotina.mjs --instalar --sim (without --sim it only shows what it would do), which registers a claude -p "/demo-review --auto" in launchd or in Task Scheduler.
+Skip if running late. Example routine: a daily security review with node tools/routine.mjs --install --yes (without --yes it only shows what it would do), which registers a claude -p "/demo-review --auto" in launchd or in Task Scheduler.
 
 ### 32. Until everything is green
 
@@ -270,7 +270,7 @@ The tests also run in the browser. It is the same test that decided the colour o
 
 [57:30 → 59:30] 2 min · you should be here at 58 min
 
-They are Markdown files in ~/.memoria, with an SQLite index. Everything stays on your PC. Each memory is linked to the Jira or GitHub ticket and to its epic: searching ABC-123 brings everything for that ticket and the epic. /task-intake and /task-plan check it before planning ("last time in this epic, don't do X").
+They are Markdown files in ~/.agent-memory, with an SQLite index. Everything stays on your PC. Each memory is linked to the Jira or GitHub ticket and to its epic: searching ABC-123 brings everything for that ticket and the epic. /task-intake and /task-plan check it before planning ("last time in this epic, don't do X").
 
 ### 37. Open your first graph
 

@@ -69,7 +69,7 @@ Para repetir só uma parte, usa `--only` com os números das fases, por exemplo 
 | 5. Release | A release no GitHub corporativo: os 6 ficheiros, os SHA-256, se o `repos.conf` da release aponta para lá, se o `curl \| bash` dos participantes funciona sem login e com token, e a release da app Agent Memory | não | — | 1 min |
 | 2. Setup | `--install` corre o setup a sério; depois corre sempre o `--check`. Usa o script da release, se a fase 5 o descarregou | só com `--install` (no teu perfil, como um participante) | — | 3 a 15 min |
 | 3. Contas | Login e um pedido de teste ao Claude; `gh` no servidor da empresa e a permissão no repositório; o MCP do Jira a responder; `acli` com login a ler a issue e a página (mede o tamanho em `storage` e `view`); app Agent Memory e o MCP dela | não | ~US$ 0,01 | 1 min |
-| 4. Projeto 2 | `/task-intake <issue>` numa cópia do projeto de treino, primeiro pelo MCP e depois com o MCP desligado, para obrigar a usar o `acli`. Confirma o `tarefa.json` (fonte, id, épico, `via`) e a secção do Confluence | só na pasta do teste | ~US$ 0,15 a 0,30 | 2 a 4 min |
+| 4. Projeto 2 | `/task-intake <issue>` numa cópia do projeto de treino, primeiro pelo MCP e depois com o MCP desligado, para obrigar a usar o `acli`. Confirma o `.workshop/task.json` (`source`, `id`, `epic`, `via`) e a secção do Confluence | só na pasta do teste | ~US$ 0,15 a 0,30 | 2 a 4 min |
 | 6. Arena | Só com `--arena`: a sessão completa do participante (`/demo-plan` → `/demo-swarm` → `/demo-review` → `/demo-cost`) | só na pasta do teste | ~US$ 1 | ~5 min |
 | 7. Escrita | Só com `--write`: publica 1 comentário de teste na issue com o `acli`, depois do teu "sim" | **sim**, 1 comentário | — | segundos |
 
@@ -96,10 +96,10 @@ tools/switch-repos.sh --workshop-url https://github.empresa.com/equipa/workshop-
 O resultado fica em `~/workshop-test/<date>/report.md`: uma tabela com ✅ ⚠️ ❌ ⏭️ por verificação, o custo das chamadas ao Claude e o resumo do `setup --check`.
 
 - **O que partilhar:** só o `report.md`. Não tem tokens nem o conteúdo das issues e páginas: só chaves, estados e tamanhos.
-- **O que não partilhar:** a pasta `logs/` e as pastas `projeto2-*`. Têm as respostas completas do Jira e do Confluence (dados da empresa), mesmo depois de redigidas para tirar os tokens.
+- **O que não partilhar:** a pasta `logs/` e as pastas `project2-*`. Têm as respostas completas do Jira e do Confluence (dados da empresa), mesmo depois de redigidas para tirar os tokens.
 - **O script sai com o código 0** quando não há nenhum ❌.
 
-**O que olhar primeiro:**
-- **Fase 5, "Comando de uma linha sem login":** se o repositório for privado ou interno, os participantes não conseguem fazer `curl | bash` sem login. O aviso seguinte diz se o mesmo URL funciona com um token. Se nenhum funcionar, há que mudar a forma de distribuir o setup antes do workshop.
-- **Fase 3, "Servidor do GitHub":** o setup só faz login em github.com. Se a empresa usa um servidor próprio, os participantes precisam do login nesse servidor.
-- **Fase 3, "Login no acli":** "site admin must authorize" quer dizer que um administrador do Jira tem de aprovar a app ACLI uma vez (`E-ACLI-02`).
+**O que olhar primeiro** (os nomes das verificações no relatório estão em inglês):
+- **Fase 5, "One-line install without login":** se o repositório for privado ou interno, os participantes não conseguem fazer `curl | bash` sem login. O aviso seguinte diz se o mesmo URL funciona com um token. Se nenhum funcionar, há que mudar a forma de distribuir o setup antes do workshop.
+- **Fase 3, "GitHub server":** o setup só faz login em github.com. Se a empresa usa um servidor próprio, os participantes precisam do login nesse servidor.
+- **Fase 3, "acli login":** "site admin must authorize" quer dizer que um administrador do Jira tem de aprovar a app ACLI uma vez (`E-ACLI-02`).

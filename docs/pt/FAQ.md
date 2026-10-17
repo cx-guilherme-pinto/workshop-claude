@@ -10,10 +10,13 @@ Respostas curtas às perguntas mais prováveis no workshop. Para erros de instal
 O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): ele diz qual pasta não tem permissão e o comando para corrigir. Num portátil da empresa, uma pasta bloqueada por política (AppLocker, antivírus) é um caso para a tua equipa de TI.
 
 **Como sei se está tudo pronto?**
-Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Check complete: everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/resumo.txt`, e podes mostrá-lo a quem te ajudar.
+Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Check complete: everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/summary.txt`, e podes mostrá-lo a quem te ajudar.
 
 **Posso correr o script duas vezes?**
 Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
+
+**Instalei uma versão anterior do kit. Tenho de fazer alguma coisa?**
+Volta a correr o setup. Ele atualiza o que a versão anterior instalou com os nomes que o kit usa agora, todos em inglês: o servidor MCP da memória passa de `memoria` a `agent-memory`, e o projeto de treino passa de `~/workshop-claude/exemplo-projeto-real` para `~/workshop-claude/practice-project` (só se esta pasta ainda não existir; não se apaga nada). As tuas notas ficam onde estão (em `~/.memoria`) e a app continua a usá-las. O comando `memoria` continua a funcionar.
 
 **Estou atrás de um proxy da empresa.**
 O script deteta o proxy do sistema e, se a empresa inspecionar o tráfego HTTPS, exporta os certificados da empresa e configura o Claude Code, o Node e o uv para os usarem. Proxies que só aceitam NTLM ou Kerberos não são suportados. Nesse caso fala com a TI ou usa outra rede.
@@ -24,7 +27,7 @@ Corre `gh auth login` num terminal novo, escolhe GitHub.com, HTTPS e "Login with
 **O Jira não aparece no `/mcp`.**
 1. Confirma com `claude mcp list` que existe uma linha `atlassian`. Se não existir, volta a correr o setup.
 2. Dentro do Claude Code, corre `/mcp`, escolhe `atlassian` e faz login no browser.
-3. Se o login recusar o acesso, o administrador do Jira da tua empresa pode ter limitado os domínios ou as apps permitidas no "Atlassian MCP server". Sem isso, usa a reserva (abaixo) ou o projeto de treino `exemplo-projeto-real/`, que tem as issues em ficheiros locais.
+3. Se o login recusar o acesso, o administrador do Jira da tua empresa pode ter limitado os domínios ou as apps permitidas no "Atlassian MCP server". Sem isso, usa a reserva (abaixo) ou o projeto de treino `practice-project/`, que tem as issues em ficheiros locais.
 
 **O MCP do Jira falha. Há alternativa?**
 Sim: o setup instala o **Atlassian CLI** (`acli`, oficial da Atlassian). Quando as ferramentas do MCP faltam ou dão erro, o `/task-intake` lê a issue com o `acli` e o `/task-report` publica os comentários com ele, sempre com o teu "sim" antes de escrever.
@@ -61,17 +64,17 @@ Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lan�
 Sim: `/btw <pergunta>`. A resposta não entra na conversa principal. Abre num painel: fecha-o com Esc, porque enquanto está aberto os resultados dos agentes ficam à espera e o swarm não avança.
 
 **Onde vejo os agentes a trabalhar?**
-- No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/estado`.
-- Noutro terminal: `node tools/workshop/orquestrador/painel.mjs`.
+- No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/status`.
+- Noutro terminal: `node tools/workshop/orchestrator/dashboard.mjs`.
 
 **Um cartão ficou vermelho. E agora?**
-O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/workshop/orquestrador/grade.mjs --todos e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde`.
+O orquestrador repete-o sozinho, primeiro em Haiku com a mensagem de erro e depois em Sonnet. Se mesmo assim falhar, o `/demo-review` mostra porquê. Para insistir até ficar tudo verde: `/loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde`.
 
 **Apareceu "Is this a project you created or one you trust?" (ou "Do you trust the files in this folder?").**
 É o Claude Code a perguntar se confias na pasta. Na Arena, responde que sim: sem isso, as permissões do projeto (`.claude/settings.json`) ficam desligadas e o swarm para a pedir autorizações. Atenção: como a Arena pré-aprova algumas permissões, as versões recentes do Claude Code abrem este diálogo com **No, exit** selecionado. Carrega na seta para baixo até **Yes, I trust this folder** e depois em Enter. Se o Claude Code fechar, corre `claude` outra vez na mesma pasta.
 
 **Quero recomeçar a Arena do zero.**
-`/demo-reset`. O histórico de custos fica guardado em `.workshop/historico/`.
+`/demo-reset`. O histórico de custos fica guardado em `.workshop/history/`.
 
 ## Língua
 
@@ -84,13 +87,16 @@ Na tua. As skills e os agentes estão escritos em inglês, mas respondem na lín
 **E a Arena, o orquestrador e a statusline?**
 Seguem a língua da máquina: português numa máquina em português, inglês em todas as outras (incluindo hindi e hebraico). Para forçar uma delas nos textos do kit, define `WORKSHOP_LANG=pt` ou `WORKSHOP_LANG=en` antes de abrir o Claude Code.
 
+**Porque é que os ficheiros, os comandos e os marcadores estão em inglês?**
+Para serem os mesmos em todas as línguas: `PLAN.md`, `.workshop/task.md`, `grade.mjs --all`, `STATE: DONE`, `GATE: APPROVED`, os ids das tarefas da Arena (`category-page`, `score-table`…) e as ferramentas MCP da memória (`memory_search`…). Os scripts, as skills e os agentes dependem destes nomes, por isso não mudam com a língua. O que é para ler (tabelas, mensagens, a Arena, as docs e os slides) fica em português ou em inglês.
+
 ## Funcionalidades
 
 **Como encontro tudo o que aprendi num ticket ou num épico?**
-Na app Agent Memory, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memoria` gravam o id, o épico e o URL.
+Na app Agent Memory, escreve a chave na pesquisa (ex.: `ABC-123` ou o épico `ABC-100`): aparecem as memórias desse ticket, as do épico e as tarefas ligadas. No Claude Code, o `/task-intake` faz o mesmo sozinho antes de planear. As memórias ficam ligadas ao ticket porque o `/task-report` e o `/memory` gravam o id, o épico e o URL.
 
 **O `/task-intake` lê as páginas do Confluence ligadas na issue?**
-Sim, até 2. Se a descrição da issue do Jira tiver links para páginas do Confluence (`…/wiki/spaces/<espaço>/pages/<id>/…`), o intake lê-as pelo MCP ou, se o MCP falhar, pelo `acli`. Depois guarda um resumo curto de cada uma em `.workshop/tarefa.md`, na secção "Documentação (Confluence)", e o `/task-plan` usa-o.
+Sim, até 2. Se a descrição da issue do Jira tiver links para páginas do Confluence (`…/wiki/spaces/<espaço>/pages/<id>/…`), o intake lê-as pelo MCP ou, se o MCP falhar, pelo `acli`. Depois guarda um resumo curto de cada uma em `.workshop/task.md`, na secção "Documentation (Confluence)", e o `/task-plan` usa-o.
 - Só lê: nunca escreve no Confluence.
 - Se o MCP falhar e o `acli` não tiver login (`acli auth login`), avisa numa linha e continua sem as páginas.
 - Os links curtos (`…/wiki/x/…`) não têm o id da página e ficam de fora. Na issue, cola o link completo.

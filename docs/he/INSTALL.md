@@ -53,7 +53,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
 - הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים.
 - חפשו את קוד השגיאה ב-[TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (באנגלית). לשאלות נפוצות יש גם [FAQ.md](../FAQ.md) (באנגלית).
 - אבחון בעזרת Claude (עולה פחות מסנט): `bash ~/.workshop-claude/setup-mac.sh --doctor` או `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
-- שלחו למארגנים את הקובץ `~/.workshop-claude/resumo.txt`. גם `setup.log` עוזר, והוא כבר מגיע בלי secrets.
+- שלחו למארגנים את הקובץ `~/.workshop-claude/summary.txt`. גם `setup.log` עוזר, והוא כבר מגיע בלי secrets.
 
 ## אימות לפני הרצה (אופציונלי)
 
