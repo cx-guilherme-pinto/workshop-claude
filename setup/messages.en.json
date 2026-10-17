@@ -497,7 +497,7 @@
         "PATH=\"$HOME/.workshop-claude/node/bin:$PATH\" node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/settings.json', 'utf8')); console.log('JSON OK')\""
       ],
       "windows": [
-        "Get-Content \"$env:USERPROFILE\\.claude\\settings.json\" -Raw | ConvertFrom-Json"
+        "node -e \"JSON.parse(require('fs').readFileSync(process.env.USERPROFILE + '/.claude/settings.json', 'utf8')); console.log('JSON OK')\""
       ]
     },
     "E-CFG-06": {

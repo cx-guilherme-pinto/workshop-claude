@@ -689,10 +689,12 @@ function Get-WsPermFixCmd {
 
 function Get-WsPermLine {
   # A primeira linha da saida de um passo com um erro de permissao (ou "nao e uma pasta"), com ~ no lugar da pasta
-  # do perfil e no maximo 160 caracteres; '' se nao houver. O "Permission denied (publickey)" do ssh nao conta.
+  # do perfil e no maximo 160 caracteres; '' se nao houver. O "Permission denied (publickey)" do ssh nao conta, nem
+  # o "FullyQualifiedErrorId : UnauthorizedAccess" de um script bloqueado pela execution policy (so o nome da
+  # excecao, UnauthorizedAccessException, conta: num Windows em portugues a frase vem traduzida).
   param([string]$Text, [string]$UserHome)
   foreach ($l in (([string]$Text) -split "`r?`n")) {
-    if ($l -cnotmatch 'EACCES|EPERM|EEXIST|ENOTDIR|EROFS|is denied|UnauthorizedAccess|Permission denied|File exists|Not a directory|Read-only file system') { continue }
+    if ($l -cnotmatch 'EACCES|EPERM|EEXIST|ENOTDIR|EROFS|is denied|UnauthorizedAccessException|Permission denied|File exists|Not a directory|Read-only file system') { continue }
     if ($l -match 'publickey') { continue }
     $t = $l
     if ($UserHome) { $t = [regex]::Replace($t, [regex]::Escape($UserHome.TrimEnd('\', '/')) + '(?![A-Za-z0-9_.-])', '~', 'IgnoreCase') }
@@ -1081,12 +1083,22 @@ function Invoke-WsPermReclass {
   # Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da rede
   # ou de reinstalar: mostra-se E-PERM-01 com a linha que o diz (restos de uma execucao como administrador ou de
   # outro utilizador, pastas bloqueadas). As causas mais certas (Group Policy, antivirus, login, saldo) ficam.
+  # No Windows o "Access is denied" e o EPERM tambem aparecem com um ficheiro em uso (o uv a apagar a pasta do
+  # agent-memory com o servidor MCP aberto, o antivirus a meio de um rename): se a pasta de cima do caminho da linha
+  # aceita escrita, a pasta nao e de outro utilizador e fica o codigo do passo.
   $s = $script:T[$script:Cur]
   if (-not $s.Falha) { return }
   $c = [string]$s.Falha[0]
   if ($c -like 'E-PERM-*' -or $c -like 'E-AUTH-*' -or @('E-SO-07', 'E-CFG-05', 'E-GH-02', 'E-SMOKE-02', 'E-SMOKE-03') -contains $c) { return }
   $l = Get-WsPermLine (Protect-WsText $script:StepLog.ToString() $script:Literals) $script:UserHome
-  if ($l) { Set-WsFail 'E-PERM-01' $l }
+  if (-not $l) { return }
+  $m = [regex]::Match($l, '[''`"]((?:~|[A-Za-z]:)[\\/][^''`"]+)[''`"]')
+  if ($m.Success) {
+    $p = $m.Groups[1].Value
+    if ($p.StartsWith('~')) { $p = ([string]$script:UserHome).TrimEnd('\', '/') + $p.Substring(1) }
+    if (Test-WsDirWritable (Split-Path -Parent $p)) { return }
+  }
+  Set-WsFail 'E-PERM-01' $l
 }
 
 function Invoke-WsStep {
@@ -1213,6 +1225,8 @@ function Initialize-WsKit {
         [IO.Compression.ZipFile]::ExtractToDirectory($zip, (Join-Path $tmpd 'x'))
         $inner = Join-Path $tmpd ('x\workshop-kit-' + $script:C.WORKSHOP_VERSION)
         if (Test-Path -LiteralPath $inner) {
+          # O .ws-kit-ok sai primeiro: um kit meio apagado nunca volta a contar como bom.
+          Remove-Item -LiteralPath $okFile -Force -ErrorAction SilentlyContinue
           Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
           # Um kit antigo que nao saiu todo (um ficheiro aberto): o novo nao vai para dentro dele.
           if (Test-Path -LiteralPath $dest) { throw ('kit-src not replaced: ' + $dest) }
@@ -1236,10 +1250,13 @@ function Initialize-WsKit {
   $r = Invoke-WsProcess $git @('clone', '-q', '--depth', '1', '--branch', $script:C.WORKSHOP_VERSION, $script:C.WORKSHOP_REPO_URL, $clone) -Environment $envs
   if ($r.ExitCode -ne 0) { return $false }
   Remove-Item -LiteralPath (Join-Path $clone '.git') -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $okFile -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
+  # Com o kit antigo ainda la (um ficheiro aberto), o Move-Item punha o clone dentro dele.
+  if (Test-Path -LiteralPath $dest) { Add-WsStepLog ('kit-src not replaced: ' + $dest); return $false }
   New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
-  Move-Item -LiteralPath $clone -Destination $dest
-  [IO.File]::WriteAllText((Join-Path $dest '.ws-kit-ok'), (Get-Date -Format o))
+  try { Move-Item -LiteralPath $clone -Destination $dest -ErrorAction Stop } catch { Add-WsStepLog $_.Exception.Message; return $false }
+  [IO.File]::WriteAllText($okFile, (Get-Date -Format o))
   $script:KitSrc = $dest
   return $true
 }
@@ -1398,11 +1415,14 @@ function Get-WsPermProblems {
 }
 
 function Get-WsPermFix {
-  # O comando que devolve -Path (ou a primeira pasta de cima que exista) a pessoa; '' se nao ha nenhuma.
+  # O comando que devolve -Path (ou a primeira pasta de cima que exista) a pessoa; '' se nao ha nenhuma. Um icacls
+  # /T na pasta do perfil (todo o AppData) ou numa pasta de cima fora do perfil (C:\Program Files, com um
+  # AGENT_MEMORY_HOME que nao existe) nao se mostra: o E-PERM-01 manda falar com o IT.
   param([string]$Path)
   $p = $Path
   while ($p -and -not (Test-Path -LiteralPath $p)) { $p = Split-Path -Parent $p }
-  if (-not $p) { return '' }
+  $h = ([string]$script:UserHome).TrimEnd('\', '/')
+  if (-not $p -or $p.TrimEnd('\', '/') -ieq $h -or ($p -ne $Path -and -not (Find-WsInFolder $h @($p)))) { return '' }
   $k = 'dir'
   if (Test-Path -LiteralPath $p -PathType Leaf) { $k = 'notdir' }
   return (Get-WsPermFixCmd $p $k (Get-WsUserName))

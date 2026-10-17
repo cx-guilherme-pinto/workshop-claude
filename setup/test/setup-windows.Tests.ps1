@@ -921,6 +921,7 @@ Describe 'chaos G6-lifecycle' {
   It 'instalacao: a falha fica no setup.log antes de virar aviso; um erro de permissao na saida ganha ao codigo do passo' {
     $log = Join-Path $TestDrive 'g6-install.log'
     $script:LogFile = $log; $script:Mode = 'install'; $script:UserHome = 'C:\Users\x'
+    Mock Test-WsDirWritable { return $false }
     Mock Invoke-WsHelper { return $false }
     Mock Test-WsStep10 { return $false }
     Mock Install-WsStep10 { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
@@ -950,6 +951,23 @@ Describe 'chaos G6-lifecycle' {
     Set-WsFail 'E-CC-01' 'install.ps1'; Invoke-WsPermReclass
     $script:T['2'].Falha -join '|' | Should -BeExactly 'E-PERM-01|mkdir: ~\.claude\downloads: Permission denied'
     foreach ($c in @('E-CFG-05', 'E-PERM-02', 'E-SO-07', 'E-AUTH-01', 'E-SMOKE-02')) { Set-WsFail $c 'x'; Invoke-WsPermReclass; $script:T['2'].Falha[0] | Should -Be $c }
+    # O FullyQualifiedErrorId de um script bloqueado pela execution policy nao e um erro de permissao.
+    Get-WsPermLine "+ FullyQualifiedErrorId : UnauthorizedAccess`n+ CategoryInfo : SecurityError: (:) [], PSSecurityException" 'C:\Users\x' | Should -BeExactly ''
+    Get-WsPermLine "+ CategoryInfo : PermissionDenied: (C:\Users\x\.claude:String) [New-Item], UnauthorizedAccessException" 'C:\Users\x' | Should -Match 'UnauthorizedAccessException$'
+  }
+
+  It 'reclassificacao: um ficheiro em uso (pasta de cima com escrita) fica com o codigo do passo; sem escrita e E-PERM-01' {
+    $script:Cur = '10'; $script:UserHome = Join-Path $TestDrive 'perfil-uso'; $script:T = New-WsStateTable
+    $tools = Join-Path $script:UserHome 'AppData/Roaming/uv/tools'
+    New-Item -ItemType Directory -Path (Join-Path $tools 'agent-memory') -Force | Out-Null
+    $script:StepLog = New-Object System.Text.StringBuilder
+    Add-WsStepLog ('error: failed to remove directory `' + (Join-Path $tools 'agent-memory') + '`: Access is denied. (os error 5)')
+    Set-WsFail 'E-MEM-03' 'uv tool install'; Invoke-WsPermReclass
+    $script:T['10'].Falha -join '|' | Should -BeExactly 'E-MEM-03|uv tool install'
+    Mock Test-WsDirWritable { return $false } -ParameterFilter { $Dir -like '*uv*tools' }
+    Invoke-WsPermReclass
+    $script:T['10'].Falha[0] | Should -Be 'E-PERM-01'
+    $script:T['10'].Falha[1] | Should -Match '^error: failed to remove directory `~.AppData.Roaming.uv.tools.agent-memory`: Access is denied'
   }
 
   It 'comandos que devolvem um caminho a pessoa e caminhos com ~' {
@@ -964,7 +982,15 @@ Describe 'chaos G6-lifecycle' {
     $f = Join-Path $TestDrive 'pf-file'
     Set-Content -LiteralPath $f -Value 'x'
     Get-WsPermFix $f | Should -Match '^Rename-Item -LiteralPath ".*pf-file" -NewName "pf-file\.old"$'
+    $script:UserHome = Split-Path -Parent $TestDrive
     Get-WsPermFix (Join-Path $TestDrive 'nao/existe') | Should -Match ('^icacls "' + [regex]::Escape($TestDrive) + '" /grant ".+:\(OI\)\(CI\)F" /T$')
+    # Nunca um icacls /T na pasta do perfil, nem numa pasta de cima fora do perfil; um caminho que existe fora dele conta.
+    $script:UserHome = $TestDrive
+    Get-WsPermFix (Join-Path $TestDrive 'nao/existe') | Should -BeExactly ''
+    Get-WsPermFix $TestDrive | Should -BeExactly ''
+    $script:UserHome = Join-Path $TestDrive 'perfil'
+    Get-WsPermFix (Join-Path $TestDrive 'fora/nao/existe') | Should -BeExactly ''
+    Get-WsPermFix $f | Should -Match '^Rename-Item -LiteralPath ".*pf-file"'
     Test-WsDirWritable $TestDrive | Should -BeTrue
     Test-WsDirWritable (Join-Path $TestDrive 'nao/existe') | Should -BeTrue
     Test-WsDirWritable $f | Should -BeFalse
@@ -1118,6 +1144,37 @@ Describe 'chaos G6-lifecycle' {
     $script:Net = $false; $script:KitSrc = ''
     Initialize-WsKit | Should -BeTrue
     Should -Invoke Invoke-WsDownload -Times 2 -Exactly
+    $script:InjKitSha = ''
+  }
+
+  It 'kit-src: um kit antigo que nao sai todo (ficheiro aberto) deixa de contar, e o clone nao vai para dentro dele' {
+    $script:WsHome = Join-Path $TestDrive 'kws2'; $script:Tmp = Join-Path $TestDrive 'ktmp2'; $script:Mode = 'install'; $script:KitSrc = ''
+    New-Item -ItemType Directory -Path $script:Tmp -Force | Out-Null
+    $script:C = @{ WORKSHOP_VERSION = 'v9'; WORKSHOP_REPO_URL = 'https://git.invalid/kit.git' }
+    $src = Join-Path $TestDrive 'krel2/workshop-kit-v9'
+    New-Item -ItemType Directory -Path (Join-Path $src 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $src 'installer/install-user.mjs') -Value ''
+    $script:KitZip2 = Join-Path $TestDrive 'krel2.zip'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($src, $script:KitZip2, [IO.Compression.CompressionLevel]::Fastest, $true)
+    $script:InjKitSha = Get-WsSha256 $script:KitZip2
+    $script:KitOld2 = Join-Path $script:WsHome 'kit-src/v9'
+    $old = $script:KitOld2
+    New-Item -ItemType Directory -Path (Join-Path $old 'installer') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $old '.ws-kit-ok') -Value 'outro'
+    $script:StepLog = New-Object System.Text.StringBuilder
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Invoke-WsDownload { Copy-Item -LiteralPath $script:KitZip2 -Destination $OutFile -Force; return $true }
+    # O Remove-Item -Recurse do kit antigo nao apaga nada (um ficheiro aberto la dentro).
+    Mock Remove-Item { } -ParameterFilter { $Recurse -and (($LiteralPath -join '') -replace '[\\/]+$', '') -eq $script:KitOld2 }
+    Mock Get-WsGit { return 'git' }
+    Mock Invoke-WsProcess { New-Item -ItemType Directory -Path $Arguments[-1] -Force | Out-Null; return @{ ExitCode = 0; StdOut = ''; StdErr = '' } }
+    Initialize-WsKit | Should -BeFalse
+    Test-Path -LiteralPath (Join-Path $old '.ws-kit-ok') | Should -BeFalse
+    Test-Path -LiteralPath (Join-Path $old 'clone') | Should -BeFalse
+    $script:KitSrc | Should -BeNullOrEmpty
+    $script:StepLog.ToString() | Should -Match 'kit-src not replaced'
+    Should -Invoke Invoke-WsProcess -Times 1 -Exactly
     $script:InjKitSha = ''
   }
 
