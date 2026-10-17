@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Grava a pagina /estado da Arena (Playwright) enquanto o enxame corre, ate o run terminar.
-//   node record-estado.mjs --url http://127.0.0.1:3000/estado --projeto <arena> --out <pasta> [--max-min 40]
+// Grava a pagina /status da Arena (Playwright) enquanto o enxame corre, ate o run terminar.
+//   node record-estado.mjs --url http://127.0.0.1:3000/status --projeto <arena> --out <pasta> [--max-min 40]
 // Escreve <out>/estado.webm e <out>/estado-final.png e, no fim, a galeria em <out>/arena.png.
 // Ferramenta do organizador (precisa de `npm install` nesta pasta e `npx playwright install chromium`).
 import { chromium } from 'playwright';
@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 const a = process.argv.slice(2);
 const opt = (k, d) => (a.includes(k) ? a[a.indexOf(k) + 1] : d);
-const url = opt('--url', 'http://127.0.0.1:3000/estado');
+const url = opt('--url', 'http://127.0.0.1:3000/status');
 const projeto = opt('--projeto');
 const out = opt('--out', 'out');
 const maxMs = Number(opt('--max-min', 40)) * 60000;
@@ -32,7 +32,7 @@ const terminou = () => {
 while (Date.now() - t0 < maxMs && !terminou()) await page.waitForTimeout(2000);
 await page.waitForTimeout(4000);
 await page.screenshot({ path: join(out, 'estado-final.png') });
-const base = url.replace(/\/estado.*$/, '/');
+const base = url.replace(/\/(estado|status).*$/, '/');
 await page.goto(base);
 await page.waitForTimeout(2500);
 await page.screenshot({ path: join(out, 'arena.png') });

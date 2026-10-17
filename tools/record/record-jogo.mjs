@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Grava um video a jogar a Arena final (para o slide "O resultado: um jogo para jogar"). Ferramenta do organizador.
 // Abre a galeria, joga um cartao de cada modelo com a resposta certa (clicar na linha insegura, escolher,
-// ordenar e escrever) e acaba na pontuacao. As respostas vem de specs/cards.json da propria Arena.
+// ordenar e escrever) e acaba na pontuacao. As respostas vem de specs/cards.json da propria Arena (D-25: chaves, templates e rotas em ingles).
 //
 //   node record-jogo.mjs --arena <pasta da Arena com os cartoes feitos> --out <pasta> [--lingua pt|en]
 //                        [--gerar-cartoes] [--porta 3610] [--cartoes sc-01,ph-01,ph-06,sc-03]
@@ -25,29 +25,25 @@ const sufixo = lingua === 'pt' ? '' : `.${lingua}`;
 mkdirSync(out, { recursive: true });
 
 const spec = JSON.parse(readFileSync(join(arena, 'specs', 'cards.json'), 'utf8'));
-const porId = new Map(spec.cartoes.map((c) => [c.id, c]));
-const UI = {
-  pt: { inicio: 'Desafios', pontuacao: 'Pontuação' },
-  en: { inicio: 'Challenges', pontuacao: 'Score' },
-}[lingua];
+const porId = new Map(spec.cards.map((c) => [c.id, c]));
 
-// ---------- card.js a partir da especificacao ----------
-const FUNCAO = { 'clica-erro': 'clicaErro', escolha: 'escolha', ordenar: 'ordenar', resposta: 'resposta' };
+// ---------- card.js a partir da especificacao (D-25: templates e chaves em ingles) ----------
+const FUNCAO = { 'spot-the-flaw': 'spotTheFlaw', choice: 'choice', order: 'order', answer: 'answer' };
 function definicao(c) {
-  const d = { id: c.id, title: c.titulo, category: c.categoria, difficulty: c.dificuldade, concept: c.conceito, prompt: c.enunciado };
-  if (c.cenario) d.scenario = c.cenario;
-  if (c.modelo === 'clica-erro') Object.assign(d, { language: c.linguagem, segments: c.segmentos, answer: c.certa });
-  if (c.modelo === 'escolha') Object.assign(d, { options: c.opcoes.map((o) => ({ id: o.id, text: o.texto, ...(o.detalhe ? { detail: o.detalhe } : {}) })), answer: c.certa });
-  if (c.modelo === 'ordenar') Object.assign(d, { items: c.itens.map((o) => ({ id: o.id, text: o.texto })), answer: c.certa });
-  if (c.modelo === 'resposta') Object.assign(d, { placeholder: c.placeholder, accept: c.aceites });
-  d.explanation = c.explicacao;
+  const d = { id: c.id, title: c.title, category: c.category, difficulty: c.difficulty, concept: c.concept, prompt: c.prompt };
+  if (c.scenario) d.scenario = c.scenario;
+  if (c.template === 'spot-the-flaw') Object.assign(d, { language: c.language, segments: c.segments, answer: c.answer });
+  if (c.template === 'choice') Object.assign(d, { options: c.options, answer: c.answer });
+  if (c.template === 'order') Object.assign(d, { items: c.items, answer: c.answer });
+  if (c.template === 'answer') Object.assign(d, { placeholder: c.placeholder, accept: c.accept });
+  d.explanation = c.explanation;
   return d;
 }
 if (a.includes('--gerar-cartoes')) {
-  for (const c of spec.cartoes) {
-    if (!FUNCAO[c.modelo] || (c.modelo === 'resposta' && !Array.isArray(c.aceites))) continue;
-    const f = FUNCAO[c.modelo];
-    const src = `import { ${f} } from '../../templates/${c.modelo}.js';\n\nexport default ${f}(${JSON.stringify(definicao(c), null, 2)});\n`;
+  for (const c of spec.cards) {
+    if (!FUNCAO[c.template] || (c.template === 'answer' && !Array.isArray(c.accept))) continue;
+    const f = FUNCAO[c.template];
+    const src = `import { ${f} } from '../../templates/${c.template}.js';\n\nexport default ${f}(${JSON.stringify(definicao(c), null, 2)});\n`;
     writeFileSync(join(arena, 'cards', c.id, 'card.js'), src);
   }
 }
@@ -92,8 +88,8 @@ async function clicar(loc, pausa = 350) {
   await page.mouse.up();
   await espera(300);
 }
-async function confirmar() { await clicar(page.locator('.cartao .botao-principal').first(), 500); await espera(3200); }
-async function inicio() { await clicar(page.locator('a[data-nav="inicio"]').first()); await espera(1200); }
+async function confirmar() { await clicar(page.locator('.card .card-actions .button-primary').first(), 500); await espera(3200); }
+async function inicio() { await clicar(page.locator('a[data-nav="home"]').first()); await espera(1200); }
 
 try {
   await page.goto(base + '#/');
@@ -102,33 +98,33 @@ try {
   for (const id of ids) {
     const c = porId.get(id);
     if (!c) throw new Error(`cartao ${id} nao existe em specs/cards.json`);
-    await clicar(page.locator(`a.tile[href="#/cartao/${id}"]`));
-    await page.locator('.cartao').first().waitFor();
+    await clicar(page.locator(`a.tile[href="#/card/${id}"]`));
+    await page.locator('.card').first().waitFor();
     await espera(2200); // tempo para ler o enunciado
-    if (c.modelo === 'clica-erro') {
-      for (const i of c.certa) await clicar(page.locator(`.segmento[data-indice="${i}"]`), 600);
-    } else if (c.modelo === 'escolha') {
-      await irPara(page.locator('.opcao').first()); await espera(500);
-      await clicar(page.locator(`.opcao[data-opcao="${c.certa}"]`), 700);
-    } else if (c.modelo === 'ordenar') {
-      const alvo = c.certa;
+    if (c.template === 'spot-the-flaw') {
+      for (const i of c.answer) await clicar(page.locator(`.segment[data-index="${i}"]`), 600);
+    } else if (c.template === 'choice') {
+      await irPara(page.locator('.option').first()); await espera(500);
+      await clicar(page.locator(`.option[data-option="${c.answer}"]`), 700);
+    } else if (c.template === 'order') {
+      const alvo = c.answer;
       for (let pos = 0; pos < alvo.length; pos++) {
         for (;;) {
-          const ordem = await page.locator('.ordenar-item').evaluateAll((els) => els.map((e) => e.dataset.item));
+          const ordem = await page.locator('.order-item').evaluateAll((els) => els.map((e) => e.dataset.item));
           const j = ordem.indexOf(alvo[pos]);
           if (j <= pos) break;
-          await clicar(page.locator(`.ordenar-item[data-item="${alvo[pos]}"] [data-mover="cima"]`), 200);
+          await clicar(page.locator(`.order-item[data-item="${alvo[pos]}"] [data-move="up"]`), 200);
         }
       }
-    } else if (c.modelo === 'resposta') {
-      await clicar(page.locator('.resposta-campo'));
-      await page.keyboard.type(String(c.certa ?? c.aceites[0]), { delay: 120 });
+    } else if (c.template === 'answer') {
+      await clicar(page.locator('.answer-field'));
+      await page.keyboard.type(String(c.answer ?? c.accept[0]), { delay: 120 });
       await espera(400);
     }
     await confirmar();
     await inicio();
   }
-  await clicar(page.locator('a[data-nav="pontuacao"]').first());
+  await clicar(page.locator('a[data-nav="score"]').first());
   await espera(3000);
 } finally {
   await context.close();
