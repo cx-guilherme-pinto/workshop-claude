@@ -1,5 +1,5 @@
 {
-  "nota": "Casos partilhados pelos testes da lingua da maquina (Node, bash e PowerShell). D-20. 'etiquetas': normalizacao e mapeamento (o Node tambem verifica 'claude', o valor da definicao language). 'mac': WORKSHOP_LANG, defaults read -g AppleLanguages, LC_ALL, LC_MESSAGES, LANG. 'windows': WORKSHOP_LANG, Get-UICulture, Get-Culture.",
+  "nota": "Casos partilhados pelos testes da lingua da maquina (Node, bash e PowerShell). D-20. 'etiquetas': normalizacao e mapeamento (o Node tambem verifica 'claude', o valor da definicao language). 'mac': WORKSHOP_LANG, defaults read -g AppleLanguages, LC_ALL, LC_MESSAGES, LANG (WORKSHOP_LANG so conta se for pt, en, hi ou he). 'invalidas': textos que nao sao etiquetas de lingua (sem informacao: etiqueta vazia, kit en). 'windows': WORKSHOP_LANG, Get-UICulture, Get-Culture.",
   "etiquetas": [
     { "in": "pt-PT", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
     { "in": "pt_PT.UTF-8", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
@@ -28,7 +28,28 @@
     { "nome": "sem AppleLanguages: LC_MESSAGES", "override": "", "apple": "", "lc_all": "", "lc_messages": "he_IL.UTF-8", "lang": "en_US.UTF-8", "tag": "he-IL" },
     { "nome": "sem AppleLanguages: LANG", "override": "", "apple": "", "lc_all": "", "lc_messages": "", "lang": "pt_BR.UTF-8", "tag": "pt-BR" },
     { "nome": "C e POSIX nao contam", "override": "", "apple": "", "lc_all": "C", "lc_messages": "POSIX", "lang": "C.UTF-8", "tag": "en" },
-    { "nome": "nada: ingles", "override": "", "apple": "", "lc_all": "", "lc_messages": "", "lang": "", "tag": "en" }
+    { "nome": "nada: ingles", "override": "", "apple": "", "lc_all": "", "lc_messages": "", "lang": "", "tag": "en" },
+    { "nome": "WORKSHOP_LANG desconhecido (br) nao conta", "override": "br", "apple": "(\n    \"pt-BR\",\n    \"en-BR\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "pt-BR" },
+    { "nome": "WORKSHOP_LANG com glob (pt-*) nao conta", "override": "pt-*", "apple": "(\n    \"pt-BR\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "pt-BR" },
+    { "nome": "WORKSHOP_LANG fora das linguas do workshop (es) nao conta", "override": "es", "apple": "(\n    \"en-US\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "en-US" },
+    { "nome": "WORKSHOP_LANG=Português nao conta", "override": "Português", "apple": "", "lc_all": "", "lc_messages": "", "lang": "pt_BR.UTF-8", "tag": "pt-BR" },
+    { "nome": "LC_ALL=UTF-8 e um charset, nao uma lingua", "override": "", "apple": "", "lc_all": "UTF-8", "lc_messages": "", "lang": "pt_PT.UTF-8", "tag": "pt-PT" },
+    { "nome": "WORKSHOP_LANG=iw conta (hebraico)", "override": "iw_IL", "apple": "(\n    \"pt-BR\"\n)", "lc_all": "", "lc_messages": "", "lang": "", "tag": "he-IL" }
+  ],
+  "invalidas": [
+    { "in": "brasil" },
+    { "in": "portuguese" },
+    { "in": "klingon" },
+    { "in": "Português" },
+    { "in": "pt-*" },
+    { "in": "pt_*" },
+    { "in": "en,pt" },
+    { "in": "pt BR" },
+    { "in": "UTF-8" },
+    { "in": "utf8" },
+    { "in": "pt-Applications-Desktop" },
+    { "in": "1pt" },
+    { "in": "   " }
   ],
   "windows": [
     { "nome": "lingua de apresentacao primeiro", "override": "", "ui": "pt-PT", "cultura": "en-US", "tag": "pt-PT" },

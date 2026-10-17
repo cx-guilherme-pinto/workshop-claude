@@ -4,7 +4,7 @@
 // setting, which the setup writes from the machine language.
 //
 // Order:
-//   1. WORKSHOP_LANG (for tests or to force it);
+//   1. WORKSHOP_LANG (for tests or to force it), only when it is pt, en, hi or he (see forcedLanguage);
 //   2. language.json at the root of the engine, written at install time (~/.workshop-claude/kit/language.json,
 //      <arena>/tools/workshop/language.json); older installs have lingua.json, which is still read;
 //   3. the system locale (LC_ALL, LC_MESSAGES, LANG and, last, Node's Intl);
@@ -19,11 +19,20 @@ export const ENGINE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '
 export const LANGUAGE_FILE = 'language.json';
 export const LEGACY_LANGUAGE_FILE = 'lingua.json';
 
-// 'pt-PT', 'pt_BR.UTF-8', 'pt' -> 'pt'; 'en-US', 'he-IL', 'hi' -> 'en'; empty, 'C' and 'POSIX' -> null (no information).
+// 'pt-PT', 'pt_BR.UTF-8', 'pt' -> 'pt'; 'en-US', 'he-IL', 'hi' -> 'en'; empty, 'C', 'POSIX' and what is not
+// a language tag ('UTF-8', 'brasil', 'Português', 'pt-*', 'en,pt') -> null (no information).
 export function normalize(tag) {
-  const t = String(tag ?? '').trim().toLowerCase().replace(/_/g, '-');
-  if (!t || /^(c|posix)([.@]|$)/.test(t)) return null;
-  return /^pt([-.@]|$)/.test(t) ? 'pt' : 'en';
+  const t = String(tag ?? '').trim().toLowerCase().replace(/_/g, '-').replace(/[.@].*$/, '');
+  if (!t || /^(c|posix)$/.test(t)) return null;
+  if (!/^[a-z]{2,3}(-[a-z0-9]{0,8})*$/.test(t) || /^utf(-|$)/.test(t)) return null;
+  return /^pt(-|$)/.test(t) ? 'pt' : 'en';
+}
+
+// WORKSHOP_LANG only forces the kit language when it is one of the workshop languages (pt, en, hi, he):
+// a typo such as 'br' or 'brasil' left in a .zshrc must not turn the kit to English over language.json.
+export function forcedLanguage(value) {
+  const t = String(value ?? '').trim().toLowerCase().replace(/_/g, '-');
+  return ['pt', 'en', 'hi', 'he', 'iw'].includes(t.split(/[-.@]/)[0]) ? normalize(t) : null;
 }
 
 // The kit language stored in <root>/language.json (or the legacy lingua.json), or null.
@@ -41,7 +50,7 @@ export function storedLanguage(root = ENGINE_ROOT) {
 }
 
 export function language({ env = process.env, raiz, root = raiz ?? ENGINE_ROOT } = {}) {
-  const forced = normalize(env.WORKSHOP_LANG);
+  const forced = forcedLanguage(env.WORKSHOP_LANG);
   if (forced) return forced;
   const stored = storedLanguage(root);
   if (stored) return stored;

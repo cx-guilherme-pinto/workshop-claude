@@ -195,6 +195,18 @@ test('--lingua-maquina grava language.json do kit e a language do Claude Code (s
     assert.deepEqual(lingua(), { language: 'pt', machine: 'pt-PT' });
     assert.equal(settings().language, 'European Portuguese', 'a nossa acompanha a maquina');
 
+    // pt-PT -> pt-BR: os textos do kit sao os mesmos, mas a "language" do Claude (a nossa) muda (chaos G7-language).
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt-BR']);
+    assert.equal(r.status, 1, r.stdout);
+    assert.deepEqual(r.get('falta'), ['language do Claude (European Portuguese -> Brazilian Portuguese)'], r.stdout);
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt-BR']);
+    assert.deepEqual(lingua(), { language: 'pt', machine: 'pt-BR' });
+    assert.equal(settings().language, 'Brazilian Portuguese');
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt-BR']);
+    assert.equal(r.status, 0, r.stdout);
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt-PT']);
+    assert.equal(settings().language, 'European Portuguese');
+
     writeFileSync(join(claude, 'settings.json'), JSON.stringify({ ...settings(), language: 'japanese' }));
     r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'en-US']);
     assert.equal(settings().language, 'japanese', 'a da pessoa nao se toca');

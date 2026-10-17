@@ -126,6 +126,18 @@ test('lingua: normalizar tags de locale', () => {
   assert.equal(normalizar('POSIX'), null);
   assert.equal(normalizar(''), null);
   assert.equal(normalizar(undefined), null);
+  // O que nao e uma etiqueta de lingua nao conta como ingles (chaos G7-language).
+  for (const x of ['UTF-8', 'brasil', 'portuguese', 'Português', 'pt-*', 'en,pt', 'pt-Applications']) assert.equal(normalizar(x), null, x);
+});
+
+test('lingua: um WORKSHOP_LANG desconhecido (br, brasil, pt-*) nao ganha ao language.json', () => {
+  const comJson = mkdtempSync(join(tmpdir(), 'ws-lingua-'));
+  writeFileSync(join(comJson, 'language.json'), JSON.stringify({ language: 'pt' }));
+  for (const w of ['br', 'brasil', 'klingon', 'pt-*', 'es-ES', 'UTF-8']) {
+    assert.equal(lingua({ env: { WORKSHOP_LANG: w, LANG: 'en_US.UTF-8' }, raiz: comJson }), 'pt', w);
+  }
+  assert.equal(lingua({ env: { WORKSHOP_LANG: 'he', LANG: 'pt_PT.UTF-8' }, raiz: comJson }), 'en', 'he e uma lingua do workshop: kit en');
+  assert.equal(lingua({ env: { WORKSHOP_LANG: 'pt_BR.UTF-8' }, raiz: comJson }), 'pt');
 });
 
 test('lingua: WORKSHOP_LANG > language.json > LANG', () => {

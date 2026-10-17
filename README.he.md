@@ -56,7 +56,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 
 כל מה שמותקן נרשם ב-`~/.workshop-claude/manifest.json`. גיבוי של `settings.json` נשמר ב-`~/.workshop-claude/backup/`. ה-log (בלי secrets) נמצא ב-`~/.workshop-claude/setup.log`.
 
-**שפות.** ה-setup מדבר רק אנגלית, וגם האופציות שלו באנגלית (האופציות הישנות בפורטוגזית עדיין עובדות), כך שכל ההודעות שתראו על המסך יהיו באנגלית. הוא מזהה את שפת המחשב, ואם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills וה-agents כתובים באנגלית ועונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר; אפשר לכפות אחת מהשפות עם `WORKSHOP_LANG=pt` או `WORKSHOP_LANG=en`.
+**שפות.** ה-setup מדבר רק אנגלית, וגם האופציות שלו באנגלית (האופציות הישנות בפורטוגזית עדיין עובדות), כך שכל ההודעות שתראו על המסך יהיו באנגלית. הוא מזהה את שפת המחשב, ואם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills וה-agents כתובים באנגלית ועונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר. כדי לבחור את השפה בעצמכם, תנו ל-setup את `WORKSHOP_LANG` עם `pt-BR`, `pt-PT`, `en`, `hi` או `he`: ב-macOS כתבו אותו אחרי ה-pipe, ממש לפני `bash` (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` מגיע רק ל-`curl`), וב-Windows הריצו קודם `$env:WORKSHOP_LANG='pt-BR'`. השפה שנבחרה בהתקנה נשמרת גם כשמריצים את ה-setup שוב; רק `WORKSHOP_LANG` משנה אותה, וה-setup מתעלם מערך שהוא לא מכיר ומציג על כך הערה.
 
 ## מבנה התיקיות
 

@@ -7,10 +7,18 @@
 
 const CLAUDE = { en: 'English', hi: 'Hindi', he: 'Hebrew' };
 
+// A BCP 47-like tag: 2 or 3 ASCII letters, then subtags of up to 8 letters or digits ('-' already in place of '_').
+export function eEtiqueta(t) {
+  return /^[A-Za-z]{2,3}(-[A-Za-z0-9]{0,8})*$/.test(t) && !/^utf(-|$)/i.test(t);
+}
+
 // 'pt_PT.UTF-8' -> 'pt-PT'; 'HE' -> 'he'; 'iw-IL' -> 'he-IL'; 'zh-Hans-CN' -> 'zh-Hans-CN'; '' / 'C' -> ''.
+// What is not a language tag also gives '' (no information): 'br' is a tag (Breton), but 'brasil',
+// 'Português', 'pt-*', 'en,pt' and 'UTF-8' are not. Same rules as ws_lang_tag in setup-mac.sh.
 export function etiqueta(tag) {
   const t = String(tag ?? '').trim().replace(/[.@].*$/, '').replace(/_/g, '-');
   if (!t || /^(c|posix)$/i.test(t)) return '';
+  if (!eEtiqueta(t)) return '';
   const partes = t.split('-').filter(Boolean);
   let base = partes[0].toLowerCase();
   if (base === 'iw') base = 'he';

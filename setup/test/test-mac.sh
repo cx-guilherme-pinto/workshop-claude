@@ -229,5 +229,80 @@ grep -q 'ws_warn E-CFG-01' "$ROOT/setup/setup-mac.sh" && ko "E-CFG-01 ainda e um
 # --- alinhamento com acentos
 eq "$(ws_pad 'Memória' 9)|" "Memória  |" ws_pad
 
+# --- chaos G7-language: locale C/invalido, WORKSHOP_LANG desconhecido e lingua guardada na instalacao
+# (1) o que nao e uma etiqueta nao da informacao (casos partilhados 'invalidas'), sem stderr nem glob
+if [ -n "$NODE" ]; then
+  n=$("$NODE" -e 'console.log(require(process.argv[1]).invalidas.length)' "$LC"); i=0
+  while [ "$i" -lt "$n" ]; do
+    inp=$("$NODE" -e 'process.stdout.write(require(process.argv[1]).invalidas[+process.argv[2]].in)' "$LC" "$i")
+    eq "$(ws_lang_tag "$inp")" "" "lingua invalida [$inp]"
+    i=$((i + 1))
+  done
+else ko "lingua: sem node para ler os casos invalidas"; fi
+G7="$WS_TMP/g7"; mkdir -p "$G7/glob/pt-Desktop" "$G7/glob/pt-Documents" "$G7/home/kit" "$G7/proj/demo-project" "$G7/proj/practice-project"
+LATIN1=$(printf 'Portugu\352s')
+for loc in en_US.UTF-8 pt_BR.UTF-8 C en_US.utf8; do
+  eq "$( (export LC_ALL=$loc; ws_lang_tag "$LATIN1") 2>&1)" "" "lingua: byte Latin-1 sem stderr ($loc)"
+done
+eq "$(cd "$G7/glob" && ws_lang_tag 'pt-*')|$(cd "$G7/glob" && ws_lang_tag 'pt_*')" "|" "lingua: pt-* nao expande nomes de ficheiros"
+g7_apple() { printf '(\n    "%s",\n    "pt-BR"\n)\n' "$1"; }
+g7_detect() { # WORKSHOP_LANG primeira_lingua_do_AppleLanguages -> WS_LANG|KIT|GUARDADA|MAQUINA|IGNORADA (+stderr)
+  ( defaults() { g7_apple "$G7_APPLE"; }; G7_APPLE=$2; WS_HOME="$G7/home"; unset LC_ALL LC_MESSAGES LANG
+    if [ -n "$1" ]; then WORKSHOP_LANG=$1; else unset WORKSHOP_LANG; fi
+    ws_lang_detect; printf '%s|%s|%s|%s|%s' "$WS_LANG" "$WS_LANG_KIT" "$WS_LANG_GUARDADA" "$WS_LANG_MAQUINA" "$WS_LANG_IGNORADA" ) 2>&1
+}
+# (2) WORKSHOP_LANG desconhecido: nota e lingua da maquina (o AppleLanguages pt-BR ganha a "br")
+rm -f "$G7/home/kit/"*.json
+eq "$(g7_detect br pt-BR)" "pt-BR|pt||pt-BR|br" "ws_lang_detect: WORKSHOP_LANG=br ignorado"
+eq "$(cd "$G7/glob" && g7_detect 'pt-*' pt-BR)" "pt-BR|pt||pt-BR|pt-*" "ws_lang_detect: WORKSHOP_LANG=pt-* ignorado, sem glob"
+eq "$(g7_detect "$LATIN1" pt-BR | LC_ALL=C tr -d '\200-\377')" "pt-BR|pt||pt-BR|Portugus" "ws_lang_detect: Latin-1 ignorado, sem stderr"
+eq "$(g7_detect pt-PT en-US)" "pt-PT|pt||en-US|" "ws_lang_detect: WORKSHOP_LANG valido ganha"
+( WS_CUR=0; SN_0=""; WS_LANG=pt-BR; WS_LANG_IGNORADA=br; ws_s0_lang_notes; printf '%s' "$SN_0" ) > "$WS_TMP/g7.out"
+grep -q 'WORKSHOP_LANG=br is not one of the workshop languages' "$WS_TMP/g7.out" && grep -q 'used pt-BR' "$WS_TMP/g7.out" && ok || ko "s0: nota do WORKSHOP_LANG ignorado [$(cat "$WS_TMP/g7.out")]"
+# (3) a lingua guardada na instalacao (pt num Mac em ingles) fica nas execucoes seguintes; so o WORKSHOP_LANG a muda
+printf '{\n  "language": "pt",\n  "machine": "pt"\n}\n' > "$G7/home/kit/language.json"
+eq "$(g7_detect '' en-BR)" "pt|pt|pt|en-BR|" "ws_lang_detect: lingua guardada (--check, janela nova)"
+eq "$(g7_detect en en-BR)" "en|en||en-BR|" "ws_lang_detect: WORKSHOP_LANG muda a lingua guardada"
+eq "$(g7_detect br en-BR)" "pt|pt|pt|en-BR|br" "ws_lang_detect: WORKSHOP_LANG desconhecido nao muda a lingua guardada"
+( WS_CUR=0; SN_0=""; WS_LANG=pt; WS_LANG_GUARDADA=pt; WS_LANG_MAQUINA=en-BR; ws_s0_lang_notes; printf '%s' "$SN_0" ) > "$WS_TMP/g7.out"
+grep -q 'Kept the language chosen at install (pt); this computer is in en-BR' "$WS_TMP/g7.out" && ok || ko "s0: nota da lingua guardada [$(cat "$WS_TMP/g7.out")]"
+( WS_CUR=0; SN_0=""; WS_LANG=pt-BR; WS_LANG_GUARDADA=pt-BR; WS_LANG_MAQUINA=pt-BR; ws_s0_lang_notes; printf '%s' "$SN_0" ) > "$WS_TMP/g7.out"
+eq "$(grep -c . "$WS_TMP/g7.out")" 1 "s0: sem nota quando a lingua guardada e a da maquina"
+printf '{"machine":"br"}\n' > "$G7/home/kit/language.json"
+eq "$(g7_detect '' en-BR)" "en-BR|en||en-BR|" "ws_lang_detect: lingua guardada invalida (br) nao conta"
+rm -f "$G7/home/kit/language.json"; printf '{\n  "lingua": "pt",\n  "maquina": "pt-BR"\n}\n' > "$G7/home/kit/lingua.json"
+eq "$(g7_detect '' en-US)" "pt-BR|pt|pt-BR|en-US|" "ws_lang_detect: lingua.json antigo (maquina)"
+rm -f "$G7/home/kit/"*.json
+eq "$(g7_detect '' en-BR)" "en-BR|en||en-BR|" "ws_lang_detect: sem instalacao, a lingua da maquina"
+# (4) passo 8 em --check: a lingua instalada diferente da pedida e explicada (nao e "a meio da instalacao")
+S8OUT=$(printf 'lingua\ten\nlingua_kit\tpt\nlanguage\tEuropean Portuguese\nlanguage_nossa\t1\nok\t0\nfalta\tlingua do kit (pt -> en)\n')
+( WS_CUR=8; WS_MODE=check; WS_LANG=en; WS_LANG_KIT=en; SN_8=""; ws_s8_parse "$S8OUT"; printf '%s' "$SN_8" ) > "$WS_TMP/g7.out"
+grep -q 'Language installed here: Portuguese. This run asks for English' "$WS_TMP/g7.out" && ok || ko "s8 check: nota da lingua a mudar [$(cat "$WS_TMP/g7.out")]"
+( WS_CUR=8; WS_MODE=install; WS_LANG=en; WS_LANG_KIT=en; SN_8=""; ws_s8_parse "$S8OUT"; printf '%s' "$SN_8" ) > "$WS_TMP/g7.out"
+grep -q 'This run asks for' "$WS_TMP/g7.out" && ko "s8 install: nota da lingua a mudar so no --check" || ok
+S8OUT=$(printf 'lingua\tpt-BR\nlingua_kit\tpt\nlanguage\tEuropean Portuguese\nlanguage_nossa\t1\nok\t0\nfalta\tlanguage do Claude (European Portuguese -> Brazilian Portuguese)\n')
+( WS_CUR=8; WS_MODE=check; WS_LANG=pt-BR; WS_LANG_KIT=pt; SN_8=""; ws_s8_parse "$S8OUT"; printf '%s' "$SN_8" ) > "$WS_TMP/g7.out"
+grep -q 'Language installed here: European Portuguese. This run asks for Brazilian Portuguese' "$WS_TMP/g7.out" && ok || ko "s8 check: nota da language do Claude a mudar [$(cat "$WS_TMP/g7.out")]"
+S8OUT=$(printf 'lingua\ten\nlingua_kit\t\nok\t0\nfalta\tlingua do kit (- -> en)\n')
+( WS_CUR=8; WS_MODE=check; WS_LANG=en; WS_LANG_KIT=en; SN_8=""; ws_s8_parse "$S8OUT"; printf '%s' "$SN_8" ) > "$WS_TMP/g7.out"
+grep -q 'This run asks for' "$WS_TMP/g7.out" && ko "s8 check: sem lingua instalada nao e uma mudanca de lingua" || ok
+# (5) passo 9: projetos noutra lingua que a do kit dao uma nota (nao mudam sozinhos)
+printf '{\n  "version": "v1",\n  "language": "pt"\n}\n' > "$G7/proj/demo-project/.arena-kit.json"
+printf '{"created_at":"x","lingua":"pt"}\n' > "$G7/proj/practice-project/.sandbox-kit.json"
+( WS_CUR=9; SN_9=""; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=en; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
+grep -q '^~/workshop-claude/demo-project is in Portuguese, and the workshop texts are now in English' "$WS_TMP/g7.out" &&
+  grep -q '^~/workshop-claude/practice-project is in Portuguese' "$WS_TMP/g7.out" && ok || ko "s9: nota dos projetos noutra lingua [$(cat "$WS_TMP/g7.out")]"
+( WS_CUR=9; SN_9=""; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=pt; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
+eq "$(grep -c . "$WS_TMP/g7.out")" 0 "s9: projetos na lingua do kit, sem nota"
+# (6) a contagem dos testes da app nao depende do locale (no C o [#ℹ] do sed apanhava so o primeiro byte)
+NODE_OUT=$(printf '✔ pass 3 a test named pass\nℹ tests 16\nℹ pass 16\nℹ fail 0\n')
+for loc in C en_US.utf8 en_US.UTF-8 ''; do
+  eq "$( (if [ -n "$loc" ]; then export LC_ALL=$loc; else unset LC_ALL LANG LC_CTYPE; fi; printf '%s\n' "$NODE_OUT" | ws_count_pass) 2>&1)" 16 "ws_count_pass [${loc:-sem locale}]"
+done
+eq "$(printf '# tests 7\n# pass 7\n# fail 0\n' | ws_count_pass)" 7 "ws_count_pass: TAP antigo"
+# (7) com um locale invalido o shasum (perl) e o tar nao escrevem no terminal: so ws_sha256 e tar com o stderr no log
+eq "$(grep -c 'shasum -a 256' "$ROOT/setup/setup-mac.sh")" 1 "shasum so dentro de ws_sha256"
+grep -nE '(^|[;&|(]|then|&&)[[:space:]]*tar -x' "$ROOT/setup/setup-mac.sh" | grep -v 'ws_run tar' | grep -v '2>>' | grep -q . && ko "tar -x com o stderr no terminal" || ok
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
