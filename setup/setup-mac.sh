@@ -560,10 +560,17 @@ ws_default_code() {
 }
 
 # ---------------------------------------------------------------- comandos
+# Poe a pasta $1 a frente do PATH e tira-a de onde ja estiver: um claude, uv ou gh antigo que venha antes no
+# PATH (npm, pipx, nvm) nao passa a frente do do workshop. Seguro com espacos e [ * ? no caminho.
+ws_path_front() {
+  PATH=":$PATH:"
+  while case "$PATH" in *":$1:"*) true ;; *) false ;; esac; do PATH="${PATH%%":$1:"*}:${PATH#*":$1:"}"; done
+  PATH="${PATH#:}"; PATH="${PATH%:}"; PATH="$1${PATH:+:$PATH}"
+}
 ws_path_setup() {
   local d
   for d in "$WS_HOME/node/bin" "$WS_HOME/bin" "$HOME/.local/bin"; do
-    case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac
+    ws_path_front "$d"
   done
   export PATH
   hash -r 2>/dev/null || true
@@ -571,42 +578,188 @@ ws_path_setup() {
 
 ws_claude() { command -v claude 2>/dev/null || { [ -x "$HOME/.local/bin/claude" ] && printf '%s' "$HOME/.local/bin/claude"; }; }
 
-# Bloco no perfil do shell que poe no PATH as pastas do workshop (removido pelo --desinstalar).
+# Bloco no perfil do shell que poe as pastas do workshop a frente do PATH (removido pelo --uninstall).
+# Vai para os ficheiros que um terminal novo le: o .zshrc e o .zprofile do $ZDOTDIR (ou da HOME), o ficheiro
+# que o bash de login le e, para o fish, conf.d/workshop-claude.fish.
 ws_profile_update() {
   [ "$WS_MODE" = install ] || return 0
-  local files f dirs d block tmp
+  local f dirs d block fblock bf fd
   dirs='"$HOME/.local/bin" "$HOME/.workshop-claude/bin"'
   if [ -n "${WS_NODE_BIN_DIR:-}" ]; then
     case "$WS_NODE_BIN_DIR" in "$HOME"/*) d="\"\$HOME${WS_NODE_BIN_DIR#"$HOME"}\"" ;; *) d="\"$WS_NODE_BIN_DIR\"" ;; esac
     dirs="$dirs $d"
   fi
-  block="# >>> workshop-claude >>>
-# Added by the workshop setup. Remove it with: bash ~/.workshop-claude/setup-mac.sh --uninstall
-for _ws_d in $dirs; do
-  case \":\$PATH:\" in *\":\$_ws_d:\"*) ;; *) [ -d \"\$_ws_d\" ] && PATH=\"\$_ws_d:\$PATH\" ;; esac
-done
-unset _ws_d
-export PATH
-# <<< workshop-claude <<<"
-  files=("$HOME/.zshrc" "$HOME/.zprofile")
-  { [ -f "$HOME/.bash_profile" ] || case "${SHELL:-}" in */bash) true ;; *) false ;; esac; } && files+=("$HOME/.bash_profile")
-  for f in "${files[@]}"; do
-    tmp="$f.ws-tmp"
-    if [ -f "$f" ]; then ws_profile_strip "$f" > "$tmp" || continue; else : > "$tmp"; fi
-    printf '\n%s\n' "$block" >> "$tmp"
-    if [ -f "$f" ] && cmp -s "$f" "$tmp"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
-    ws_registar perfil "$f" "$f"
+  # sh, bash e zsh. Cada pasta vai para a frente mesmo que ja esteja no PATH (a linha do pipx que poe o
+  # ~/.local/bin no fim, o nvm que se pos a frente dele): assim um claude antigo do npm nao passa a frente.
+  block=$(printf '%s\n' '# >>> workshop-claude >>>' \
+    '# Added by the workshop setup. Remove it with: bash ~/.workshop-claude/setup-mac.sh --uninstall' \
+    "for _ws_d in $dirs; do" \
+    '  [ -d "$_ws_d" ] || continue' \
+    '  PATH=":$PATH:"' \
+    '  while case "$PATH" in *":$_ws_d:"*) true ;; *) false ;; esac; do PATH="${PATH%%":$_ws_d:"*}:${PATH#*":$_ws_d:"}"; done' \
+    '  PATH="${PATH#:}"; PATH="${PATH%:}"; PATH="$_ws_d${PATH:+:$PATH}"' \
+    'done' 'unset _ws_d' 'export PATH' '# <<< workshop-claude <<<')
+  # fish (fish_add_path desde o fish 3.2; -P mexe so no PATH da sessao: nada fica nas variaveis universais)
+  fblock=$(printf '%s\n' '# >>> workshop-claude >>>' \
+    '# Added by the workshop setup. Remove it with: bash ~/.workshop-claude/setup-mac.sh --uninstall' \
+    'if functions -q fish_add_path' "    fish_add_path -P -m $dirs" 'else' "    set -gx PATH $dirs \$PATH" 'end' \
+    '# <<< workshop-claude <<<')
+  # zsh: le o .zshrc e o .zprofile do $ZDOTDIR, se o ~/.zshenv o definir (calculado uma vez por execucao)
+  [ "${WS_ZDOTDIR_HOME:-}" = "$HOME" ] || { WS_ZDOTDIR=$(ws_zdotdir); WS_ZDOTDIR_HOME=$HOME; }
+  ws_profile_put "$WS_ZDOTDIR/.zshrc" "$block"
+  ws_profile_put "$WS_ZDOTDIR/.zprofile" "$block"
+  # bash de login: le SO o primeiro que existir (e puder ler) de .bash_profile, .bash_login e .profile. O bloco
+  # vai para esse: nunca se cria um .bash_profile que esconda o .bash_login ou o .profile da pessoa.
+  bf=""
+  for f in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+    if [ -f "$f" ] && [ -r "$f" ]; then bf=$f; break; fi
   done
+  # ... e um .bash_profile so com o bloco (criado por uma versao antiga do setup) por cima de um .profile sai
+  if [ "$bf" = "$HOME/.bash_profile" ] && [ ! -L "$bf" ] && { [ -f "$HOME/.bash_login" ] || [ -f "$HOME/.profile" ]; } &&
+     ws_profile_strip "$bf" > "$WS_TMP/perfil-bp" 2>/dev/null && ! cmp -s "$bf" "$WS_TMP/perfil-bp" &&
+     ! LC_ALL=C grep -q '[^[:space:]]' "$WS_TMP/perfil-bp"; then
+    rm -f "$bf"; ws_log "profile: removed $bf (only the workshop block, it hid .bash_login or .profile)"
+    bf=""
+    for f in "$HOME/.bash_login" "$HOME/.profile"; do
+      if [ -f "$f" ] && [ -r "$f" ]; then bf=$f; break; fi
+    done
+  fi
+  rm -f "$WS_TMP/perfil-bp"
+  case "${SHELL:-}" in
+    */bash) [ -n "$bf" ] || bf="$HOME/.bash_profile" ;;
+    *) [ "$bf" = "$HOME/.bash_profile" ] || bf="" ;;
+  esac
+  [ -z "$bf" ] || ws_profile_put "$bf" "$block"
+  # o fish nao le nenhum destes
+  fd="${XDG_CONFIG_HOME:-$HOME/.config}/fish"
+  case "${SHELL:-}" in */fish) ;; *) [ -d "$fd" ] || return 0 ;; esac
+  ws_profile_put "$fd/conf.d/workshop-claude.fish" "$fblock"
+  return 0
 }
 
-ws_profile_strip() { # remove o bloco do workshop (e a linha vazia antes dele)
-  awk 'BEGIN{skip=0; held=0}
-       /^# >>> workshop-claude >>>/ {skip=1; held=0; next}
-       /^# <<< workshop-claude <<</ {skip=0; next}
-       skip {next}
-       /^$/ { if (held) print ""; held=1; next }
-       { if (held) print ""; held=0; print }
-       END{}' "$1"
+# Pasta de onde um zsh novo le o .zshrc e o .zprofile: o ZDOTDIR que o /etc/zshenv ou o ~/.zshenv definirem,
+# senao a HOME. Num ambiente limpo, como uma janela nova do Terminal (o ZDOTDIR herdado pode ser o de uma
+# integracao de terminal: o VS Code poe la uma pasta temporaria), e no maximo 5 s (um .zshenv que fica a
+# espera nao para o setup).
+ws_zdotdir() {
+  local z="" o="$WS_TMP/zdotdir.out" pid i=0
+  if [ -e /etc/zshenv ] || [ -e "$HOME/.zshenv" ]; then
+    : > "$o"
+    env -i HOME="$HOME" USER="${USER:-}" LOGNAME="${LOGNAME:-${USER:-}}" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+      /bin/zsh -c 'print -r -- "WSZDOTDIR=${ZDOTDIR:-$HOME}"' </dev/null >"$o" 2>/dev/null &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+    if kill -0 "$pid" 2>/dev/null; then { kill -9 "$pid"; wait "$pid"; } 2>/dev/null; ws_log "zsh -c (ZDOTDIR) did not answer in 5 s"; fi
+    z=$(sed -n 's/^WSZDOTDIR=//p' "$o" 2>/dev/null | tail -n 1)
+    rm -f "$o"
+  fi
+  z=${z%/}
+  case "$z" in /?*) ;; *) z=$HOME ;; esac
+  if [ "$z" != "$HOME" ] && ! { mkdir -p "$z" 2>/dev/null && [ -w "$z" ]; }; then z=$HOME; fi
+  ws_log "zsh profile folder: $z"
+  printf '%s' "$z"
+}
+
+# Escreve o bloco num ficheiro de perfil sem nunca perder as linhas da pessoa:
+# - le e escreve bytes (LC_ALL=C no awk: um .zshrc em Latin-1 nao o faz falhar);
+# - segue as ligacoes (stow, chezmoi, Mackup): a ligacao fica, o bloco vai para o ficheiro real e as
+#   permissoes ficam iguais (um 600 continua 600);
+# - nao mexe num ficheiro que nao consegue ler ou escrever (so de leitura, de outro utilizador, ligacao
+#   partida) nem num com um bloco antigo incompleto: avisa uma vez, com o que fazer;
+# - antes da primeira alteracao guarda uma copia em ~/.workshop-claude/backup.
+ws_profile_put() { # ficheiro bloco
+  local f=$1 tmp="$WS_TMP/perfil.ws-tmp" novo="" bk="" rc
+  [ -f "$f.ws-tmp" ] && [ ! -L "$f.ws-tmp" ] && rm -f "$f.ws-tmp"   # sobra das versoes antigas do setup
+  if [ -e "$f" ] || [ -L "$f" ]; then
+    if [ ! -f "$f" ] || [ ! -r "$f" ]; then ws_profile_warn E-PROF-01 "$f"; return 1; fi
+    ws_profile_strip "$f" > "$tmp" 2>>"$WS_LOG"; rc=$?
+    if [ "$rc" != 0 ]; then
+      rm -f "$tmp"
+      if [ "$rc" = 3 ]; then ws_profile_warn E-PROF-02 "$f"; else ws_profile_warn E-PROF-01 "$f"; fi
+      return 1
+    fi
+    # copia de seguranca so se houver linhas da pessoa (um ficheiro so com o bloco foi o setup que o criou)
+    LC_ALL=C grep -q '[^[:space:]]' "$tmp" && bk="$WS_HOME/backup/profile-$(printf '%s' "${f#"$HOME"/}" | tr '/' '_')"
+  else
+    mkdir -p "$(dirname "$f")" 2>>"$WS_LOG" || { ws_profile_warn E-PROF-01 "$f"; return 1; }
+    : > "$tmp"; novo=criado
+  fi
+  printf '\n%s\n' "$2" >> "$tmp"
+  if [ -z "$novo" ]; then
+    if cmp -s "$f" "$tmp"; then rm -f "$tmp"; ws_registar perfil "$f" "$f"; return 0; fi
+    [ -w "$f" ] || { rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1; }
+    if [ -n "$bk" ] && [ ! -e "$bk" ] && ! { mkdir -p "$WS_HOME/backup" && cp -p "$f" "$bk"; } 2>>"$WS_LOG"; then
+      rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1
+    fi
+  fi
+  if ! ws_profile_write "$f" "$tmp"; then
+    [ -n "$bk" ] && ! cmp -s "$bk" "$f" && cat "$bk" > "$f" 2>/dev/null   # escrita a meio: volta ao que era
+    rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1
+  fi
+  rm -f "$tmp"
+  ws_registar perfil "$f" "$f" "$novo"
+}
+
+# Troca o conteudo de $1 pelo de $2 sem trocar uma ligacao por um ficheiro: segue a ligacao e substitui o
+# ficheiro real de uma vez (copia ao lado e mv, com as mesmas permissoes). Se a pasta do ficheiro real nao
+# deixar criar a copia, escreve por cima.
+ws_profile_write() { # ficheiro conteudo
+  local real=$1 l n=0 m t
+  [ -e "$real" ] || { cat "$2" > "$real"; return; }
+  while [ -L "$real" ] && [ "$n" -lt 40 ]; do
+    l=$(readlink "$real") || return 1
+    case "$l" in /*) real=$l ;; *) real="$(dirname "$real")/$l" ;; esac
+    n=$((n + 1))
+  done
+  t="$real.ws-tmp"; m=$(stat -f %Lp "$real" 2>/dev/null)
+  # (com mais de uma ligacao fisica, o mv separava-as: escreve-se por cima)
+  if [ -n "$m" ] && [ "$(stat -f %l "$real" 2>/dev/null)" = 1 ] && ( umask 077; cat "$2" > "$t" ) 2>/dev/null &&
+     chmod "$m" "$t" 2>/dev/null && mv -f "$t" "$real" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$t" 2>/dev/null
+  cat "$2" > "$real" 2>>"$WS_LOG"
+}
+
+# Aviso de um perfil que ficou como estava: uma vez por ficheiro em cada execucao (o ws_profile_update corre
+# em varios passos). Fica no passo que esta a correr (que passa a "com aviso"); depois do passo 12 ja nao ha
+# passo onde o mostrar, e vai logo para o ecra.
+ws_profile_warn() { # codigo ficheiro
+  ws_log "profile left unchanged ($1): $2"
+  case "${WS_PERFIL_AVISADOS:-}" in *"|$2|"*) return 0 ;; esac
+  WS_PERFIL_AVISADOS="${WS_PERFIL_AVISADOS:-}|$2|"
+  if [ -n "${WS_CUR:-}" ] && [ -z "$(ws_st "$WS_CUR")" ]; then ws_warn "$1" "${2/#"$HOME"/~}"
+  else ws_print_code "$1" "${2/#"$HOME"/~}" "     " "⚠️  "; fi
+}
+
+# Tira os blocos completos do workshop (e a linha vazia que o setup pos antes de cada um), mesmo indentados.
+# LC_ALL=C: le bytes e nao caracteres (um .zshrc em Latin-1 fazia o awk falhar num locale UTF-8). Se um
+# marcador nao tiver par (um bloco antigo sem o fim, um fim solto), nao imprime nada e devolve 3: apagar ate
+# ao fim do ficheiro levaria as linhas da pessoa.
+ws_profile_strip() {
+  LC_ALL=C awk '
+    /^[ \t]*# >>> workshop-claude >>>/ { if (skip) bad = 1; skip = 1; held = 0; next }
+    /^[ \t]*# <<< workshop-claude <<</ { if (!skip) bad = 1; skip = 0; next }
+    skip { next }
+    /^$/ { if (held) out[++n] = ""; held = 1; next }
+    { if (held) out[++n] = ""; held = 0; out[++n] = $0 }
+    END { if (bad || skip) exit 3; for (i = 1; i <= n; i++) print out[i] }' "$1"
+}
+
+# --uninstall: tira o bloco. Um ficheiro que o setup criou e que fica vazio e apagado (um ~/.bash_profile vazio
+# esconderia o ~/.profile). Com um marcador sem par ou sem permissao, avisa e deixa o ficheiro como esta.
+ws_profile_remove() { # ficheiro [criado]
+  local f=$1 tmp="$WS_TMP/perfil.ws-tmp"
+  [ -f "$f" ] || return 0
+  if [ -r "$f" ] && ws_profile_strip "$f" > "$tmp" 2>>"$WS_LOG"; then
+    if cmp -s "$f" "$tmp"; then rm -f "$tmp"; return 0; fi
+    if [ "${2:-}" = criado ] && [ ! -L "$f" ] && ! LC_ALL=C grep -q '[^[:space:]]' "$tmp"; then
+      rm -f "$f" "$tmp"; ws_say "  $(ws_msg desinst_perfil FICHEIRO="$f")"; return 0
+    fi
+    if [ -w "$f" ] && ws_profile_write "$f" "$tmp"; then rm -f "$tmp"; ws_say "  $(ws_msg desinst_perfil FICHEIRO="$f")"; return 0; fi
+  fi
+  rm -f "$tmp"
+  ws_say "  ⚠️  $(ws_msg desinst_perfil_falhou FICHEIRO="$f")"
 }
 
 # Regista no manifest (via install-user.mjs) ou guarda para registar quando houver Node e kit.
@@ -1686,7 +1839,7 @@ ws_uninstall() {
       mcp) [ -n "$WS_CLAUDE" ] && "$WS_CLAUDE" mcp remove --scope user "$n" >>"$WS_LOG" 2>&1 </dev/null && ws_say "  $(ws_msg desinst_mcp NOME="$n")" ;;
       app) uv tool uninstall "${n:-memoria}" >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_msg desinst_memorias CAMINHO="$(ws_memory_home_show)")"; } ;;
       atalho) [ -n "$c" ] && rm -rf "$c" && ws_say "  $(ws_msg desinst_atalho CAMINHO="$c")" ;;
-      perfil) if [ -f "$c" ]; then ws_profile_strip "$c" > "$c.ws-tmp" && mv -f "$c.ws-tmp" "$c" && ws_say "  $(ws_msg desinst_perfil FICHEIRO="$c")"; fi ;;
+      perfil) ws_profile_remove "$c" "$v" ;;
     esac
   done <<EOF
 $("$WS_NODE" "$iu" extras 2>>"$WS_LOG" </dev/null)

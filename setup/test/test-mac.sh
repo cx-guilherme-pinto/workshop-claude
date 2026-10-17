@@ -418,6 +418,101 @@ eq "$( WS_AUTH_OK=1; SF_6="E-GH-02|"; ws_ask() { printf ASKED; return 1; }; ws_h
 eq "$( WS_AUTH_OK=1; SF_6="E-GH-01|x"; ws_ask() { printf ASKED; return 1; }; ws_helper_offer 6 2>/dev/null | tr -d '\n' )" "ASKED" "G1 ajudante: pergunta no E-GH-01"
 # so o ws_newterm abre um shell interativo (sessao nova, sem terminal, com limite de tempo)
 awk '/^ws_newterm\(\)/ {f = 1} f && /^}/ {f = 0; next} !f && /-[a-z]*i[a-z]*c / && /"\$sh"|zsh|bash/ && !/^ *#/' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "G1: shell interativo fora do ws_newterm" || ok
+# --- chaos G2-profiles: perfis do shell (ZDOTDIR, bash so com .profile, fish, ligacoes dos dotfiles, Latin-1,
+#     blocos antigos partidos, ficheiros sem permissao), o --uninstall e as pastas do workshop a frente do PATH
+G2="$WS_TMP/g2"; G2H="$G2/Ana Sá [1]"; mkdir -p "$G2"
+g2_home() { chmod -R u+rwx "$G2H" 2>/dev/null; rm -rf "$G2H"; mkdir -p "$G2H/.workshop-claude"; }
+g2_update() { # [shell] [vezes] -> corre o ws_profile_update numa HOME de teste (nunca a verdadeira)
+  ( unset ZDOTDIR XDG_CONFIG_HOME; HOME=$G2H; SHELL=${1:-/bin/zsh}; WS_HOME="$G2H/.workshop-claude"; WS_MODE=install
+    WS_NODE_BIN_DIR=""; KIT_SRC=""; WS_NODE=""; WS_PERFIL_AVISADOS=""; WS_ZDOTDIR_HOME=""; WS_CUR=""
+    i=0; while [ "$i" -lt "${2:-1}" ]; do ws_profile_update; i=$((i + 1)); done )
+}
+g2_blocks() { LC_ALL=C grep -c '^# >>> workshop-claude >>>' "$1" 2>/dev/null; }
+# strip: bytes Latin-1 num locale UTF-8, bloco sem fim, fim solto, bloco indentado
+printf '# Configura\347\343o do Jo\343o\nalias ll="ls -la"  # \223tudo\224\n' > "$G2/latin1"; cp "$G2/latin1" "$G2/latin1.orig"
+printf '\n# >>> workshop-claude >>>\nvelho\n# <<< workshop-claude <<<\n' >> "$G2/latin1"
+( export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; ws_profile_strip "$G2/latin1" ) > "$G2/latin1.out" 2> "$G2/latin1.err"
+cmp -s "$G2/latin1.out" "$G2/latin1.orig" && [ ! -s "$G2/latin1.err" ] && ok || ko "ws_profile_strip le bytes Latin-1 num locale UTF-8 [$(cat "$G2/latin1.err")]"
+printf 'a\n# >>> workshop-claude >>>\nvelho\nalias gs=x\n' > "$G2/semfim"
+eq "$(ws_profile_strip "$G2/semfim"; printf 'rc=%s' "$?")" "rc=3" "ws_profile_strip recusa um bloco sem fim (nao apaga ate ao fim do ficheiro)"
+printf 'a\n# <<< workshop-claude <<<\nb\n' > "$G2/fimsolto"; ws_profile_strip "$G2/fimsolto" >/dev/null; eq "$?" 3 "ws_profile_strip recusa um fim solto"
+printf 'a\n  # >>> workshop-claude >>>\n  velho\n  # <<< workshop-claude <<<\nb\n' > "$G2/indent"
+eq "$(ws_profile_strip "$G2/indent")" "$(printf 'a\nb')" "ws_profile_strip tira um bloco indentado"
+# ligacoes dos dotfiles: a ligacao fica, o bloco vai para o ficheiro real, 600 continua 600, backup e sem .ws-tmp
+g2_home; mkdir -p "$G2H/dotfiles"; printf 'export DOT=1\n' > "$G2H/dotfiles/zprofile"; chmod 600 "$G2H/dotfiles/zprofile"
+ln -s dotfiles/zprofile "$G2H/.zprofile"; printf 'export ZRC=1\n' > "$G2H/.zshrc"; chmod 600 "$G2H/.zshrc"
+g2_update /bin/zsh 2 > "$G2/out" 2>&1
+[ -L "$G2H/.zprofile" ] && [ "$(g2_blocks "$G2H/dotfiles/zprofile")" = 1 ] && [ "$(stat -f %Lp "$G2H/dotfiles/zprofile")" = 600 ] && ok || ko "perfil ligado aos dotfiles: a ligacao fica e o bloco vai para o ficheiro real"
+[ "$(stat -f %Lp "$G2H/.zshrc")" = 600 ] && [ "$(g2_blocks "$G2H/.zshrc")" = 1 ] && grep -qx 'export ZRC=1' "$G2H/.zshrc" && ok || ko "perfil 600 continua 600"
+ls -a "$G2H" "$G2H/dotfiles" | grep -q 'ws-tmp' && ko "sobrou um .ws-tmp" || ok
+[ "$(cat "$G2H/.workshop-claude/backup/profile-.zshrc")" = 'export ZRC=1' ] && [ "$(cat "$G2H/.workshop-claude/backup/profile-.zprofile")" = 'export DOT=1' ] && ok || ko "backup dos perfis antes da primeira alteracao"
+[ ! -e "$G2H/.bash_profile" ] && [ ! -s "$G2/out" ] && ok || ko "zsh: sem .bash_profile novo e sem avisos [$(cat "$G2/out")]"
+# destino so de leitura e ligacao partida (iCloud): ficam como estavam, um aviso por ficheiro, sem registo
+g2_home; mkdir -p "$G2H/ro"; printf 'export RO=1\n' > "$G2H/ro/zprofile"; chmod 444 "$G2H/ro/zprofile"
+ln -s ro/zprofile "$G2H/.zprofile"; ln -s "$G2H/iCloud Drive/zshrc" "$G2H/.zshrc"
+g2_update /bin/zsh 3 > "$G2/out" 2>&1
+[ "$(cat "$G2H/ro/zprofile")" = 'export RO=1' ] && [ -L "$G2H/.zshrc" ] && [ ! -e "$G2H/iCloud Drive" ] && ok || ko "perfil so de leitura ou ligacao partida fica como estava"
+eq "$(grep -c 'could not add the workshop folders' "$G2/out")" 2 "um aviso E-PROF-01 por ficheiro, mesmo com 3 chamadas"
+grep -q 'perfil' "$G2H/.workshop-claude/extras-pendentes.tsv" 2>/dev/null && ko "registou um perfil em que nao escreveu" || ok
+# ... a meio de um passo, o aviso fica no passo (que passa a "com aviso") e nao sai logo no ecra
+eq "$( unset ZDOTDIR XDG_CONFIG_HOME ST_2; HOME=$G2H; SHELL=/bin/zsh; WS_HOME="$G2H/.workshop-claude"; WS_MODE=install; KIT_SRC=""; WS_ZDOTDIR_HOME=""
+  WS_CUR=2; SW_2=""; ws_profile_update >/dev/null 2>&1; printf '%s' "$SW_2" | tr '\n' ';' )" "E-PROF-01|~/.zshrc;E-PROF-01|~/.zprofile;" "aviso do perfil fica no passo em curso"
+# .zshrc em Latin-1 (locale UTF-8) recebe o bloco; .zprofile sem permissao de leitura fica e avisa (sem "awk:")
+g2_home; cp "$G2/latin1.orig" "$G2H/.zshrc"; printf 'x\n' > "$G2H/.zprofile"; chmod 000 "$G2H/.zprofile"
+( export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; g2_update ) > "$G2/out" 2>&1; chmod 600 "$G2H/.zprofile"
+head -c "$(wc -c < "$G2/latin1.orig")" "$G2H/.zshrc" | cmp -s - "$G2/latin1.orig" && [ "$(g2_blocks "$G2H/.zshrc")" = 1 ] && ok || ko "perfil Latin-1 recebe o bloco e fica com os bytes da pessoa"
+[ "$(cat "$G2H/.zprofile")" = x ] && grep -q 'E-PROF-01' "$G2/out" && ! grep -q 'awk:' "$G2/out" && ok || ko "perfil sem permissao: fica e avisa [$(cat "$G2/out")]"
+# bloco antigo sem fim: o ficheiro fica intacto (E-PROF-02); bloco indentado completo: trocado por um novo
+g2_home; printf 'export BEFORE=1\n# >>> workshop-claude >>>\nexport PATH=old\nalias gs=x\nexport AFTER=1\n' > "$G2H/.zshrc"; cp "$G2H/.zshrc" "$G2/semfim.orig"
+printf 'export Z=1\n  # >>> workshop-claude >>>\n  velho\n  # <<< workshop-claude <<<\n' > "$G2H/.zprofile"
+g2_update /bin/zsh 2 > "$G2/out" 2>&1
+cmp -s "$G2H/.zshrc" "$G2/semfim.orig" && eq "$(grep -c 'incomplete workshop block' "$G2/out")" 1 "E-PROF-02 uma vez" || ko "perfil com bloco sem fim fica intacto"
+[ "$(grep -c 'workshop-claude >>>' "$G2H/.zprofile")" = 1 ] && grep -qx 'export Z=1' "$G2H/.zprofile" && ! grep -q velho "$G2H/.zprofile" && ok || ko "bloco indentado trocado por um novo"
+# bash so com .profile: o bloco vai para o .profile e nao se cria um .bash_profile que o esconda
+g2_home; mkdir -p "$G2H/.local/bin"; printf 'export PROFILE_MARK=1\n' > "$G2H/.profile"
+g2_update /bin/bash 2 >/dev/null 2>&1
+[ ! -e "$G2H/.bash_profile" ] && [ "$(g2_blocks "$G2H/.profile")" = 1 ] && ok || ko "bash so com .profile: bloco no .profile, sem .bash_profile"
+eq "$(env -i HOME="$G2H" PATH=/usr/bin:/bin /bin/bash -lc 'printf "%s|%s" "$PROFILE_MARK" "${PATH%%:*}"' </dev/null 2>/dev/null)" "1|$G2H/.local/bin" "bash de login le o .profile e tem o ~/.local/bin a frente"
+# ... o .bash_profile que uma versao antiga criou so com o bloco por cima do .profile sai
+printf '\n# >>> workshop-claude >>>\nvelho\n# <<< workshop-claude <<<\n' > "$G2H/.bash_profile"
+g2_update /bin/bash >/dev/null 2>&1
+[ ! -e "$G2H/.bash_profile" ] && [ "$(g2_blocks "$G2H/.profile")" = 1 ] && ok || ko "tira o .bash_profile antigo que escondia o .profile"
+# bash sem nenhum: cria o .bash_profile, registado como criado; o --uninstall apaga-o (e os outros criados)
+g2_home; g2_update /bin/bash >/dev/null 2>&1
+grep -qxF "$(printf 'perfil\t%s\t%s\tcriado\t' "$G2H/.bash_profile" "$G2H/.bash_profile")" "$G2H/.workshop-claude/extras-pendentes.tsv" && ok || ko "perfil criado fica registado como criado"
+( WS_LOG=/dev/null; for f in .bash_profile .zshrc .zprofile; do ws_profile_remove "$G2H/$f" criado; done ) > "$G2/out"
+[ ! -e "$G2H/.bash_profile" ] && [ ! -e "$G2H/.zshrc" ] && [ ! -e "$G2H/.zprofile" ] && eq "$(grep -c 'PATH lines removed' "$G2/out")" 3 "uninstall: 3 perfis" || ko "uninstall apaga os perfis que o setup criou e ficaram vazios"
+# uninstall num perfil da pessoa: volta aos bytes de antes (Latin-1); com bloco sem fim: avisa e nao mexe
+g2_home; cp "$G2/latin1.orig" "$G2H/.zshrc"; g2_update >/dev/null 2>&1
+( export LC_ALL=en_US.UTF-8; ws_profile_remove "$G2H/.zshrc" ) > "$G2/out" 2>&1
+cmp -s "$G2H/.zshrc" "$G2/latin1.orig" && grep -q 'PATH lines removed' "$G2/out" && ok || ko "uninstall devolve o perfil da pessoa byte a byte"
+cp "$G2/semfim.orig" "$G2H/.zshrc"; ws_profile_remove "$G2H/.zshrc" > "$G2/out" 2>&1
+cmp -s "$G2H/.zshrc" "$G2/semfim.orig" && grep -q "couldn't remove the workshop PATH lines" "$G2/out" && ok || ko "uninstall com bloco sem fim avisa e nao mexe"
+# ZDOTDIR do ~/.zshenv (exportado ou nao); o ZDOTDIR herdado (VS Code) nao conta
+g2_home; printf 'export ZDOTDIR="$HOME/.config/zsh"\n' > "$G2H/.zshenv"; mkdir -p "$G2H/.local/bin"; g2_update >/dev/null 2>&1
+[ "$(g2_blocks "$G2H/.config/zsh/.zshrc")" = 1 ] && [ "$(g2_blocks "$G2H/.config/zsh/.zprofile")" = 1 ] && [ ! -e "$G2H/.zshrc" ] && [ ! -e "$G2H/.zprofile" ] && ok || ko "perfil no \$ZDOTDIR do ~/.zshenv"
+eq "$(env -i HOME="$G2H" PATH=/usr/bin:/bin /bin/zsh -lc 'printf %s "${PATH%%:*}"' </dev/null 2>/dev/null)" "$G2H/.local/bin" "zsh de login com ZDOTDIR tem o ~/.local/bin a frente"
+g2_home; printf 'ZDOTDIR=$HOME/zdot\n' > "$G2H/.zshenv"; g2_update >/dev/null 2>&1
+[ "$(g2_blocks "$G2H/zdot/.zprofile")" = 1 ] && ok || ko "perfil no ZDOTDIR nao exportado"
+g2_home; ( ZDOTDIR="$G2/vscode-zsh"; export ZDOTDIR; HOME=$G2H; SHELL=/bin/zsh; WS_HOME="$G2H/.workshop-claude"; WS_MODE=install; KIT_SRC=""; WS_ZDOTDIR_HOME=""; unset XDG_CONFIG_HOME; ws_profile_update ) >/dev/null 2>&1
+[ "$(g2_blocks "$G2H/.zshrc")" = 1 ] && [ ! -e "$G2/vscode-zsh" ] && ok || ko "ZDOTDIR herdado (VS Code) nao conta"
+# fish: um ficheiro so seu em conf.d (SHELL fish, ou ~/.config/fish ja existe); nada para quem nao usa fish
+g2_home; g2_update /usr/local/bin/fish >/dev/null 2>&1
+grep -q 'fish_add_path -P -m "$HOME/.local/bin" "$HOME/.workshop-claude/bin"' "$G2H/.config/fish/conf.d/workshop-claude.fish" && [ "$(g2_blocks "$G2H/.config/fish/conf.d/workshop-claude.fish")" = 1 ] && ok || ko "fish: conf.d/workshop-claude.fish"
+g2_home; g2_update >/dev/null 2>&1; [ ! -e "$G2H/.config/fish" ] && ok || ko "sem fish: nao cria ~/.config/fish"
+( unset ZDOTDIR XDG_CONFIG_HOME; HOME=$G2H; SHELL=/bin/zsh; WS_HOME="$G2H/.workshop-claude"; WS_MODE=install; KIT_SRC=""; WS_ZDOTDIR_HOME=""
+  WS_NODE_BIN_DIR="$G2H/.workshop-claude/node/bin"; ws_profile_update ) >/dev/null 2>&1
+grep -q 'workshop-claude/node/bin' "$G2H/.zshrc" && [ "$(g2_blocks "$G2H/.zshrc")" = 1 ] && [ -z "$(ls "$G2H/.workshop-claude/backup" 2>/dev/null)" ] && ok || ko "perfil criado pelo setup: bloco atualizado, sem copia de seguranca"
+# o bloco poe as pastas a frente mesmo que ja estejam no PATH (pipx no fim, um claude antigo antes), em zsh, bash e sh
+g2_home; mkdir -p "$G2H/.local/bin" "$G2H/.workshop-claude/bin" "$G2H/old npm/bin"
+printf 'export PATH="$HOME/old npm/bin:$PATH:$HOME/.local/bin"\n' > "$G2H/.zshrc"; g2_update >/dev/null 2>&1
+for sh in /bin/zsh /bin/bash /bin/sh; do
+  got=$(env -i HOME="$G2H" PATH=/usr/bin:/bin "$sh" -c '. "$HOME/.zshrc"; printf %s "$PATH"' </dev/null 2>/dev/null)
+  eq "$got" "$G2H/.workshop-claude/bin:$G2H/.local/bin:$G2H/old npm/bin:/usr/bin:/bin" "bloco poe as pastas do workshop a frente ($sh)"
+done
+eq "$( HOME=$G2H; WS_HOME="$G2H/.workshop-claude"; PATH="/usr/bin:$G2H/.local/bin:/bin:$G2H/.local/bin"; ws_path_setup; printf '%s' "$PATH" )" \
+  "$G2H/.local/bin:$G2H/.workshop-claude/bin:$G2H/.workshop-claude/node/bin:/usr/bin:/bin" "ws_path_setup poe as pastas a frente e sem duplicados"
+chmod -R u+rwx "$G2" 2>/dev/null
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
