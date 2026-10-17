@@ -689,12 +689,24 @@ function Write-WsLog {
 
 function Write-WsSay {
   param([string]$Text, [string]$Color)
-  if ($Color) { Write-Host $Text -ForegroundColor $Color } else { Write-Host $Text }
+  # NO_COLOR (no-color.org): sem cores, como no Mac.
+  if ($Color -and -not $env:NO_COLOR) { Write-Host $Text -ForegroundColor $Color } else { Write-Host $Text }
   Write-WsLog $Text
 }
 
 function Test-WsInteractive {
   try { return (-not [Console]::IsInputRedirected) -and [Environment]::UserInteractive } catch { return $false }
+}
+
+function Clear-WsTypeAhead {
+  # Deita fora as teclas escritas antes de uma pergunta ou de um login (um Enter carregado durante um download,
+  # o comando colado duas vezes): so conta o que a pessoa escreve depois de ver a pergunta. O Read-Host e os
+  # logins leem o que ja esta no buffer da consola. No ISE e em alguns anfitrioes do VS Code o FlushInputBuffer
+  # da NotImplementedException ou o RawUI e $null: o try cobre os dois. Sem [Console]::KeyAvailable/ReadKey
+  # (rebentam com o stdin redirecionado). -RawUI so para os testes.
+  param($RawUI = $Host.UI.RawUI)
+  if (-not (Test-WsInteractive)) { return }
+  try { $RawUI.FlushInputBuffer() } catch { Write-WsLog ('type-ahead not cleared: ' + $_.Exception.Message) }
 }
 
 function Read-WsYesNo {
@@ -705,11 +717,19 @@ function Read-WsYesNo {
   if ($script:Sim -and -not $NeverSim) { Write-WsSay ('  ? {0} {1} y (-Yes)' -f $Question, $hint); return $true }
   if ($script:Sim) { Write-WsSay ('  ? {0} {1} n (-Yes)' -f $Question, $hint); return $false }
   if (-not (Test-WsInteractive)) { Write-WsSay ('  ? {0} {1} n - {2}' -f $Question, $hint, (M 'sem_tty')); return $false }
-  $ans = Read-Host ('  ? {0} {1}' -f $Question, $hint)
-  Write-WsLog ('question: {0} -> {1}' -f $Question, $ans)
-  if ($ans -match '^[SsYy]') { return $true }
-  if ($ans -match '^[Nn]') { return $false }
-  if ($ans -eq '') { return $DefaultYes }
+  Clear-WsTypeAhead
+  for ($i = 0; $i -lt 3; $i++) {
+    # O Read-Host da $null quando o anfitriao esta a fechar: o [string] faz disso um Enter.
+    $ans = ([string](Read-Host ('  ? {0} {1}' -f $Question, $hint))).Trim()
+    $shown = $ans
+    if ($shown -eq '') { $shown = '<enter>' }
+    Write-WsLog ('question: {0} -> {1}' -f $Question, $shown)
+    if ($ans -match '^[SsYy]') { return $true }
+    if ($ans -match '^[Nn]') { return $false }
+    if ($ans -eq '') { return $DefaultYes }
+    # Outra coisa (um comando colado, "talvez"): pergunta outra vez; a terceira assim conta como "nao".
+    if ($i -lt 2) { Write-WsSay ('  ' + (M 'sn_repetir')) }
+  }
   return $false
 }
 
@@ -1564,12 +1584,15 @@ function Install-WsStep3 {
   } elseif ($script:Sim) {
     Add-WsNote (M 's3_login_sim'); Set-WsFail 'E-AUTH-01' ''; return $false
   } elseif (-not (Read-WsYesNo (M 's3_pergunta_login') $true)) {
+    # Sem consola (agente de IA, tarefa do IDE, script): diz onde fazer o login.
+    if (-not (Test-WsInteractive)) { Add-WsNote (M 's3_sem_tty') }
     Set-WsFail 'E-AUTH-01' ''; return $false
   }
-  if (-not (Test-WsInteractive)) { Set-WsFail 'E-AUTH-01' ''; return $false }
+  if (-not (Test-WsInteractive)) { Add-WsNote (M 's3_sem_tty'); Set-WsFail 'E-AUTH-01' ''; return $false }
   Write-WsLog '$ claude auth login --console (interactive)'
   # "| Out-Default" nos logins: o programa fica com a consola (ve o teclado e mostra o URL e o codigo). Sem isso a
   # saida era capturada pelo [bool](& Install-WsStep3) do Invoke-WsStep e a pessoa nao via nada.
+  Clear-WsTypeAhead
   & $script:ClaudeExe auth login --console | Out-Default
   return (Test-WsStep3)
 }
@@ -1591,9 +1614,19 @@ function Get-WsFreshNodeMajor {
   $p = [Environment]::ExpandEnvironmentVariables((($machine, $user | Where-Object { $_ }) -join ';'))
   $ps = Get-WsWinPowerShell
   $r = Invoke-WsProcess $ps @('-NoProfile', '-NonInteractive', '-Command', 'node -v') -Environment @{ Path = $p } -TimeoutSec 120
+  # -1: nao deu para saber (o PowerShell nao arrancou ou passou do tempo). Nao e um Node antigo.
+  if ($r.ExitCode -lt 0) { return -1 }
   $m = [regex]::Match($r.StdOut, 'v([0-9]+)')
   if ($m.Success) { return [int]$m.Groups[1].Value }
   return 0
+}
+
+function Format-WsFreshNode {
+  # Para o log: o major, "none" (nenhum node que arranque) ou "unknown" (nao deu para saber), como no Mac.
+  param([int]$Major)
+  if ($Major -lt 0) { return 'unknown' }
+  if ($Major -eq 0) { return 'none' }
+  return [string]$Major
 }
 
 function Test-WsStep4 {
@@ -1615,13 +1648,17 @@ function Test-WsStep4 {
   $v = (Invoke-WsProcess $found @('-v')).StdOut.Trim()
   Set-WsDetail (M 's4_ja' @{ VERSAO = $v; CAMINHO = $found })
   Sync-WsExtras
+  # O -Uninstall so precisa do $script:NodeExe.
+  if ($script:Mode -eq 'uninstall') { return $true }
   $fresh = Get-WsFreshNodeMajor
-  Write-WsLog ('node in a new terminal: {0}' -f $fresh)
-  if ($fresh -lt [int]$script:C.NODE_MIN_MAJOR -and $script:Mode -eq 'install') {
+  Write-WsLog ('node in a new terminal: {0}' -f (Format-WsFreshNode $fresh))
+  if ($fresh -ge 0 -and $fresh -lt [int]$script:C.NODE_MIN_MAJOR -and $script:Mode -eq 'install') {
     Add-WsUserPath (Split-Path $found)
     $fresh = Get-WsFreshNodeMajor
+    Write-WsLog ('node in a new terminal: {0}' -f (Format-WsFreshNode $fresh))
   }
-  if ($fresh -lt [int]$script:C.NODE_MIN_MAJOR) { $d = ''; if ($fresh -gt 0) { $d = 'v' + $fresh }; Set-WsWarn 'E-NODE-02' $d }
+  # -1 (nao deu para saber) fica so no log: nao e um Node antigo.
+  if ($fresh -ge 0 -and $fresh -lt [int]$script:C.NODE_MIN_MAJOR) { $d = ''; if ($fresh -gt 0) { $d = 'v' + $fresh }; Set-WsWarn 'E-NODE-02' $d }
   return $true
 }
 
@@ -1697,6 +1734,7 @@ function Test-WsStep6 {
       $script:GhAsked = $true
       if (Read-WsYesNo (M 's6_pergunta_login') $true) {
         Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
+        Clear-WsTypeAhead
         & $exe auth login --hostname github.com --git-protocol https --web | Out-Default
       }
     }
@@ -1776,6 +1814,7 @@ function Test-WsAcli {
     $script:AcliAsked = $true
     if (Read-WsYesNo (M 's7_pergunta_acli') $true) {
       Write-WsLog '$ acli auth login (interactive)'
+      Clear-WsTypeAhead
       & $exe auth login | Out-Default
     }
   }
@@ -2307,8 +2346,9 @@ function Invoke-WsHelper {
   param([string]$N)
   if (-not $script:AuthOk) { return $false }
   $code = $script:T[$N].Falha[0]
-  # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui.
-  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02') { return $false }
+  # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui. E-GH-02 (falta o login
+  # no GitHub): o setup ja mostra o comando; a analise so custaria dinheiro (um Enter a mais pagava-a).
+  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02' -or $code -eq 'E-GH-02') { return $false }
   Write-WsSay ''
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
@@ -2332,6 +2372,7 @@ function Invoke-WsHelper {
     Write-WsSay ('    PS> ' + $cmd) 'Cyan'
     if (Read-WsYesNo (M 'helper_correr') $false -NeverSim) {
       Write-WsLog ('helper: runs ' + $cmd)
+      Clear-WsTypeAhead
       try { $out = Invoke-Expression $cmd 2>&1 | Out-String; Write-Host $out; Add-WsStepLog $out } catch { Write-WsSay $_.Exception.Message 'Red' }
       $ran = $true
     }

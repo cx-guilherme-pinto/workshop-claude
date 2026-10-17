@@ -806,3 +806,177 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $ps.Dispose()
   }
 }
+
+Describe 'chaos G1-tty' {
+  Context 'perguntas, logins e teclas a mais' {
+    BeforeEach {
+      $script:Sim = $false
+      $script:Said = @()
+      Mock Write-WsSay { $script:Said += $Text }
+    }
+    It 'pergunta outra vez quando a resposta nao e s, n nem Enter' {
+      Mock Test-WsInteractive { return $true }
+      Mock Clear-WsTypeAhead { }
+      $script:Answers = @('maybe', 'y'); $script:AnsI = 0
+      Mock Read-Host { $a = $script:Answers[$script:AnsI]; $script:AnsI++; return $a }
+      Read-WsYesNo 'Continue?' $false | Should -BeTrue
+      Should -Invoke Read-Host -Times 2 -Exactly
+      Should -Invoke Clear-WsTypeAhead -Times 1 -Exactly
+      @($script:Said | Where-Object { $_ -eq ('  ' + $script:Msgs.ui.sn_repetir) }).Count | Should -Be 1
+    }
+    It 'tres respostas invalidas contam como "nao", mesmo com o defeito "sim" (como no Mac)' {
+      Mock Test-WsInteractive { return $true }
+      Mock Clear-WsTypeAhead { }
+      Mock Read-Host { return 'irm https://exemplo/setup.ps1 | iex' }
+      Read-WsYesNo 'Log in?' $true | Should -BeFalse
+      Should -Invoke Read-Host -Times 3 -Exactly
+      @($script:Said | Where-Object { $_ -eq ('  ' + $script:Msgs.ui.sn_repetir) }).Count | Should -Be 2
+    }
+    It 'apara os espacos; Enter e $null dao o defeito' {
+      Mock Test-WsInteractive { return $true }
+      Mock Clear-WsTypeAhead { }
+      Mock Read-Host { return '  N ' }
+      Read-WsYesNo 'Q?' $true | Should -BeFalse
+      Mock Read-Host { return ' sim' }
+      Read-WsYesNo 'Q?' $false | Should -BeTrue
+      Mock Read-Host { return '' }
+      Read-WsYesNo 'Q?' $true | Should -BeTrue
+      Read-WsYesNo 'Q?' $false | Should -BeFalse
+      Mock Read-Host { return $null }
+      Read-WsYesNo 'Q?' $true | Should -BeTrue
+      $script:Said.Count | Should -Be 0
+    }
+    It 'sem consola nao le nem esvazia o teclado' {
+      Mock Test-WsInteractive { return $false }
+      Mock Clear-WsTypeAhead { }
+      Mock Read-Host { return 'y' }
+      Read-WsYesNo 'Q?' $true | Should -BeFalse
+      Should -Invoke Read-Host -Times 0 -Exactly
+      Should -Invoke Clear-WsTypeAhead -Times 0 -Exactly
+    }
+    It 'Clear-WsTypeAhead esvazia o buffer da consola e nao rebenta no ISE nem sem RawUI' {
+      $script:Flushed = 0
+      $ok = [pscustomobject]@{}
+      $ok | Add-Member -MemberType ScriptMethod -Name FlushInputBuffer -Value { $script:Flushed++ }
+      $ise = [pscustomobject]@{}
+      $ise | Add-Member -MemberType ScriptMethod -Name FlushInputBuffer -Value { throw [NotImplementedException]::new('ISE') }
+      Mock Test-WsInteractive { return $true }
+      Clear-WsTypeAhead -RawUI $ok
+      $script:Flushed | Should -Be 1
+      { Clear-WsTypeAhead -RawUI $ise } | Should -Not -Throw
+      { Clear-WsTypeAhead -RawUI $null } | Should -Not -Throw
+      { Clear-WsTypeAhead } | Should -Not -Throw
+      Mock Test-WsInteractive { return $false }
+      Clear-WsTypeAhead -RawUI $ok
+      $script:Flushed | Should -Be 1
+    }
+    It 'deita fora as teclas a mais antes de cada login interativo e de cada comando do ajudante' {
+      $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+      foreach ($l in @('& $script:ClaudeExe auth login --console', '& $exe auth login --hostname github.com', '& $exe auth login | Out-Default', 'try { $out = Invoke-Expression $cmd')) {
+        $text | Should -Match ('Clear-WsTypeAhead\r?\n\s*' + [regex]::Escape($l)) -Because $l
+      }
+    }
+    It 'sem consola o passo 3 diz onde fazer o login (E-AUTH-01 com a nota s3_sem_tty)' {
+      $script:T = New-WsStateTable; $script:Cur = '3'; $script:Auth = @{ Logged = $false }; $script:ClaudeExe = 'claude.exe'
+      Mock Test-WsInteractive { return $false }
+      Mock Clear-WsTypeAhead { }
+      Install-WsStep3 | Should -BeFalse
+      $script:T['3'].Falha[0] | Should -Be 'E-AUTH-01'
+      $script:T['3'].Notas | Should -Contain (M 's3_sem_tty')
+      Should -Invoke Clear-WsTypeAhead -Times 0 -Exactly
+    }
+    It 'com consola e "n" o passo 3 falha sem a nota s3_sem_tty' {
+      $script:T = New-WsStateTable; $script:Cur = '3'; $script:Auth = @{ Logged = $false }
+      Mock Test-WsInteractive { return $true }
+      Mock Clear-WsTypeAhead { }
+      Mock Read-Host { return 'n' }
+      Install-WsStep3 | Should -BeFalse
+      $script:T['3'].Falha[0] | Should -Be 'E-AUTH-01'
+      @($script:T['3'].Notas).Count | Should -Be 0
+    }
+    It 'nao oferece a analise paga para E-GH-02 (o setup ja mostra o comando do login)' {
+      $script:T = New-WsStateTable; $script:AuthOk = $true
+      $script:T['6'].Falha = @('E-GH-02', '')
+      Mock Read-WsYesNo { return $true }
+      Invoke-WsHelper '6' | Should -BeFalse
+      Should -Invoke Read-WsYesNo -Times 0 -Exactly
+      $script:T['6'].Falha = @('E-GH-01', '')
+      Mock Read-WsYesNo { return $false }
+      Invoke-WsHelper '6' | Should -BeFalse
+      Should -Invoke Read-WsYesNo -Times 1 -Exactly
+    }
+  }
+
+  Context 'passo 4: o Node de um terminal novo' {
+    BeforeEach {
+      $script:T = New-WsStateTable; $script:Cur = '4'; $script:Mode = 'install'
+      $script:C = @{ NODE_MIN_MAJOR = '22' }
+      $script:WsHome = Join-Path $TestDrive 'ws'
+      $script:NodeExe = Join-Path $TestDrive 'node.exe'; Set-Content -LiteralPath $script:NodeExe -Value 'x'
+      Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'node' }
+      Mock Get-WsDriveType { return 3 }
+      Mock Test-WsNetworkPath { return $false }
+      Mock Get-WsNodeMajor { return 24 }
+      Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = 'v24.11.1'; StdErr = '' } }
+      Mock Sync-WsExtras { }
+      Mock Add-WsUserPath { }
+    }
+    It 'le o major, 0 (nenhum node) ou -1 (o PowerShell nao arrancou ou passou do tempo)' {
+      Mock Get-WsWinPowerShell { return 'powershell.exe' }
+      Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = "v24.11.1`r`n"; StdErr = '' } }
+      Get-WsFreshNodeMajor | Should -Be 24
+      Mock Invoke-WsProcess { return @{ ExitCode = 1; StdOut = ''; StdErr = 'node : The term node is not recognized' } }
+      Get-WsFreshNodeMajor | Should -Be 0
+      Mock Invoke-WsProcess { return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' } }
+      Get-WsFreshNodeMajor | Should -Be -1
+      Mock Invoke-WsProcess { return @{ ExitCode = -1; StdOut = ''; StdErr = 'blocked' } }
+      Get-WsFreshNodeMajor | Should -Be -1
+      Format-WsFreshNode 24 | Should -BeExactly '24'
+      Format-WsFreshNode 0 | Should -BeExactly 'none'
+      Format-WsFreshNode (-1) | Should -BeExactly 'unknown'
+    }
+    It 'um terminal novo que nao responde nao e um Node antigo (sem E-NODE-02 e sem mexer no PATH)' {
+      Mock Get-WsFreshNodeMajor { return -1 }
+      Test-WsStep4 | Should -BeTrue
+      @($script:T['4'].Avisos).Count | Should -Be 0
+      Should -Invoke Add-WsUserPath -Times 0 -Exactly
+      Should -Invoke Get-WsFreshNodeMajor -Times 1 -Exactly
+    }
+    It 'um Node antigo num terminal novo: corrige o PATH e, se continuar antigo, avisa E-NODE-02' {
+      Mock Get-WsFreshNodeMajor { return 18 }
+      Test-WsStep4 | Should -BeTrue
+      Should -Invoke Add-WsUserPath -Times 1 -Exactly
+      $script:T['4'].Avisos[0] -join '|' | Should -BeExactly 'E-NODE-02|v18'
+    }
+    It 'nenhum node num terminal novo: E-NODE-02 sem versao' {
+      Mock Get-WsFreshNodeMajor { return 0 }
+      Test-WsStep4 | Should -BeTrue
+      $script:T['4'].Avisos[0] -join '|' | Should -BeExactly 'E-NODE-02|'
+    }
+    It 'no -Uninstall nao abre um terminal novo' {
+      $script:Mode = 'uninstall'
+      Mock Get-WsFreshNodeMajor { return 18 }
+      Test-WsStep4 | Should -BeTrue
+      Should -Invoke Get-WsFreshNodeMajor -Times 0 -Exactly
+      $script:NodeExe | Should -Be (Join-Path $TestDrive 'node.exe')
+    }
+  }
+
+  Context 'cores' {
+    It 'NO_COLOR (no-color.org) desliga as cores' {
+      Mock Write-Host { }
+      $old = $env:NO_COLOR
+      try {
+        Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue
+        Write-WsSay 'a' 'Red'
+        Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $PesterBoundParameters.ContainsKey('ForegroundColor') }
+        $env:NO_COLOR = '1'
+        Write-WsSay 'b' 'Red'
+        Should -Invoke Write-Host -Times 1 -Exactly -ParameterFilter { $PesterBoundParameters.ContainsKey('ForegroundColor') }
+        Should -Invoke Write-Host -Times 2 -Exactly
+      } finally {
+        if ($null -eq $old) { Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue } else { $env:NO_COLOR = $old }
+      }
+    }
+  }
+}
