@@ -38,6 +38,7 @@
     "a_descarregar_app": "Downloading the Agent Memory app…",
     "a_descarregar_mb": "Still downloading… {MB} MB so far.",
     "dl_html": "a web page came instead of the file",
+    "dl_redirigido": "redirected to {HOST}",
     "a_verificar_rede": "Testing the connection to {N} domains…",
     "sn": "[Y/n]",
     "ns": "[y/N]",
@@ -55,6 +56,7 @@
     "final_pronto": "Everything is ready for the workshop.",
     "final_faltam": "{N} steps still to do: {LISTA}.",
     "final_falta1": "1 step still to do: {LISTA}.",
+    "final_aviso1": "There is 1 warning above. It doesn't block the workshop, but read it.",
     "final_avisos": "There are {N} warnings above. They don't block the workshop, but read them.",
     "final_voltar": "After you fix it, run the same command again. Steps already done are skipped.",
     "final_voltar_check": "This was only a check: nothing was installed or changed. Fix what is listed above, or run the setup without --check to install what is missing. Then run the check again.",
@@ -88,9 +90,10 @@
     "desinst_projeto_mantido": "Project kept because it has your changes: {CAMINHO}. Delete it by hand if you want.",
     "desinst_editado": "You had changed {NOME}: your copy is saved in {PASTA}.",
     "desinst_fim": "Uninstall complete. Still installed: git, Claude Code, Node, uv, gh and the backups in {BACKUP}.",
+    "desinst_incompleto": "The uninstall stopped before the end, so I left the rest as it was (kit, skills, manifest.json). See {LOG}, fix the problem and run the same command again.",
     "desinst_sem_manifest": "I couldn't find {MANIFEST}. There is nothing from the workshop to undo.",
     "s0_so": "System: {SO}",
-    "s0_lingua": "Machine language: {LINGUA}",
+    "s0_lingua": "Language: {LINGUA}",
     "s0_lingua_ignorada": "WORKSHOP_LANG={VALOR} is not one of the workshop languages (pt-BR, pt-PT, en, hi or he), so I ignored it and used {LINGUA}.",
     "s0_lingua_guardada": "Kept the language chosen at install ({LINGUA}); this computer is in {MAQUINA}. To change it, run the setup again with WORKSHOP_LANG (pt-BR, pt-PT, en, hi or he; see \"Languages\" in the README).",
     "s0_gerido": "Company-managed Claude Code settings: {CAMINHO}. Normal on company laptops. If a workshop step is blocked, show code E-CFG-01 to IT.",
@@ -131,7 +134,8 @@
     "s8_lingua_nossa": "Claude answers in {NOME} (Claude Code \"language\" setting). Workshop texts: {KIT}.",
     "s8_lingua_tua": "You already had a \"language\" setting ({NOME}): I kept it. Workshop texts: {KIT}.",
     "s8_lingua_nenhuma": "No \"language\" setting for {LINGUA}: Claude answers in the language you write in. Workshop texts: {KIT}.",
-    "s8_lingua_muda": "Language installed here: {DE}. This run asks for {PARA} (WORKSHOP_LANG): nothing is broken. Run the full setup (without --check) to switch.",
+    "s8_lingua_muda": "Language installed here: {DE}. This run asks for {PARA} (WORKSHOP_LANG): nothing is broken. To switch, run: {CMD}",
+    "s8_lingua_mudou": "Language changed from {DE} to {PARA}, because WORKSHOP_LANG asked for it.",
     "s8_editado": "You had changed {NOME}: your copy is saved in {PASTA}, and the kit's version is back in its place.",
     "s8_anteriores": "The previous versions of the kit's skills and agents are saved in {PASTA}, in case you had changed one.",
     "s9_ja": "{PROJETOS}",
@@ -200,10 +204,10 @@
         "Or use another network (for example, your phone's hotspot) and run the setup again."
       ],
       "mac": [
-        "curl -sS -o /dev/null -w '%{http_code}\\n' https://api.anthropic.com"
+        "curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\\n' {URL}"
       ],
       "windows": [
-        "Invoke-WebRequest -UseBasicParsing -Method Head https://api.anthropic.com"
+        "Invoke-WebRequest -UseBasicParsing -Method Head {URL}"
       ]
     },
     "E-NET-02": {
@@ -215,10 +219,10 @@
         "Try another network and run the setup again."
       ],
       "mac": [
-        "dscacheutil -q host -a name api.anthropic.com"
+        "dscacheutil -q host -a name {HOST}"
       ],
       "windows": [
-        "Resolve-DnsName api.anthropic.com"
+        "Resolve-DnsName {HOST}"
       ]
     },
     "E-NET-03": {
@@ -1022,10 +1026,10 @@
         "Rename the folder (or delete it, if you don't need it) and run the setup again."
       ],
       "mac": [
-        "mv {PROJETOS} {PROJETOS}-old"
+        "mv {PROJETOS}/{NOME} {PROJETOS}/{NOME}-old"
       ],
       "windows": [
-        "Rename-Item {PROJETOS} workshop-claude-old"
+        "Rename-Item {PROJETOS}\\{NOME} {NOME}-old"
       ]
     },
     "E-DEMO-04": {
@@ -1166,27 +1170,27 @@
     "E-PROF-01": {
       "titulo": "The setup could not add the workshop folders to a shell profile",
       "so": "mac",
-      "causa": "New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was. The other profile files were updated.",
+      "causa": "New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was.",
       "fazer": [
         "Add the first line below at the end of the file the setup named (or of the file it links to in your dotfiles), then open a new terminal.",
         "If the file is not read-only on purpose, check it with the second command, make it readable and writable for you (or ask whoever manages your Mac), and run the setup again."
       ],
       "mac": [
         "export PATH=\"$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH\"",
-        "ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+        "ls -lO {FICHEIRO}"
       ],
       "windows": []
     },
     "E-PROF-02": {
       "titulo": "A shell profile has an incomplete workshop block",
       "so": "mac",
-      "causa": "The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost. The other profile files were updated.",
+      "causa": "The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost.",
       "fazer": [
         "Open the file the setup named and delete the old workshop lines: the marker line and the PATH lines that follow it. Keep your own lines.",
         "Then run the setup again."
       ],
       "mac": [
-        "grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+        "grep -n workshop-claude {FICHEIRO}"
       ],
       "windows": []
     },

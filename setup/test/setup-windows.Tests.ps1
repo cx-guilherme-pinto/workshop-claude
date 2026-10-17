@@ -1251,6 +1251,7 @@ Describe 'chaos G3-network' {
     Invoke-WsDownload 'https://github.test/o/r/releases/download/v1/x.zip' (Join-Path $TestDrive 'x.zip') | Should -BeFalse
     $script:DlHost | Should -BeExactly 'release-assets.example.test'
     Get-WsDlCode | Should -Be 'E-NET-02'
+    $script:C = @{ NET_CHECK_HOSTS = 'github.test release-assets.example.test' }
     Get-WsDlDetail 'https://github.test/x.zip' | Should -BeExactly 'release-assets.example.test - https://github.test/x.zip'
     Mock Invoke-WebRequest { throw [System.Net.WebException]::new("The remote name could not be resolved: 'github.test'", [System.Net.WebExceptionStatus]::NameResolutionFailure) }
     Invoke-WsDownload 'https://github.test/x.zip' (Join-Path $TestDrive 'x.zip') | Should -BeFalse
@@ -1259,7 +1260,7 @@ Describe 'chaos G3-network' {
     Get-WsDlFinalHost ([Exception]::new("The proxy name could not be resolved: 'proxy.corp'")) 'ProxyNameResolutionFailure' 'github.test' | Should -BeExactly ''
     Get-WsDlFinalHost $null '' 'x' | Should -BeExactly ''
     $script:DlHost = ''; $script:DlStatus = 'ProtocolError'; $script:DlHttp = 404
-    Get-WsDlDetail 'SHA256SUMS' | Should -BeExactly 'SHA256SUMS - HTTP 404'
+    Get-WsDlDetail 'SHA256SUMS' | Should -BeExactly 'github.test - SHA256SUMS - HTTP 404'
     $script:DlHttp = 0; $script:DlStatus = 'ConnectFailure'
     Get-WsDlDetail 'https://x.test/f' | Should -BeExactly 'https://x.test/f'
   }
@@ -1337,7 +1338,7 @@ Describe 'chaos G3-network' {
     @($w).Count | Should -Be 1
     $w[0] -join '|' | Should -BeExactly 'E-NET-01|claude.ai'
     $w = Get-WsNetWarnings @('api.anthropic.com', 'pypi.org') @('E-NET-01', 'E-NET-02') $false '' $false
-    ($w | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-NET-05|api.anthropic.com;E-NET-01|api.anthropic.com, pypi.org;E-NET-02|api.anthropic.com, pypi.org'
+    ($w | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-NET-05|api.anthropic.com;E-NET-01|api.anthropic.com;E-NET-02|pypi.org'
     $w = Get-WsNetWarnings @() @() $true '' $false
     @($w).Count | Should -Be 0
     # Como o Test-WsNetwork os usa: um foreach sobre o resultado (vazio = nenhuma volta; um aviso = uma volta com o par).
@@ -2804,7 +2805,7 @@ Describe 'chaos G6-lifecycle' {
     $script:T['2'].Detalhe | Should -BeExactly 'This step is not done yet (E-SETUP-01)'
     $script:Said = @()
     Write-WsSummary | Should -Be 1
-    ($script:Said -join "`n") | Should -Match 'There are 1 warnings above'
+    ($script:Said -join "`n") | Should -Match 'There is 1 warning above'
     ($script:Said -join "`n") | Should -Match "Couldn't create the Agent Memory shortcut \(E-MEM-06\)"
   }
 }
@@ -2936,7 +2937,7 @@ Describe 'chaos G7-language' {
     Add-WsStep0LangNotes
     $n = $script:T['0'].Notas
     $n.Count | Should -Be 3
-    $n[0] | Should -BeExactly 'Machine language: pt'
+    $n[0] | Should -BeExactly 'Language: pt'
     $n[1] | Should -Match '^WORKSHOP_LANG=br is not one of the workshop languages .* used pt\.$'
     $n[2] | Should -Match '^Kept the language chosen at install \(pt\); this computer is in en-US\.'
     $script:T = New-WsStateTable
@@ -2953,7 +2954,7 @@ Describe 'chaos G7-language' {
     Read-WsInstallUserOutput $out
     $muda = @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' })
     $muda.Count | Should -Be 1
-    $muda[0] | Should -BeExactly 'Language installed here: Portuguese. This run asks for English (WORKSHOP_LANG): nothing is broken. Run the full setup (without --check) to switch.'
+    $muda[0] | Should -Match ([regex]::Escape("Language installed here: Portuguese. This run asks for English (WORKSHOP_LANG): nothing is broken. To switch, run: `$env:WORKSHOP_LANG='en'; "))
     $script:T = New-WsStateTable; $script:Mode = 'install'
     Read-WsInstallUserOutput $out
     @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'na instalacao a lingua muda mesmo'
@@ -3024,3 +3025,192 @@ Describe 'chaos G7-language' {
   }
 }
 
+
+Describe 'chaos round 2 R3-misc' {
+  BeforeAll {
+    if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
+    function New-R3Arena([string]$Dir, [string]$Tag, [switch]$Commit) {
+      $c = @('-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', '-c', 'core.hooksPath=.git/no-hooks', '-c', 'user.name=t', '-c', 'user.email=t@t.invalid')
+      Remove-Item -LiteralPath $Dir -Recurse -Force -ErrorAction SilentlyContinue
+      New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $Dir '.arena-kit.json'), '{"version":"v1","language":"en"}')
+      [IO.File]::WriteAllText((Join-Path $Dir 'README.md'), 'x')
+      & $script:GitExe -C $Dir init -q '--template=' | Out-Null
+      & $script:GitExe -C $Dir add -A | Out-Null
+      & $script:GitExe -C $Dir @c commit -q -m 'Initial state of the Security Arena' | Out-Null
+      if ($Tag) { & $script:GitExe -C $Dir @c tag $Tag | Out-Null }
+    }
+  }
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+  }
+
+  It 'fs-dotfiles-symlinks: desinstalar com erro (settings.json por repor) devolve 1, nao apaga o kit-src nem diz concluida' {
+    $script:WsHome = Join-Path $TestDrive 'ws-u'
+    $kitSrc = Join-Path $script:WsHome 'kit-src\v1'
+    New-Item -ItemType Directory -Path (Join-Path $kitSrc 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $kitSrc 'installer\install-user.mjs'), '')
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'manifest.json'), '{}')
+    $script:NodeExe = Join-Path $script:WsHome 'manifest.json'   # so tem de existir: o Invoke-WsProcess e um mock
+    $script:KitSrc = $kitSrc
+    $script:Said = New-Object System.Collections.Generic.List[string]
+    Mock Write-WsSay { $script:Said.Add($Text) }
+    Mock Test-WsStep4 { }
+    Mock Test-WsStep5 { }
+    Mock Initialize-WsKit { return $true }
+    Mock Get-WsClaude { return '' }
+    Mock Get-WsUv { return '' }
+    Mock Send-WsEnvChanged { }
+    Mock Invoke-WsProcess {
+      if (@($Arguments)[1] -eq 'desinstalar') { return @{ ExitCode = 5; StdOut = "erro`tsettings: EACCES`n"; StdErr = '' } }
+      return @{ ExitCode = 0; StdOut = ''; StdErr = '' }
+    }
+    Invoke-WsUninstall | Should -Be 1
+    Test-Path -LiteralPath (Join-Path $script:WsHome 'kit-src') | Should -BeTrue
+    ($script:Said -join "`n") | Should -Match 'The uninstall stopped before the end'
+    ($script:Said -join "`n") | Should -Not -Match 'Uninstall complete'
+  }
+
+  It 'fs-sudo-leftovers: .claude.json sem leitura = E-PERM-01 nos passos 7 e 10, sem claude mcp nem downloads' {
+    $script:UserHome = Join-Path $TestDrive 'Bea Teste'
+    $keep = $env:CLAUDE_CONFIG_DIR
+    Remove-Item Env:CLAUDE_CONFIG_DIR -ErrorAction SilentlyContinue
+    try {
+      $script:PermBad = @(Join-Path $script:UserHome '.claude.json')
+      $script:ClaudeExe = 'claude-falso'
+      $script:Cur = '7'
+      $script:Calls = 0
+      Mock Invoke-WsProcess { $script:Calls++; return @{ ExitCode = 1; StdOut = ''; StdErr = '' } }
+      Mock Invoke-WsDownload { $script:Calls++; return $false }
+      Test-WsStep7 | Should -BeFalse
+      $script:T['7'].Falha[0] | Should -BeExactly 'E-PERM-01'
+      $script:T = New-WsStateTable
+      Install-WsStep7 | Should -BeFalse
+      $script:T['7'].Falha[0] | Should -BeExactly 'E-PERM-01'
+      $script:Cur = '10'
+      Install-WsStep10 | Should -BeFalse
+      $script:T['10'].Falha[0] | Should -BeExactly 'E-PERM-01'
+      $script:Calls | Should -Be 0
+      ${function:Test-WsStep10}.ToString() | Should -Match '(?s)Test-WsPermBlocked @\(Get-WsClaudeJson\).*?Test-WsMemoryMcp'
+      $env:CLAUDE_CONFIG_DIR = Join-Path $TestDrive 'cfg'
+      Get-WsClaudeJson | Should -BeExactly (Join-Path (Join-Path $TestDrive 'cfg') '.claude.json')
+    } finally {
+      if ($keep) { $env:CLAUDE_CONFIG_DIR = $keep } else { Remove-Item Env:CLAUDE_CONFIG_DIR -ErrorAction SilentlyContinue }
+      $script:PermBad = @()
+    }
+  }
+
+  It 'fs-sudo-leftovers: a linha do E-PERM-01 corta no fim de uma frase ou palavra, nunca a meio' {
+    $l = "Error: EACCES: permission denied, open 'C:\Users\x\.claude.json'. Run takeown /f the file to fix the owner of the file, then open a new window and run the same setup command again."
+    Get-WsPermLine $l 'C:\Users\x' | Should -BeExactly "Error: EACCES: permission denied, open '~\.claude.json'."
+    $w = Get-WsPermLine ('EACCES ' + ('palavra ' * 40)) ''
+    $w | Should -Match ' \.\.\.$'
+    $w | Should -Match 'palavra \.\.\.$'
+    $w.Length | Should -BeLessOrEqual 164
+  }
+
+  It 'lang-pt-on-english-mac: no -Check so a lingua diferente e verificado, com o comando que leva o WORKSHOP_LANG' {
+    $script:Lang = 'pt-PT'; $script:LangKit = 'pt'; $script:Cur = '8'
+    $keep = $script:Fill
+    $script:Fill = @{ ONE_LINER_WINDOWS = 'irm https://r.test/bootstrap-windows.ps1 | iex' }
+    try {
+      Mock Initialize-WsKit { return $true }
+      Mock Sync-WsExtras { }
+      $script:R3Out = "skills`t7`nagentes`t6`nlingua_kit`tpt`nlanguage`tBrazilian Portuguese`nlanguage_nossa`t1`nfalta`tlanguage do Claude (Brazilian Portuguese -> European Portuguese)`n"
+      Mock Invoke-WsInstallUser { if ($Sub -eq 'verificar') { return @{ ExitCode = 1; StdOut = $script:R3Out } }; return @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`n" } }
+      $script:Mode = 'check'
+      Test-WsStep8 | Should -BeTrue
+      ($script:T['8'].Notas -join ' ') | Should -Match ([regex]::Escape("To switch, run: `$env:WORKSHOP_LANG='pt-PT'; irm https://r.test/bootstrap-windows.ps1 | iex"))
+      $script:T = New-WsStateTable
+      $script:R3Out += "falta`tkit desatualizado`n"
+      Test-WsStep8 | Should -BeFalse -Because 'outra falta continua a ser uma instalacao a meio'
+      $script:T = New-WsStateTable
+      $script:Mode = 'install'
+      $script:R3Out = $script:R3Out.Replace("falta`tkit desatualizado`n", '')
+      Test-WsStep8 | Should -BeFalse -Because 'ao instalar, a lingua diferente reinstala'
+      Install-WsStep8 | Should -BeTrue
+      ($script:T['8'].Notas -join ' ') | Should -Match 'Language changed from Brazilian Portuguese to European Portuguese, because WORKSHOP_LANG asked for it\.'
+    } finally { $script:Fill = $keep }
+  }
+
+  It 'net-host-blocked: os comandos nomeiam o servidor que falhou (e o instalador para o claude.ai)' {
+    $script:C = @{ CLAUDE_INSTALL_PS1_URL = 'https://claude.ai/install.ps1'; NET_CHECK_HOSTS = 'claude.ai downloads.claude.ai github.com release-assets.githubusercontent.com' }
+    Get-WsHintHost 'release-assets.githubusercontent.com - https://github.com/x' | Should -BeExactly 'release-assets.githubusercontent.com'
+    Get-WsHintHost 'https://claude.ai/install.ps1 - HTTP 403' | Should -BeExactly 'claude.ai'
+    Get-WsHintHost 'pypi.org, files.pythonhosted.org' | Should -BeExactly 'pypi.org'
+    Get-WsHintHost 'SHA256SUMS' | Should -BeExactly 'api.anthropic.com'
+    Get-WsHintUrl 'claude.ai' | Should -BeExactly 'https://claude.ai/install.ps1'
+    Get-WsHintUrl 'pypi.org' | Should -BeExactly 'https://pypi.org/'
+    $script:Said = New-Object System.Collections.Generic.List[string]
+    Mock Write-WsSay { $script:Said.Add($Text) }
+    Write-WsCode 'E-NET-02' 'release-assets.githubusercontent.com - https://github.com/x' ''
+    ($script:Said -join "`n") | Should -Match 'PS> Resolve-DnsName release-assets\.githubusercontent\.com'
+    $script:Said.Clear()
+    Write-WsCode 'E-NET-01' 'claude.ai' ''
+    ($script:Said -join "`n") | Should -Match 'PS> Invoke-WebRequest -UseBasicParsing -Method Head https://claude\.ai/install\.ps1'
+    $script:Said.Clear()
+    Write-WsCode 'E-DEMO-03' 'C:\Users\Bea Teste\workshop-claude\demo-project' ''
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape('PS> Rename-Item $env:USERPROFILE\workshop-claude\demo-project demo-project-old'))
+  }
+
+  It 'net-host-blocked: o servidor de uma pagina de bloqueio vai no fim; o detalhe de um ficheiro comeca pelo servidor' {
+    $script:C = @{ NET_CHECK_HOSTS = 'claude.ai github.com release-assets.githubusercontent.com' }
+    $script:DlHost = 'proxy.corp:15871'; $script:DlUrlHost = 'claude.ai'; $script:DlStatus = 'HtmlPage'; $script:DlHttp = 200
+    Get-WsDlDetail 'https://claude.ai/install.ps1' | Should -BeExactly 'https://claude.ai/install.ps1 - redirected to proxy.corp:15871 - a web page came instead of the file'
+    $script:DlHost = 'release-assets.githubusercontent.com'; $script:DlUrlHost = 'github.com'; $script:DlStatus = 'NameResolutionFailure'; $script:DlHttp = 0
+    Get-WsDlDetail 'https://github.com/x.zip' | Should -BeExactly 'release-assets.githubusercontent.com - https://github.com/x.zip'
+    $script:DlHost = ''; $script:DlUrlHost = 'github.com'; $script:DlStatus = 'ProtocolError'; $script:DlHttp = 404
+    Get-WsDlDetail 'constraints.txt' | Should -BeExactly 'github.com - constraints.txt - HTTP 404'
+    $w = Get-WsNetWarnings @('claude.ai', 'pypi.org', 'files.pythonhosted.org') @('E-NET-01', 'E-NET-02', 'E-NET-02') $true '' $false
+    ($w | ForEach-Object { $_ -join '|' }) -join ';' | Should -BeExactly 'E-NET-01|claude.ai;E-NET-02|pypi.org, files.pythonhosted.org'
+    $f = ${function:Test-WsNetwork}.ToString()
+    $f | Should -Match "Headers\['Location'\]"
+    $f | Should -Match 'Test-WsHostKnown \$lh'
+    $script:Fill = @{ REPO_HOST = 'git.corp' }
+    Test-WsHostKnown 'git.corp:443' | Should -BeTrue
+    Test-WsHostKnown 'downloads.claude.ai' | Should -BeFalse
+    Test-WsHostKnown '' | Should -BeFalse
+  }
+
+  It 'net-host-blocked: 1 aviso no singular' {
+    $script:Msgs.ui.final_aviso1 | Should -Match '^There is 1 warning above\.'
+    ${function:Write-WsSummary}.ToString() | Should -Match "Avisos -eq 1\) \{ \`$lines \+= \(M 'final_aviso1'\)"
+  }
+
+  It 'run-ctrlc-arena: a Arena com a marca final e so o commit do kit ganha a tag; com um ficheiro da pessoa nao' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    $script:Proj = Join-Path $TestDrive 'r3proj'
+    $demo = Join-Path $script:Proj 'demo-project'
+    New-R3Arena $demo ''
+    Invoke-WsStep9Migrate
+    (& $script:GitExe -C $demo tag -l) | Should -BeExactly 'arena-start'
+    New-R3Arena $demo ''
+    [IO.File]::WriteAllText((Join-Path $demo 'MY.md'), 'mine')
+    Invoke-WsStep9Migrate
+    (& $script:GitExe -C $demo tag -l) | Should -BeNullOrEmpty
+  }
+
+  It 'run-upgrade-uninstall: a Arena do rc.1 (so arena-inicial) migra ao instalar e no -Check nao e historico proprio' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    Mock Initialize-WsKit { return $true }
+    Mock Test-WsAppTests { return $true }
+    $script:Proj = Join-Path $TestDrive 'r3proj2'
+    $script:KitSrc = Join-Path $TestDrive 'r3kit'
+    New-Item -ItemType Directory -Path $script:KitSrc -Force | Out-Null
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+    $script:Cur = '9'
+    $demo = Join-Path $script:Proj 'demo-project'
+    New-R3Arena $demo 'arena-inicial'
+    [IO.File]::WriteAllText((Join-Path $demo 'MY.md'), 'mine')
+    $script:Mode = 'check'
+    Test-WsStep9 | Out-Null
+    @($script:T['9'].Avisos).Count | Should -Be 0
+    @(& $script:GitExe -C $demo tag -l) -join ' ' | Should -BeExactly 'arena-inicial'
+    $script:T = New-WsStateTable
+    $script:Mode = 'install'
+    Test-WsStep9 | Out-Null
+    @($script:T['9'].Avisos).Count | Should -Be 0
+    @(& $script:GitExe -C $demo tag -l) -join ' ' | Should -BeExactly 'arena-inicial arena-start'
+  }
+}

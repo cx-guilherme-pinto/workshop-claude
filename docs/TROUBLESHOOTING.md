@@ -120,7 +120,7 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 Command (macOS):
 
 ```
-curl -sS -o /dev/null -w '%{http_code}\n' https://api.anthropic.com
+curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\n' https://api.anthropic.com
 ```
 
 <a id="mac-e-net-02"></a>
@@ -830,7 +830,7 @@ cd ~/workshop-claude/demo-project && node --test test/app.test.js
 Command (macOS):
 
 ```
-mv ~/workshop-claude ~/workshop-claude-old
+mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
 ```
 
 <a id="mac-e-demo-04"></a>
@@ -949,7 +949,7 @@ agent-memory selftest
 
 ### E-PROF-01 · The setup could not add the workshop folders to a shell profile
 
-- **Why:** New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was. The other profile files were updated.
+- **Why:** New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was.
 - **What to do:**
   - Add the first line below at the end of the file the setup named (or of the file it links to in your dotfiles), then open a new terminal.
   - If the file is not read-only on purpose, check it with the second command, make it readable and writable for you (or ask whoever manages your Mac), and run the setup again.
@@ -958,14 +958,14 @@ Commands (macOS):
 
 ```
 export PATH="$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH"
-ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+ls -lO ~/.zshrc
 ```
 
 <a id="mac-e-prof-02"></a>
 
 ### E-PROF-02 · A shell profile has an incomplete workshop block
 
-- **Why:** The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost. The other profile files were updated.
+- **Why:** The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost.
 - **What to do:**
   - Open the file the setup named and delete the old workshop lines: the marker line and the PATH lines that follow it. Keep your own lines.
   - Then run the setup again.
@@ -973,7 +973,7 @@ ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
 Command (macOS):
 
 ```
-grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+grep -n workshop-claude ~/.zshrc
 ```
 
 <a id="mac-e-smoke-01"></a>
@@ -1842,7 +1842,7 @@ cd ~/workshop-claude\demo-project; node --test test/app.test.js
 Command (Windows):
 
 ```
-Rename-Item ~/workshop-claude workshop-claude-old
+Rename-Item ~/workshop-claude\demo-project demo-project-old
 ```
 
 <a id="windows-e-demo-04"></a>

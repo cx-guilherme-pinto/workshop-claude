@@ -18,8 +18,8 @@
 // closed window or a crash during the copy leaves a folder the setup recognises as the kit's own (and rebuilds).
 // A folder that is replaced (--force) is never deleted unless it is that incomplete copy: it is moved to
 // ~/.workshop-claude/backup/<date>/<name> (the person's work stays).
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fwd, timestamp, userPaths } from './fsx.mjs';
 
@@ -101,11 +101,17 @@ export function isIncomplete(dest, markFile) {
 }
 
 // Empties the way for a new assembly. Returns the backup folder (forward slashes) or null.
-//   - the kit's own incomplete copy: deleted;
+//   - the kit's own incomplete copy: deleted, its marker last (an interruption during the delete leaves a copy that
+//     is still "incomplete", or an empty folder, and never an unmarked folder that the setup would leave alone);
 //   - anything else: moved to ~/.workshop-claude/backup/<date>/<name> (renamed; copied and then deleted only when
 //     the backup is on another disk). If it cannot be moved (open in another program), nothing is deleted.
 export function clearForAssembly(dest, markFile, env = process.env) {
   if (isIncomplete(dest, markFile)) {
+    const mark = resolve(markFile);
+    for (const e of readdirSync(dest)) {
+      const p = join(dest, e);
+      if (resolve(p) !== mark) rmSync(p, { recursive: true, force: true });
+    }
     rmSync(dest, { recursive: true, force: true });
     return null;
   }

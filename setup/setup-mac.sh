@@ -115,6 +115,19 @@ ws_url_base() { # https://host:porta/caminho -> https://host:porta/
   [ "$scheme" = "$u" ] && { printf '%s' "$u"; return; }
   printf '%s://%s/' "$scheme" "${rest%%/*}"
 }
+# Um dos servidores do workshop (NET_CHECK_HOSTS e os dos repositorios)? Um redirecionamento para outro e um filtro.
+ws_host_known() { case " $C_NET_CHECK_HOSTS ${D_REPO_HOST:-} ${D_MEMORY_HOST:-} " in *" ${1%%:*} "*) return 0 ;; esac; return 1; }
+# Servidor que falhou (o primeiro do detalhe: "host · url ..." ou "host1 host2"), para os comandos do E-NET-01/02.
+ws_hint_host() { # detalhe
+  local h=${1%% *}; h=${h%,}; h=${h#*://}; h=${h%%[/:?]*}
+  case "$h" in *.*[a-zA-Z]) printf '%s' "$h" ;; *) printf 'api.anthropic.com' ;; esac
+}
+# URL para testar esse servidor. A raiz do claude.ai e do downloads.claude.ai responde 403 ao curl mesmo numa rede
+# aberta: para esses testa-se o instalador.
+ws_hint_url() { # detalhe
+  local h; h=$(ws_hint_host "$1")
+  case "$h" in claude.ai|downloads.claude.ai) printf '%s' "$C_CLAUDE_INSTALL_SH_URL" ;; *) printf 'https://%s/' "$h" ;; esac
+}
 
 # Le texto CHAVE=valor (repos.conf) e define C_CHAVE; o ambiente tem prioridade.
 ws_conf_parse() {
@@ -313,9 +326,9 @@ ws_err_field() { # codigo campo
   local c=${1//-/_} n; n="M_erros_${c}_$2"; printf '%s' "${!n:-}"
 }
 
-ws_err_list() { # codigo campo (fazer|mac) -> uma linha por item
-  local c=${1//-/_} n i cnt; n="M_erros_${c}_$2_n"; cnt=${!n:-0}
-  i=0; while [ "$i" -lt "$cnt" ]; do n="M_erros_${c}_$2_$i"; ws_fill "${!n}"; printf '\n'; i=$((i + 1)); done
+ws_err_list() { # codigo campo (fazer|mac) [CHAVE=valor...] -> uma linha por item
+  local c=${1//-/_} f=$2 n i cnt; shift 2; n="M_erros_${c}_${f}_n"; cnt=${!n:-0}
+  i=0; while [ "$i" -lt "$cnt" ]; do n="M_erros_${c}_${f}_$i"; ws_fill "${!n}" "$@"; printf '\n'; i=$((i + 1)); done
 }
 
 # ---------------------------------------------------------------- saida e log
@@ -501,7 +514,7 @@ ws_dl() {
   local url=$1 out=$2 auth=${3:-} part="$2.part" host w code conn
   rm -f "$part"
   ws_log "download: $url"
-  host=${url#*://}; host=${host%%/*}
+  host=${url#*://}; host=${host%%/*}; WS_DL_URLHOST=$host
   ws_hb_start "$part"
   # shellcheck disable=SC2086  # WS_CURL_LIMITS sao varias opcoes
   if [ "$auth" = auth ] && [ -n "${REPO_TOKEN:-}" ] && { [ "$host" = "$D_REPO_HOST" ] || [ "$host" = "${D_MEMORY_HOST:-$D_REPO_HOST}" ]; }; then
@@ -544,11 +557,17 @@ ws_dl_check() { # url destino sha256-esperado [auth]
   done
 }
 
-# Falha de um download (depois de ws_dl): o codigo vem do curl/HTTP; o detalhe junta o servidor final, quando o pedido
-# foi redirecionado (ex.: github.com -> release-assets.githubusercontent.com, o que o IT tem de libertar), e o HTTP.
+# Falha de um download (depois de ws_dl): o codigo vem do curl/HTTP; o detalhe comeca sempre pelo servidor que o IT
+# tem de libertar: o final, quando o pedido foi redirecionado para outro servidor do workshop (ex.: github.com ->
+# release-assets.githubusercontent.com), senao o do URL. Um redirecionamento para outro servidor (a pagina de
+# bloqueio de um filtro) vai no fim, como "redirecionado para".
 ws_dl_fail() { # o-que-falhou
-  local d=$1
-  [ -n "${WS_DL_HOST:-}" ] && d="$WS_DL_HOST · $d"
+  local d=$1 h=${WS_DL_HOST:-} u=${WS_DL_URLHOST:-}
+  if [ -n "$h" ] && ws_host_known "$h"; then d="$h · $d"
+  else
+    [ -n "$h" ] && d="$d · $(ws_msg dl_redirigido HOST="$h")"
+    case "$d" in *"://"*|"$u "*|"") ;; *) [ -n "$u" ] && d="$u · $d" ;; esac
+  fi
   case "${WS_DL_HTTP:-}" in [45]??) d="$d · HTTP $WS_DL_HTTP" ;; html) d="$d · $(ws_m dl_html)" ;; esac
   ws_fail "$(ws_net_code "${WS_DL_RC:-1}" "${WS_DL_HTTP:-000}")" "$d"
 }
@@ -600,7 +619,10 @@ ws_state_label() {
 }
 
 ws_print_code() { # codigo detalhe indent [prefixo do titulo]
-  local c=$1 d=$2 ind=$3 pre=${4:-} line
+  local c=$1 d=$2 ind=$3 pre=${4:-} line fic
+  # nos comandos: o servidor que falhou (E-NET-01/02), o ficheiro de perfil (E-PROF-01/02) e a pasta do projeto
+  # (E-DEMO-03), tirados do detalhe
+  fic=${d:-"~/.zshrc"}; fic=${fic/#"~"/$HOME}; fic=$(ws_show_path "$fic")
   ws_say "${ind}${pre}$(ws_bold "$(ws_fill "$(ws_err_field "$c" titulo)")")"
   ws_say "${ind}$(ws_m porque): $(ws_fill "$(ws_err_field "$c" causa)")${d:+ ($d)}"
   ws_say "${ind}$(ws_m fazer):"
@@ -608,7 +630,7 @@ ws_print_code() { # codigo detalhe indent [prefixo do titulo]
 $(ws_err_list "$c" fazer)
 EOF
   while IFS= read -r line; do [ -n "$line" ] && ws_say "${ind}    \$ $line"; done <<EOF
-$(ws_err_list "$c" mac)
+$(ws_err_list "$c" mac HOST="$(ws_hint_host "$d")" URL="$(ws_hint_url "$d")" FICHEIRO="$fic" NOME="${d##*/}")
 EOF
   ws_say "${ind}$(ws_dim "$(ws_msg codigo CODIGO="$c")")"
 }
@@ -714,13 +736,22 @@ ws_default_code() {
 # Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da
 # rede ou do antivirus: mostra-se E-PERM-01 com a linha que o diz (restos de um "sudo", pastas bloqueadas).
 ws_perm_reclass() {
-  local f="SF_$WS_CUR" p
+  local f="SF_$WS_CUR" p c
   case "${!f%%|*}" in E-PERM-*|E-CFG-05|E-GH-02|E-SMOKE-02|E-SMOKE-03) return 0 ;; esac
   p=$(grep -E 'EACCES|EEXIST|ENOTDIR|EROFS|Permission denied|File exists|Not a directory|Read-only file system' "$WS_STEP_LOG" 2>/dev/null |
     grep -v 'publickey' | head -n 1 | ws_redact)
   [ -n "$p" ] || return 0
   p="${p//"$HOME"/~}"
-  ws_fail E-PERM-01 "$(ws_trim "${p:0:160}")"
+  # cortada no fim da ultima frase antes dos 160 caracteres, senao na ultima palavra (se ficarem pelo menos 80),
+  # e nao a meio de uma palavra
+  if [ "${#p}" -gt 160 ]; then
+    p=${p:0:160}
+    case "$p" in
+      *". "*) p="${p%. *}." ;;
+      *" "*) c="${p% *} ..."; [ "${#c}" -ge 80 ] && p=$c ;;
+    esac
+  fi
+  ws_fail E-PERM-01 "$(ws_trim "$p")"
 }
 
 # O ws_step escreve "result step N: estado [codigo|detalhe da falha]" no setup.log de cada instalacao: o --check e
@@ -869,7 +900,9 @@ ws_zdotdir() {
   fi
   z=${z%/}
   case "$z" in /?*) ;; *) z=$HOME ;; esac
-  if [ "$z" != "$HOME" ] && ! { mkdir -p "$z" 2>/dev/null && [ -w "$z" ]; }; then z=$HOME; fi
+  # Nunca a HOME em vez do ZDOTDIR: o zsh nao le o ~/.zshrc quando o ZDOTDIR esta definido. Numa pasta sem escrita
+  # o ws_profile_put escreve nos ficheiros que deixarem (ou avisa com E-PROF-01, a dizer qual).
+  [ "$z" = "$HOME" ] || mkdir -p "$z" 2>/dev/null || true
   ws_log "zsh profile folder: $z"
   printf '%s' "$z"
 }
@@ -889,7 +922,8 @@ ws_profile_put() { # ficheiro bloco
     ws_profile_strip "$f" > "$tmp" 2>>"$WS_LOG"; rc=$?
     if [ "$rc" != 0 ]; then
       rm -f "$tmp"
-      if [ "$rc" = 3 ]; then ws_profile_warn E-PROF-02 "$f"; else ws_profile_warn E-PROF-01 "$f"; fi
+      # bloco antigo incompleto: fica no manifest, para o --uninstall dizer que nao o conseguiu tirar
+      if [ "$rc" = 3 ]; then ws_registar perfil "$f" "$f"; ws_profile_warn E-PROF-02 "$f"; else ws_profile_warn E-PROF-01 "$f"; fi
       return 1
     fi
     # copia de seguranca so se houver linhas da pessoa (um ficheiro so com o bloco foi o setup que o criou)
@@ -921,7 +955,7 @@ ws_profile_put() { # ficheiro bloco
 # deixar criar a copia, escreve por cima.
 ws_profile_write() { # ficheiro conteudo
   local real=$1 l n=0 m t
-  [ -e "$real" ] || { cat "$2" > "$real"; return; }
+  [ -e "$real" ] || { { cat "$2" > "$real"; } 2>>"$WS_LOG"; return; }
   while [ -L "$real" ] && [ "$n" -lt 40 ]; do
     l=$(readlink "$real") || return 1
     case "$l" in /*) real=$l ;; *) real="$(dirname "$real")/$l" ;; esac
@@ -938,23 +972,31 @@ ws_profile_write() { # ficheiro conteudo
 }
 
 # Aviso de um perfil que ficou como estava: uma vez por ficheiro em cada execucao (o ws_profile_update corre
-# em varios passos). Fica no passo que esta a correr (que passa a "com aviso"); depois do passo 12 ja nao ha
-# passo onde o mostrar, e vai logo para o ecra.
+# em varios passos). Fica no passo que esta a correr (que passa a "com aviso"); depois do resultado do passo 12 ja
+# nao ha passo onde o mostrar: vai logo para o ecra e o passo 12 passa a "com aviso" (conta no resumo).
 ws_profile_warn() { # codigo ficheiro
   ws_log "profile left unchanged ($1): $2"
   case "${WS_PERFIL_AVISADOS:-}" in *"|$2|"*) return 0 ;; esac
   WS_PERFIL_AVISADOS="${WS_PERFIL_AVISADOS:-}|$2|"
   if [ -n "${WS_CUR:-}" ] && [ -z "$(ws_st "$WS_CUR")" ]; then ws_warn "$1" "${2/#"$HOME"/~}"
-  else ws_print_code "$1" "${2/#"$HOME"/~}" "     " "⚠️  "; fi
+  else
+    ws_print_code "$1" "${2/#"$HOME"/~}" "     " "⚠️  "
+    if [ -n "${WS_CUR:-}" ]; then
+      ws_warn "$1" "${2/#"$HOME"/~}"
+      case "$(ws_st "$WS_CUR")" in feito|ja|ok) ws_set ST "$WS_CUR" aviso ;; esac
+    fi
+  fi
 }
 
-# Tira os blocos completos do workshop (e a linha vazia que o setup pos antes de cada um), mesmo indentados.
+# Tira os blocos completos do workshop (e a linha vazia que o setup pos antes de cada um), mesmo indentados. Um
+# bloco indentado (dentro de um "if ...; then" ou de uma funcao) fica um ":" com a mesma indentacao: um "if" sem
+# corpo e um erro de sintaxe no bash, e o resto do .bash_profile deixava de correr.
 # LC_ALL=C: le bytes e nao caracteres (um .zshrc em Latin-1 fazia o awk falhar num locale UTF-8). Se um
 # marcador nao tiver par (um bloco antigo sem o fim, um fim solto), nao imprime nada e devolve 3: apagar ate
 # ao fim do ficheiro levaria as linhas da pessoa.
 ws_profile_strip() {
   LC_ALL=C awk '
-    /^[ \t]*# >>> workshop-claude >>>/ { if (skip) bad = 1; skip = 1; held = 0; next }
+    /^[ \t]*# >>> workshop-claude >>>/ { if (skip) bad = 1; skip = 1; held = 0; i = $0; sub(/#.*/, "", i); if (i != "") out[++n] = i ":"; next }
     /^[ \t]*# <<< workshop-claude <<</ { if (!skip) bad = 1; skip = 0; next }
     skip { next }
     /^$/ { if (held) out[++n] = ""; held = 1; next }
@@ -1173,7 +1215,8 @@ ws_gw_show() {
 # dos downloads e mostra-se o comando exato que resolve. So avisa: os passos que nao precisam desses caminhos
 # continuam, e os que precisam (2 e 5, ver ws_perm_blocked) falham logo com E-PERM-01, sem descarregar nada.
 ws_perm_scan() {
-  local p q skip show="" cj="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" fix=()
+  local p q skip show="" cj fix=()
+  cj=$(ws_claude_json)
   WS_PERM_BAD=()
   for p in "$WS_HOME" "$WS_HOME/bin" "$WS_HOME/kit" "$WS_HOME/kit-src" "$WS_HOME/node" "$WS_HOME/backup" \
     "$CLAUDE_DIR" "$CLAUDE_DIR/skills" "$CLAUDE_DIR/agents" "$CLAUDE_DIR/downloads" \
@@ -1201,6 +1244,7 @@ ws_perm_scan() {
   ws_perm_fix_notes "${fix[@]}"
   return 0
 }
+ws_claude_json() { printf '%s\n' "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"; }
 # Um passo que vai escrever num destes caminhos, se o passo 0 os viu sem escrita: E-PERM-01 sem descarregar nada.
 ws_perm_blocked() { # caminhos...
   local p q
@@ -1268,17 +1312,23 @@ ws_proxy_bypass() {
 # Proxy para mostrar no ecra, sem utilizador nem palavra-passe (http://u:p@proxy:8080 -> http://proxy:8080).
 ws_proxy_show() { case "$1" in *://*@*) printf '%s://%s' "${1%%://*}" "${1##*@}" ;; *@*) printf '%s' "${1##*@}" ;; *) printf '%s' "$1" ;; esac; }
 
-# 0 se o proxy nao responde: nao resolve (5), recusa a ligacao (7), falha o SOCKS (97) ou nem aceita a ligacao em 5 s.
-# Um proxy que responde, mesmo com 407 ou 403, conta como vivo (esses casos sao tratados pelo codigo HTTP).
+# 0 se o proxy nao responde: nao resolve (5; 6 num proxy SOCKS), recusa a ligacao (7), falha o SOCKS (97) ou nem
+# aceita a ligacao em 5 s. Um proxy que responde, mesmo com 407 ou 403, conta como vivo (esses casos sao tratados
+# pelo codigo HTTP).
 ws_proxy_dead() { # url-do-proxy
-  local w rc
+  local w rc err ph
   [ -n "$1" ] || return 1
   [ "$1" = "${WS_PROBE_URL:-}" ] && return "$WS_PROBE_RC"
-  w=$(curl -sS -o /dev/null --connect-timeout 5 -m 15 -x "$1" -A "$WS_UA" -w '%{time_connect}' https://api.anthropic.com/ 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  w=$(curl -sS -o /dev/null --connect-timeout 5 -m 15 -x "$1" -A "$WS_UA" -w '%{time_connect}' https://api.anthropic.com/ 2>"$WS_TMP/proxy-probe.err" </dev/null); rc=$?
+  err=$(cat "$WS_TMP/proxy-probe.err" 2>/dev/null); [ -n "$err" ] && printf '%s\n' "$err" >> "$WS_STEP_LOG"
   ws_log "proxy probe: $(ws_proxy_show "$1") -> curl $rc, connect ${w:-?}"
   WS_PROBE_URL=$1; WS_PROBE_RC=1
+  # Num proxy SOCKS, o curl da "nao resolve o servidor" (6), e nao o 5, quando o nome do proprio proxy nao resolve.
+  # So o nome do proxy conta: um SOCKS vivo em que o destino nao resolve continua vivo (E-NET-02).
+  ph=${1#*://}; ph=${ph##*@}; ph=${ph%%[:/]*}
   case "$rc" in
     5|7|97) WS_PROBE_RC=0 ;;
+    6) case "$err" in *"resolve host: $ph"*) WS_PROBE_RC=0 ;; esac ;;
     28) awk -v t="${w:-0}" 'BEGIN { exit !(t + 0 == 0) }' && WS_PROBE_RC=0 ;;
   esac
   return "$WS_PROBE_RC"
@@ -1361,7 +1411,7 @@ ws_detect_tls() {
 }
 
 ws_check_network() {
-  local hosts h u i=0 dir="$WS_TMP/rede" base fails="" rc code conn cprobe=$C_CLAUDE_INSTALL_SH_URL
+  local hosts h u i=0 dir="$WS_TMP/rede" base fails="" rc code conn redir rh blocked cprobe=$C_CLAUDE_INSTALL_SH_URL
   mkdir -p "$dir"; rm -f "$dir/codes"
   hosts=""
   for h in $C_NET_CHECK_HOSTS "$D_REPO_HOST" "$D_MEMORY_HOST"; do
@@ -1378,32 +1428,43 @@ ws_check_network() {
   ws_say "  $(ws_msg a_verificar_rede N="$WS_NET_TOTAL")"
   for h in $hosts; do
     i=$((i + 1))
-    ( code=$(curl -sS -o /dev/null --connect-timeout 8 -m 12 -A "$WS_UA" -w '%{http_code} %{http_connect}' "$h" 2>"$dir/$i.err" </dev/null); printf '%s %s %s\n' "$?" "$code" "$h" > "$dir/$i.res" ) &
+    ( code=$(curl -sS -o /dev/null --connect-timeout 8 -m 12 -A "$WS_UA" -w '%{http_code} %{http_connect} r=%{redirect_url}' "$h" 2>"$dir/$i.err" </dev/null); printf '%s %s %s\n' "$?" "$code" "$h" > "$dir/$i.res" ) &
   done
   wait
   WS_NET_OK=0; WS_NET_API_OK=1
   i=0
   for h in $hosts; do
     i=$((i + 1))
-    read -r rc code conn _ < "$dir/$i.res" 2>/dev/null || { rc=99; code=000; conn=000; }
+    read -r rc code conn redir _ < "$dir/$i.res" 2>/dev/null || { rc=99; code=000; conn=000; redir=r=; }
     code=$(ws_http_of "$code" "$conn")
-    ws_log "network: $h -> curl $rc HTTP $code $(tr '\n' ' ' < "$dir/$i.err" 2>/dev/null)"
-    if [ "$rc" = 0 ] && [ "$code" != 407 ] && ! { [ "$h" = "$cprobe" ] && { [ "$code" = 403 ] || [ "$code" = 451 ]; }; }; then
+    # O instalador do claude.ai: 403/451 e um filtro; um 3xx so conta se for para um servidor do workshop (com a rede
+    # aberta, downloads.claude.ai), senao e a pagina de bloqueio de um filtro (Forcepoint, Websense).
+    rh=""; blocked=0
+    if [ "$h" = "$cprobe" ]; then
+      case "$code" in
+        403|451) blocked=1 ;;
+        3??) rh=${redir#r=}; rh=${rh#*://}; rh=${rh%%[/?]*}; ws_host_known "$rh" || { blocked=1; code=html; } ;;
+      esac
+    fi
+    ws_log "network: $h -> curl $rc HTTP $code${rh:+ -> $rh} $(tr '\n' ' ' < "$dir/$i.err" 2>/dev/null)"
+    if [ "$rc" = 0 ] && [ "$code" != 407 ] && [ "$blocked" = 0 ]; then
       WS_NET_OK=$((WS_NET_OK + 1)); continue
     fi
-    u=${h#*://}; fails="$fails ${u%%/*}"
+    u=${h#*://}; u=${u%%/*}; fails="$fails $u"
     case "$h" in *api.anthropic.com*) WS_NET_API_OK=0 ;; esac
-    ws_net_code "$rc" "$code" >> "$dir/codes"
+    printf '%s %s\n' "$(ws_net_code "$rc" "$code")" "$u" >> "$dir/codes"
   done
   if [ -n "$fails" ]; then
     ws_note "$(ws_msg s0_rede_falha LISTA="$(ws_trim "$fails")")"
     # Se a causa e o proxy (E-NET-03), o E-NET-05 ("define o HTTPS_PROXY") so confundia.
-    [ "$WS_NET_API_OK" = 0 ] && ! grep -qx E-NET-03 "$dir/codes" && ws_warn E-NET-05 "api.anthropic.com"
+    [ "$WS_NET_API_OK" = 0 ] && ! grep -q '^E-NET-03 ' "$dir/codes" && ws_warn E-NET-05 "api.anthropic.com"
+    # um aviso por codigo, com os servidores desse codigo (o primeiro vai para os comandos do aviso)
     local c d; while IFS= read -r c; do
       [ -n "$c" ] || continue
-      d=$(ws_trim "$fails"); [ "$c" = E-NET-03 ] && [ -n "${WS_PROXY_ENV:-}" ] && d=$WS_PROXY_ENV
+      d=$(awk -v c="$c" '$1 == c { printf "%s%s", (n++ ? " " : ""), $2 }' "$dir/codes")
+      [ "$c" = E-NET-03 ] && [ -n "${WS_PROXY_ENV:-}" ] && d=$WS_PROXY_ENV
       ws_warn "$c" "$d"
-    done < <(sort -u "$dir/codes")
+    done < <(cut -d ' ' -f 1 "$dir/codes" | sort -u)
   fi
 }
 
@@ -1848,6 +1909,8 @@ ws_s7_url_ok() {
 }
 ws_s7_detect() {
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
+  # Um ~/.claude.json sem leitura parece vazio ao "claude mcp get" (so "No MCP server named"): e E-PERM-01, nao E-MCP-01.
+  ws_perm_blocked "$(ws_claude_json)" && return 1
   ws_mcp_get atlassian || { ws_fail E-MCP-01 ""; return 1; }
   ws_s7_url_ok || { ws_fail E-MCP-01 "atlassian: $(ws_mcp_field URL)$(ws_mcp_field Command)"; return 1; }
   ws_detail "$(ws_m s7_ja)"
@@ -1875,6 +1938,7 @@ ws_s7_acli_install() { # falhar aqui so deixa um aviso (WS_ACLI_ERR)
 ws_s7_install() {
   ws_set SN 7 ""   # o detect volta a escrever as notas
   local old
+  ws_perm_blocked "$(ws_claude_json)" && return 1
   # Um registo atlassian antigo (ex.: o SSE .../v1/sse) e trocado pelo do workshop, com uma nota a dizer qual era.
   if ws_mcp_get atlassian && ! ws_s7_url_ok; then
     old="$(ws_mcp_field URL)$(ws_mcp_field Command)"
@@ -1903,7 +1967,9 @@ ws_iu() { # subcomando [extra]
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
 ws_s8_parse() { # le a saida TSV de install-user
-  local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para="" err="" det=""
+  local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para="" err="" det="" lingua=0 outra=0
+  # WS_S8_SO_LINGUA=1: so falta mudar a lingua (WORKSHOP_LANG diferente da instalada); WS_S8_DE/PARA: de qual para qual
+  WS_S8_SO_LINGUA=0; WS_S8_DE=""; WS_S8_PARA=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       skills) skills=$v ;; agentes) agentes=$v ;;
@@ -1914,8 +1980,10 @@ ws_s8_parse() { # le a saida TSV de install-user
       falta) ws_log "missing: $v"
         # "lingua do kit (pt -> en)" ou "language do Claude (European Portuguese -> Brazilian Portuguese)"
         case "$v" in "lingua do kit ("*" -> "*")"|"language do Claude ("*" -> "*")")
+          lingua=1
           de=${v#*"("}; de=${de%%" -> "*}; para=${v##*" -> "}; para=${para%")"}
           case "$v" in "lingua do kit"*) case "$de" in pt|en) de=$(ws_m "lingua_$de"); para=$(ws_m "lingua_$para") ;; *) de="" ;; esac ;; esac ;;
+          *) outra=1 ;;
         esac ;;
       # skills/agentes do kit que a pessoa tinha alterado: a copia dela ficou no backup
       editado) ws_note "$(ws_msg s8_editado NOME="${v##*/}" PASTA="$(ws_tilde "$v")")" ;;
@@ -1924,6 +1992,8 @@ ws_s8_parse() { # le a saida TSV de install-user
   done <<EOF
 $1
 EOF
+  [ "$lingua" = 1 ] && [ "$outra" = 0 ] && [ -z "$err" ] && WS_S8_SO_LINGUA=1
+  WS_S8_DE=$de; WS_S8_PARA=$para
   # settings.json com erro: o caminho e onde esta o erro (linha e coluna, ou o campo) ficam no ecra.
   if [ -n "$err" ]; then
     case "$err" in E-CFG-05) det="${CLAUDE_DIR/#"$HOME"/~}/settings.json${det:+ · $det}" ;; esac
@@ -1931,7 +2001,8 @@ EOF
   fi
   ws_detail "$(ws_msg s8_ja SKILLS="$skills" AGENTES="$agentes")"
   # Em --check, a lingua instalada diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio: diz-se qual e.
-  [ "${WS_MODE:-}" != install ] && [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_muda DE="$de" PARA="$para")"
+  [ "${WS_MODE:-}" != install ] && [ -n "$de" ] &&
+    ws_note "$(ws_msg s8_lingua_muda DE="$de" PARA="$para" CMD="curl -fsSL ${D_SETUP_MAC_URL:-<url>/setup-mac.sh} | WORKSHOP_LANG=${WS_LANG:-en} bash")"
   kit=$(ws_m "lingua_${kit:-${WS_LANG_KIT:-en}}")
   if [ -z "$lang" ]; then ws_note "$(ws_msg s8_lingua_nenhuma LINGUA="${WS_LANG:-en}" KIT="$kit")"
   elif [ "$nossa" = 1 ]; then ws_note "$(ws_msg s8_lingua_nossa NOME="$lang" KIT="$kit")"
@@ -1944,12 +2015,16 @@ ws_s8_detect() {
   out=$(ws_iu verificar); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   ws_s8_parse "$out"
-  [ "$rc" = 0 ]
+  [ "$rc" = 0 ] && return 0
+  # --check/--doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
+  [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && return 0
+  return 1
 }
 ws_s8_install() {
   ws_set SW 8 ""; ws_set SN 8 ""; ws_set SF 8 ""
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
-  local out rc
+  # a mudanca de lingua que o detect viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
+  local out rc de=${WS_S8_DE:-} para=${WS_S8_PARA:-}
   if [ "$WS_SUBST_SL" = 1 ]; then out=$(ws_iu instalar --substituir-statusline); else out=$(ws_iu instalar); fi
   rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
@@ -1957,6 +2032,7 @@ ws_s8_install() {
   # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
   [ "$rc" = 0 ] || { ws_set SD 8 ""; ws_set SN 8 ""; }
   case "$rc" in 0) ;; 3) [ -n "${SF_8:-}" ] || ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
+  [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_mudou DE="$de" PARA="$para")"
   ws_registar_flush
   return 0
 }
@@ -1991,15 +2067,28 @@ ws_s9_migrate() {
     ws_git_own "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1; then
     ws_git_own "$demo" tag arena-start arena-inicial >>"$WS_LOG" 2>&1 && ws_log "demo-project: tag arena-start added (from arena-inicial)"
   fi
+  # Montagem interrompida entre o commit do kit e a tag: com a marca final, so o commit do kit e nada alterado, a
+  # Arena e a do kit e ganha a tag (sem ela parecia historico da pessoa, E-DEMO-04).
+  if [ -f "$demo/.arena-kit.json" ] && ! grep -Eq '"status" *: *"incomplete"' "$demo/.arena-kit.json" 2>/dev/null &&
+    ! ws_git_own "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 &&
+    [ "$(ws_git_own "$demo" rev-list --count HEAD 2>/dev/null)" = 1 ] &&
+    [ -z "$(ws_git_own "$demo" --work-tree="$demo" status --porcelain --untracked-files=all 2>/dev/null)" ]; then
+    ws_git_own "$demo" tag arena-start HEAD >>"$WS_LOG" 2>&1 && ws_log "demo-project: tag arena-start added (interrupted assembly)"
+  fi
   if [ ! -e "$new" ] && [ -f "$old/.sandbox-kit.json" ]; then
     mv "$old" "$new" >>"$WS_LOG" 2>&1 && ws_log "practice project moved: $old -> $new"
   fi
   return 0
 }
 ws_s9_detect() {
-  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE"
+  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE" ref=refs/tags/arena-start
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
-  case "$(ws_proj_state "$demo" .arena-kit.json refs/tags/arena-start)" in
+  # Ao instalar, as migracoes (arena-inicial -> arena-start, a pasta do projeto de treino) vem antes do estado: sem
+  # elas uma Arena antiga e intacta parecia historico da pessoa (E-DEMO-04). No --check, que nao muda nada, a tag
+  # antiga conta como a nova (o /demo-reset dessa Arena usa a arena-inicial).
+  if [ "$WS_MODE" = install ]; then ws_s9_migrate
+  else ws_git_own "$demo" rev-parse -q --verify "$ref" >/dev/null 2>&1 || ref=refs/tags/arena-inicial; fi
+  case "$(ws_proj_state "$demo" .arena-kit.json "$ref")" in
     ok) ;;
     propria) ws_warn E-DEMO-04 "$(ws_tilde "$demo")" ;;
     *) ws_fail E-DEMO-01 "$demo"; return 1 ;;
@@ -2111,7 +2200,11 @@ ws_s10_detect() {
   local b ver=${C_MEMORY_APP_VERSION#v}
   b=$(ws_memory_bin) || { ws_fail E-MEM-01 ""; return 1; }
   "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq "^(agent-memory|agent_memory|memoria) v?$ver( |$)" || { ws_fail E-MEM-03 "version $ver"; return 1; }
-  if [ -n "${WS_CLAUDE:-}" ]; then ws_memory_mcp_ok "$b" || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
+  if [ -n "${WS_CLAUDE:-}" ]; then
+    # ~/.claude.json sem leitura: o "mcp get" falha como se a app nao estivesse registada (reinstalar nao resolve)
+    ws_perm_blocked "$(ws_claude_json)" && return 1
+    ws_memory_mcp_ok "$b" || { ws_fail E-MEM-03 "mcp"; return 1; }
+  fi
   # O config.json e o atalho sao extras: ao instalar refazem-se aqui (sem reinstalar a app). Sem escrita na pasta
   # (dados ou ~/Applications), reinstalar nao resolve: fica um aviso (o selftest diz o resto).
   if [ ! -f "$(ws_memory_home)/config.json" ]; then
@@ -2167,6 +2260,7 @@ ws_memory_selftest() {
 }
 ws_s10_install() {
   local ver=${C_MEMORY_APP_VERSION#v} d="$WS_TMP/agent-memory" whl want got b f dist
+  [ -n "${WS_CLAUDE:-}" ] && ws_perm_blocked "$(ws_claude_json)" && return 1
   rm -rf "$d"; mkdir -p "$d"
   if ! ws_dl "$(ws_release_url memory SHA256SUMS)" "$d/SHA256SUMS" auth; then
     case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$C_MEMORY_APP_VERSION" ;; *) ws_dl_fail SHA256SUMS ;; esac
@@ -2511,7 +2605,8 @@ ws_summary() {
       # O --check e o --doctor nao instalam nada: "os passos feitos sao saltados" so vale para a instalacao.
       if [ "$WS_MODE" = install ]; then printf '%s\n' "$(ws_m final_voltar)"; else printf '%s\n' "$(ws_m final_voltar_check)"; fi
     fi
-    [ "$avisos" -gt 0 ] && printf '%s\n' "$(ws_msg final_avisos N="$avisos")"
+    if [ "$avisos" = 1 ]; then printf '%s\n' "$(ws_m final_aviso1)"
+    elif [ "$avisos" -gt 1 ]; then printf '%s\n' "$(ws_msg final_avisos N="$avisos")"; fi
   } > "$r"
   ws_say ""
   ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
@@ -2558,6 +2653,9 @@ ws_uninstall() {
   done <<EOF
 $("$WS_NODE" "$iu" extras 2>>"$WS_LOG" </dev/null)
 EOF
+  # o codigo de saida do desinstalar conta: com o settings.json por repor, o resto fica (kit-src incluido, para repetir)
+  local iu_out iu_rc=0
+  iu_out=$("$WS_NODE" "$iu" desinstalar 2>>"$WS_LOG" </dev/null) || iu_rc=$?
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       settings) [ "$v" = reposto ] && ws_say "  $(ws_m desinst_settings_reposto)"; [ "$v" = limpo ] && ws_say "  $(ws_m desinst_settings_limpo)" ;;
@@ -2568,8 +2666,12 @@ EOF
       erro) ws_say "  ❌ $v" ;;
     esac
   done <<EOF
-$("$WS_NODE" "$iu" desinstalar 2>>"$WS_LOG" </dev/null)
+$iu_out
 EOF
+  if [ "$iu_rc" != 0 ]; then
+    ws_log "install-user desinstalar: saida $iu_rc"
+    ws_say ""; ws_say "$(ws_msg desinst_incompleto LOG="$WS_LOG")"; return 1
+  fi
   rm -rf "$WS_HOME/kit-src" "$WS_HOME/extras-pendentes.tsv"
   ws_say ""
   ws_say "$(ws_msg desinst_fim BACKUP="$WS_HOME/backup")"

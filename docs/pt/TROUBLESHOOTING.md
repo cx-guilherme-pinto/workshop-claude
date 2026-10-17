@@ -120,7 +120,7 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 Comando (macOS):
 
 ```
-curl -sS -o /dev/null -w '%{http_code}\n' https://api.anthropic.com
+curl -sSL -o /dev/null -w '%{http_code} %{url_effective}\n' https://api.anthropic.com
 ```
 
 <a id="mac-e-net-02"></a>
@@ -830,7 +830,7 @@ cd ~/workshop-claude/demo-project && node --test test/app.test.js
 Comando (macOS):
 
 ```
-mv ~/workshop-claude ~/workshop-claude-antigo
+mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-antigo
 ```
 
 <a id="mac-e-demo-04"></a>
@@ -949,7 +949,7 @@ agent-memory selftest
 
 ### E-PROF-01 · O setup não conseguiu pôr as pastas do workshop num perfil do shell
 
-- **Porquê:** Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava. Os outros ficheiros de perfil foram atualizados.
+- **Porquê:** Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava.
 - **O que fazer:**
   - Acrescenta a primeira linha abaixo ao fim do ficheiro indicado pelo setup (ou do ficheiro dos teus dotfiles para onde ele aponta) e abre um terminal novo.
   - Se o ficheiro não é só de leitura de propósito, vê-o com o segundo comando, dá-te permissão para o ler e alterar (ou pede a quem gere o teu Mac) e volta a correr o setup.
@@ -958,14 +958,14 @@ Comandos (macOS):
 
 ```
 export PATH="$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH"
-ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+ls -lO ~/.zshrc
 ```
 
 <a id="mac-e-prof-02"></a>
 
 ### E-PROF-02 · Um perfil do shell tem um bloco do workshop incompleto
 
-- **Porquê:** O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha. Os outros ficheiros de perfil foram atualizados.
+- **Porquê:** O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha.
 - **O que fazer:**
   - Abre o ficheiro indicado pelo setup e apaga as linhas antigas do workshop: a linha do marcador e as linhas do PATH a seguir. Mantém as tuas linhas.
   - Depois volta a correr o setup.
@@ -973,7 +973,7 @@ ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
 Comando (macOS):
 
 ```
-grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+grep -n workshop-claude ~/.zshrc
 ```
 
 <a id="mac-e-smoke-01"></a>
@@ -1842,7 +1842,7 @@ cd ~/workshop-claude\demo-project; node --test test/app.test.js
 Comando (Windows):
 
 ```
-Rename-Item ~/workshop-claude workshop-claude-antigo
+Rename-Item ~/workshop-claude\demo-project demo-project-antigo
 ```
 
 <a id="windows-e-demo-04"></a>

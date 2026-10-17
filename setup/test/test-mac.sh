@@ -437,7 +437,7 @@ printf 'a\n# >>> workshop-claude >>>\nvelho\nalias gs=x\n' > "$G2/semfim"
 eq "$(ws_profile_strip "$G2/semfim"; printf 'rc=%s' "$?")" "rc=3" "ws_profile_strip recusa um bloco sem fim (nao apaga ate ao fim do ficheiro)"
 printf 'a\n# <<< workshop-claude <<<\nb\n' > "$G2/fimsolto"; ws_profile_strip "$G2/fimsolto" >/dev/null; eq "$?" 3 "ws_profile_strip recusa um fim solto"
 printf 'a\n  # >>> workshop-claude >>>\n  velho\n  # <<< workshop-claude <<<\nb\n' > "$G2/indent"
-eq "$(ws_profile_strip "$G2/indent")" "$(printf 'a\nb')" "ws_profile_strip tira um bloco indentado"
+eq "$(ws_profile_strip "$G2/indent")" "$(printf 'a\n  :\nb')" "ws_profile_strip tira um bloco indentado (fica um : com a mesma indentacao)"
 # ligacoes dos dotfiles: a ligacao fica, o bloco vai para o ficheiro real, 600 continua 600, backup e sem .ws-tmp
 g2_home; mkdir -p "$G2H/dotfiles"; printf 'export DOT=1\n' > "$G2H/dotfiles/zprofile"; chmod 600 "$G2H/dotfiles/zprofile"
 ln -s dotfiles/zprofile "$G2H/.zprofile"; printf 'export ZRC=1\n' > "$G2H/.zshrc"; chmod 600 "$G2H/.zshrc"
@@ -540,7 +540,7 @@ eq "$(ws_net_code 5 000)|$(ws_net_code 97 000)|$(WS_PROXY_DEAD=1 ws_net_code 7 0
 ( PATH="$G3/bin:$PATH"; export G3_MODE=407; ws_dl https://x.test/f "$G3/o"; printf '%s|%s|%s|%s' "$?" "$WS_DL_HTTP" "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "${WS_HB:-}" ) > "$G3/r"
 eq "$(cat "$G3/r")" "22|407|E-NET-03|" "g3: ws_dl atras de um proxy com autenticacao (407 no CONNECT) = E-NET-03"
 grep -qx -- --speed-limit "$G3_ARGS" && grep -qx -- --speed-time "$G3_ARGS" && grep -qx -- --connect-timeout "$G3_ARGS" && ! grep -qx -- --max-time "$G3_ARGS" && ok || ko "g3: ws_dl com limite de velocidade e sem --max-time"
-( PATH="$G3/bin:$PATH"; export G3_MODE=redir-dns; WS_LOG="$G3/log"; WS_CUR=6; SF_6=""; ws_dl https://github.test/x "$G3/o"; ws_dl_fail https://github.test/x; printf '%s' "$SF_6" ) > "$G3/r"
+( PATH="$G3/bin:$PATH"; export G3_MODE=redir-dns; WS_LOG="$G3/log"; WS_CUR=6; SF_6=""; C_NET_CHECK_HOSTS="github.test release-assets.example.test"; ws_dl https://github.test/x "$G3/o"; ws_dl_fail https://github.test/x; printf '%s' "$SF_6" ) > "$G3/r"
 eq "$(cat "$G3/r")" "E-NET-02|release-assets.example.test · https://github.test/x" "g3: o detalhe mostra o servidor final do redirecionamento"
 grep -q 'redirected to release-assets.example.test' "$G3/log" && ! grep -q SEGREDO "$G3/log" && ok || ko "g3: o log tem o servidor final e nunca a query string assinada"
 ( PATH="$G3/bin:$PATH"; export G3_MODE=html; WS_CUR=2; SF_2=""; ws_dl https://x.test/install.sh "$G3/o2"; rc=$?; ws_dl_fail https://x.test/install.sh; printf '%s|%s|%s' "$rc" "$([ -e "$G3/o2" ] && echo ficou)" "$SF_2" ) > "$G3/r"
@@ -1028,5 +1028,117 @@ printf '#!/bin/sh\nprintf "%%s " "$@"\n' > "$G11/bin/node-args"; chmod +x "$G11/
 eq "$(WS_NODE="$G11/bin/node-args"; KIT_SRC=/k; WS_LANG=en; WS_CA_PEM=""; WS_PROXY=http://p:8080; NO_PROXY=meu.servidor; no_proxy=""; WS_STEP_LOG=/dev/null; ws_iu verificar)" \
   "/k/installer/install-user.mjs verificar --node $G11/bin/node-args --kit-src /k --lingua-maquina en --https-proxy http://p:8080 --no-proxy localhost,127.0.0.1,meu.servidor " "ws_iu: --no-proxy com o NO_PROXY da pessoa junto do --https-proxy"
 
+# --- chaos round 2 R3-misc
+R3="$WS_TMP/r3"; mkdir -p "$R3/bin" "$R3/h"
+# fs-dotfiles-symlinks: o desinstalar que sai com erro (settings.json por repor) nao apaga o kit-src nem diz "concluida"
+printf '#!/bin/sh\ncase "$2" in desinstalar) printf "erro\\tsettings: EACCES\\n"; exit 5 ;; esac\nexit 0\n' > "$R3/bin/node"; chmod +x "$R3/bin/node"
+( HOME="$R3/h"; WS_HOME="$R3/h/.workshop-claude"; mkdir -p "$WS_HOME/kit-src/x/installer"; : > "$WS_HOME/kit-src/x/installer/install-user.mjs"
+  printf '{"node": "%s"}\n' "$R3/bin/node" > "$WS_HOME/manifest.json"; WS_LOG="$R3/u.log"; : > "$WS_LOG"
+  ws_s4_detect() { WS_NODE="$R3/bin/node"; }; ws_s5_detect() { :; }; ws_kit_ensure() { KIT_SRC="$WS_HOME/kit-src/x"; }; ws_claude() { :; }
+  ws_uninstall; printf 'rc=%s kit-src=%s\n' "$?" "$([ -d "$WS_HOME/kit-src" ] && echo kept || echo gone)" ) > "$R3/u.out" 2>&1
+grep -q 'rc=1 kit-src=kept' "$R3/u.out" && ok || ko "r3 uninstall: erro do desinstalar = rc 1 e kit-src fica [$(cat "$R3/u.out")]"
+grep -q 'The uninstall stopped before the end' "$R3/u.out" && ! grep -q 'Uninstall complete' "$R3/u.out" && ok || ko "r3 uninstall: diz que parou, e nao 'complete' [$(cat "$R3/u.out")]"
+
+# fs-sudo-leftovers: ~/.claude.json sem leitura -> passos 7 e 10 = E-PERM-01 sem "mcp get/add" nem downloads
+( HOME="$R3/h"; unset CLAUDE_CONFIG_DIR; WS_PERM_BAD=("$R3/h/.claude.json"); WS_CUR=7; SF_7=""; WS_CLAUDE=/bin/false
+  ws_mcp_get() { echo called > "$R3/mcp"; return 1; }
+  ws_s7_detect; printf '%s|%s|' "$?" "$SF_7"; SF_7=""; ws_s7_install; printf '%s|%s|%s' "$?" "$SF_7" "$([ -e "$R3/mcp" ] && echo mcp)" ) > "$R3/r"
+eq "$(cat "$R3/r")" "1|E-PERM-01|~/.claude.json|1|E-PERM-01|~/.claude.json|" "r3: passo 7 com ~/.claude.json sem leitura = E-PERM-01, sem claude mcp"
+( HOME="$R3/h"; unset CLAUDE_CONFIG_DIR; WS_PERM_BAD=("$R3/h/.claude.json"); WS_CUR=10; SF_10=""; WS_CLAUDE=/bin/false
+  ws_dl() { echo called > "$R3/dl"; return 1; }
+  ws_s10_install; printf '%s|%s|%s' "$?" "$SF_10" "$([ -e "$R3/dl" ] && echo dl)" ) > "$R3/r"
+eq "$(cat "$R3/r")" "1|E-PERM-01|~/.claude.json|" "r3: passo 10 com ~/.claude.json sem leitura = E-PERM-01, sem descarregar a app outra vez"
+( HOME="$R3/h"; CLAUDE_CONFIG_DIR="$R3/cfg"; eq "$(ws_claude_json)" "$R3/cfg/.claude.json" "r3: ws_claude_json segue o CLAUDE_CONFIG_DIR" )
+# a linha do E-PERM-01 corta no fim de uma frase ou palavra, nunca a meio
+( WS_CUR=7; SF_7="E-MCP-01|"; WS_STEP_LOG="$R3/perm.log"
+  printf "Error: EACCES: permission denied, open '%s/.claude.json'. Run \`sudo chown -R bea ~/.claude.json\` to fix the owner of the file, then open a new terminal window and run the same setup command again.\n" "$HOME" > "$WS_STEP_LOG"
+  ws_perm_reclass; printf '%s' "$SF_7" ) > "$R3/r"
+case "$(cat "$R3/r")" in "E-PERM-01|Error: EACCES: permission denied, open '~/.claude.json'.") ok ;; *) ko "r3: E-PERM-01 cortado no fim da frase [$(cat "$R3/r")]" ;; esac
+( WS_CUR=7; SF_7=""; WS_STEP_LOG="$R3/perm.log"; printf 'EACCES %s\n' "$(printf 'palavra %.0s' $(seq 40))" > "$WS_STEP_LOG"; ws_perm_reclass; printf '%s' "$SF_7" ) > "$R3/r"
+case "$(cat "$R3/r")" in "E-PERM-01|EACCES palavra"*"palavra ...") ok ;; *) ko "r3: E-PERM-01 cortado numa palavra inteira [$(cat "$R3/r")]" ;; esac
+
+# lang-pt-on-english-mac: no --check, so a lingua diferente e "verificado" com a nota e o comando com o WORKSHOP_LANG
+S8L=$(printf 'skills\t7\nagentes\t6\nlingua_kit\tpt\nlanguage\tBrazilian Portuguese\nlanguage_nossa\t1\nfalta\tlanguage do Claude (Brazilian Portuguese -> European Portuguese)\n')
+s8d() { ( WS_MODE=$1; WS_CUR=8; SF_8=""; SN_8=""; WS_LANG=pt-PT; WS_LANG_KIT=pt; D_SETUP_MAC_URL=https://r.test/setup-mac.sh
+    ws_kit_ensure() { :; }; ws_registar_flush() { :; }; ws_iu() { printf '%s\n' "$S8OUT_R3"; return 1; }
+    ws_s8_detect; printf 'rc=%s|%s|%s' "$?" "$SF_8" "$SN_8" ); }
+o=$(S8OUT_R3=$S8L s8d check)
+case "$o" in "rc=0||"*"To switch, run: curl -fsSL https://r.test/setup-mac.sh | WORKSHOP_LANG=pt-PT bash"*) ok ;; *) ko "r3: --check com so a lingua diferente = verificado, com o comando [$o]" ;; esac
+o=$(S8OUT_R3="$S8L"$'\nfalta\tkit desatualizado' s8d check); case "$o" in rc=1*) ok ;; *) ko "r3: --check com outra falta continua a falhar [$o]" ;; esac
+o=$(S8OUT_R3=$S8L s8d install); case "$o" in rc=1*) ok ;; *) ko "r3: ao instalar, a lingua diferente reinstala [$o]" ;; esac
+( WS_MODE=install; WS_CUR=8; SF_8=""; SN_8=""; SW_8=""; WS_SUBST_SL=0; WS_LANG=pt-PT; WS_LANG_KIT=pt; WS_STEP_LOG=/dev/null
+  ws_kit_ensure() { :; }; ws_registar_flush() { :; }
+  ws_iu() { case "$1" in verificar) printf '%s\n' "$S8L"; return 1 ;; *) printf 'skills\t7\nagentes\t6\nlingua_kit\tpt\nlanguage\tEuropean Portuguese\nlanguage_nossa\t1\n'; return 0 ;; esac; }
+  ws_s8_detect; ws_s8_install; printf 'rc=%s|%s' "$?" "$SN_8" ) > "$R3/r"
+grep -q '^rc=0|' "$R3/r" && grep -q 'Language changed from Brazilian Portuguese to European Portuguese, because WORKSHOP_LANG asked for it.' "$R3/r" && ok || ko "r3: a instalacao diz que a lingua mudou [$(cat "$R3/r")]"
+
+# net-proxy-dead: proxy SOCKS cujo nome nao resolve (o curl da 6, e nao 5) = proxy morto (E-NET-03)
+( unset HTTPS_PROXY https_proxy all_proxy; ALL_PROXY=socks5h://bea:pw@socks.r3.invalid:1080; WS_CUR=0; SN_0=""; WS_STEP_LOG="$R3/px.log"; : > "$WS_STEP_LOG"
+  ws_detect_proxy; printf '%s|%s|%s' "$WS_PROXY_ENV" "$WS_PROXY_DEAD" "$(ws_net_code 6 000)" ) > "$R3/r"
+eq "$(cat "$R3/r")" "socks5h://socks.r3.invalid:1080 (ALL_PROXY)|1|E-NET-03" "r3: proxy SOCKS que nao resolve = morto (E-NET-03)"
+grep -q 'pw' "$R3/px.log" && ko "r3: a palavra-passe do proxy foi para o log do passo" || ok
+
+# prof-broken-old-block: bloco antigo incompleto fica no manifest; bloco indentado num if deixa um bash valido;
+# um aviso depois do passo 12 conta no resumo
+( HOME="$R3/h"; WS_HOME="$R3/h/.workshop-claude"; mkdir -p "$WS_HOME"; WS_CUR=2; ST_2=""; SW_2=""; WS_PERFIL_AVISADOS=""
+  printf 'a\n# >>> workshop-claude >>>\nvelho\n' > "$R3/h/.zshrc"; ws_registar() { printf '%s|%s\n' "$1" "$2" >> "$R3/reg"; }
+  ws_profile_put "$R3/h/.zshrc" "# >>> workshop-claude >>>"; printf '%s|%s' "$?" "$SW_2" ) > "$R3/r"
+grep -qx "perfil|$R3/h/.zshrc" "$R3/reg" && ok || ko "r3: perfil com bloco incompleto registado para o --uninstall"
+case "$(cat "$R3/r")" in "1|E-PROF-02|~/.zshrc"*) ok ;; *) ko "r3: E-PROF-02 para o bloco incompleto [$(cat "$R3/r")]" ;; esac
+printf 'if [ -n "$X" ]; then\n  # >>> workshop-claude >>>\n  PATH=a\n  # <<< workshop-claude <<<\nfi\nf() {\n\t# >>> workshop-claude >>>\n\tPATH=b\n\t# <<< workshop-claude <<<\n}\nB=2\n' > "$R3/bp"
+ws_profile_strip "$R3/bp" > "$R3/bp2"; bash -n "$R3/bp2" 2>/dev/null && ok || ko "r3: bloco indentado num if/funcao deixa o .bash_profile valido [$(cat "$R3/bp2")]"
+grep -q 'PATH=' "$R3/bp2" && ko "r3: o bloco indentado ficou" || ok
+( WS_CUR=12; ST_12=feito; SW_12=""; WS_PERFIL_AVISADOS=""; WS_LOG=/dev/null; ws_profile_warn E-PROF-02 "$HOME/.zshrc" >/dev/null; printf '%s|%s' "$ST_12" "$SW_12" ) > "$R3/r"
+case "$(cat "$R3/r")" in "aviso|E-PROF-02|~/.zshrc"*) ok ;; *) ko "r3: aviso depois do passo 12 passa o passo a 'com aviso' [$(cat "$R3/r")]" ;; esac
+o=$(ws_print_code E-PROF-02 "~/.config/zsh/.zshrc" "" ""); case "$o" in *'$ grep -n workshop-claude ~/.config/zsh/.zshrc'*) ok ;; *) ko "r3: o comando do E-PROF-02 nomeia o ficheiro [$o]" ;; esac
+o=$(sm check 0 aviso); case "$o" in *"There is 1 warning above."*) ok ;; *) ko "r3: 1 aviso no singular [$o]" ;; esac
+
+# prof-zdotdir: uma pasta ZDOTDIR sem escrita nunca troca para a HOME (o zsh nao le o ~/.zshrc com o ZDOTDIR)
+if [ -x /bin/zsh ]; then
+  ZH="$R3/zh"; mkdir -p "$ZH/.config/zsh"; printf 'export ZDOTDIR="$HOME/.config/zsh"\n' > "$ZH/.zshenv"; chmod 555 "$ZH/.config/zsh"
+  ( HOME=$ZH; WS_LOG="$R3/z.log"; ws_zdotdir ) > "$R3/r"
+  eq "$(cat "$R3/r")" "$ZH/.config/zsh" "r3: ZDOTDIR sem escrita fica o ZDOTDIR (nao a HOME)"
+  ( HOME=$ZH; WS_HOME="$ZH/.workshop-claude"; WS_LOG="$R3/z.log"; WS_CUR=2; ST_2=""; SW_2=""; WS_PERFIL_AVISADOS=""; ws_registar() { :; }
+    ws_profile_put "$ZH/.config/zsh/.zshrc" "# >>> workshop-claude >>>"; printf '%s|%s' "$?" "$SW_2" ) > "$R3/r" 2> "$R3/z.err"
+  case "$(cat "$R3/r")" in "1|E-PROF-01|~/.config/zsh/.zshrc"*) ok ;; *) ko "r3: ZDOTDIR sem escrita = E-PROF-01 a nomear o ficheiro [$(cat "$R3/r")]" ;; esac
+  [ -s "$R3/z.err" ] && ko "r3: erro do bash no ecra [$(cat "$R3/z.err")]" || ok
+  [ ! -e "$ZH/.zshrc" ] && ok || ko "r3: escreveu no ~/.zshrc, que o zsh nao le"
+  chmod 755 "$ZH/.config/zsh"
+fi
+
+# net-host-blocked: os comandos nomeiam o servidor que falhou; um 3xx do claude.ai para fora e um bloqueio; o servidor
+# de uma pagina de bloqueio nao aparece como o dominio a libertar
+eq "$(ws_hint_host 'release-assets.githubusercontent.com · https://github.com/x')|$(ws_hint_host 'https://claude.ai/install.sh · HTTP 403')|$(ws_hint_host 'SHA256SUMS')" \
+  "release-assets.githubusercontent.com|claude.ai|api.anthropic.com" "r3: ws_hint_host"
+eq "$(ws_hint_url 'claude.ai pypi.org')|$(ws_hint_url 'pypi.org')" "$C_CLAUDE_INSTALL_SH_URL|https://pypi.org/" "r3: ws_hint_url (o instalador para o claude.ai)"
+o=$(ws_print_code E-NET-02 "release-assets.githubusercontent.com · https://github.com/x" "" ""); case "$o" in *'$ dscacheutil -q host -a name release-assets.githubusercontent.com'*) ok ;; *) ko "r3: E-NET-02 com o servidor que falhou [$o]" ;; esac
+o=$(ws_print_code E-NET-01 "claude.ai" "" ""); case "$o" in *"$C_CLAUDE_INSTALL_SH_URL"*) ok ;; *) ko "r3: E-NET-01 testa o instalador do claude.ai [$o]" ;; esac
+( WS_CUR=2; SF_2=""; WS_DL_HOST=block.r3.test:15871; WS_DL_URLHOST=claude.ai; WS_DL_HTTP=html; WS_DL_RC=1; ws_dl_fail https://claude.ai/install.sh; printf '%s' "$SF_2" ) > "$R3/r"
+eq "$(cat "$R3/r")" "E-NET-01|https://claude.ai/install.sh · redirected to block.r3.test:15871 · a web page came instead of the file" "r3: o servidor da pagina de bloqueio vai no fim"
+( WS_CUR=10; SF_10=""; WS_DL_HOST=""; WS_DL_URLHOST=github.com; WS_DL_HTTP=000; WS_DL_RC=6; WS_PROXY_DEAD=0; ws_dl_fail constraints.txt; printf '%s' "$SF_10" ) > "$R3/r"
+eq "$(cat "$R3/r")" "E-NET-02|github.com · constraints.txt" "r3: o detalhe de um ficheiro comeca pelo servidor"
+printf '#!/bin/sh\nfor a; do u=$a; done\ncase "$u" in *install.sh) printf "302 000 r=%%s" "$R3_REDIR" ;; *) printf "200 000 r=" ;; esac\n' > "$R3/bin/curl"; chmod +x "$R3/bin/curl"
+r3net() { ( PATH="$R3/bin:$PATH"; export R3_REDIR=$1; WS_TMP="$R3"; WS_CUR=0; SW_0=""; SN_0=""; WS_UA=t; WS_LOG=/dev/null
+    C_NET_CHECK_HOSTS="claude.ai downloads.claude.ai a.r3.test"; C_CLAUDE_INSTALL_SH_URL=https://claude.ai/install.sh; D_REPO_HOST=""; D_MEMORY_HOST=""; D_KIT_URL_MAC=https://a.r3.test/k.tgz
+    ws_check_network >/dev/null; printf '%s/%s|%s' "$WS_NET_OK" "$WS_NET_TOTAL" "$(printf '%s' "$SW_0" | tr '\n' ';')" ); }
+eq "$(r3net https://downloads.claude.ai/bootstrap.sh)" "3/3|" "r3: rede: 302 do claude.ai para o downloads.claude.ai e acessivel"
+eq "$(r3net http://proxy.r3.test:15871/cgi-bin/blockpage.cgi)" "2/3|E-NET-01|claude.ai;" "r3: rede: 302 do claude.ai para uma pagina de bloqueio = E-NET-01"
+
+# run-ctrlc-arena e run-upgrade-uninstall: a Arena com a marca final e so o commit do kit ganha a tag; a Arena do
+# rc.1 publicado (so arena-inicial) migra ao instalar e nao e "historico proprio"
+r3arena() { rm -rf "$R3/p/demo-project"; mkdir -p "$R3/p/demo-project"; printf '{"version":"v1"}\n' > "$R3/p/demo-project/.arena-kit.json"; echo x > "$R3/p/demo-project/README.md"
+  ( cd "$R3/p/demo-project" && g5git init -q && g5git add -A && g5git commit -q -m "Initial state of the Security Arena" ) >/dev/null 2>&1; }
+r3arena; ( WS_PROJ="$R3/p"; WS_LOG=/dev/null; ws_s9_migrate )
+eq "$(g5git -C "$R3/p/demo-project" tag -l)" arena-start "r3: Arena interrompida entre o commit e a tag ganha a arena-start"
+r3arena; echo mine > "$R3/p/demo-project/MY.md"; ( WS_PROJ="$R3/p"; WS_LOG=/dev/null; ws_s9_migrate )
+eq "$(g5git -C "$R3/p/demo-project" tag -l)" "" "r3: Arena com um ficheiro da pessoa fica sem tag (E-DEMO-04)"
+r3s9() { ( WS_MODE=$1; WS_PROJ="$R3/p"; WS_PROJ_SHOW='~/workshop-claude'; KIT_SRC="$R3/nokit"; WS_LOG=/dev/null; WS_CUR=9; SF_9=""; SW_9=""; SN_9=""; WS_LANG_KIT=en
+    ws_kit_ensure() { :; }; ws_s9_tests() { :; }; ws_s9_detect; printf 'rc=%s|%s|%s' "$?" "$SF_9" "$SW_9" ); }
+r3arena; g5git -C "$R3/p/demo-project" tag arena-inicial >/dev/null 2>&1; echo mine > "$R3/p/demo-project/MY.md"; g5git -C "$R3/p/demo-project" add -A >/dev/null 2>&1; g5git -C "$R3/p/demo-project" commit -q -m mine >/dev/null 2>&1
+eq "$(r3s9 check)" "rc=0||" "r3: --check: Arena do rc.1 (arena-inicial) nao e historico proprio"
+eq "$(g5git -C "$R3/p/demo-project" tag -l | tr '\n' ' ')" "arena-inicial " "r3: --check nao mexe nas tags"
+eq "$(r3s9 install)" "rc=0||" "r3: instalar: Arena do rc.1 migra antes do estado (sem E-DEMO-04)"
+eq "$(g5git -C "$R3/p/demo-project" tag -l | tr '\n' ' ')" "arena-inicial arena-start " "r3: instalar: arena-start adicionada"
+o=$(WS_FILL_KEYS=PROJETOS D_PROJETOS='~/workshop-claude' ws_print_code E-DEMO-03 "$R3/p/demo-project" "" ""); case "$o" in *'$ mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old'*) ok ;; *) ko "r3: E-DEMO-03 move so a pasta do projeto [$o]" ;; esac
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
