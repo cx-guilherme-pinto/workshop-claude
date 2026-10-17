@@ -806,3 +806,205 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $ps.Dispose()
   }
 }
+
+# --- chaos G7-language: WORKSHOP_LANG validado, lingua guardada na instalacao, notas dos passos 0, 8 e 9
+Describe 'chaos G7-language' {
+  BeforeAll {
+    $script:LangEnvBefore = $env:WORKSHOP_LANG
+    function Set-LangFile([string]$Name, [string]$Text, [switch]$Bom) {
+      $d = Join-Path $script:WsHome 'kit'
+      New-Item -ItemType Directory -Path $d -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $d $Name), $Text, (New-Object System.Text.UTF8Encoding($Bom.IsPresent)))
+    }
+  }
+  AfterAll {
+    if ($null -eq $script:LangEnvBefore) { Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue } else { $env:WORKSHOP_LANG = $script:LangEnvBefore }
+  }
+
+  It 'o que nao e uma etiqueta de lingua nao da informacao (language-cases.json invalidas)' {
+    foreach ($c in (Read-Fixture 'language-cases.json').invalidas) {
+      ConvertTo-WsLangTag $c.in | Should -BeExactly '' -Because $c.in
+    }
+    ConvertTo-WsLangTag ('Portugu' + [char]0x00EA + 's') | Should -BeExactly ''
+    ConvertTo-WsLangTag ('pt-' + [char]0x0661 + [char]0x0662) | Should -BeExactly '' -Because 'algarismos arabes: [0-9] e nao \d'
+    ConvertTo-WsLangTag ([string][char]0x0130 + 't') | Should -BeExactly '' -Because 'I com ponto (turco)'
+    ConvertTo-WsLangTag ('en-' + [char]0x212A + 'K') | Should -BeExactly '' -Because 'sinal de Kelvin'
+    ConvertTo-WsLangTag 'pt-abcdefghi' | Should -BeExactly '' -Because 'subetiqueta de 9 caracteres'
+    ConvertTo-WsLangTag 'pt-abcdefgh' | Should -BeExactly 'pt-abcdefgh'
+    ConvertTo-WsLangTag 'pt_BR.UTF-8' | Should -BeExactly 'pt-BR'
+    ConvertTo-WsLangTag 'iw_IL' | Should -BeExactly 'he-IL'
+    ConvertTo-WsLangTag 'br' | Should -BeExactly 'br' -Because 'bretao e uma etiqueta (rejeitada um nivel acima)'
+  }
+  It 'a validacao nao depende da cultura (maquina turca)' {
+    $old = [Threading.Thread]::CurrentThread.CurrentCulture
+    try { [Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('tr-TR') } catch { Set-ItResult -Skipped -Because 'sem dados da cultura tr-TR'; return }
+    try {
+      ConvertTo-WsLangTag ([string][char]0x0130 + 't') | Should -BeExactly ''
+      ConvertTo-WsLangTag 'hi_IN' | Should -BeExactly 'hi-IN'
+      Test-WsLangOk 'HI' | Should -BeTrue
+      Test-WsLangOk 'POSIX' | Should -BeFalse
+    } finally { [Threading.Thread]::CurrentThread.CurrentCulture = $old }
+  }
+  It 'so pt, en, hi e he contam como WORKSHOP_LANG (Test-WsLangOk)' {
+    foreach ($v in @('pt', 'pt-BR', 'pt_PT.UTF-8', 'EN', 'en-US', 'hi-IN', 'he', 'iw', ' pt-BR ')) { Test-WsLangOk $v | Should -BeTrue -Because $v }
+    foreach ($v in @('', '   ', 'br', 'es', 'brasil', 'pt-*', 'en,pt', 'UTF-8', 'C', 'POSIX', 'pts', 'ptx-BR', ('Portugu' + [char]0x00EA + 's'))) { Test-WsLangOk $v | Should -BeFalse -Because $v }
+  }
+  It 'um WORKSHOP_LANG desconhecido nao ganha a lingua do sistema' {
+    Select-WsLang 'br' 'pt-BR' 'pt-BR' | Should -BeExactly 'pt-BR'
+    Select-WsLang 'pt-*' 'pt-BR' 'en-US' | Should -BeExactly 'pt-BR'
+    Select-WsLang 'es' 'en-US' 'en-US' | Should -BeExactly 'en-US'
+    Select-WsLang 'iw_IL' 'pt-BR' 'pt-BR' | Should -BeExactly 'he-IL'
+    Select-WsLang 'en' 'pt-BR' 'pt-BR' | Should -BeExactly 'en'
+    Select-WsLang 'brasil' '' '' | Should -BeExactly 'en'
+  }
+  It 'mantem a lingua guardada na instalacao (kit\language.json) sem WORKSHOP_LANG' {
+    Mock Get-UICulture { [pscustomobject]@{ Name = 'en-US' } }
+    Mock Get-Culture { [pscustomobject]@{ Name = 'en-US' } }
+    $script:WsHome = Join-Path $TestDrive 'ws-lang'
+    try {
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'sem ficheiro'
+      $script:LangSaved | Should -BeExactly ''
+      $script:LangMachine | Should -BeExactly 'en-US'
+
+      Set-LangFile 'language.json' '{"language":"pt","machine":"pt"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangKit | Should -BeExactly 'pt'
+      $script:LangSaved | Should -BeExactly 'pt'
+      $script:LangMachine | Should -BeExactly 'en-US'
+      $script:LangIgnored | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = 'en'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en'
+      $script:LangKit | Should -BeExactly 'en'
+      $script:LangSaved | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = 'br'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangSaved | Should -BeExactly 'pt'
+      $script:LangIgnored | Should -BeExactly 'br'
+
+      $env:WORKSHOP_LANG = '   '
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt' -Because 'so espacos e como sem WORKSHOP_LANG'
+      $script:LangIgnored | Should -BeExactly ''
+
+      $env:WORKSHOP_LANG = ('pt' + [char]27 + '[31m' + ('x' * 60))
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt'
+      $script:LangIgnored.Length | Should -Be 39 -Because 'cortado a 40 e sem o ESC'
+      $script:LangIgnored | Should -Not -Match '[\x00-\x1F\x7F]'
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+
+      Set-LangFile 'language.json' '{"language":"en","machine":"br"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'um "br" guardado pelo erro antigo nao conta'
+      $script:LangSaved | Should -BeExactly ''
+
+      Remove-Item -LiteralPath (Join-Path (Join-Path $script:WsHome 'kit') 'language.json')
+      Set-LangFile 'lingua.json' '{"kit":"pt","maquina":"pt-BR"}'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-BR' -Because 'instalacoes antigas: kit\lingua.json "maquina"'
+      $script:LangKit | Should -BeExactly 'pt'
+
+      Set-LangFile 'language.json' '{"language":"pt","machine":"pt-PT"}' -Bom
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-PT' -Because 'language.json primeiro, mesmo com BOM'
+
+      Set-LangFile 'language.json' ''
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'pt-BR' -Because 'language.json vazio: passa ao lingua.json'
+      Set-LangFile 'language.json' '{nao e json'
+      Set-LangFile 'lingua.json' '[]'
+      Initialize-WsLang
+      $script:Lang | Should -BeExactly 'en-US' -Because 'ficheiros estragados: a lingua do sistema'
+    } finally {
+      Remove-Item Env:WORKSHOP_LANG -ErrorAction SilentlyContinue
+    }
+  }
+  It 'passo 0: nota do WORKSHOP_LANG ignorado e da lingua guardada' {
+    $script:T = New-WsStateTable
+    $script:Cur = '0'
+    $script:Lang = 'pt'; $script:LangIgnored = 'br'; $script:LangSaved = 'pt'; $script:LangMachine = 'en-US'
+    Add-WsStep0LangNotes
+    $n = $script:T['0'].Notas
+    $n.Count | Should -Be 3
+    $n[0] | Should -BeExactly 'Machine language: pt'
+    $n[1] | Should -Match '^WORKSHOP_LANG=br is not one of the workshop languages .* used pt\.$'
+    $n[2] | Should -Match '^Kept the language chosen at install \(pt\); this computer is in en-US\.'
+    $script:T = New-WsStateTable
+    $script:Lang = 'pt-BR'; $script:LangIgnored = ''; $script:LangSaved = 'pt-BR'; $script:LangMachine = 'pt-BR'
+    Add-WsStep0LangNotes
+    $script:T['0'].Notas.Count | Should -Be 1 -Because 'a lingua guardada e a da maquina: so a primeira nota'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '(?s)function Test-WsStep0 \{.*?Add-WsStep0LangNotes'
+  }
+  It 'passo 8 em -Check: explica a mudanca de lingua (falta lingua do kit / language do Claude)' {
+    $script:Lang = 'en'; $script:LangKit = 'en'
+    $out = "skills`t7`nagentes`t6`nfalta`tlingua do kit (pt -> en)`nlingua`ten`nlingua_kit`tpt`nlanguage`t`nlanguage_nossa`t0`n"
+    $script:T = New-WsStateTable; $script:Cur = '8'; $script:Mode = 'check'
+    Read-WsInstallUserOutput $out
+    $muda = @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' })
+    $muda.Count | Should -Be 1
+    $muda[0] | Should -BeExactly 'Language installed here: Portuguese. This run asks for English (WORKSHOP_LANG): nothing is broken. Run the full setup (without --check) to switch.'
+    $script:T = New-WsStateTable; $script:Mode = 'install'
+    Read-WsInstallUserOutput $out
+    @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'na instalacao a lingua muda mesmo'
+    $script:T = New-WsStateTable; $script:Mode = 'doctor'
+    Read-WsInstallUserOutput "falta`tlingua do kit (pt -> pt)`nfalta`tlanguage do Claude (European Portuguese -> Brazilian Portuguese)`nlingua`tpt-BR`nlingua_kit`tpt`nlanguage`tEuropean Portuguese`nlanguage_nossa`t1`n"
+    ($script:T['8'].Notas -join ' ') | Should -Match 'Language installed here: European Portuguese\. This run asks for Brazilian Portuguese'
+    $script:T = New-WsStateTable; $script:Mode = 'check'
+    Read-WsInstallUserOutput "falta`tlingua do kit (- -> en)`nfalta`tskill x`nlingua`ten`nlingua_kit`t`nlanguage`t`nlanguage_nossa`t0`n"
+    @($script:T['8'].Notas | Where-Object { $_ -match '^Language installed here' }).Count | Should -Be 0 -Because 'sem lingua do kit instalada nao ha mudanca a explicar'
+  }
+  It 'passo 9: nota quando um projeto ja montado esta noutra lingua' {
+    $script:Proj = Join-Path $TestDrive 'proj-lang'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+    $demo = Join-Path $script:Proj 'demo-project'
+    $sb = Join-Path $script:Proj $script:PracticeDir
+    New-Item -ItemType Directory -Path $demo -Force | Out-Null
+    New-Item -ItemType Directory -Path $sb -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"version":"1.0.0","language":"pt"}')
+    [IO.File]::WriteAllText((Join-Path $sb '.sandbox-kit.json'), '{"lingua":"en"}')
+    $script:T = New-WsStateTable; $script:Cur = '9'; $script:LangKit = 'en'
+    Add-WsStep9LangNote
+    $n = @($script:T['9'].Notas)
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match '^%USERPROFILE%\\workshop-claude\\demo-project is in Portuguese, and the workshop texts are now in English\.'
+    $script:T = New-WsStateTable; $script:LangKit = 'pt'
+    Add-WsStep9LangNote
+    $n = @($script:T['9'].Notas)
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match ('^%USERPROFILE%\\workshop-claude\\' + $script:PracticeDir + ' is in English, and the workshop texts are now in Portuguese\.')
+    [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"status":"incomplete"}')
+    [IO.File]::WriteAllText((Join-Path $sb '.sandbox-kit.json'), '{estragado')
+    $script:T = New-WsStateTable
+    Add-WsStep9LangNote
+    @($script:T['9'].Notas).Count | Should -Be 0 -Because 'sem lingua no marcador (ou marcador estragado) nao ha nota'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '(?s)function Test-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote.*?Test-WsAppTests'
+    $text | Should -Match '(?s)function Install-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote\s+return \(Test-WsAppTests\)'
+  }
+  It 'as mensagens novas existem nos dois catalogos, com os mesmos marcadores' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $keys = @{ s0_lingua_ignorada = @('{VALOR}', '{LINGUA}'); s0_lingua_guardada = @('{LINGUA}', '{MAQUINA}'); s8_lingua_muda = @('{DE}', '{PARA}'); s9_lingua_diferente = @('{CAMINHO}', '{LINGUA}', '{KIT}') }
+    foreach ($k in $keys.Keys) {
+      foreach ($cat in @($script:Msgs, $pt)) {
+        $t = [string]$cat.ui.$k
+        $t | Should -Not -BeNullOrEmpty -Because $k
+        foreach ($m in $keys[$k]) { $t.Contains($m) | Should -BeTrue -Because ($k + ' ' + $m) }
+      }
+    }
+  }
+  It 'a ajuda diz que a lingua escolhida fica e como a mudar' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $help = ([regex]::Match($text, '(?s)<#.*?#>')).Value
+    $help | Should -Match 'chosen\s+at the first install is kept on later runs'
+    $help | Should -Match "\`$env:WORKSHOP_LANG='pt-BR'"
+    $help | Should -Match 'pt-BR, pt-PT, en, hi or he'
+  }
+}
