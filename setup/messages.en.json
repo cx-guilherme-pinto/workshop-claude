@@ -33,6 +33,7 @@
     "codigo": "Code {CODIGO} (see docs/TROUBLESHOOTING.md)",
     "dep_falhou": "Not run because step {N} failed.",
     "a_instalar": "Installing. This can take a few minutes…",
+    "brew_falhou": "Homebrew could not install it, so I use the official download instead.",
     "a_descarregar": "Downloading {O_QUE}…",
     "a_verificar_rede": "Testing the connection to {N} domains…",
     "sn": "[Y/n]",

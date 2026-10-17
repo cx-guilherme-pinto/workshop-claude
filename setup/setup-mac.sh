@@ -975,6 +975,8 @@ ws_s4_install() {
       local n; n="$("$brew" --prefix 2>/dev/null)/opt/node@$major/bin/node"
       if [ -x "$n" ]; then WS_NODE=$n; WS_NODE_BIN_DIR=$(dirname "$n"); fi
     fi
+    # O brew falhou (Command Line Tools antigas, sem rede): diz que segue pelo download oficial.
+    [ -n "${WS_NODE:-}" ] || ws_say "  $(ws_m brew_falhou)"
   fi
   if [ -z "${WS_NODE:-}" ]; then
     local file="node-v$C_NODE_VERSION-darwin-$WS_ARCH.tar.xz" url sums want got d="$WS_TMP/node"
@@ -1049,7 +1051,9 @@ ws_s6_install() {
   if [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && command -v gh >/dev/null 2>&1; then ws_fail E-GH-02 ""; return 1; fi
   local brew; brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
+    ws_say "  $(ws_m a_instalar) (brew install gh)"
     HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect; return $?; }
+    ws_say "  $(ws_m brew_falhou)"
   fi
   local a=arm64 file sums url d="$WS_TMP/gh" want got
   [ "$WS_ARCH" = x64 ] && a=amd64

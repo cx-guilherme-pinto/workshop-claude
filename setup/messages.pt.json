@@ -33,6 +33,7 @@
     "codigo": "Código {CODIGO} (ver docs/pt/TROUBLESHOOTING.md)",
     "dep_falhou": "Não executado porque o passo {N} falhou.",
     "a_instalar": "A instalar. Pode demorar alguns minutos…",
+    "brew_falhou": "O Homebrew não conseguiu instalar, por isso uso o download oficial.",
     "a_descarregar": "A descarregar {O_QUE}…",
     "a_verificar_rede": "A testar a ligação a {N} domínios…",
     "sn": "[S/n]",

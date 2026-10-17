@@ -335,6 +335,10 @@ EOF
     grep -q "$want" "$G1/cor.out" && ok || ko "G1 cores: TERM=$t NO_COLOR=$nc deu [$(tr -d '\r\n' < "$G1/cor.out")], esperado $want"
   done
 fi
+# Homebrew que falha (Command Line Tools antigas): o passo diz o que esta a instalar e que segue pelo download oficial
+HB="$G1/hb"; mkdir -p "$HB/bin"; printf '#!/bin/sh\ncase "$1" in --prefix) echo "%s" ;; install) exit 1 ;; esac\n' "$HB" > "$HB/bin/brew"; chmod +x "$HB/bin/brew"
+r=$( PATH="$HB/bin:$PATH"; WS_STEP_LOG="$G1/s6.log"; WS_HOME="$G1/s6h"; WS_ARCH=arm64; C_GH_VERSION=9.9.9; C_GH_RELEASE_URL='http://127.0.0.1:9/{file}'; WS_GH_SEM_LOGIN=""; WS_CUR=6; ws_s6_install 2>/dev/null )
+case "$r" in *"(brew install gh)"*"Homebrew could not install it"*) ok ;; *) ko "G1 s6: brew que falha [$r]" ;; esac
 # E-GH-02 (sem login no GitHub, a correcao ja esta no ecra): nao oferece a analise paga; os outros codigos sim
 eq "$( WS_AUTH_OK=1; SF_6="E-GH-02|"; ws_ask() { printf ASKED; return 1; }; ws_helper_offer 6 2>/dev/null )" "" "G1 ajudante: nao pergunta no E-GH-02"
 eq "$( WS_AUTH_OK=1; SF_6="E-GH-01|x"; ws_ask() { printf ASKED; return 1; }; ws_helper_offer 6 2>/dev/null | tr -d '\n' )" "ASKED" "G1 ajudante: pergunta no E-GH-01"
