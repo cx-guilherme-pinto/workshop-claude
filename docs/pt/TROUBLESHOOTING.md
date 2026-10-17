@@ -9,8 +9,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 ## Antes de tudo
 
 - Volta a correr o setup: os passos já feitos são saltados.
-- Só verificar, sem instalar: `bash ~/.workshop-claude/setup-mac.sh --check` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check` (Windows).
-- Diagnóstico com ajuda do Claude: `bash ~/.workshop-claude/setup-mac.sh --doctor` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` (Windows).
+- Só verificar, sem instalar: `bash ~/.workshop-claude/setup-mac.sh --check` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check` (Windows).
+- Diagnóstico com ajuda do Claude: `bash ~/.workshop-claude/setup-mac.sh --doctor` (Mac) ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` (Windows).
 - O log completo, sem segredos, está em `~/.workshop-claude/setup.log`. O resumo está em `~/.workshop-claude/summary.txt`.
 - Nunca envies a tua API key a ninguém. O setup nunca a pede nem a mostra.
 
@@ -32,6 +32,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-SO-04` | macOS antigo | [macOS](#mac-e-so-04) |
 | `E-SO-05` | PowerShell em modo restrito | [Windows](#windows-e-so-05) |
 | `E-SO-06` | Pouco espaço em disco | [macOS](#mac-e-so-06) · [Windows](#windows-e-so-06) |
+| `E-SO-07` | Uma política da empresa bloqueia os scripts do PowerShell | [Windows](#windows-e-so-07) |
+| `E-SO-08` | O PowerShell ISE não consegue correr o setup | [Windows](#windows-e-so-08) |
 | `E-CFG-01` | Há definições geridas pela empresa (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | A variável ANTHROPIC_API_KEY está definida | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | A variável ANTHROPIC_BASE_URL está definida | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
@@ -133,6 +135,7 @@ dscacheutil -q host -a name api.anthropic.com
 - **O que fazer:**
   - Define o proxy para esta sessão e volta a correr o setup.
   - Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
+  - No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy.
 
 Comandos (macOS):
 
@@ -200,7 +203,7 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 
 ### E-SO-03 · A pasta pessoal está no OneDrive
 
-- **Porquê:** A pasta pessoal (ou os Documentos) é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.
+- **Porquê:** A pasta pessoal, ou a pasta dos projetos do workshop, é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.
 - **O que fazer:**
   - Durante o workshop, pausa a sincronização do OneDrive (ícone do OneDrive > Pausar sincronização).
   - Os projetos ficam em ~/workshop-claude. Se essa pasta estiver dentro do OneDrive, move-a para fora.
@@ -358,7 +361,7 @@ sudo chown -R "$USER" ~/.local ~/.claude ~/.workshop-claude
 
 ### E-PERM-02 · Um programa foi bloqueado pela segurança do computador
 
-- **Porquê:** Um antivírus, EDR, AppLocker ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr.
+- **Porquê:** Um antivírus, EDR, AppLocker, WDAC ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr, ou apagou um ficheiro logo a seguir ao download.
 - **O que fazer:**
   - Mostra ao IT o nome do programa que aparece no log e pede uma exceção.
   - No Mac, se aparecer «não pode ser aberto», abre Definições do Sistema > Privacidade e segurança e escolhe «Abrir mesmo assim».
@@ -878,12 +881,14 @@ Resolve-DnsName api.anthropic.com
 - **O que fazer:**
   - Define o proxy para esta sessão e volta a correr o setup.
   - Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
+  - No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy.
 
 Comandos (Windows):
 
 ```
 $env:HTTPS_PROXY = 'http://proxy.empresa:8080'
 $env:NO_PROXY = 'localhost,127.0.0.1'
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-04"></a>
@@ -968,7 +973,7 @@ winver
 
 ### E-SO-03 · A pasta pessoal está no OneDrive
 
-- **Porquê:** A pasta pessoal (ou os Documentos) é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.
+- **Porquê:** A pasta pessoal, ou a pasta dos projetos do workshop, é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.
 - **O que fazer:**
   - Durante o workshop, pausa a sincronização do OneDrive (ícone do OneDrive > Pausar sincronização).
   - Os projetos ficam em ~/workshop-claude. Se essa pasta estiver dentro do OneDrive, move-a para fora.
@@ -1000,6 +1005,36 @@ Comando (Windows):
 
 ```
 Get-PSDrive C
+```
+
+<a id="windows-e-so-07"></a>
+
+### E-SO-07 · Uma política da empresa bloqueia os scripts do PowerShell
+
+- **Porquê:** A Group Policy define a política de execução do PowerShell, e ela ganha ao "-ExecutionPolicy Bypass". Com AllSigned ou Restricted nenhum script sem assinatura corre: nem o setup, nem os instaladores oficiais do Claude Code e do uv.
+- **O que fazer:**
+  - Pede ao IT uma exceção para o workshop (scripts da tua pasta pessoal), ou faz o setup noutro computador.
+  - Se a política for RemoteSigned e descarregaste o setup-windows.ps1 com o browser, desbloqueia primeiro o ficheiro (segundo comando) e volta a corrê-lo.
+
+Comandos (Windows):
+
+```
+Get-ExecutionPolicy -List
+Unblock-File -LiteralPath .\setup-windows.ps1
+```
+
+<a id="windows-e-so-08"></a>
+
+### E-SO-08 · O PowerShell ISE não consegue correr o setup
+
+- **Porquê:** O PowerShell ISE não tem uma consola a sério: os programas que te perguntam alguma coisa (os logins do Claude Code, do GitHub e do Jira) ficavam à espera para sempre.
+- **O que fazer:**
+  - Abre o «Windows PowerShell» no menu Iniciar (não o «Windows PowerShell ISE») e corre lá o comando do setup.
+
+Comando (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-cfg-01"></a>
@@ -1089,7 +1124,7 @@ Get-Content "$env:USERPROFILE\.claude\settings.json" -Raw | ConvertFrom-Json
 Comando (Windows):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -ReplaceStatusline
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -ReplaceStatusline
 ```
 
 <a id="windows-e-cfg-07"></a>
@@ -1126,7 +1161,7 @@ icacls "$env:USERPROFILE\.workshop-claude"
 
 ### E-PERM-02 · Um programa foi bloqueado pela segurança do computador
 
-- **Porquê:** Um antivírus, EDR, AppLocker ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr.
+- **Porquê:** Um antivírus, EDR, AppLocker, WDAC ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr, ou apagou um ficheiro logo a seguir ao download.
 - **O que fazer:**
   - Mostra ao IT o nome do programa que aparece no log e pede uma exceção.
   - No Mac, se aparecer «não pode ser aberto», abre Definições do Sistema > Privacidade e segurança e escolhe «Abrir mesmo assim».
@@ -1165,7 +1200,7 @@ winget install --id Git.Git -e --scope user --source winget
 
 ### E-GIT-03 · Não encontrei o Git Bash (bash.exe)
 
-- **Porquê:** O Claude Code no Windows usa o Git Bash para correr comandos e hooks. O git existe, mas sem o bash.exe ao lado.
+- **Porquê:** O Claude Code no Windows usa o Git Bash para correr comandos e hooks. O git existe, mas não encontrei o bash.exe ao lado dele nem nas pastas habituais do Git for Windows.
 - **O que fazer:**
   - Reinstala o Git for Windows (inclui o Git Bash) e volta a correr o setup.
   - Se o bash.exe estiver noutra pasta, define a variável abaixo com o caminho certo.

@@ -38,6 +38,10 @@
     "sn": "[S/n]",
     "ns": "[s/N]",
     "sem_tty": "Sem terminal interativo: assumo «não».",
+    "ise_nova_janela": "O PowerShell ISE não consegue responder às perguntas do setup, por isso abri o setup numa nova janela do PowerShell. Continua lá.",
+    "relancar_core": "Isto é o PowerShell 7: vou recomeçar o setup no Windows PowerShell 5.1 (64 bits).",
+    "relancar_x86": "Isto é o PowerShell de 32 bits (x86): vou recomeçar o setup no Windows PowerShell 5.1 de 64 bits.",
+    "ja_a_correr": "O setup já está a correr noutra janela (PID {PID}). Espera que acabe, ou fecha essa janela. Se não houver outro setup a correr, apaga {LOCK} e volta a correr o setup.",
     "tty_fg": "Outro programa ficou com o terminal. Se aparecer \"zsh: suspended\", escreve fg e carrega em Enter: o setup continua.",
     "resumo": "Resumo",
     "resumo_cab_passo": "Passo",
@@ -88,6 +92,8 @@
     "s0_rede_ok": "Rede: {OK} de {TOTAL} domínios acessíveis.",
     "s0_rede_falha": "Sem acesso a: {LISTA}",
     "s0_disco": "Espaço livre: {GB} GB",
+    "s0_appdata_rede": "A tua pasta AppData está numa partilha de rede ({CAMINHO}). O uv guarda o Python e as ferramentas da app Agent Memory em {LOCAL}.",
+    "s0_proxy_ntlm": "O proxy só deixa passar programas com o teu login do Windows (NTLM ou Kerberos). O Claude Code, o Node e o uv não o sabem enviar, por isso vão receber o erro 407.",
     "s1_ja": "git {VERSAO}",
     "s2_ja": "Claude Code {VERSAO}",
     "s3_console": "Console ({EMAIL})",
@@ -193,7 +199,8 @@
       "causa": "A rede só sai por um proxy, e o pedido foi recusado (por exemplo, erro 407).",
       "fazer": [
         "Define o proxy para esta sessão e volta a correr o setup.",
-        "Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop."
+        "Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.",
+        "No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy."
       ],
       "mac": [
         "export HTTPS_PROXY=http://proxy.empresa:8080",
@@ -201,7 +208,8 @@
       ],
       "windows": [
         "$env:HTTPS_PROXY = 'http://proxy.empresa:8080'",
-        "$env:NO_PROXY = 'localhost,127.0.0.1'"
+        "$env:NO_PROXY = 'localhost,127.0.0.1'",
+        "{ONE_LINER_WINDOWS_PROXY}"
       ]
     },
     "E-NET-04": {
@@ -287,7 +295,7 @@
     "E-SO-03": {
       "titulo": "A pasta pessoal está no OneDrive",
       "so": "todos",
-      "causa": "A pasta pessoal (ou os Documentos) é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.",
+      "causa": "A pasta pessoal, ou a pasta dos projetos do workshop, é sincronizada pelo OneDrive. A sincronização pode bloquear ficheiros a meio do trabalho dos agentes.",
       "fazer": [
         "Durante o workshop, pausa a sincronização do OneDrive (ícone do OneDrive > Pausar sincronização).",
         "Os projetos ficam em {PROJETOS}. Se essa pasta estiver dentro do OneDrive, move-a para fora."
@@ -332,6 +340,32 @@
       ],
       "windows": [
         "Get-PSDrive C"
+      ]
+    },
+    "E-SO-07": {
+      "titulo": "Uma política da empresa bloqueia os scripts do PowerShell",
+      "so": "windows",
+      "causa": "A Group Policy define a política de execução do PowerShell, e ela ganha ao \"-ExecutionPolicy Bypass\". Com AllSigned ou Restricted nenhum script sem assinatura corre: nem o setup, nem os instaladores oficiais do Claude Code e do uv.",
+      "fazer": [
+        "Pede ao IT uma exceção para o workshop (scripts da tua pasta pessoal), ou faz o setup noutro computador.",
+        "Se a política for RemoteSigned e descarregaste o setup-windows.ps1 com o browser, desbloqueia primeiro o ficheiro (segundo comando) e volta a corrê-lo."
+      ],
+      "mac": [],
+      "windows": [
+        "Get-ExecutionPolicy -List",
+        "Unblock-File -LiteralPath .\\setup-windows.ps1"
+      ]
+    },
+    "E-SO-08": {
+      "titulo": "O PowerShell ISE não consegue correr o setup",
+      "so": "windows",
+      "causa": "O PowerShell ISE não tem uma consola a sério: os programas que te perguntam alguma coisa (os logins do Claude Code, do GitHub e do Jira) ficavam à espera para sempre.",
+      "fazer": [
+        "Abre o «Windows PowerShell» no menu Iniciar (não o «Windows PowerShell ISE») e corre lá o comando do setup."
+      ],
+      "mac": [],
+      "windows": [
+        "{ONE_LINER_WINDOWS}"
       ]
     },
     "E-CFG-01": {
@@ -421,7 +455,7 @@
         "bash ~/.workshop-claude/setup-mac.sh --replace-statusline"
       ],
       "windows": [
-        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$HOME\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
+        "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1\" -ReplaceStatusline"
       ]
     },
     "E-CFG-07": {
@@ -458,7 +492,7 @@
     "E-PERM-02": {
       "titulo": "Um programa foi bloqueado pela segurança do computador",
       "so": "todos",
-      "causa": "Um antivírus, EDR, AppLocker ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr.",
+      "causa": "Um antivírus, EDR, AppLocker, WDAC ou o Gatekeeper impediu um programa instalado na pasta pessoal de correr, ou apagou um ficheiro logo a seguir ao download.",
       "fazer": [
         "Mostra ao IT o nome do programa que aparece no log e pede uma exceção.",
         "No Mac, se aparecer «não pode ser aberto», abre Definições do Sistema > Privacidade e segurança e escolhe «Abrir mesmo assim»."
@@ -510,7 +544,7 @@
     "E-GIT-03": {
       "titulo": "Não encontrei o Git Bash (bash.exe)",
       "so": "windows",
-      "causa": "O Claude Code no Windows usa o Git Bash para correr comandos e hooks. O git existe, mas sem o bash.exe ao lado.",
+      "causa": "O Claude Code no Windows usa o Git Bash para correr comandos e hooks. O git existe, mas não encontrei o bash.exe ao lado dele nem nas pastas habituais do Git for Windows.",
       "fazer": [
         "Reinstala o Git for Windows (inclui o Git Bash) e volta a correr o setup.",
         "Se o bash.exe estiver noutra pasta, define a variável abaixo com o caminho certo."

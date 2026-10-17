@@ -83,15 +83,20 @@ export function derived(conf) {
     ONE_LINER_MAC: `curl -fsSL ${setupMac} | bash`,
     ONE_LINER_MAC_ALT: `bash <(curl -fsSL ${setupMac})`,
     ONE_LINER_WINDOWS: `irm ${bootstrap} | iex`,
-    ONE_LINER_WINDOWS_FALLBACK: 'powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1',
+    // Atras de um proxy que pede o login do Windows (407 logo no primeiro irm). O mesmo texto que no setup-windows.ps1.
+    ONE_LINER_WINDOWS_PROXY: `[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm ${bootstrap} | iex`,
+    // Um ficheiro guardado pelo browser fica marcado como "da Internet": com RemoteSigned imposto por Group Policy
+    // so corre depois do Unblock-File.
+    ONE_LINER_WINDOWS_FALLBACK: 'Unblock-File .\\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\\setup-windows.ps1',
     CHECK_MAC_FIRST: `curl -fsSL ${setupMac} | bash -s -- --check`,
     CHECK_WINDOWS_FIRST: `$env:WORKSHOP_SETUP_ARGS='-Check'; irm ${bootstrap} | iex`,
     CHECK_MAC: 'bash ~/.workshop-claude/setup-mac.sh --check',
-    CHECK_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Check',
+    // $env:USERPROFILE e nao $HOME: no Windows PowerShell 5.1 o $HOME e HOMEDRIVE+HOMEPATH (H:\ com uma pasta pessoal do AD).
+    CHECK_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Check',
     DOCTOR_MAC: 'bash ~/.workshop-claude/setup-mac.sh --doctor',
-    DOCTOR_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Doctor',
+    DOCTOR_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Doctor',
     UNINSTALL_MAC: 'bash ~/.workshop-claude/setup-mac.sh --uninstall',
-    UNINSTALL_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\\.workshop-claude\\setup-windows.ps1" -Uninstall',
+    UNINSTALL_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Uninstall',
     UV_INSTALL_SH_URL_V: expand(conf.UV_INSTALL_SH_URL || '', { version: conf.UV_VERSION }),
     UV_INSTALL_PS1_URL_V: expand(conf.UV_INSTALL_PS1_URL || '', { version: conf.UV_VERSION }),
     PROJETOS: '~/workshop-claude',

@@ -29,10 +29,16 @@ Alternativa: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-c
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
+Usa o Windows PowerShell, não o PowerShell ISE. Atrás de um proxy da empresa que responde `(407) Proxy Authentication Required`, usa antes este (envia o teu login do Windows ao proxy):
+
+```powershell
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+```
+
 Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) e corre, na pasta onde o guardaste:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
+Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 O setup fala inglês, em todas as máquinas. Faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Done (feito) · ⏭️ Already done (já estava feito) · ⚠️ Done with warning (feito com aviso) · ❌ Failed (falhou). Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
@@ -44,7 +50,7 @@ O setup também deteta a língua da máquina. Se ainda não tiveres a definiçã
 No fim aparece «Everything is ready for the workshop.» (está tudo pronto) ou a lista do que falta. Para verificar outra vez, sem instalar nada:
 
 - macOS: `bash ~/.workshop-claude/setup-mac.sh --check`
-- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check`
+- Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check`
 
 Depois, fecha e volta a abrir o terminal (e o VS Code).
 
@@ -52,7 +58,7 @@ Depois, fecha e volta a abrir o terminal (e o VS Code).
 
 - Volta a correr o mesmo comando: os passos feitos são saltados.
 - Procura o código do erro em [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
-- Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `bash ~/.workshop-claude/setup-mac.sh --doctor` ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
+- Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `bash ~/.workshop-claude/setup-mac.sh --doctor` ou `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor`.
 - Envia ao organizador o ficheiro `~/.workshop-claude/summary.txt`. O `setup.log` também ajuda e já vem sem segredos.
 
 ## Verificar antes de executar (opcional)

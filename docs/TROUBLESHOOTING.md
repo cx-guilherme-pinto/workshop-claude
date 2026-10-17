@@ -9,8 +9,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 ## Before anything else
 
 - Run the setup again: steps already done are skipped.
-- Check only, without installing: `bash ~/.workshop-claude/setup-mac.sh --check` (Mac) or `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check` (Windows).
-- Diagnosis with Claude's help: `bash ~/.workshop-claude/setup-mac.sh --doctor` (Mac) or `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor` (Windows).
+- Check only, without installing: `bash ~/.workshop-claude/setup-mac.sh --check` (Mac) or `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check` (Windows).
+- Diagnosis with Claude's help: `bash ~/.workshop-claude/setup-mac.sh --doctor` (Mac) or `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` (Windows).
 - The full log, without secrets, is in `~/.workshop-claude/setup.log`. The summary is in `~/.workshop-claude/summary.txt`.
 - Never send your API key to anyone. The setup never asks for it or shows it.
 
@@ -32,6 +32,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-SO-04` | Old macOS | [macOS](#mac-e-so-04) |
 | `E-SO-05` | PowerShell in restricted mode | [Windows](#windows-e-so-05) |
 | `E-SO-06` | Low disk space | [macOS](#mac-e-so-06) · [Windows](#windows-e-so-06) |
+| `E-SO-07` | A company policy blocks PowerShell scripts | [Windows](#windows-e-so-07) |
+| `E-SO-08` | PowerShell ISE can't run the setup | [Windows](#windows-e-so-08) |
 | `E-CFG-01` | There are company-managed settings (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
 | `E-CFG-02` | The ANTHROPIC_API_KEY variable is set | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | The ANTHROPIC_BASE_URL variable is set | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
@@ -133,6 +135,7 @@ dscacheutil -q host -a name api.anthropic.com
 - **What to do:**
   - Set the proxy for this session and run the setup again.
   - If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.
+  - On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy.
 
 Commands (macOS):
 
@@ -200,7 +203,7 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 
 ### E-SO-03 · Your home folder is in OneDrive
 
-- **Why:** Your home folder (or Documents) is synced by OneDrive. Syncing can lock files while the agents are working.
+- **Why:** Your home folder, or the folder of the workshop projects, is synced by OneDrive. Syncing can lock files while the agents are working.
 - **What to do:**
   - During the workshop, pause OneDrive syncing (OneDrive icon > Pause syncing).
   - The projects are in ~/workshop-claude. If that folder is inside OneDrive, move it out.
@@ -358,7 +361,7 @@ sudo chown -R "$USER" ~/.local ~/.claude ~/.workshop-claude
 
 ### E-PERM-02 · A program was blocked by the computer's security
 
-- **Why:** An antivirus, EDR, AppLocker or Gatekeeper stopped a program installed in your home folder from running.
+- **Why:** An antivirus, EDR, AppLocker, WDAC or Gatekeeper stopped a program installed in your home folder from running, or removed a file right after the download.
 - **What to do:**
   - Show IT the program name from the log and ask for an exception.
   - On a Mac, if you see "cannot be opened", open System Settings > Privacy & Security and choose "Open Anyway".
@@ -878,12 +881,14 @@ Resolve-DnsName api.anthropic.com
 - **What to do:**
   - Set the proxy for this session and run the setup again.
   - If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.
+  - On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy.
 
 Commands (Windows):
 
 ```
 $env:HTTPS_PROXY = 'http://proxy.company:8080'
 $env:NO_PROXY = 'localhost,127.0.0.1'
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-04"></a>
@@ -968,7 +973,7 @@ winver
 
 ### E-SO-03 · Your home folder is in OneDrive
 
-- **Why:** Your home folder (or Documents) is synced by OneDrive. Syncing can lock files while the agents are working.
+- **Why:** Your home folder, or the folder of the workshop projects, is synced by OneDrive. Syncing can lock files while the agents are working.
 - **What to do:**
   - During the workshop, pause OneDrive syncing (OneDrive icon > Pause syncing).
   - The projects are in ~/workshop-claude. If that folder is inside OneDrive, move it out.
@@ -1000,6 +1005,36 @@ Command (Windows):
 
 ```
 Get-PSDrive C
+```
+
+<a id="windows-e-so-07"></a>
+
+### E-SO-07 · A company policy blocks PowerShell scripts
+
+- **Why:** Group Policy sets the PowerShell execution policy, and it wins over "-ExecutionPolicy Bypass". With AllSigned or Restricted, no unsigned script can run: not the setup, and not the official installers of Claude Code and uv.
+- **What to do:**
+  - Ask IT for an exception for the workshop (scripts from your user folder), or do the setup on another computer.
+  - If the policy is RemoteSigned and you downloaded setup-windows.ps1 with the browser, unblock the file first (second command) and run it again.
+
+Commands (Windows):
+
+```
+Get-ExecutionPolicy -List
+Unblock-File -LiteralPath .\setup-windows.ps1
+```
+
+<a id="windows-e-so-08"></a>
+
+### E-SO-08 · PowerShell ISE can't run the setup
+
+- **Why:** PowerShell ISE has no real console: the programs that ask you something (the Claude Code, GitHub and Jira logins) would wait forever.
+- **What to do:**
+  - Open "Windows PowerShell" from the Start menu (not "Windows PowerShell ISE") and run the setup command there.
+
+Command (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-cfg-01"></a>
@@ -1089,7 +1124,7 @@ Get-Content "$env:USERPROFILE\.claude\settings.json" -Raw | ConvertFrom-Json
 Command (Windows):
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -ReplaceStatusline
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -ReplaceStatusline
 ```
 
 <a id="windows-e-cfg-07"></a>
@@ -1126,7 +1161,7 @@ icacls "$env:USERPROFILE\.workshop-claude"
 
 ### E-PERM-02 · A program was blocked by the computer's security
 
-- **Why:** An antivirus, EDR, AppLocker or Gatekeeper stopped a program installed in your home folder from running.
+- **Why:** An antivirus, EDR, AppLocker, WDAC or Gatekeeper stopped a program installed in your home folder from running, or removed a file right after the download.
 - **What to do:**
   - Show IT the program name from the log and ask for an exception.
   - On a Mac, if you see "cannot be opened", open System Settings > Privacy & Security and choose "Open Anyway".
@@ -1165,7 +1200,7 @@ winget install --id Git.Git -e --scope user --source winget
 
 ### E-GIT-03 · I couldn't find Git Bash (bash.exe)
 
-- **Why:** On Windows, Claude Code uses Git Bash to run commands and hooks. git is there, but bash.exe is not next to it.
+- **Why:** On Windows, Claude Code uses Git Bash to run commands and hooks. git is there, but I couldn't find bash.exe next to it or in the usual Git for Windows folders.
 - **What to do:**
   - Reinstall Git for Windows (it includes Git Bash) and run the setup again.
   - If bash.exe is in another folder, set the variable below to the right path.

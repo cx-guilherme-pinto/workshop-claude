@@ -32,7 +32,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 אם PowerShell חוסם את הפקודה שלמעלה, הורידו את [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-windows.ps1) והריצו את הפקודה הבאה בתיקייה שבה שמרתם אותו:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
+Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
 ה-setup מדבר אנגלית בכל מחשב, כך שכל ההודעות שתראו יהיו באנגלית. הוא שואל כמה שאלות (למשל ה-login ל-Console, שפותח את הדפדפן). כל שלב מסתיים באחד מארבעה מצבים: ✅ Done (בוצע) · ⏭️ Already done (כבר בוצע קודם) · ⚠️ Done with warning (בוצע, עם אזהרה) · ❌ Failed (נכשל). כשמשהו נכשל, ה-setup מסביר למה ומה לעשות, עם הפקודה המדויקת.
@@ -44,7 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
 בסוף תראו "Everything is ready for the workshop." (הכול מוכן לסדנה) או רשימה של מה שחסר. כדי לבדוק שוב, בלי להתקין כלום:
 
 - ב-macOS: `bash ~/.workshop-claude/setup-mac.sh --check`
-- ב-Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Check`
+- ב-Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check`
 
 אחר כך סגרו ופתחו מחדש את ה-terminal (ואת VS Code).
 
@@ -52,7 +52,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
 
 - הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים.
 - חפשו את קוד השגיאה ב-[TROUBLESHOOTING.md](../TROUBLESHOOTING.md) (באנגלית). לשאלות נפוצות יש גם [FAQ.md](../FAQ.md) (באנגלית).
-- אבחון בעזרת Claude (עולה פחות מסנט): `bash ~/.workshop-claude/setup-mac.sh --doctor` או `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.workshop-claude\setup-windows.ps1" -Doctor`.
+- אבחון בעזרת Claude (עולה פחות מסנט): `bash ~/.workshop-claude/setup-mac.sh --doctor` או `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor`.
 - שלחו למארגנים את הקובץ `~/.workshop-claude/summary.txt`. גם `setup.log` עוזר, והוא כבר מגיע בלי secrets.
 
 ## אימות לפני הרצה (אופציונלי)
