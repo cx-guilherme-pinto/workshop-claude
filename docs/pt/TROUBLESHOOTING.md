@@ -73,6 +73,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-MEM-05` | O teste da app Agent Memory falhou | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-DESK-01` | O Claude Desktop tem limitações com a Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | Não consegui instalar o Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
+| `E-PROF-01` | O setup não conseguiu pôr as pastas do workshop num perfil do shell | [macOS](#mac-e-prof-01) |
+| `E-PROF-02` | Um perfil do shell tem um bloco do workshop incompleto | [macOS](#mac-e-prof-02) |
 | `E-SMOKE-01` | O teste final ao Claude falhou | [macOS](#mac-e-smoke-01) · [Windows](#windows-e-smoke-01) |
 | `E-SMOKE-02` | A conta da Console não tem créditos | [macOS](#mac-e-smoke-02) · [Windows](#windows-e-smoke-02) |
 | `E-SMOKE-03` | Limite de pedidos atingido (erro 429) | [macOS](#mac-e-smoke-03) · [Windows](#windows-e-smoke-03) |
@@ -768,6 +770,37 @@ agent-memory selftest
 - **Porquê:** O download ou a instalação do Claude Desktop falhou. É opcional.
 - **O que fazer:**
   - Se o quiseres, descarrega-o à mão em https://claude.ai/download.
+
+<a id="mac-e-prof-01"></a>
+
+### E-PROF-01 · O setup não conseguiu pôr as pastas do workshop num perfil do shell
+
+- **Porquê:** Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava. Os outros ficheiros de perfil foram atualizados.
+- **O que fazer:**
+  - Acrescenta a primeira linha abaixo ao fim do ficheiro indicado pelo setup (ou do ficheiro dos teus dotfiles para onde ele aponta) e abre um terminal novo.
+  - Se o ficheiro não é só de leitura de propósito, vê-o com o segundo comando, dá-te permissão para o ler e alterar (ou pede a quem gere o teu Mac) e volta a correr o setup.
+
+Comandos (macOS):
+
+```
+export PATH="$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH"
+ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+```
+
+<a id="mac-e-prof-02"></a>
+
+### E-PROF-02 · Um perfil do shell tem um bloco do workshop incompleto
+
+- **Porquê:** O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha. Os outros ficheiros de perfil foram atualizados.
+- **O que fazer:**
+  - Abre o ficheiro indicado pelo setup e apaga as linhas antigas do workshop: a linha do marcador e as linhas do PATH a seguir. Mantém as tuas linhas.
+  - Depois volta a correr o setup.
+
+Comando (macOS):
+
+```
+grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+```
 
 <a id="mac-e-smoke-01"></a>
 

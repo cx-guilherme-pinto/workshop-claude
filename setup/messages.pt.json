@@ -73,6 +73,7 @@
     "desinst_memorias": "As tuas memórias em {CAMINHO} ficaram intactas. Apaga a pasta à mão só se já não precisares delas.",
     "desinst_atalho": "Atalho removido: {CAMINHO}.",
     "desinst_perfil": "Linhas do PATH removidas de {FICHEIRO}.",
+    "desinst_perfil_falhou": "Não consegui tirar as linhas do PATH do workshop de {FICHEIRO}, por isso ficou como estava. Apaga à mão as linhas de '# >>> workshop-claude >>>' até '# <<< workshop-claude <<<'.",
     "desinst_projeto_removido": "Projeto removido (estava intacto): {CAMINHO}.",
     "desinst_projeto_mantido": "Projeto mantido porque tem alterações tuas: {CAMINHO}. Apaga-o à mão se quiseres.",
     "desinst_fim": "Desinstalação concluída. Ficaram o git, o Claude Code, o Node, o uv, o gh e os backups em {BACKUP}.",
@@ -922,6 +923,33 @@
       "windows": [
         "winget install --id Anthropic.Claude -e --scope user --source winget"
       ]
+    },
+    "E-PROF-01": {
+      "titulo": "O setup não conseguiu pôr as pastas do workshop num perfil do shell",
+      "so": "mac",
+      "causa": "Os terminais novos leem este ficheiro quando arrancam, mas o setup não o conseguiu ler nem alterar. É só de leitura, pertence a outro utilizador (por exemplo, foi criado com sudo) ou aponta para um ficheiro que não existe ou é só de leitura (dotfiles, iCloud). O setup deixou-o como estava. Os outros ficheiros de perfil foram atualizados.",
+      "fazer": [
+        "Acrescenta a primeira linha abaixo ao fim do ficheiro indicado pelo setup (ou do ficheiro dos teus dotfiles para onde ele aponta) e abre um terminal novo.",
+        "Se o ficheiro não é só de leitura de propósito, vê-o com o segundo comando, dá-te permissão para o ler e alterar (ou pede a quem gere o teu Mac) e volta a correr o setup."
+      ],
+      "mac": [
+        "export PATH=\"$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH\"",
+        "ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+      ],
+      "windows": []
+    },
+    "E-PROF-02": {
+      "titulo": "Um perfil do shell tem um bloco do workshop incompleto",
+      "so": "mac",
+      "causa": "O ficheiro tem uma linha '# >>> workshop-claude >>>' sem a linha '# <<< workshop-claude <<<', ou o contrário (um bloco antigo ou editado à mão). O setup não lhe mexeu, por isso não perdeste nenhuma linha. Os outros ficheiros de perfil foram atualizados.",
+      "fazer": [
+        "Abre o ficheiro indicado pelo setup e apaga as linhas antigas do workshop: a linha do marcador e as linhas do PATH a seguir. Mantém as tuas linhas.",
+        "Depois volta a correr o setup."
+      ],
+      "mac": [
+        "grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+      ],
+      "windows": []
     },
     "E-SMOKE-01": {
       "titulo": "O teste final ao Claude falhou",

@@ -73,6 +73,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-MEM-05` | The Agent Memory app test failed | [macOS](#mac-e-mem-05) · [Windows](#windows-e-mem-05) |
 | `E-DESK-01` | Claude Desktop has limits with the Console | [macOS](#mac-e-desk-01) · [Windows](#windows-e-desk-01) |
 | `E-DESK-02` | I couldn't install Claude Desktop | [macOS](#mac-e-desk-02) · [Windows](#windows-e-desk-02) |
+| `E-PROF-01` | The setup could not add the workshop folders to a shell profile | [macOS](#mac-e-prof-01) |
+| `E-PROF-02` | A shell profile has an incomplete workshop block | [macOS](#mac-e-prof-02) |
 | `E-SMOKE-01` | The final Claude test failed | [macOS](#mac-e-smoke-01) · [Windows](#windows-e-smoke-01) |
 | `E-SMOKE-02` | The Console account has no credits | [macOS](#mac-e-smoke-02) · [Windows](#windows-e-smoke-02) |
 | `E-SMOKE-03` | Request limit reached (error 429) | [macOS](#mac-e-smoke-03) · [Windows](#windows-e-smoke-03) |
@@ -768,6 +770,37 @@ agent-memory selftest
 - **Why:** The Claude Desktop download or install failed. It is optional.
 - **What to do:**
   - If you want it, download it by hand from https://claude.ai/download.
+
+<a id="mac-e-prof-01"></a>
+
+### E-PROF-01 · The setup could not add the workshop folders to a shell profile
+
+- **Why:** New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was. The other profile files were updated.
+- **What to do:**
+  - Add the first line below at the end of the file the setup named (or of the file it links to in your dotfiles), then open a new terminal.
+  - If the file is not read-only on purpose, check it with the second command, make it readable and writable for you (or ask whoever manages your Mac), and run the setup again.
+
+Commands (macOS):
+
+```
+export PATH="$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH"
+ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+```
+
+<a id="mac-e-prof-02"></a>
+
+### E-PROF-02 · A shell profile has an incomplete workshop block
+
+- **Why:** The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost. The other profile files were updated.
+- **What to do:**
+  - Open the file the setup named and delete the old workshop lines: the marker line and the PATH lines that follow it. Keep your own lines.
+  - Then run the setup again.
+
+Command (macOS):
+
+```
+grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile
+```
 
 <a id="mac-e-smoke-01"></a>
 

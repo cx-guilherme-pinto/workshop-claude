@@ -1,11 +1,14 @@
 // Utilitarios de ficheiros do instalador: escrita atomica, copia com substituicao de marcadores,
 // hash de arvores e caminhos do utilizador. Sem dependencias.
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -35,15 +38,46 @@ export function userPaths(env = process.env) {
 }
 
 export function writeAtomic(file, data) {
+  // Um settings.json ligado aos dotfiles (stow, chezmoi, yadm): escreve-se no ficheiro real, ao lado dele, para
+  // o rename nao trocar a ligacao por um ficheiro normal. Se o ficheiro real nao der (so de leitura, ex.: Nix),
+  // escreve-se como antes, no caminho pedido.
+  let real = null;
+  try {
+    if (lstatSync(file).isSymbolicLink()) real = realpathSync(file);
+  } catch {
+    // nao existe, ou e uma ligacao partida
+  }
+  if (real) {
+    try {
+      return writeAtomicAt(real, data);
+    } catch {
+      // segue para o caminho pedido
+    }
+  }
+  return writeAtomicAt(file, data);
+}
+
+function writeAtomicAt(file, data) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, data);
+  // as mesmas permissoes (um settings.json 600 continua 600)
+  if (process.platform !== 'win32') {
+    try {
+      chmodSync(tmp, statSync(file).mode & 0o777);
+    } catch {
+      // ficheiro novo
+    }
+  }
   try {
     renameSync(tmp, file);
   } catch {
     // Windows: o rename pode falhar se o ficheiro estiver aberto (EPERM).
-    writeFileSync(file, data);
-    rmSync(tmp, { force: true });
+    try {
+      writeFileSync(file, data);
+    } finally {
+      rmSync(tmp, { force: true });
+    }
   }
 }
 

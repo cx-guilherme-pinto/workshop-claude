@@ -2,7 +2,20 @@
 // Corre o instalador como processo (igual ao que os scripts de setup fazem).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -124,6 +137,68 @@ test('desinstalar depois de a pessoa mudar o settings.json remove so o que e do 
     assert.deepEqual(r.get('settings'), ['limpo']);
     assert.deepEqual(JSON.parse(readFileSync(f, 'utf8')), { theme: 'dark' });
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('settings.json ligado aos dotfiles (stow): instalar, repetir, mudar e desinstalar mantem a ligacao', { skip: process.platform === 'win32' }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-'));
+  const home = join(base, 'João Simões');
+  const kit = fakeKit(base);
+  const dot = join(home, 'dotfiles', 'claude', 'settings.json');
+  const link = join(home, '.claude', 'settings.json');
+  mkdirSync(dirname(dot), { recursive: true });
+  mkdirSync(dirname(link), { recursive: true });
+  writeFileSync(dot, ORIGINAL);
+  chmodSync(dot, 0o600);
+  symlinkSync('../dotfiles/claude/settings.json', link);
+  try {
+    let r = run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(lstatSync(link).isSymbolicLink(), 'a ligacao fica');
+    assert.match(readFileSync(dot, 'utf8'), /stop\.mjs/, 'os hooks vao para o ficheiro dos dotfiles');
+    assert.equal(statSync(dot).mode & 0o777, 0o600, '600 continua 600');
+    assert.deepEqual(readdirSync(dirname(dot)), ['settings.json'], 'sem ficheiros temporarios');
+    r = run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(lstatSync(link).isSymbolicLink());
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(lstatSync(link).isSymbolicLink(), 'o desinstalar tambem mantem a ligacao');
+    assert.equal(readFileSync(dot, 'utf8'), ORIGINAL);
+
+    // mudado pela pessoa depois da instalacao: o desinstalar "limpo" tambem escreve atraves da ligacao
+    r = run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]);
+    const s = JSON.parse(readFileSync(link, 'utf8'));
+    writeFileSync(link, JSON.stringify({ ...s, theme: 'dark' }, null, 2));
+    r = run(home, ['desinstalar']);
+    assert.deepEqual(r.get('settings'), ['limpo']);
+    assert.ok(lstatSync(link).isSymbolicLink());
+    assert.equal(JSON.parse(readFileSync(dot, 'utf8')).theme, 'dark');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('settings.json ligado a um ficheiro numa pasta so de leitura (Nix): a instalacao nao falha', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-'));
+  const home = join(base, 'casa');
+  const kit = fakeKit(base);
+  const store = join(base, 'store');
+  const link = join(home, '.claude', 'settings.json');
+  mkdirSync(store, { recursive: true });
+  mkdirSync(dirname(link), { recursive: true });
+  writeFileSync(join(store, 'settings.json'), ORIGINAL);
+  chmodSync(join(store, 'settings.json'), 0o444);
+  chmodSync(store, 0o555);
+  symlinkSync(join(store, 'settings.json'), link);
+  try {
+    const r = run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(readFileSync(link, 'utf8'), /stop\.mjs/);
+    assert.equal(readFileSync(join(store, 'settings.json'), 'utf8'), ORIGINAL, 'o ficheiro so de leitura nao muda');
+  } finally {
+    chmodSync(store, 0o755);
     rmSync(base, { recursive: true, force: true });
   }
 });

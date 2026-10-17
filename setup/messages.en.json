@@ -73,6 +73,7 @@
     "desinst_memorias": "Your memories in {CAMINHO} were left untouched. Delete the folder by hand only if you no longer need them.",
     "desinst_atalho": "Shortcut removed: {CAMINHO}.",
     "desinst_perfil": "PATH lines removed from {FICHEIRO}.",
+    "desinst_perfil_falhou": "I couldn't remove the workshop PATH lines from {FICHEIRO}, so I left it as it was. Delete the lines from '# >>> workshop-claude >>>' to '# <<< workshop-claude <<<' by hand.",
     "desinst_projeto_removido": "Project removed (it was unchanged): {CAMINHO}.",
     "desinst_projeto_mantido": "Project kept because it has your changes: {CAMINHO}. Delete it by hand if you want.",
     "desinst_fim": "Uninstall complete. Still installed: git, Claude Code, Node, uv, gh and the backups in {BACKUP}.",
@@ -922,6 +923,33 @@
       "windows": [
         "winget install --id Anthropic.Claude -e --scope user --source winget"
       ]
+    },
+    "E-PROF-01": {
+      "titulo": "The setup could not add the workshop folders to a shell profile",
+      "so": "mac",
+      "causa": "New terminals read this file when they start, but the setup could not read or change it. It is read-only, belongs to another user (for example, it was created with sudo), or links to a file that is missing or read-only (dotfiles, iCloud). The setup left it as it was. The other profile files were updated.",
+      "fazer": [
+        "Add the first line below at the end of the file the setup named (or of the file it links to in your dotfiles), then open a new terminal.",
+        "If the file is not read-only on purpose, check it with the second command, make it readable and writable for you (or ask whoever manages your Mac), and run the setup again."
+      ],
+      "mac": [
+        "export PATH=\"$HOME/.local/bin:$HOME/.workshop-claude/bin:$HOME/.workshop-claude/node/bin:$PATH\"",
+        "ls -lO ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+      ],
+      "windows": []
+    },
+    "E-PROF-02": {
+      "titulo": "A shell profile has an incomplete workshop block",
+      "so": "mac",
+      "causa": "The file has a '# >>> workshop-claude >>>' line without its '# <<< workshop-claude <<<' line, or the other way round (an old or hand-edited block). The setup did not change the file, so none of your lines were lost. The other profile files were updated.",
+      "fazer": [
+        "Open the file the setup named and delete the old workshop lines: the marker line and the PATH lines that follow it. Keep your own lines.",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "grep -n workshop-claude ~/.zshrc ~/.zprofile ~/.bash_profile ~/.profile"
+      ],
+      "windows": []
     },
     "E-SMOKE-01": {
       "titulo": "The final Claude test failed",
