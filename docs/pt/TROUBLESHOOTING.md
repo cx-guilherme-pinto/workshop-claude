@@ -21,11 +21,12 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-SETUP-01` | Este passo ainda não foi feito | [macOS](#mac-e-setup-01) · [Windows](#windows-e-setup-01) |
 | `E-NET-01` | Um domínio necessário está bloqueado | [macOS](#mac-e-net-01) · [Windows](#windows-e-net-01) |
 | `E-NET-02` | O nome do servidor não resolve (DNS) | [macOS](#mac-e-net-02) · [Windows](#windows-e-net-02) |
-| `E-NET-03` | O proxy pede autenticação ou está mal configurado | [macOS](#mac-e-net-03) · [Windows](#windows-e-net-03) |
+| `E-NET-03` | O proxy não responde ou recusa o pedido | [macOS](#mac-e-net-03) · [Windows](#windows-e-net-03) |
 | `E-NET-04` | A empresa interceta o tráfego HTTPS (certificado próprio) | [macOS](#mac-e-net-04) · [Windows](#windows-e-net-04) |
 | `E-NET-05` | Sem ligação à API da Anthropic | [macOS](#mac-e-net-05) · [Windows](#windows-e-net-05) |
 | `E-NET-06` | Proxy só com autenticação NTLM ou Kerberos | [macOS](#mac-e-net-06) · [Windows](#windows-e-net-06) |
 | `E-NET-07` | O download falhou | [macOS](#mac-e-net-07) · [Windows](#windows-e-net-07) |
+| `E-NET-08` | O Claude Code está configurado com um proxy que não responde nesta rede | [macOS](#mac-e-net-08) · [Windows](#windows-e-net-08) |
 | `E-SO-01` | Windows anterior a 10.0.18362 (versão 1903) | [Windows](#windows-e-so-01) |
 | `E-SO-02` | Windows em ARM64 | [Windows](#windows-e-so-02) |
 | `E-SO-03` | A pasta pessoal está no OneDrive | [macOS](#mac-e-so-03) · [Windows](#windows-e-so-03) |
@@ -127,16 +128,19 @@ dscacheutil -q host -a name api.anthropic.com
 
 <a id="mac-e-net-03"></a>
 
-### E-NET-03 · O proxy pede autenticação ou está mal configurado
+### E-NET-03 · O proxy não responde ou recusa o pedido
 
-- **Porquê:** A rede só sai por um proxy, e o pedido foi recusado (por exemplo, erro 407).
+- **Porquê:** O teu terminal envia o tráfego por um proxy (HTTPS_PROXY, ALL_PROXY ou o proxy do sistema). Esse proxy não responde, o nome dele não resolve, ou recusou o pedido (por exemplo, erro 407: pede utilizador e palavra-passe). Acontece com um proxy que ficou da rede do escritório ou de uma VPN antiga.
 - **O que fazer:**
-  - Define o proxy para esta sessão e volta a correr o setup.
-  - Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
+  - Se não estás na rede do escritório nem na VPN, tira o proxy deste terminal (primeiro comando abaixo) e apaga a linha que o define no ~/.zshrc ou no ~/.zprofile. Se for o proxy do sistema, desliga-o em Definições do Sistema > Rede > Detalhes > Proxies. Depois volta a correr o setup.
+  - Se a rede da empresa precisa do proxy, liga a VPN, ou define o proxy certo para esta sessão e volta a correr o setup.
+  - Se o proxy pedir utilizador e palavra-passe (erro 407), pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
 
 Comandos (macOS):
 
 ```
+unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy
+grep -n -i proxy ~/.zshrc ~/.zprofile ~/.bash_profile
 export HTTPS_PROXY=http://proxy.empresa:8080
 export NO_PROXY=localhost,127.0.0.1
 ```
@@ -163,7 +167,7 @@ security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop
 - **Porquê:** O Claude Code não consegue falar com api.anthropic.com. Sem isto não há workshop, e o Claude também não pode ajudar a diagnosticar.
 - **O que fazer:**
   - Confirma que abres https://api.anthropic.com no browser (uma página de erro em JSON é sinal de que chega lá).
-  - Se usas proxy, define HTTPS_PROXY antes de correr o setup.
+  - Se a tua rede precisa de proxy, define HTTPS_PROXY antes de correr o setup. Se já tens um proxy definido, vê E-NET-03 e E-NET-08.
   - Pede ao IT para libertar api.anthropic.com, claude.ai e platform.claude.com.
 
 Comando (macOS):
@@ -185,15 +189,32 @@ curl -sv https://api.anthropic.com -o /dev/null
 
 ### E-NET-07 · O download falhou
 
-- **Porquê:** Um ficheiro não chegou a ser descarregado, ou chegou incompleto. Costuma ser uma falha de rede momentânea.
+- **Porquê:** Um ficheiro não chegou a ser descarregado, ou chegou incompleto (a transferência parou a meio). Costuma ser uma falha de rede momentânea ou uma rede WiFi cheia.
 - **O que fazer:**
   - Volta a correr o setup. Os passos já feitos são saltados.
-  - Se falhar sempre no mesmo ficheiro, verifica a rede e o proxy (códigos E-NET-01 e E-NET-03).
+  - Se falhar sempre no mesmo ficheiro, experimenta outra rede (por exemplo, o hotspot do telemóvel) e verifica o proxy (códigos E-NET-01 e E-NET-03).
 
 Comando (macOS):
 
 ```
 curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
+```
+
+<a id="mac-e-net-08"></a>
+
+### E-NET-08 · O Claude Code está configurado com um proxy que não responde nesta rede
+
+- **Porquê:** O bloco "env" do ~/.claude/settings.json tem HTTPS_PROXY, e o Claude Code usa-o mesmo quando o teu terminal não tem proxy. Esse proxy não responde aqui. Costuma ser um proxy que o setup gravou noutra rede (por exemplo, o proxy do escritório).
+- **O que fazer:**
+  - Volta a correr o setup nesta rede: ele tira ou atualiza o proxy que gravou.
+  - Se foste tu que acrescentaste este proxy, apaga as linhas HTTPS_PROXY e NO_PROXY do bloco "env" do ~/.claude/settings.json.
+  - De volta à rede do escritório, corre o setup outra vez para repor o proxy.
+
+Comandos (macOS):
+
+```
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
+grep -n -i proxy ~/.claude/settings.json
 ```
 
 <a id="mac-e-so-03"></a>
@@ -872,16 +893,19 @@ Resolve-DnsName api.anthropic.com
 
 <a id="windows-e-net-03"></a>
 
-### E-NET-03 · O proxy pede autenticação ou está mal configurado
+### E-NET-03 · O proxy não responde ou recusa o pedido
 
-- **Porquê:** A rede só sai por um proxy, e o pedido foi recusado (por exemplo, erro 407).
+- **Porquê:** O teu terminal envia o tráfego por um proxy (HTTPS_PROXY, ALL_PROXY ou o proxy do sistema). Esse proxy não responde, o nome dele não resolve, ou recusou o pedido (por exemplo, erro 407: pede utilizador e palavra-passe). Acontece com um proxy que ficou da rede do escritório ou de uma VPN antiga.
 - **O que fazer:**
-  - Define o proxy para esta sessão e volta a correr o setup.
-  - Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
+  - Se não estás na rede do escritório nem na VPN, tira o proxy deste terminal (primeiro comando abaixo) e apaga a linha que o define no ~/.zshrc ou no ~/.zprofile. Se for o proxy do sistema, desliga-o em Definições do Sistema > Rede > Detalhes > Proxies. Depois volta a correr o setup.
+  - Se a rede da empresa precisa do proxy, liga a VPN, ou define o proxy certo para esta sessão e volta a correr o setup.
+  - Se o proxy pedir utilizador e palavra-passe (erro 407), pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.
 
 Comandos (Windows):
 
 ```
+Remove-Item Env:HTTPS_PROXY, Env:HTTP_PROXY, Env:ALL_PROXY -ErrorAction SilentlyContinue
+[Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')
 $env:HTTPS_PROXY = 'http://proxy.empresa:8080'
 $env:NO_PROXY = 'localhost,127.0.0.1'
 ```
@@ -908,7 +932,7 @@ Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Select-Object Su
 - **Porquê:** O Claude Code não consegue falar com api.anthropic.com. Sem isto não há workshop, e o Claude também não pode ajudar a diagnosticar.
 - **O que fazer:**
   - Confirma que abres https://api.anthropic.com no browser (uma página de erro em JSON é sinal de que chega lá).
-  - Se usas proxy, define HTTPS_PROXY antes de correr o setup.
+  - Se a tua rede precisa de proxy, define HTTPS_PROXY antes de correr o setup. Se já tens um proxy definido, vê E-NET-03 e E-NET-08.
   - Pede ao IT para libertar api.anthropic.com, claude.ai e platform.claude.com.
 
 Comando (Windows):
@@ -930,15 +954,32 @@ Test-NetConnection api.anthropic.com -Port 443
 
 ### E-NET-07 · O download falhou
 
-- **Porquê:** Um ficheiro não chegou a ser descarregado, ou chegou incompleto. Costuma ser uma falha de rede momentânea.
+- **Porquê:** Um ficheiro não chegou a ser descarregado, ou chegou incompleto (a transferência parou a meio). Costuma ser uma falha de rede momentânea ou uma rede WiFi cheia.
 - **O que fazer:**
   - Volta a correr o setup. Os passos já feitos são saltados.
-  - Se falhar sempre no mesmo ficheiro, verifica a rede e o proxy (códigos E-NET-01 e E-NET-03).
+  - Se falhar sempre no mesmo ficheiro, experimenta outra rede (por exemplo, o hotspot do telemóvel) e verifica o proxy (códigos E-NET-01 e E-NET-03).
 
 Comando (Windows):
 
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+```
+
+<a id="windows-e-net-08"></a>
+
+### E-NET-08 · O Claude Code está configurado com um proxy que não responde nesta rede
+
+- **Porquê:** O bloco "env" do ~/.claude/settings.json tem HTTPS_PROXY, e o Claude Code usa-o mesmo quando o teu terminal não tem proxy. Esse proxy não responde aqui. Costuma ser um proxy que o setup gravou noutra rede (por exemplo, o proxy do escritório).
+- **O que fazer:**
+  - Volta a correr o setup nesta rede: ele tira ou atualiza o proxy que gravou.
+  - Se foste tu que acrescentaste este proxy, apaga as linhas HTTPS_PROXY e NO_PROXY do bloco "env" do ~/.claude/settings.json.
+  - De volta à rede do escritório, corre o setup outra vez para repor o proxy.
+
+Comandos (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+Select-String -Path "$HOME\.claude\settings.json" -Pattern proxy
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1627,7 +1668,8 @@ Pede ao IT que estes domínios fiquem acessíveis por HTTPS (porta 443):
 
 ## Proxies e certificados da empresa
 
-- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY=localhost,127.0.0.1` no `env` do `~/.claude/settings.json`.
+- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY` (`localhost,127.0.0.1` e as entradas do teu `NO_PROXY`) no `env` do `~/.claude/settings.json`.
+- Se voltares a correr o setup numa rede sem esse proxy (por exemplo, no local do workshop depois de instalar no escritório), ele tira o `HTTPS_PROXY` e o `NO_PROXY` que gravou (ver `E-NET-08`). De volta ao escritório, corre o setup outra vez.
 - Se a empresa intercetar o HTTPS, o setup exporta as raízes da empresa para `~/.workshop-claude/ca.pem` e define `NODE_EXTRA_CA_CERTS` e `UV_SYSTEM_CERTS=true`.
 - Proxies só com NTLM ou Kerberos não são suportados (ver `E-NET-06`).
 

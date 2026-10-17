@@ -21,11 +21,12 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-SETUP-01` | This step is not done yet | [macOS](#mac-e-setup-01) · [Windows](#windows-e-setup-01) |
 | `E-NET-01` | A required domain is blocked | [macOS](#mac-e-net-01) · [Windows](#windows-e-net-01) |
 | `E-NET-02` | The server name does not resolve (DNS) | [macOS](#mac-e-net-02) · [Windows](#windows-e-net-02) |
-| `E-NET-03` | The proxy asks for authentication or is misconfigured | [macOS](#mac-e-net-03) · [Windows](#windows-e-net-03) |
+| `E-NET-03` | The proxy does not answer or refuses the request | [macOS](#mac-e-net-03) · [Windows](#windows-e-net-03) |
 | `E-NET-04` | Your company intercepts HTTPS traffic (its own certificate) | [macOS](#mac-e-net-04) · [Windows](#windows-e-net-04) |
 | `E-NET-05` | No connection to the Anthropic API | [macOS](#mac-e-net-05) · [Windows](#windows-e-net-05) |
 | `E-NET-06` | Proxy with NTLM or Kerberos authentication only | [macOS](#mac-e-net-06) · [Windows](#windows-e-net-06) |
 | `E-NET-07` | The download failed | [macOS](#mac-e-net-07) · [Windows](#windows-e-net-07) |
+| `E-NET-08` | Claude Code is set to use a proxy that does not answer on this network | [macOS](#mac-e-net-08) · [Windows](#windows-e-net-08) |
 | `E-SO-01` | Windows older than 10.0.18362 (version 1903) | [Windows](#windows-e-so-01) |
 | `E-SO-02` | Windows on ARM64 | [Windows](#windows-e-so-02) |
 | `E-SO-03` | Your home folder is in OneDrive | [macOS](#mac-e-so-03) · [Windows](#windows-e-so-03) |
@@ -127,16 +128,19 @@ dscacheutil -q host -a name api.anthropic.com
 
 <a id="mac-e-net-03"></a>
 
-### E-NET-03 · The proxy asks for authentication or is misconfigured
+### E-NET-03 · The proxy does not answer or refuses the request
 
-- **Why:** The network only goes out through a proxy, and the request was refused (for example, error 407).
+- **Why:** Your terminal sends the traffic through a proxy (HTTPS_PROXY, ALL_PROXY or the system proxy). That proxy does not answer, its name does not resolve, or it refused the request (for example, error 407: it asks for a username and password). A proxy left over from the office network or from an old VPN causes this.
 - **What to do:**
-  - Set the proxy for this session and run the setup again.
-  - If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.
+  - If you are not on the office network or VPN, remove the proxy from this terminal (first command below) and delete the line that sets it in ~/.zshrc or ~/.zprofile. If it is the system proxy, turn it off in System Settings > Network > Details > Proxies. Then run the setup again.
+  - If the company network needs the proxy, connect the VPN, or set the right proxy for this session and run the setup again.
+  - If the proxy asks for a username and password (error 407), ask IT for a proxy without authentication or an exception for the workshop domains.
 
 Commands (macOS):
 
 ```
+unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy
+grep -n -i proxy ~/.zshrc ~/.zprofile ~/.bash_profile
 export HTTPS_PROXY=http://proxy.company:8080
 export NO_PROXY=localhost,127.0.0.1
 ```
@@ -163,7 +167,7 @@ security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop
 - **Why:** Claude Code can't talk to api.anthropic.com. Without this there is no workshop, and Claude can't help you diagnose the problem either.
 - **What to do:**
   - Check that you can open https://api.anthropic.com in the browser (a JSON error page means you can reach it).
-  - If you use a proxy, set HTTPS_PROXY before you run the setup.
+  - If your network needs a proxy, set HTTPS_PROXY before you run the setup. If a proxy is already set, see E-NET-03 and E-NET-08.
   - Ask IT to allow api.anthropic.com, claude.ai and platform.claude.com.
 
 Command (macOS):
@@ -185,15 +189,32 @@ curl -sv https://api.anthropic.com -o /dev/null
 
 ### E-NET-07 · The download failed
 
-- **Why:** A file was not downloaded, or it arrived incomplete. This is usually a short network failure.
+- **Why:** A file was not downloaded, or it arrived incomplete (the transfer stopped in the middle). This is usually a short network failure or a crowded WiFi.
 - **What to do:**
   - Run the setup again. Steps already done are skipped.
-  - If it always fails on the same file, check the network and the proxy (codes E-NET-01 and E-NET-03).
+  - If it always fails on the same file, try another network (for example, your phone's hotspot) and check the proxy (codes E-NET-01 and E-NET-03).
 
 Command (macOS):
 
 ```
 curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
+```
+
+<a id="mac-e-net-08"></a>
+
+### E-NET-08 · Claude Code is set to use a proxy that does not answer on this network
+
+- **Why:** The "env" block of ~/.claude/settings.json has HTTPS_PROXY, and Claude Code uses it even when your terminal has no proxy. That proxy does not answer here. It is usually a proxy the setup saved on another network (for example, the office proxy).
+- **What to do:**
+  - Run the setup again on this network: it removes or updates the proxy it saved.
+  - If you added this proxy yourself, delete the HTTPS_PROXY and NO_PROXY lines from the "env" block of ~/.claude/settings.json.
+  - Back on the office network, run the setup again to put the proxy back.
+
+Commands (macOS):
+
+```
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
+grep -n -i proxy ~/.claude/settings.json
 ```
 
 <a id="mac-e-so-03"></a>
@@ -872,16 +893,19 @@ Resolve-DnsName api.anthropic.com
 
 <a id="windows-e-net-03"></a>
 
-### E-NET-03 · The proxy asks for authentication or is misconfigured
+### E-NET-03 · The proxy does not answer or refuses the request
 
-- **Why:** The network only goes out through a proxy, and the request was refused (for example, error 407).
+- **Why:** Your terminal sends the traffic through a proxy (HTTPS_PROXY, ALL_PROXY or the system proxy). That proxy does not answer, its name does not resolve, or it refused the request (for example, error 407: it asks for a username and password). A proxy left over from the office network or from an old VPN causes this.
 - **What to do:**
-  - Set the proxy for this session and run the setup again.
-  - If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.
+  - If you are not on the office network or VPN, remove the proxy from this terminal (first command below) and delete the line that sets it in ~/.zshrc or ~/.zprofile. If it is the system proxy, turn it off in System Settings > Network > Details > Proxies. Then run the setup again.
+  - If the company network needs the proxy, connect the VPN, or set the right proxy for this session and run the setup again.
+  - If the proxy asks for a username and password (error 407), ask IT for a proxy without authentication or an exception for the workshop domains.
 
 Commands (Windows):
 
 ```
+Remove-Item Env:HTTPS_PROXY, Env:HTTP_PROXY, Env:ALL_PROXY -ErrorAction SilentlyContinue
+[Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')
 $env:HTTPS_PROXY = 'http://proxy.company:8080'
 $env:NO_PROXY = 'localhost,127.0.0.1'
 ```
@@ -908,7 +932,7 @@ Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Select-Object Su
 - **Why:** Claude Code can't talk to api.anthropic.com. Without this there is no workshop, and Claude can't help you diagnose the problem either.
 - **What to do:**
   - Check that you can open https://api.anthropic.com in the browser (a JSON error page means you can reach it).
-  - If you use a proxy, set HTTPS_PROXY before you run the setup.
+  - If your network needs a proxy, set HTTPS_PROXY before you run the setup. If a proxy is already set, see E-NET-03 and E-NET-08.
   - Ask IT to allow api.anthropic.com, claude.ai and platform.claude.com.
 
 Command (Windows):
@@ -930,15 +954,32 @@ Test-NetConnection api.anthropic.com -Port 443
 
 ### E-NET-07 · The download failed
 
-- **Why:** A file was not downloaded, or it arrived incomplete. This is usually a short network failure.
+- **Why:** A file was not downloaded, or it arrived incomplete (the transfer stopped in the middle). This is usually a short network failure or a crowded WiFi.
 - **What to do:**
   - Run the setup again. Steps already done are skipped.
-  - If it always fails on the same file, check the network and the proxy (codes E-NET-01 and E-NET-03).
+  - If it always fails on the same file, try another network (for example, your phone's hotspot) and check the proxy (codes E-NET-01 and E-NET-03).
 
 Command (Windows):
 
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+```
+
+<a id="windows-e-net-08"></a>
+
+### E-NET-08 · Claude Code is set to use a proxy that does not answer on this network
+
+- **Why:** The "env" block of ~/.claude/settings.json has HTTPS_PROXY, and Claude Code uses it even when your terminal has no proxy. That proxy does not answer here. It is usually a proxy the setup saved on another network (for example, the office proxy).
+- **What to do:**
+  - Run the setup again on this network: it removes or updates the proxy it saved.
+  - If you added this proxy yourself, delete the HTTPS_PROXY and NO_PROXY lines from the "env" block of ~/.claude/settings.json.
+  - Back on the office network, run the setup again to put the proxy back.
+
+Commands (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
+Select-String -Path "$HOME\.claude\settings.json" -Pattern proxy
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1627,7 +1668,8 @@ Ask IT to allow HTTPS (port 443) to these domains:
 
 ## Corporate proxies and certificates
 
-- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY=localhost,127.0.0.1` in the `env` of `~/.claude/settings.json`.
+- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` (`localhost,127.0.0.1` plus your own `NO_PROXY` entries) in the `env` of `~/.claude/settings.json`.
+- If you run the setup again on a network without that proxy (for example, at the workshop venue after installing at the office), it removes the `HTTPS_PROXY` and `NO_PROXY` it saved (see `E-NET-08`). Back at the office, run the setup again.
 - If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca.pem` and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.
 - Proxies that only accept NTLM or Kerberos are not supported (see `E-NET-06`).
 

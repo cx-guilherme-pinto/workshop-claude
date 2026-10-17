@@ -57,7 +57,8 @@ const TXT = {
     pedido: 'Pede ao IT que estes domínios fiquem acessíveis por HTTPS (porta 443):',
     proxies: '## Proxies e certificados da empresa',
     proxyLinhas: [
-      '- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY=localhost,127.0.0.1` no `env` do `~/.claude/settings.json`.',
+      '- O setup deteta o proxy do sistema (no Windows também resolve o PAC) e grava `HTTPS_PROXY` e `NO_PROXY` (`localhost,127.0.0.1` e as entradas do teu `NO_PROXY`) no `env` do `~/.claude/settings.json`.',
+      '- Se voltares a correr o setup numa rede sem esse proxy (por exemplo, no local do workshop depois de instalar no escritório), ele tira o `HTTPS_PROXY` e o `NO_PROXY` que gravou (ver `E-NET-08`). De volta ao escritório, corre o setup outra vez.',
       '- Se a empresa intercetar o HTTPS, o setup exporta as raízes da empresa para `~/.workshop-claude/ca.pem` e define `NODE_EXTRA_CA_CERTS` e `UV_SYSTEM_CERTS=true`.',
       '- Proxies só com NTLM ou Kerberos não são suportados (ver `E-NET-06`).',
     ],
@@ -82,7 +83,8 @@ const TXT = {
     pedido: 'Ask IT to allow HTTPS (port 443) to these domains:',
     proxies: '## Corporate proxies and certificates',
     proxyLinhas: [
-      '- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY=localhost,127.0.0.1` in the `env` of `~/.claude/settings.json`.',
+      '- The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` (`localhost,127.0.0.1` plus your own `NO_PROXY` entries) in the `env` of `~/.claude/settings.json`.',
+      '- If you run the setup again on a network without that proxy (for example, at the workshop venue after installing at the office), it removes the `HTTPS_PROXY` and `NO_PROXY` it saved (see `E-NET-08`). Back at the office, run the setup again.',
       '- If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca.pem` and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.',
       '- Proxies that only accept NTLM or Kerberos are not supported (see `E-NET-06`).',
     ],

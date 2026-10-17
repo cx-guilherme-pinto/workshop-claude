@@ -128,6 +128,34 @@ test('desinstalar depois de a pessoa mudar o settings.json remove so o que e do 
   }
 });
 
+// --- chaos G3-network: instalado no escritorio (com proxy), usado no local do workshop (sem proxy)
+test('o proxy gravado no escritorio sai quando o setup corre noutra rede; o verificar deteta-o', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-'));
+  const home = join(base, 'Bea Office');
+  const kit = fakeKit(base);
+  const node = process.execPath;
+  const settings = () => JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+  const office = ['--https-proxy', 'http://127.0.0.1:18412', '--no-proxy', 'localhost,127.0.0.1,.corp.internal'];
+  try {
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit, ...office]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(settings().env.HTTPS_PROXY, 'http://127.0.0.1:18412');
+    assert.equal(settings().env.NO_PROXY, 'localhost,127.0.0.1,.corp.internal', 'o NO_PROXY da sessao entra junto');
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit, ...office]);
+    assert.equal(r.status, 0, r.stdout);
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 1, 'no local do workshop, o proxy antigo conta como por fazer (o passo 8 nao fica "ja feito")');
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal('HTTPS_PROXY' in settings().env, false, 'o proxy do escritorio saiu');
+    assert.equal('NO_PROXY' in settings().env, false);
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stdout);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('settings.json invalido: sai com 3 e nao toca em nada', () => {
   const base = mkdtempSync(join(tmpdir(), 'ws-iu-'));
   const home = join(base, 'casa');

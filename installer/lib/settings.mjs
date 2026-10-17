@@ -24,6 +24,28 @@ export function isOurs(cmd) {
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
+// Variaveis de rede que so valem na rede onde o setup correu: se uma instalacao seguinte ja nao as pede (ex.: instalado
+// no escritorio com o proxy, depois no local do workshop sem ele), o valor nosso sai e volta o que la estava antes.
+// As do certificado (NODE_EXTRA_CA_CERTS, UV_SYSTEM_CERTS) ficam: noutra rede nao estragam nada.
+export const NETWORK_ENV = ['HTTPS_PROXY', 'NO_PROXY'];
+// Listas separadas por virgulas: junta-se o valor da pessoa ao nosso (nunca se perdem as excecoes dela).
+const LIST_ENV = new Set(['NO_PROXY']);
+const listItems = (v) =>
+  String(v ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+export function mergeList(...vals) {
+  const out = [];
+  for (const v of vals) for (const x of listItems(v)) if (!out.some((y) => y.toLowerCase() === x.toLowerCase())) out.push(x);
+  return out.join(',');
+}
+const listHas = (cur, want) => {
+  const have = listItems(cur).map((x) => x.toLowerCase());
+  return listItems(want).every((x) => have.includes(x.toLowerCase()));
+};
+const asked = (env, k) => env?.[k] !== undefined && env?.[k] !== null && env?.[k] !== '';
+
 export class SettingsError extends Error {
   constructor(message, code = 'E-CFG-05') {
     super(message);
@@ -125,7 +147,12 @@ export function mergeSettings(current, opts, prevRecord = null) {
   s.env = s.env || {};
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined || v === null || v === '') continue;
-    const val = String(v);
+    let val = String(v);
+    if (LIST_ENV.has(k)) {
+      // A base e o valor atual, se nao for o nosso (a pessoa mudou-o), ou o que havia antes do workshop.
+      const base = k in s.env && s.env[k] !== record.env_valor[k] ? s.env[k] : record.env_anterior[k];
+      val = mergeList(val, base);
+    }
     if (s.env[k] !== val) {
       if (!(k in record.env_anterior)) record.env_anterior[k] = k in s.env ? s.env[k] : null;
       s.env[k] = val;
@@ -134,6 +161,18 @@ export function mergeSettings(current, opts, prevRecord = null) {
       continue;
     }
     record.env_valor[k] = val;
+  }
+  // Valores de rede nossos de uma instalacao anterior que esta ja nao pede (ex.: o proxy do escritorio): sai o
+  // nosso e volta o anterior. Se a pessoa o mudou entretanto, fica o dela.
+  for (const k of NETWORK_ENV) {
+    if (asked(env, k) || !(k in record.env_valor)) continue;
+    if (s.env[k] === record.env_valor[k]) {
+      const prevVal = record.env_anterior[k];
+      if (prevVal === null || prevVal === undefined) delete s.env[k];
+      else s.env[k] = prevVal;
+    }
+    delete record.env_valor[k];
+    delete record.env_anterior[k];
   }
   if (Object.keys(s.env).length === 0 && record.env_criado) delete s.env;
 
@@ -188,6 +227,7 @@ export function unmergeSettings(current, record = {}) {
 }
 
 // Verifica se o settings atual tem o que o workshop precisa (para o --check).
+// opts.record (o registo da instalacao) serve para encontrar valores de rede nossos que esta execucao ja nao pede.
 export function checkSettings(current, opts) {
   const exp = expectedEntries(opts);
   const faltam = [];
@@ -196,7 +236,13 @@ export function checkSettings(current, opts) {
     if (!ok) faltam.push(`hook ${event}`);
   }
   for (const [k, v] of Object.entries(opts.env || {})) {
-    if (v && current?.env?.[k] !== String(v)) faltam.push(`env ${k}`);
+    if (!v) continue;
+    const ok = LIST_ENV.has(k) ? listHas(current?.env?.[k], v) : current?.env?.[k] === String(v);
+    if (!ok) faltam.push(`env ${k}`);
+  }
+  for (const k of NETWORK_ENV) {
+    const ours = opts.record?.env_valor?.[k];
+    if (ours !== undefined && !asked(opts.env, k) && current?.env?.[k] === ours) faltam.push(`env ${k} (stale)`);
   }
   const sl = current?.statusLine;
   const statusline = !sl ? 'falta' : isOurs(sl.command) ? (sl.command === exp.statusLine.command ? 'nossa' : 'desatualizada') : 'alheia';

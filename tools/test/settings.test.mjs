@@ -156,3 +156,65 @@ test('language (D-20): define so se nao houver; atualiza a nossa; nunca toca na 
   const sem = mergeSettings(alheio(), opts);
   assert.equal('language' in sem.settings, false, 'sem lingua suportada nao se define nada');
 });
+
+// --- chaos G3-network: o proxy gravado numa rede (escritorio) nao pode ficar quando a rede ja nao o tem
+test('proxy de uma instalacao anterior sai quando ja nao e pedido; volta o anterior; o da pessoa fica', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC };
+  const office = { DISABLE_AUTOUPDATER: '1', HTTPS_PROXY: 'http://proxy.empresa:8080', NO_PROXY: 'localhost,127.0.0.1' };
+  const a = mergeSettings(alheio(), { ...opts, env: office });
+  assert.equal(a.settings.env.HTTPS_PROXY, 'http://proxy.empresa:8080');
+  const venue = mergeSettings(a.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, a.record);
+  assert.equal('HTTPS_PROXY' in venue.settings.env, false, 'o proxy do escritorio sai');
+  assert.equal('NO_PROXY' in venue.settings.env, false, 'o NO_PROXY que veio com ele tambem');
+  assert.equal(venue.settings.env.MEU_ENV, '1', 'o resto do env fica');
+  assert.equal('HTTPS_PROXY' in venue.record.env_valor, false);
+  assert.deepEqual(unmergeSettings(venue.settings, venue.record).env, alheio().env, 'o desinstalar continua a repor o original');
+  const back = mergeSettings(venue.settings, { ...opts, env: office }, venue.record);
+  assert.equal(back.settings.env.HTTPS_PROXY, 'http://proxy.empresa:8080', 'de volta ao escritorio, volta o proxy');
+  assert.deepEqual(unmergeSettings(back.settings, back.record).env, alheio().env);
+
+  // A pessoa ja tinha um proxy seu antes do workshop: o setup trocou-o e depois repoe-no (nunca o apaga).
+  const propria = { ...alheio(), env: { HTTPS_PROXY: 'http://meu-proxy:3128' } };
+  const b = mergeSettings(propria, { ...opts, env: office });
+  const b2 = mergeSettings(b.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, b.record);
+  assert.equal(b2.settings.env.HTTPS_PROXY, 'http://meu-proxy:3128');
+  // A pessoa mudou o proxy depois da instalacao: fica o dela.
+  const mudado = { ...a.settings, env: { ...a.settings.env, HTTPS_PROXY: 'http://outro:8080' } };
+  const c = mergeSettings(mudado, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, a.record);
+  assert.equal(c.settings.env.HTTPS_PROXY, 'http://outro:8080');
+  // O mesmo valor que a pessoa ja tinha antes do workshop nao e nosso: nunca sai.
+  const igual = { env: { HTTPS_PROXY: 'http://proxy.empresa:8080' } };
+  const d = mergeSettings(igual, { ...opts, env: office });
+  const d2 = mergeSettings(d.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, d.record);
+  assert.equal(d2.settings.env.HTTPS_PROXY, 'http://proxy.empresa:8080');
+  // O certificado da empresa fica (noutra rede nao estraga nada).
+  const ca = mergeSettings({}, { ...opts, env: { NODE_EXTRA_CA_CERTS: '/x/ca.pem', UV_SYSTEM_CERTS: 'true' } });
+  const ca2 = mergeSettings(ca.settings, { ...opts, env: {} }, ca.record);
+  assert.equal(ca2.settings.env.NODE_EXTRA_CA_CERTS, '/x/ca.pem');
+});
+
+test('NO_PROXY junta o da pessoa ao nosso, sem repetidos, e o checkSettings aceita a lista junta', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC };
+  const cur = { env: { NO_PROXY: '.corp.internal, localhost' } };
+  const env = { HTTPS_PROXY: 'http://p:8080', NO_PROXY: 'localhost,127.0.0.1' };
+  const a = mergeSettings(cur, { ...opts, env });
+  assert.equal(a.settings.env.NO_PROXY, 'localhost,127.0.0.1,.corp.internal');
+  const b = mergeSettings(a.settings, { ...opts, env }, a.record);
+  assert.equal(b.settings.env.NO_PROXY, 'localhost,127.0.0.1,.corp.internal', 'idempotente: nada se acumula');
+  assert.equal(unmergeSettings(b.settings, b.record).env.NO_PROXY, '.corp.internal, localhost', 'o desinstalar repoe o da pessoa');
+  assert.equal(checkSettings(b.settings, { ...opts, env }).faltam.includes('env NO_PROXY'), false);
+  const venue = mergeSettings(b.settings, { ...opts, env: {} }, b.record);
+  assert.equal(venue.settings.env.NO_PROXY, '.corp.internal, localhost', 'sem proxy, volta o NO_PROXY da pessoa');
+});
+
+test('checkSettings encontra o proxy nosso que esta execucao ja nao pede (o passo 8 nao fica "ja feito")', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC };
+  const office = { DISABLE_AUTOUPDATER: '1', HTTPS_PROXY: 'http://proxy.empresa:8080', NO_PROXY: 'localhost,127.0.0.1' };
+  const a = mergeSettings({}, { ...opts, env: office });
+  assert.deepEqual(checkSettings(a.settings, { ...opts, env: office, record: a.record }).faltam, []);
+  const r = checkSettings(a.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' }, record: a.record });
+  assert.deepEqual(r.faltam.filter((f) => f.startsWith('env')).sort(), ['env HTTPS_PROXY (stale)', 'env NO_PROXY (stale)']);
+  const venue = mergeSettings(a.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, a.record);
+  const r2 = checkSettings(venue.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' }, record: venue.record });
+  assert.deepEqual(r2.faltam.filter((f) => f.startsWith('env')), []);
+});
