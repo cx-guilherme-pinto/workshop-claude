@@ -5,7 +5,7 @@
 //                                              [--no-proxy <lista>] [--substituir-statusline] [--versao <v>]
 //                                              [--lingua-maquina <etiqueta, ex.: pt-PT>]
 //   node installer/install-user.mjs verificar  --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
-//                                              [--lingua-maquina <etiqueta>]
+//                                              [--no-proxy <lista>] [--lingua-maquina <etiqueta>]
 //   node installer/install-user.mjs desinstalar
 //   node installer/install-user.mjs registar   --tipo <t> --nome <n> [--caminho <p>] [--valor <v>]
 //   node installer/install-user.mjs extras
@@ -15,7 +15,8 @@
 //   - copia skills-prod/* e skills-shared/* para ~/.claude/skills/ e agents/prod/*.md para ~/.claude/agents/,
 //     trocando {{KIT_DIR}} pelo caminho absoluto do kit (barras "/" tambem no Windows)
 //   - faz backup e merge seguro do ~/.claude/settings.json (hooks, statusLine so se nao houver, env e, com
-//     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma)
+//     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma). Sem --https-proxy, o HTTPS_PROXY e o
+//     NO_PROXY que uma instalacao anterior gravou saem (o proxy do escritorio nao serve noutra rede)
 //   - com --lingua-maquina, escreve ~/.workshop-claude/kit/language.json (pt ou en: a lingua dos textos do kit)
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
@@ -285,7 +286,7 @@ export function verificar(flags, env = process.env) {
     const node = typeof flags.node === 'string' ? flags.node : manifest?.node;
     if (!node) faltam.push('node');
     else {
-      const r = checkSettings(cur.obj, { node, kitDir: P.kitDir, env: envFor(flags) });
+      const r = checkSettings(cur.obj, { node, kitDir: P.kitDir, env: envFor(flags), record: manifest?.settings?.record });
       statusline = r.statusline;
       faltam.push(...r.faltam.filter((f) => !(f === 'statusLine' && r.statusline === 'alheia')));
       if (r.statusline === 'alheia') avisos.push('E-CFG-06');

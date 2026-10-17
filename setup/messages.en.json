@@ -35,6 +35,8 @@
     "a_instalar": "Installing. This can take a few minutes…",
     "brew_falhou": "Homebrew could not install it, so I use the official download instead.",
     "a_descarregar": "Downloading {O_QUE}…",
+    "a_descarregar_mb": "Still downloading… {MB} MB so far.",
+    "dl_html": "a web page came instead of the file",
     "a_verificar_rede": "Testing the connection to {N} domains…",
     "sn": "[Y/n]",
     "ns": "[y/N]",
@@ -91,6 +93,7 @@
     "s0_gerido": "Company-managed Claude Code settings: {CAMINHO}. Normal on company laptops. If a workshop step is blocked, show code E-CFG-01 to IT.",
     "s0_proxy_sistema": "System proxy: {PROXY}",
     "s0_proxy_pac": "Automatic proxy (PAC): {PAC}",
+    "s0_proxy_settings": "Claude Code is set to use a proxy that does not answer on this network: {PROXY}. Running the setup removes it if the setup saved it (E-NET-08).",
     "s0_sem_proxy": "No proxy.",
     "s0_tls_ok": "API certificate issued by: {EMISSOR}",
     "s0_tls_corp": "TLS interception detected (issuer: {EMISSOR}). I exported the company certificates to {CA}.",
@@ -203,19 +206,24 @@
       ]
     },
     "E-NET-03": {
-      "titulo": "The proxy asks for authentication or is misconfigured",
+      "titulo": "The proxy does not answer or refuses the request",
       "so": "todos",
-      "causa": "The network only goes out through a proxy, and the request was refused (for example, error 407).",
+      "causa": "Your terminal sends the traffic through a proxy (HTTPS_PROXY, ALL_PROXY or the system proxy). That proxy does not answer, its name does not resolve, or it refused the request (for example, error 407: it asks for a username and password). A proxy left over from the office network or from an old VPN causes this.",
       "fazer": [
-        "Set the proxy for this session and run the setup again.",
-        "If the proxy asks for a username and password, ask IT for a proxy without authentication or an exception for the workshop domains.",
+        "If you are not on the office network or VPN, remove the proxy from this terminal (first command below) and delete the line that sets it in ~/.zshrc or ~/.zprofile. If it is the system proxy, turn it off in System Settings > Network > Details > Proxies. Then run the setup again.",
+        "If the company network needs the proxy, connect the VPN, or set the right proxy for this session and run the setup again.",
+        "If the proxy asks for a username and password (error 407), ask IT for a proxy without authentication or an exception for the workshop domains.",
         "On Windows, if even the first command of the setup gets error 407, run it with the last command: it sends your Windows login to the proxy."
       ],
       "mac": [
+        "unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy",
+        "grep -n -i proxy ~/.zshrc ~/.zprofile ~/.bash_profile",
         "export HTTPS_PROXY=http://proxy.company:8080",
         "export NO_PROXY=localhost,127.0.0.1"
       ],
       "windows": [
+        "Remove-Item Env:HTTPS_PROXY, Env:HTTP_PROXY, Env:ALL_PROXY -ErrorAction SilentlyContinue",
+        "[Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')",
         "$env:HTTPS_PROXY = 'http://proxy.company:8080'",
         "$env:NO_PROXY = 'localhost,127.0.0.1'",
         "{ONE_LINER_WINDOWS_PROXY}"
@@ -242,7 +250,7 @@
       "causa": "Claude Code can't talk to api.anthropic.com. Without this there is no workshop, and Claude can't help you diagnose the problem either.",
       "fazer": [
         "Check that you can open https://api.anthropic.com in the browser (a JSON error page means you can reach it).",
-        "If you use a proxy, set HTTPS_PROXY before you run the setup.",
+        "If your network needs a proxy, set HTTPS_PROXY before you run the setup. If a proxy is already set, see E-NET-03 and E-NET-08.",
         "Ask IT to allow api.anthropic.com, claude.ai and platform.claude.com."
       ],
       "mac": [
@@ -266,16 +274,34 @@
     "E-NET-07": {
       "titulo": "The download failed",
       "so": "todos",
-      "causa": "A file was not downloaded, or it arrived incomplete. This is usually a short network failure.",
+      "causa": "A file was not downloaded, or it arrived incomplete (the transfer stopped in the middle). This is usually a short network failure or a crowded WiFi.",
       "fazer": [
         "Run the setup again. Steps already done are skipped.",
-        "If it always fails on the same file, check the network and the proxy (codes E-NET-01 and E-NET-03)."
+        "If it always fails on the same file, try another network (for example, your phone's hotspot) and check the proxy (codes E-NET-01 and E-NET-03)."
       ],
       "mac": [
         "{ONE_LINER_MAC}"
       ],
       "windows": [
         "{ONE_LINER_WINDOWS}"
+      ]
+    },
+    "E-NET-08": {
+      "titulo": "Claude Code is set to use a proxy that does not answer on this network",
+      "so": "todos",
+      "causa": "The \"env\" block of ~/.claude/settings.json has HTTPS_PROXY, and Claude Code uses it even when your terminal has no proxy. That proxy does not answer here. It is usually a proxy the setup saved on another network (for example, the office proxy).",
+      "fazer": [
+        "Run the setup again on this network: it removes or updates the proxy it saved.",
+        "If you added this proxy yourself, delete the HTTPS_PROXY and NO_PROXY lines from the \"env\" block of ~/.claude/settings.json.",
+        "Back on the office network, run the setup again to put the proxy back."
+      ],
+      "mac": [
+        "{ONE_LINER_MAC}",
+        "grep -n -i proxy ~/.claude/settings.json"
+      ],
+      "windows": [
+        "{ONE_LINER_WINDOWS}",
+        "Select-String -Path \"$HOME\\.claude\\settings.json\" -Pattern proxy"
       ]
     },
     "E-SO-01": {

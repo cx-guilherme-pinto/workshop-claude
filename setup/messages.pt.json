@@ -35,6 +35,8 @@
     "a_instalar": "A instalar. Pode demorar alguns minutos…",
     "brew_falhou": "O Homebrew não conseguiu instalar, por isso uso o download oficial.",
     "a_descarregar": "A descarregar {O_QUE}…",
+    "a_descarregar_mb": "Ainda a descarregar… {MB} MB até agora.",
+    "dl_html": "veio uma página web em vez do ficheiro",
     "a_verificar_rede": "A testar a ligação a {N} domínios…",
     "sn": "[S/n]",
     "ns": "[s/N]",
@@ -91,6 +93,7 @@
     "s0_gerido": "Definições do Claude Code geridas pela empresa: {CAMINHO}. É normal nos portáteis da empresa. Se algum passo do workshop for bloqueado, mostra o código E-CFG-01 à equipa de TI.",
     "s0_proxy_sistema": "Proxy do sistema: {PROXY}",
     "s0_proxy_pac": "Proxy automático (PAC): {PAC}",
+    "s0_proxy_settings": "O Claude Code está configurado com um proxy que não responde nesta rede: {PROXY}. Correr o setup tira-o, se foi o setup que o gravou (E-NET-08).",
     "s0_sem_proxy": "Sem proxy.",
     "s0_tls_ok": "Certificado da API emitido por: {EMISSOR}",
     "s0_tls_corp": "Interceção TLS detetada (emissor: {EMISSOR}). Exportei os certificados da empresa para {CA}.",
@@ -203,19 +206,24 @@
       ]
     },
     "E-NET-03": {
-      "titulo": "O proxy pede autenticação ou está mal configurado",
+      "titulo": "O proxy não responde ou recusa o pedido",
       "so": "todos",
-      "causa": "A rede só sai por um proxy, e o pedido foi recusado (por exemplo, erro 407).",
+      "causa": "O teu terminal envia o tráfego por um proxy (HTTPS_PROXY, ALL_PROXY ou o proxy do sistema). Esse proxy não responde, o nome dele não resolve, ou recusou o pedido (por exemplo, erro 407: pede utilizador e palavra-passe). Acontece com um proxy que ficou da rede do escritório ou de uma VPN antiga.",
       "fazer": [
-        "Define o proxy para esta sessão e volta a correr o setup.",
-        "Se o proxy pedir utilizador e palavra-passe, pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.",
+        "Se não estás na rede do escritório nem na VPN, tira o proxy deste terminal (primeiro comando abaixo) e apaga a linha que o define no ~/.zshrc ou no ~/.zprofile. Se for o proxy do sistema, desliga-o em Definições do Sistema > Rede > Detalhes > Proxies. Depois volta a correr o setup.",
+        "Se a rede da empresa precisa do proxy, liga a VPN, ou define o proxy certo para esta sessão e volta a correr o setup.",
+        "Se o proxy pedir utilizador e palavra-passe (erro 407), pede ao IT um proxy sem autenticação ou uma exceção para os domínios do workshop.",
         "No Windows, se até o primeiro comando do setup der o erro 407, corre-o com o último comando: ele envia o teu login do Windows ao proxy."
       ],
       "mac": [
+        "unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy",
+        "grep -n -i proxy ~/.zshrc ~/.zprofile ~/.bash_profile",
         "export HTTPS_PROXY=http://proxy.empresa:8080",
         "export NO_PROXY=localhost,127.0.0.1"
       ],
       "windows": [
+        "Remove-Item Env:HTTPS_PROXY, Env:HTTP_PROXY, Env:ALL_PROXY -ErrorAction SilentlyContinue",
+        "[Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')",
         "$env:HTTPS_PROXY = 'http://proxy.empresa:8080'",
         "$env:NO_PROXY = 'localhost,127.0.0.1'",
         "{ONE_LINER_WINDOWS_PROXY}"
@@ -242,7 +250,7 @@
       "causa": "O Claude Code não consegue falar com api.anthropic.com. Sem isto não há workshop, e o Claude também não pode ajudar a diagnosticar.",
       "fazer": [
         "Confirma que abres https://api.anthropic.com no browser (uma página de erro em JSON é sinal de que chega lá).",
-        "Se usas proxy, define HTTPS_PROXY antes de correr o setup.",
+        "Se a tua rede precisa de proxy, define HTTPS_PROXY antes de correr o setup. Se já tens um proxy definido, vê E-NET-03 e E-NET-08.",
         "Pede ao IT para libertar api.anthropic.com, claude.ai e platform.claude.com."
       ],
       "mac": [
@@ -266,16 +274,34 @@
     "E-NET-07": {
       "titulo": "O download falhou",
       "so": "todos",
-      "causa": "Um ficheiro não chegou a ser descarregado, ou chegou incompleto. Costuma ser uma falha de rede momentânea.",
+      "causa": "Um ficheiro não chegou a ser descarregado, ou chegou incompleto (a transferência parou a meio). Costuma ser uma falha de rede momentânea ou uma rede WiFi cheia.",
       "fazer": [
         "Volta a correr o setup. Os passos já feitos são saltados.",
-        "Se falhar sempre no mesmo ficheiro, verifica a rede e o proxy (códigos E-NET-01 e E-NET-03)."
+        "Se falhar sempre no mesmo ficheiro, experimenta outra rede (por exemplo, o hotspot do telemóvel) e verifica o proxy (códigos E-NET-01 e E-NET-03)."
       ],
       "mac": [
         "{ONE_LINER_MAC}"
       ],
       "windows": [
         "{ONE_LINER_WINDOWS}"
+      ]
+    },
+    "E-NET-08": {
+      "titulo": "O Claude Code está configurado com um proxy que não responde nesta rede",
+      "so": "todos",
+      "causa": "O bloco \"env\" do ~/.claude/settings.json tem HTTPS_PROXY, e o Claude Code usa-o mesmo quando o teu terminal não tem proxy. Esse proxy não responde aqui. Costuma ser um proxy que o setup gravou noutra rede (por exemplo, o proxy do escritório).",
+      "fazer": [
+        "Volta a correr o setup nesta rede: ele tira ou atualiza o proxy que gravou.",
+        "Se foste tu que acrescentaste este proxy, apaga as linhas HTTPS_PROXY e NO_PROXY do bloco \"env\" do ~/.claude/settings.json.",
+        "De volta à rede do escritório, corre o setup outra vez para repor o proxy."
+      ],
+      "mac": [
+        "{ONE_LINER_MAC}",
+        "grep -n -i proxy ~/.claude/settings.json"
+      ],
+      "windows": [
+        "{ONE_LINER_WINDOWS}",
+        "Select-String -Path \"$HOME\\.claude\\settings.json\" -Pattern proxy"
       ]
     },
     "E-SO-01": {

@@ -394,33 +394,130 @@ ws_sha256() {
 # Procura o hash de um ficheiro num SHA256SUMS ("<hash>  nome" ou "<hash> *nome").
 ws_sum_for() { awk -v f="$2" '{n=$2; sub(/^\*/,"",n); if (n==f) {print tolower($1); exit}}' "$1" 2>/dev/null; }
 
+# Limites de todos os downloads: ligar em 20 s; uma transferencia parada (menos de 1 KB/s durante 60 s, ex.: WiFi
+# cheio) falha com o codigo 28 e o curl tenta mais 2 vezes. Sem --max-time: um download lento mas a andar nunca e cortado.
+WS_CURL_LIMITS="--retry 2 --connect-timeout 20 --speed-limit 1024 --speed-time 60"
+# HTTP final, HTTP do CONNECT do proxy (o 407 de um proxy com autenticacao so aparece ai) e o URL final (depois do -L).
+WS_CURL_W='%{http_code} %{http_connect} %{url_effective}'
+
+# Codigo HTTP a partir de http_code e http_connect: um 407 (ou outra recusa) no CONNECT do proxy conta como esse codigo.
+ws_http_of() { # http_code http_connect
+  case "${2:-000}" in 407) echo 407; return ;; 000|2??) ;; *) [ "${1:-000}" = 000 ] && { echo "$2"; return; } ;; esac
+  echo "${1:-000}"
+}
+
+# Pagina web (bloqueio de um filtro ou proxy, portal de WiFi) em vez do ficheiro: comeca por uma marca HTML.
+# Os scripts comecam por "#!" e os arquivos por bytes binarios, por isso nunca dao falso positivo.
+ws_is_html() {
+  head -c 512 "$1" 2>/dev/null | LC_ALL=C tr -d ' \t\r\n\357\273\277' | head -c 160 |
+    LC_ALL=C grep -aqiE '^(<\?xml[^>]*>)?(<!--[^>]*-->)?<(!doctypehtml|html|head|body)'
+}
+
+# Enquanto um download corre, mostra de 30 em 30 s quanto ja chegou (nunca mais de um minuto sem nada no ecra).
+ws_heartbeat() { # ficheiros ou pastas a medir
+  local mb
+  while sleep "${WS_HB_EVERY:-30}" </dev/null >/dev/null 2>&1; do
+    mb=$(du -skc "$@" 2>/dev/null </dev/null | tail -n 1 | LC_ALL=C awk '{ m = $1 / 1024; if (m < 10) printf "%.1f", m; else printf "%d", m }')
+    printf '  %s\n' "$(ws_msg a_descarregar_mb MB="${mb:-0}")"
+  done
+}
+ws_hb_start() { ws_hb_stop; ws_heartbeat "$@" & WS_HB=$!; }
+ws_hb_stop() { [ -n "${WS_HB:-}" ] || return 0; kill "$WS_HB" 2>/dev/null; wait "$WS_HB" 2>/dev/null; WS_HB=""; }
+
+# Pasta para CURL_HOME dos instaladores oficiais (install.sh do Claude Code e do uv), que chamam o curl sem limites:
+# o curlrc da pessoa (proxy, certificados...) mais os limites do setup, que vem depois e por isso ganham.
+ws_curl_home() {
+  local d="$WS_TMP/curlhome" f
+  mkdir -p "$d"
+  # A mesma ordem que o curl: $CURL_HOME/.curlrc, $XDG_CONFIG_HOME/curlrc, ~/.curlrc (so o primeiro que existir).
+  for f in "${CURL_HOME:+$CURL_HOME/.curlrc}" "${XDG_CONFIG_HOME:+$XDG_CONFIG_HOME/curlrc}" "$HOME/.curlrc"; do
+    [ -n "$f" ] && [ -f "$f" ] && { cat "$f" 2>/dev/null; printf '\n'; break; }
+  done > "$d/.curlrc"
+  printf '%s\n' 'connect-timeout = 20' 'speed-limit = 1024' 'speed-time = 60' 'retry = 2' >> "$d/.curlrc"
+  printf '%s' "$d"
+}
+# Um instalador oficial falhou por causa da rede? O curl dele escreve "curl: (N) ..." no log do passo (so se olha
+# para o que veio depois de $1 bytes). Devolve o codigo de rede; nada (1) se nao for claramente a rede.
+ws_installer_net_code() { # bytes-do-log-antes
+  local line rc c
+  line=$(tail -c +"$(( ${1:-0} + 1 ))" "$WS_STEP_LOG" 2>/dev/null | grep -aE 'curl: \([0-9]+\)' | tail -n 1)
+  [ -n "$line" ] || return 1
+  case "$line" in *"Operation too slow"*|*"transfer closed with"*) echo E-NET-07; return 0 ;; esac
+  rc=${line#*curl: (}; rc=${rc%%)*}
+  c=$(ws_net_code "$rc" 000); [ "$c" = E-NET-07 ] && return 1
+  echo "$c"
+}
+
 # Download para um ficheiro (via .part). $3=auth envia o REPO_TOKEN so ao servidor do repositorio.
-# Define WS_DL_HTTP (codigo HTTP) e WS_DL_RC (codigo do curl).
+# Define WS_DL_HTTP (codigo HTTP, ver ws_http_of; "html" se veio uma pagina web em vez do ficheiro), WS_DL_RC
+# (codigo do curl) e WS_DL_HOST (o servidor final, so se o pedido foi redirecionado para outro).
 ws_dl() {
-  local url=$1 out=$2 auth=${3:-} part="$2.part" host
+  local url=$1 out=$2 auth=${3:-} part="$2.part" host w code conn
   rm -f "$part"
   ws_log "download: $url"
   host=${url#*://}; host=${host%%/*}
+  ws_hb_start "$part"
+  # shellcheck disable=SC2086  # WS_CURL_LIMITS sao varias opcoes
   if [ "$auth" = auth ] && [ -n "${REPO_TOKEN:-}" ] && { [ "$host" = "$D_REPO_HOST" ] || [ "$host" = "${D_MEMORY_HOST:-$D_REPO_HOST}" ]; }; then
-    WS_DL_HTTP=$(printf 'header = "Authorization: token %s"\n' "$REPO_TOKEN" |
-      curl -fsSL --retry 2 --connect-timeout 20 -A "$WS_UA" -w '%{http_code}' -K - -o "$part" "$url" 2>>"$WS_STEP_LOG")
+    w=$(printf 'header = "Authorization: token %s"\n' "$REPO_TOKEN" |
+      curl -fsSL $WS_CURL_LIMITS -A "$WS_UA" -w "$WS_CURL_W" -K - -o "$part" "$url" 2>>"$WS_STEP_LOG")
   else
-    WS_DL_HTTP=$(curl -fsSL --retry 2 --connect-timeout 20 -A "$WS_UA" -w '%{http_code}' -o "$part" "$url" 2>>"$WS_STEP_LOG" </dev/null)
+    w=$(curl -fsSL $WS_CURL_LIMITS -A "$WS_UA" -w "$WS_CURL_W" -o "$part" "$url" 2>>"$WS_STEP_LOG" </dev/null)
   fi
   WS_DL_RC=$?
-  ws_log "  -> curl $WS_DL_RC, HTTP $WS_DL_HTTP"
+  ws_hb_stop
+  code=${w%% *}; w=${w#"$code"}; w=${w# }; conn=${w%% *}; w=${w#"$conn"}; w=${w# }
+  WS_DL_HTTP=$(ws_http_of "$code" "$conn")
+  # So o nome do servidor final vai para o log: os URLs de release-assets levam uma assinatura na query string.
+  WS_DL_HOST=${w#*://}; WS_DL_HOST=${WS_DL_HOST%%[/?]*}
+  [ "$WS_DL_HOST" = "$host" ] && WS_DL_HOST=""
+  ws_log "  -> curl $WS_DL_RC, HTTP $WS_DL_HTTP${WS_DL_HOST:+, redirected to $WS_DL_HOST}"
+  if [ "$WS_DL_RC" -eq 0 ] && [ -s "$part" ] && ws_is_html "$part"; then
+    ws_log "  -> HTML page instead of the file (proxy, content filter or WiFi login page)"
+    WS_DL_RC=1; WS_DL_HTTP=html
+  fi
   if [ "$WS_DL_RC" -eq 0 ] && [ -s "$part" ]; then mv -f "$part" "$out"; return 0; fi
   rm -f "$part"
   [ "$WS_DL_RC" -eq 0 ] && WS_DL_RC=1
   return "$WS_DL_RC"
 }
 
-# Codigo de erro de rede a partir do codigo do curl / HTTP.
+# Download com verificacao do SHA-256. Se nao bater certo (ficheiro truncado ou alterado pelo caminho), apaga-o e
+# descarrega uma segunda vez. 0 = ok; 1 = o download falhou (ver WS_DL_*); 2 = o SHA-256 nao bate certo.
+ws_dl_check() { # url destino sha256-esperado [auth]
+  local want got try=1
+  want=$(printf '%s' "$3" | tr 'A-F' 'a-f')
+  while :; do
+    ws_dl "$1" "$2" "${4:-}" || return 1
+    got=$(ws_sha256 "$2")
+    [ -n "$want" ] && [ "$got" = "$want" ] && return 0
+    ws_log "  -> SHA-256 $got != ${want:-?} (try $try)"
+    rm -f "$2"
+    [ -n "$want" ] && [ "$try" = 1 ] || return 2
+    try=2
+  done
+}
+
+# Falha de um download (depois de ws_dl): o codigo vem do curl/HTTP; o detalhe junta o servidor final, quando o pedido
+# foi redirecionado (ex.: github.com -> release-assets.githubusercontent.com, o que o IT tem de libertar), e o HTTP.
+ws_dl_fail() { # o-que-falhou
+  local d=$1
+  [ -n "${WS_DL_HOST:-}" ] && d="$WS_DL_HOST · $d"
+  case "${WS_DL_HTTP:-}" in [45]??) d="$d · HTTP $WS_DL_HTTP" ;; html) d="$d · $(ws_m dl_html)" ;; esac
+  ws_fail "$(ws_net_code "${WS_DL_RC:-1}" "${WS_DL_HTTP:-000}")" "$d"
+}
+
+# Codigo de erro de rede a partir do codigo do curl / HTTP (HTTP ja passado por ws_http_of).
+# Com o proxy da sessao morto (WS_PROXY_DEAD, ver ws_detect_proxy), "nao liga" e "nao resolve" sao do proxy.
 ws_net_code() { # rc http
-  case "$2" in 407) echo E-NET-03; return ;; esac
+  case "$2" in 407) echo E-NET-03; return ;; 403|451|html) echo E-NET-01; return ;; esac
+  # A resposta chegou (2xx) e a transferencia parou ou partiu-se a meio: falha passageira, nao um bloqueio.
+  case "$1:$2" in 18:2??|28:2??|56:2??|92:2??) echo E-NET-07; return ;; esac
   case "$1" in
-    6) echo E-NET-02 ;;
-    5|7|28|52|55|56) echo E-NET-01 ;;
+    5|97) echo E-NET-03 ;;
+    6) if [ "${WS_PROXY_DEAD:-0}" = 1 ]; then echo E-NET-03; else echo E-NET-02; fi ;;
+    7|28) if [ "${WS_PROXY_DEAD:-0}" = 1 ]; then echo E-NET-03; else echo E-NET-01; fi ;;
+    52|55|56) echo E-NET-01 ;;
     35|51|53|54|58|59|60|77|83|90|91) echo E-NET-04 ;;
     *) echo E-NET-07 ;;
   esac
@@ -481,6 +578,8 @@ EOF
   fi
   if [ -n "$f" ] && { [ "$st" = falhou ] || [ "$st" = falta ]; }; then ws_print_code "${f%%|*}" "${f#*|}" "     "; fi
   [ -z "$d" ] && [ -n "$f" ] && ws_set SD "$n" "$(ws_fill "$(ws_err_field "${f%%|*}" titulo)") (${f%%|*})"
+  # Um passo nao bloqueante que falhou (10, 11) fica "aviso" sem falha: o resumo mostra o primeiro aviso, nao um vazio.
+  [ -z "$d" ] && [ -z "$f" ] && [ "$st" = aviso ] && [ -n "$w" ] && ws_set SD "$n" "$(ws_fill "$(ws_err_field "${w%%|*}" titulo)") (${w%%|*})"
   if [ -n "$w" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] || continue
@@ -785,30 +884,35 @@ ws_kit_ensure() {
   local dest="$WS_HOME/kit-src/$C_WORKSHOP_VERSION"
   if [ -f "$dest/.ws-kit-ok" ]; then KIT_SRC=$dest; return 0; fi
   [ "$WS_MODE" = install ] || return 1
-  local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd sum
+  local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd rc
   url=$(ws_release_url workshop "$name")
   tmpd="$WS_TMP/kit"; rm -rf "$tmpd"; mkdir -p "$tmpd/x"
   ws_say "  $(ws_msg a_descarregar O_QUE="$name")"
-  if ws_dl "$url" "$tmpd/$name" auth; then
-    sum=$(ws_sha256 "$tmpd/$name")
-    if [ -n "$WS_INJ_KIT_SHA256" ] && [ "$sum" != "$WS_INJ_KIT_SHA256" ]; then
-      ws_log "kit SHA-256 mismatch: $sum != $WS_INJ_KIT_SHA256"
-      ws_warn E-KIT-02 "$name"
-    elif tar -xzf "$tmpd/$name" -C "$tmpd/x" 2>>"$WS_STEP_LOG" && [ -d "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" ]; then
+  # Com o SHA-256 injetado (release), um arquivo truncado ou alterado e descarregado uma segunda vez.
+  if [ -n "$WS_INJ_KIT_SHA256" ]; then ws_dl_check "$url" "$tmpd/$name" "$WS_INJ_KIT_SHA256" auth; else ws_dl "$url" "$tmpd/$name" auth; fi
+  rc=$?
+  if [ "$rc" = 2 ]; then
+    ws_log "kit SHA-256 mismatch (expected $WS_INJ_KIT_SHA256)"
+    ws_warn E-KIT-02 "$name"
+  elif [ "$rc" = 0 ]; then
+    if tar -xzf "$tmpd/$name" -C "$tmpd/x" 2>>"$WS_STEP_LOG" && [ -d "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" ]; then
       rm -rf "$dest"; mkdir -p "$(dirname "$dest")"
       mv "$tmpd/x/workshop-kit-$C_WORKSHOP_VERSION" "$dest" && date > "$dest/.ws-kit-ok"
       KIT_SRC=$dest; return 0
     fi
   fi
   # Recurso: git clone da tag (o REPO_TOKEN, se existir, vai por variaveis de configuracao do git).
+  # Os mesmos limites que o ws_dl: uma transferencia parada (menos de 1 KB/s durante 60 s) falha.
   command -v git >/dev/null 2>&1 && xcode_ok || return 1
   rm -rf "$tmpd/clone"
   ws_log "fallback: git clone --depth 1 --branch $C_WORKSHOP_VERSION $C_WORKSHOP_REPO_URL"
   if [ -n "${REPO_TOKEN:-}" ]; then
     GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $REPO_TOKEN" GIT_TERMINAL_PROMPT=0 \
+      GIT_HTTP_LOW_SPEED_LIMIT=1024 GIT_HTTP_LOW_SPEED_TIME=60 \
       git clone -q --depth 1 --branch "$C_WORKSHOP_VERSION" "$C_WORKSHOP_REPO_URL" "$tmpd/clone" </dev/null >>"$WS_STEP_LOG" 2>&1
   else
-    GIT_TERMINAL_PROMPT=0 git clone -q --depth 1 --branch "$C_WORKSHOP_VERSION" "$C_WORKSHOP_REPO_URL" "$tmpd/clone" </dev/null >>"$WS_STEP_LOG" 2>&1
+    GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1024 GIT_HTTP_LOW_SPEED_TIME=60 \
+      git clone -q --depth 1 --branch "$C_WORKSHOP_VERSION" "$C_WORKSHOP_REPO_URL" "$tmpd/clone" </dev/null >>"$WS_STEP_LOG" 2>&1
   fi || return 1
   rm -rf "$tmpd/clone/.git" "$dest"; mkdir -p "$(dirname "$dest")"
   mv "$tmpd/clone" "$dest" && date > "$dest/.ws-kit-ok" && KIT_SRC=$dest
@@ -856,31 +960,100 @@ ws_s0_detect() {
   ws_detect_proxy
   ws_detect_tls
   ws_check_network
+  # O Claude Code usa o proxy do settings.json mesmo que o terminal ja nao tenha nenhum (o passo 8 tira o que o setup gravou).
+  ws_settings_proxy_dead && ws_note "$(ws_msg s0_proxy_settings PROXY="$WS_SP_SHOW")"
   ws_detail "$WS_OS · ${WS_LANG:-en} · $(ws_msg s0_rede_ok OK="$WS_NET_OK" TOTAL="$WS_NET_TOTAL")"
   return 0
 }
 ws_s0_install() { ws_s0_detect; }
 
+# Proxy da sessao. O curl usa HTTPS_PROXY/https_proxy e, sem eles, ALL_PROXY/all_proxy (HTTP_PROXY nao conta para
+# https). WS_PROXY_ENV e o proxy em uso, para mostrar; WS_PROXY e o que vai para o settings.json do Claude Code: so
+# HTTPS_PROXY ou o proxy do sistema (o Claude Code nao usa ALL_PROXY nem SOCKS), e nunca um proxy que nao responde.
 ws_detect_proxy() {
-  WS_PROXY=""
-  local p=${HTTPS_PROXY:-${https_proxy:-}} out en host port pac
-  if [ -n "$p" ]; then WS_PROXY=$p; ws_note "$(ws_msg s0_proxy_sistema PROXY="$p (HTTPS_PROXY)")"; return; fi
-  out=$(scutil --proxy 2>/dev/null)
-  en=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSEnable/{print $2}' | tr -d ' ')
-  host=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSProxy/{print $2}' | tr -d ' ')
-  port=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSPort/{print $2}' | tr -d ' ')
-  if [ "$en" = 1 ] && [ -n "$host" ]; then
-    WS_PROXY="http://$host:${port:-8080}"
-    export HTTPS_PROXY="$WS_PROXY" https_proxy="$WS_PROXY"
-    export NO_PROXY="localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}"
-    ws_note "$(ws_msg s0_proxy_sistema PROXY="$WS_PROXY")"
-    return
+  WS_PROXY=""; WS_PROXY_ENV=""; WS_PROXY_DEAD=0
+  local v p="" out en host port pac
+  for v in HTTPS_PROXY https_proxy ALL_PROXY all_proxy; do
+    p=${!v:-}; [ -n "$p" ] && break
+  done
+  if [ -n "$p" ]; then
+    WS_PROXY_ENV="$(ws_proxy_show "$p") ($v)"
+    case "$v" in HTTPS_PROXY|https_proxy) WS_PROXY=$p ;; esac
+    ws_note "$(ws_msg s0_proxy_sistema PROXY="$WS_PROXY_ENV")"
+  else
+    out=$(scutil --proxy 2>/dev/null)
+    en=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSEnable/{print $2}' | tr -d ' ')
+    host=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSProxy/{print $2}' | tr -d ' ')
+    port=$(printf '%s\n' "$out" | awk -F' : ' '/HTTPSPort/{print $2}' | tr -d ' ')
+    if [ "$en" = 1 ] && [ -n "$host" ]; then
+      p="http://$host:${port:-8080}"; WS_PROXY=$p; WS_PROXY_ENV=$p
+      export HTTPS_PROXY="$p" https_proxy="$p"
+      export NO_PROXY="localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}"
+      ws_note "$(ws_msg s0_proxy_sistema PROXY="$p")"
+    else
+      pac=$(printf '%s\n' "$out" | awk -F' : ' '/ProxyAutoConfigURLString/{print $2}' | tr -d ' ')
+      if [ "$(printf '%s\n' "$out" | awk -F' : ' '/ProxyAutoConfigEnable/{print $2}' | tr -d ' ')" = 1 ] && [ -n "$pac" ]; then
+        WS_PAC=$pac; ws_note "$(ws_msg s0_proxy_pac PAC="$pac")"; return
+      fi
+      ws_note "$(ws_m s0_sem_proxy)"; return
+    fi
   fi
-  pac=$(printf '%s\n' "$out" | awk -F' : ' '/ProxyAutoConfigURLString/{print $2}' | tr -d ' ')
-  if [ "$(printf '%s\n' "$out" | awk -F' : ' '/ProxyAutoConfigEnable/{print $2}' | tr -d ' ')" = 1 ] && [ -n "$pac" ]; then
-    WS_PAC=$pac; ws_note "$(ws_msg s0_proxy_pac PAC="$pac")"; return
+  # Um proxy que ficou da rede do escritorio ou de uma VPN antiga: nome que nao resolve, porta fechada, SOCKS morto.
+  if ws_proxy_dead "$p"; then
+    WS_PROXY_DEAD=1; WS_PROXY=""
+    ws_log "proxy does not answer: $WS_PROXY_ENV"
   fi
-  ws_note "$(ws_m s0_sem_proxy)"
+}
+
+# Proxy para mostrar no ecra, sem utilizador nem palavra-passe (http://u:p@proxy:8080 -> http://proxy:8080).
+ws_proxy_show() { case "$1" in *://*@*) printf '%s://%s' "${1%%://*}" "${1##*@}" ;; *@*) printf '%s' "${1##*@}" ;; *) printf '%s' "$1" ;; esac; }
+
+# 0 se o proxy nao responde: nao resolve (5), recusa a ligacao (7), falha o SOCKS (97) ou nem aceita a ligacao em 5 s.
+# Um proxy que responde, mesmo com 407 ou 403, conta como vivo (esses casos sao tratados pelo codigo HTTP).
+ws_proxy_dead() { # url-do-proxy
+  local w rc
+  [ -n "$1" ] || return 1
+  [ "$1" = "${WS_PROBE_URL:-}" ] && return "$WS_PROBE_RC"
+  w=$(curl -sS -o /dev/null --connect-timeout 5 -m 15 -x "$1" -A "$WS_UA" -w '%{time_connect}' https://api.anthropic.com/ 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  ws_log "proxy probe: $(ws_proxy_show "$1") -> curl $rc, connect ${w:-?}"
+  WS_PROBE_URL=$1; WS_PROBE_RC=1
+  case "$rc" in
+    5|7|97) WS_PROBE_RC=0 ;;
+    28) awk -v t="${w:-0}" 'BEGIN { exit !(t + 0 == 0) }' && WS_PROBE_RC=0 ;;
+  esac
+  return "$WS_PROBE_RC"
+}
+
+# Proxy no "env" do settings.json do Claude Code: o Claude Code aplica-o por cima do ambiente do terminal.
+ws_settings_proxy() {
+  local f="$CLAUDE_DIR/settings.json" k p
+  [ -f "$f" ] || return 1
+  for k in HTTPS_PROXY https_proxy; do
+    p=$(plutil -extract "env.$k" raw -o - "$f" 2>/dev/null </dev/null) && [ -n "$p" ] && { printf '%s' "$p"; return 0; }
+  done
+  return 1
+}
+# 0 se o Claude Code esta configurado com um proxy que nao responde nesta rede (ex.: o do escritorio, gravado por um
+# setup anterior). WS_SP_SHOW fica com o proxy e o ficheiro, para mostrar.
+# shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
+ws_settings_proxy_dead() {
+  local p f="$CLAUDE_DIR/settings.json"
+  p=$(ws_settings_proxy) || return 1
+  case "$f" in "$HOME"/*) f="~/${f#"$HOME"/}" ;; esac
+  WS_SP_SHOW="$(ws_proxy_show "$p") · $f"
+  ws_proxy_dead "$p"
+}
+
+# NO_PROXY para o settings.json: localhost,127.0.0.1 mais o NO_PROXY da sessao, sem repetidos (nunca se perdem
+# as excecoes da pessoa, ex.: os servidores internos da empresa).
+ws_no_proxy() {
+  local rest="localhost,127.0.0.1,${NO_PROXY:-},${no_proxy:-}" x out=""
+  while [ -n "$rest" ]; do
+    x=${rest%%,*}; case "$rest" in *,*) rest=${rest#*,} ;; *) rest="" ;; esac
+    x=$(ws_trim "$x"); [ -n "$x" ] || continue
+    case ",$out," in *",$x,"*) ;; *) out="${out:+$out,}$x" ;; esac
+  done
+  printf '%s' "$out"
 }
 
 # Variaveis que impedem o uv de usar o Python gerido (a app Memoria precisa dele).
@@ -928,12 +1101,15 @@ ws_detect_tls() {
 }
 
 ws_check_network() {
-  local hosts h i=0 dir="$WS_TMP/rede" base fails="" rc code
-  mkdir -p "$dir"
+  local hosts h u i=0 dir="$WS_TMP/rede" base fails="" rc code conn cprobe=$C_CLAUDE_INSTALL_SH_URL
+  mkdir -p "$dir"; rm -f "$dir/codes"
   hosts=""
   for h in $C_NET_CHECK_HOSTS "$D_REPO_HOST" "$D_MEMORY_HOST"; do
     [ -n "$h" ] || continue
-    case " $hosts " in *" https://$h/ "*) ;; *) hosts="$hosts https://$h/" ;; esac
+    # A raiz do claude.ai responde 403 ao curl mesmo numa rede aberta: testa-se o instalador (302 com a rede aberta),
+    # para um filtro que devolve 403 nao passar por "acessivel".
+    u="https://$h/"; [ "$u" = "$(ws_url_base "$cprobe")" ] && u=$cprobe
+    case " $hosts " in *" $u "*) ;; *) hosts="$hosts $u" ;; esac
   done
   base=$(ws_url_base "$D_KIT_URL_MAC")
   case " $hosts " in *" $base "*) ;; *) hosts="$hosts $base" ;; esac
@@ -942,24 +1118,32 @@ ws_check_network() {
   ws_say "  $(ws_msg a_verificar_rede N="$WS_NET_TOTAL")"
   for h in $hosts; do
     i=$((i + 1))
-    ( code=$(curl -sS -o /dev/null --connect-timeout 8 -m 12 -A "$WS_UA" -w '%{http_code}' "$h" 2>"$dir/$i.err" </dev/null); printf '%s %s %s\n' "$?" "$code" "$h" > "$dir/$i.res" ) &
+    ( code=$(curl -sS -o /dev/null --connect-timeout 8 -m 12 -A "$WS_UA" -w '%{http_code} %{http_connect}' "$h" 2>"$dir/$i.err" </dev/null); printf '%s %s %s\n' "$?" "$code" "$h" > "$dir/$i.res" ) &
   done
   wait
   WS_NET_OK=0; WS_NET_API_OK=1
   i=0
   for h in $hosts; do
     i=$((i + 1))
-    read -r rc code _ < "$dir/$i.res" 2>/dev/null || { rc=99; code=000; }
+    read -r rc code conn _ < "$dir/$i.res" 2>/dev/null || { rc=99; code=000; conn=000; }
+    code=$(ws_http_of "$code" "$conn")
     ws_log "network: $h -> curl $rc HTTP $code $(tr '\n' ' ' < "$dir/$i.err" 2>/dev/null)"
-    if [ "$rc" = 0 ] && [ "$code" != 407 ]; then WS_NET_OK=$((WS_NET_OK + 1)); continue; fi
-    fails="$fails ${h#https://}"; fails=${fails%/}
+    if [ "$rc" = 0 ] && [ "$code" != 407 ] && ! { [ "$h" = "$cprobe" ] && { [ "$code" = 403 ] || [ "$code" = 451 ]; }; }; then
+      WS_NET_OK=$((WS_NET_OK + 1)); continue
+    fi
+    u=${h#*://}; fails="$fails ${u%%/*}"
     case "$h" in *api.anthropic.com*) WS_NET_API_OK=0 ;; esac
     ws_net_code "$rc" "$code" >> "$dir/codes"
   done
   if [ -n "$fails" ]; then
     ws_note "$(ws_msg s0_rede_falha LISTA="$(ws_trim "$fails")")"
-    [ "$WS_NET_API_OK" = 0 ] && ws_warn E-NET-05 "api.anthropic.com"
-    local c; while IFS= read -r c; do [ -n "$c" ] && ws_warn "$c" "$(ws_trim "$fails")"; done < <(sort -u "$dir/codes")
+    # Se a causa e o proxy (E-NET-03), o E-NET-05 ("define o HTTPS_PROXY") so confundia.
+    [ "$WS_NET_API_OK" = 0 ] && ! grep -qx E-NET-03 "$dir/codes" && ws_warn E-NET-05 "api.anthropic.com"
+    local c d; while IFS= read -r c; do
+      [ -n "$c" ] || continue
+      d=$(ws_trim "$fails"); [ "$c" = E-NET-03 ] && [ -n "${WS_PROXY_ENV:-}" ] && d=$WS_PROXY_ENV
+      ws_warn "$c" "$d"
+    done < <(sort -u "$dir/codes")
   fi
 }
 
@@ -987,10 +1171,10 @@ ws_s1_install() {
   if [ "$WS_ARCH" = arm64 ]; then file=$C_GIT_MAC_FILE_ARM64; sha=$C_GIT_MAC_SHA256_ARM64; else file=$C_GIT_MAC_FILE_X64; sha=$C_GIT_MAC_SHA256_X64; fi
   url=$(ws_expand "$C_GIT_MAC_URL" "" "" "" "" "$C_GIT_MAC_VERSION" "$file" "")
   d="$WS_TMP/git"; mkdir -p "$d" "$WS_HOME/bin" || { ws_fail E-PERM-01 "$WS_HOME"; return 1; }
-  if ! ws_dl "$url" "$d/$file"; then ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; fi
-  # ws_sha256 e o stderr do tar no log: com um locale invalido (LC_ALL=en_US.utf8 vindo do Linux) o shasum (perl)
-  # e o tar escrevem avisos de locale, que nao devem aparecer no terminal.
-  if [ "$(ws_sha256 "$d/$file")" != "$sha" ]; then ws_fail E-GIT-04 "SHA-256 $file"; return 1; fi
+  ws_dl_check "$url" "$d/$file" "$sha"
+  case $? in 1) ws_dl_fail "$url"; return 1 ;; 2) ws_fail E-GIT-04 "SHA-256 $file"; return 1 ;; esac
+  # O stderr do tar vai para o log: com um locale invalido (LC_ALL=en_US.utf8 vindo do Linux) o tar escreve
+  # avisos de locale, que nao devem aparecer no terminal.
   rm -rf "$WS_HOME/git.tmp" && mkdir -p "$WS_HOME/git.tmp" && tar -xzf "$d/$file" -C "$WS_HOME/git.tmp" 2>>"$WS_STEP_LOG" ||
     { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
   rm -rf "$WS_HOME/git" && mv "$WS_HOME/git.tmp" "$WS_HOME/git" || { ws_fail E-PERM-01 "$WS_HOME/git"; return 1; }
@@ -1023,8 +1207,14 @@ ws_s2_detect() {
 ws_s2_install() {
   local f="$WS_TMP/claude-install.sh" v
   ws_say "  $(ws_m a_instalar)"
-  if ! ws_dl "$C_CLAUDE_INSTALL_SH_URL" "$f"; then ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$C_CLAUDE_INSTALL_SH_URL"; return 1; fi
-  ws_run bash "$f" "$C_CLAUDE_CODE_VERSION" || { ws_fail E-CC-01 "install.sh"; return 1; }
+  if ! ws_dl "$C_CLAUDE_INSTALL_SH_URL" "$f"; then ws_dl_fail "$C_CLAUDE_INSTALL_SH_URL"; return 1; fi
+  # O install.sh chama o curl sem limites: com o curlrc do setup (ws_curl_home) uma transferencia parada falha em vez
+  # de esperar para sempre. O progresso vai aparecendo enquanto descarrega (sao mais de 200 MB).
+  local ch rc n0; ch=$(ws_curl_home); n0=$(wc -c < "$WS_STEP_LOG")
+  ws_hb_start "$HOME/.claude/downloads" "$HOME/.local/share/claude/versions"
+  CURL_HOME="$ch" ws_run bash "$f" "$C_CLAUDE_CODE_VERSION"; rc=$?
+  ws_hb_stop
+  [ "$rc" = 0 ] || { ws_fail "$(ws_installer_net_code "$n0" || echo E-CC-01)" "install.sh"; return 1; }
   ws_path_setup
   WS_CLAUDE="$HOME/.local/bin/claude"
   [ -x "$WS_CLAUDE" ] || { ws_fail E-CC-01 "$WS_CLAUDE"; return 1; }
@@ -1183,10 +1373,11 @@ ws_s4_install() {
     rm -rf "$d"; mkdir -p "$d/x"
     url=$(ws_expand "$C_NODE_DIST_URL" "" "" "" "" "$C_NODE_VERSION" "$file" "")
     ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
-    ws_dl "$(ws_expand "$C_NODE_DIST_URL" "" "" "" "" "$C_NODE_VERSION" SHASUMS256.txt "")" "$d/SHASUMS256.txt" &&
-      ws_dl "$url" "$d/$file" || { ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; }
-    want=$(ws_sum_for "$d/SHASUMS256.txt" "$file"); got=$(ws_sha256 "$d/$file")
-    if [ -z "$want" ] || [ "$want" != "$got" ]; then ws_fail E-NODE-01 "SHA-256 $file"; return 1; fi
+    sums=$(ws_expand "$C_NODE_DIST_URL" "" "" "" "" "$C_NODE_VERSION" SHASUMS256.txt "")
+    ws_dl "$sums" "$d/SHASUMS256.txt" || { ws_dl_fail "$sums"; return 1; }
+    want=$(ws_sum_for "$d/SHASUMS256.txt" "$file")
+    ws_dl_check "$url" "$d/$file" "$want"
+    case $? in 1) ws_dl_fail "$url"; return 1 ;; 2) ws_fail E-NODE-01 "SHA-256 $file"; return 1 ;; esac
     ws_run tar -xJf "$d/$file" -C "$d/x" || { ws_fail E-NODE-01 "tar"; return 1; }
     rm -rf "$WS_HOME/node.old"; [ -d "$WS_HOME/node" ] && mv "$WS_HOME/node" "$WS_HOME/node.old"
     mv "$d/x/node-v$C_NODE_VERSION-darwin-$WS_ARCH" "$WS_HOME/node" || { ws_fail E-PERM-01 "$WS_HOME/node"; return 1; }
@@ -1210,8 +1401,13 @@ ws_s5_detect() {
 ws_s5_install() {
   local f="$WS_TMP/uv-install.sh" url
   url=$(ws_expand "$C_UV_INSTALL_SH_URL" "" "" "" "" "$C_UV_VERSION" "" "")
-  ws_dl "$url" "$f" || { ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; }
-  UV_NO_MODIFY_PATH=1 UV_INSTALL_DIR="$HOME/.local/bin" ws_run sh "$f" || { ws_fail E-UV-01 "install.sh"; return 1; }
+  ws_dl "$url" "$f" || { ws_dl_fail "$url"; return 1; }
+  # Como no passo 2: o instalador do uv usa o curl sem limites (curlrc do setup) e descarrega para uma pasta nossa.
+  local ch t="$WS_TMP/uv-tmp" rc n0; ch=$(ws_curl_home); mkdir -p "$t"; n0=$(wc -c < "$WS_STEP_LOG")
+  ws_hb_start "$t"
+  TMPDIR="$t" CURL_HOME="$ch" UV_NO_MODIFY_PATH=1 UV_INSTALL_DIR="$HOME/.local/bin" ws_run sh "$f"; rc=$?
+  ws_hb_stop
+  [ "$rc" = 0 ] || { ws_fail "$(ws_installer_net_code "$n0" || echo E-UV-01)" "install.sh"; return 1; }
   ws_path_setup
   ws_s5_detect || { ws_fail E-UV-01 "uv --version"; return 1; }
   ws_profile_update
@@ -1261,10 +1457,11 @@ ws_s6_install() {
   rm -rf "$d"; mkdir -p "$d/x"
   url=$(ws_expand "$C_GH_RELEASE_URL" "" "" "" "" "$C_GH_VERSION" "$file" "")
   ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
-  ws_dl "$(ws_expand "$C_GH_RELEASE_URL" "" "" "" "" "$C_GH_VERSION" "gh_${C_GH_VERSION}_checksums.txt" "")" "$d/sums" &&
-    ws_dl "$url" "$d/$file" || { ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "$url"; return 1; }
-  want=$(ws_sum_for "$d/sums" "$file"); got=$(ws_sha256 "$d/$file")
-  [ -n "$want" ] && [ "$want" = "$got" ] || { ws_fail E-GH-01 "SHA-256 $file"; return 1; }
+  sums=$(ws_expand "$C_GH_RELEASE_URL" "" "" "" "" "$C_GH_VERSION" "gh_${C_GH_VERSION}_checksums.txt" "")
+  ws_dl "$sums" "$d/sums" || { ws_dl_fail "$sums"; return 1; }
+  want=$(ws_sum_for "$d/sums" "$file")
+  ws_dl_check "$url" "$d/$file" "$want"
+  case $? in 1) ws_dl_fail "$url"; return 1 ;; 2) ws_fail E-GH-01 "SHA-256 $file"; return 1 ;; esac
   ws_run unzip -q -o "$d/$file" -d "$d/x" || { ws_fail E-GH-01 unzip; return 1; }
   mkdir -p "$WS_HOME/bin"
   cp -f "$d/x/gh_${C_GH_VERSION}_macOS_$a/bin/gh" "$WS_HOME/bin/gh.tmp" && mv -f "$WS_HOME/bin/gh.tmp" "$WS_HOME/bin/gh" || { ws_fail E-PERM-01 "$WS_HOME/bin"; return 1; }
@@ -1315,8 +1512,11 @@ ws_s7_acli_install() { # falhar aqui so deixa um aviso (WS_ACLI_ERR)
   url=$(ws_expand "$C_ACLI_MAC_URL" "" "" "" "" "$C_ACLI_VERSION" "$file" "")
   rm -rf "$d"; mkdir -p "$d/x" "$WS_HOME/bin" || { WS_ACLI_ERR="$WS_HOME/bin"; return 1; }
   ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
-  ws_dl "$url" "$d/$file" || { WS_ACLI_ERR="$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP") $url"; return 1; }
-  [ "$(ws_sha256 "$d/$file")" = "$sha" ] || { WS_ACLI_ERR="SHA-256 $file"; return 1; }
+  ws_dl_check "$url" "$d/$file" "$sha"
+  case $? in
+    1) WS_ACLI_ERR="$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP") ${WS_DL_HOST:+$WS_DL_HOST · }$url"; return 1 ;;
+    2) WS_ACLI_ERR="SHA-256 $file"; return 1 ;;
+  esac
   ws_run tar -xzf "$d/$file" -C "$d/x" || { WS_ACLI_ERR="tar $file"; return 1; }
   cp -f "$d/x/${file%.tar.gz}/acli" "$WS_HOME/bin/acli.tmp" && chmod +x "$WS_HOME/bin/acli.tmp" &&
     mv -f "$WS_HOME/bin/acli.tmp" "$WS_HOME/bin/acli" || { WS_ACLI_ERR="$WS_HOME/bin/acli"; return 1; }
@@ -1342,6 +1542,8 @@ ws_iu() { # subcomando [extra]
   set -- --node "$WS_NODE" --kit-src "$KIT_SRC" --lingua-maquina "${WS_LANG:-en}" "$@"
   [ -n "${WS_CA_PEM:-}" ] && set -- "$@" --ca-pem "$WS_CA_PEM"
   [ -n "${WS_PROXY:-}" ] && set -- "$@" --https-proxy "$WS_PROXY"
+  # Sem --https-proxy, o install-user tira o proxy que um setup anterior gravou (ex.: o do escritorio).
+  { [ -n "${WS_CA_PEM:-}" ] || [ -n "${WS_PROXY:-}" ]; } && set -- "$@" --no-proxy "$(ws_no_proxy)"
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
 ws_s8_parse() { # le a saida TSV de install-user
@@ -1543,15 +1745,17 @@ ws_s10_install() {
   local ver=${C_MEMORY_APP_VERSION#v} d="$WS_TMP/agent-memory" whl want got b f dist
   rm -rf "$d"; mkdir -p "$d"
   if ! ws_dl "$(ws_release_url memory SHA256SUMS)" "$d/SHA256SUMS" auth; then
-    case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$C_MEMORY_APP_VERSION" ;; *) ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "SHA256SUMS" ;; esac
+    case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$C_MEMORY_APP_VERSION" ;; *) ws_dl_fail SHA256SUMS ;; esac
     return 1
   fi
   whl=$(ws_memory_wheel "$ver" "$d/SHA256SUMS"); dist=${whl%%-*}
   ws_say "  $(ws_msg a_descarregar O_QUE="$whl")"
   for f in "$whl" constraints.txt; do
-    ws_dl "$(ws_release_url memory "$f")" "$d/$f" auth || { case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$f" ;; *) ws_fail E-NET-07 "$f" ;; esac; return 1; }
-    want=$(ws_sum_for "$d/SHA256SUMS" "$f"); got=$(ws_sha256 "$d/$f")
-    [ -n "$want" ] && [ "$want" = "$got" ] || { ws_fail E-MEM-02 "$f"; return 1; }
+    ws_dl_check "$(ws_release_url memory "$f")" "$d/$f" "$(ws_sum_for "$d/SHA256SUMS" "$f")" auth
+    case $? in
+      1) case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$f" ;; *) ws_dl_fail "$f" ;; esac; return 1 ;;
+      2) ws_fail E-MEM-02 "$f"; return 1 ;;
+    esac
   done
   ws_say "  $(ws_m a_instalar)"
   # O uv traz o seu proprio Python (--managed-python): nao depende de nenhum Python do sistema.
@@ -1678,6 +1882,8 @@ ws_s12_detect() {
 ws_s12_install() {
   local out="$WS_TMP/smoke.json" err="$WS_TMP/smoke.err" t0 t1
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
+  # Um proxy morto no settings.json faz o claude -p tentar em silencio durante 3 minutos: falha ja, com a causa.
+  if ws_settings_proxy_dead; then ws_fail E-NET-08 "$WS_SP_SHOW"; return 1; fi
   t0=$(date +%s)
   ( cd "$WS_TMP" && "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" > "$out" 2> "$err" </dev/null )
   local rc=$?; t1=$(date +%s)
@@ -1917,7 +2123,7 @@ ws_lock() {
   rm -rf "$l"; mkdir "$l" 2>/dev/null && echo $$ > "$l/pid"
 }
 
-ws_cleanup() { rm -rf "$WS_HOME/.lock" "${WS_TMP:-/nonexistent}" 2>/dev/null; }
+ws_cleanup() { [ -n "${WS_HB:-}" ] && kill "$WS_HB" 2>/dev/null; rm -rf "$WS_HOME/.lock" "${WS_TMP:-/nonexistent}" 2>/dev/null; }
 ws_interrupted() {
   printf '\n%s\n' "$(ws_m interrompido)" >&2
   ws_log "interrupted"

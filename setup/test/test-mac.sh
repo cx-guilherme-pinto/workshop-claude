@@ -513,6 +513,81 @@ done
 eq "$( HOME=$G2H; WS_HOME="$G2H/.workshop-claude"; PATH="/usr/bin:$G2H/.local/bin:/bin:$G2H/.local/bin"; ws_path_setup; printf '%s' "$PATH" )" \
   "$G2H/.local/bin:$G2H/.workshop-claude/bin:$G2H/.workshop-claude/node/bin:/usr/bin:/bin" "ws_path_setup poe as pastas a frente e sem duplicados"
 chmod -R u+rwx "$G2" 2>/dev/null
+# --- chaos G3-network: proxy 407 e proxy morto, download parado, servidor bloqueado, pagina HTML no lugar do ficheiro,
+#     proxy antigo no settings.json, NO_PROXY junto (curl falso na pasta g3/bin; o curl real so para 127.0.0.1:1, sem rede)
+G3="$WS_TMP/g3"; mkdir -p "$G3/bin" "$G3/h"; WS_UA=t; WS_STEP_LOG="$G3/step.log"; : > "$WS_STEP_LOG"
+cat > "$G3/bin/curl" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" > "$G3_ARGS"
+out=""; url=""; while [ $# -gt 0 ]; do case "$1" in -o) out=$2; shift ;; http*|file*) url=$1 ;; esac; shift; done
+case "$G3_MODE" in
+  407) printf '000 407 %s' "$url"; exit 22 ;;
+  redir-dns) printf '302 000 https://release-assets.example.test/f?sig=SEGREDO'; exit 6 ;;
+  html) printf '\n  <!DOCTYPE html><html><body>Blocked by the company filter</body></html>' > "$out"; printf '200 000 %s' "$url" ;;
+  trunc) n=$(($(cat "$G3_N" 2>/dev/null || echo 0) + 1)); echo "$n" > "$G3_N"
+    if [ "$n" = 1 ]; then printf 'ab' > "$out"; else printf 'abc' > "$out"; fi; printf '200 000 %s' "$url" ;;
+  bad) n=$(($(cat "$G3_N" 2>/dev/null || echo 0) + 1)); echo "$n" > "$G3_N"; printf 'xyz' > "$out"; printf '200 000 %s' "$url" ;;
+  alive) printf '0.002'; exit 56 ;;
+  net407) printf '000 407'; exit 56 ;;
+  netfilter) case "$url" in */install.sh) printf '403 000' ;; *) printf '404 000' ;; esac ;;
+esac
+EOF
+chmod +x "$G3/bin/curl"; export G3_ARGS="$G3/args" G3_N="$G3/n"
+eq "$(ws_http_of 000 407)|$(ws_http_of 407 000)|$(ws_http_of 200 200)|$(ws_http_of 000 403)|$(ws_http_of '' '')" "407|407|200|403|000" "g3: ws_http_of (o 407 do CONNECT conta)"
+eq "$(ws_net_code 22 403)|$(ws_net_code 0 451)|$(ws_net_code 1 html)" "E-NET-01|E-NET-01|E-NET-01" "g3: 403/451 de um filtro e a pagina HTML = bloqueado"
+eq "$(ws_net_code 28 200)|$(ws_net_code 56 200)|$(ws_net_code 18 206)|$(ws_net_code 28 000)" "E-NET-07|E-NET-07|E-NET-07|E-NET-01" "g3: parado ou partido a meio = E-NET-07"
+eq "$(ws_net_code 5 000)|$(ws_net_code 97 000)|$(WS_PROXY_DEAD=1 ws_net_code 7 000)|$(WS_PROXY_DEAD=1 ws_net_code 6 000)" "E-NET-03|E-NET-03|E-NET-03|E-NET-03" "g3: erros do proxy = E-NET-03"
+( PATH="$G3/bin:$PATH"; export G3_MODE=407; ws_dl https://x.test/f "$G3/o"; printf '%s|%s|%s|%s' "$?" "$WS_DL_HTTP" "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "${WS_HB:-}" ) > "$G3/r"
+eq "$(cat "$G3/r")" "22|407|E-NET-03|" "g3: ws_dl atras de um proxy com autenticacao (407 no CONNECT) = E-NET-03"
+grep -qx -- --speed-limit "$G3_ARGS" && grep -qx -- --speed-time "$G3_ARGS" && grep -qx -- --connect-timeout "$G3_ARGS" && ! grep -qx -- --max-time "$G3_ARGS" && ok || ko "g3: ws_dl com limite de velocidade e sem --max-time"
+( PATH="$G3/bin:$PATH"; export G3_MODE=redir-dns; WS_LOG="$G3/log"; WS_CUR=6; SF_6=""; ws_dl https://github.test/x "$G3/o"; ws_dl_fail https://github.test/x; printf '%s' "$SF_6" ) > "$G3/r"
+eq "$(cat "$G3/r")" "E-NET-02|release-assets.example.test · https://github.test/x" "g3: o detalhe mostra o servidor final do redirecionamento"
+grep -q 'redirected to release-assets.example.test' "$G3/log" && ! grep -q SEGREDO "$G3/log" && ok || ko "g3: o log tem o servidor final e nunca a query string assinada"
+( PATH="$G3/bin:$PATH"; export G3_MODE=html; WS_CUR=2; SF_2=""; ws_dl https://x.test/install.sh "$G3/o2"; rc=$?; ws_dl_fail https://x.test/install.sh; printf '%s|%s|%s' "$rc" "$([ -e "$G3/o2" ] && echo ficou)" "$SF_2" ) > "$G3/r"
+eq "$(cat "$G3/r")" "1||E-NET-01|https://x.test/install.sh · a web page came instead of the file" "g3: pagina de bloqueio no lugar do ficheiro nunca e usada"
+printf '\357\273\277  \n<!DOCTYPE html>' > "$G3/p1"; printf '<?xml version="1.0"?>\n<html>' > "$G3/p2"; printf '#!/bin/sh\n# <LICENSE-MIT\n<html>\n' > "$G3/p3"; printf '\037\213\010\000<html>' > "$G3/p4"
+eq "$(ws_is_html "$G3/p1"; printf %s $?)$(ws_is_html "$G3/p2"; printf %s $?)$(ws_is_html "$G3/p3"; printf %s $?)$(ws_is_html "$G3/p4"; printf %s $?)" "0011" "g3: ws_is_html (paginas sim; scripts e arquivos nao)"
+rm -f "$G3_N"; ( PATH="$G3/bin:$PATH"; export G3_MODE=trunc; ws_dl_check https://x.test/f "$G3/o3" "$(printf abc | shasum -a 256 | cut -d' ' -f1)"; printf '%s|%s|%s' "$?" "$(cat "$G3/o3")" "$(cat "$G3_N")" ) > "$G3/r"
+eq "$(cat "$G3/r")" "0|abc|2" "g3: SHA-256 errado (ficheiro truncado) descarrega uma segunda vez"
+rm -f "$G3_N"; ( PATH="$G3/bin:$PATH"; export G3_MODE=bad; ws_dl_check https://x.test/f "$G3/o4" "$(printf abc | shasum -a 256 | cut -d' ' -f1)"; printf '%s|%s|%s' "$?" "$([ -e "$G3/o4" ] && echo ficou)" "$(cat "$G3_N")" ) > "$G3/r"
+eq "$(cat "$G3/r")" "2||2" "g3: SHA-256 errado duas vezes = 2, sem ficheiro"
+dd if=/dev/zero of="$G3/big" bs=1024 count=2048 2>/dev/null
+( WS_HB_EVERY=1; ws_hb_start "$G3/big"; p=$WS_HB; sleep 2.5; ws_hb_stop; sleep 0.2; kill -0 "$p" 2>/dev/null && echo VIVO ) > "$G3/hb" 2>&1
+grep -q 'Still downloading… 2.0 MB so far.' "$G3/hb" && ! grep -q VIVO "$G3/hb" && ok || ko "g3: progresso do download e sem processo deixado para tras [$(cat "$G3/hb")]"
+( HOME="$G3/h"; unset CURL_HOME XDG_CONFIG_HOME; printf 'proxy = "http://p.corp:8080"' > "$HOME/.curlrc"; d=$(ws_curl_home); cat "$d/.curlrc"; CURL_HOME=$d /usr/bin/curl -sS -o /dev/null "file://$G3/p1" 2>&1 ) > "$G3/r"
+grep -qx 'proxy = "http://p.corp:8080"' "$G3/r" && grep -qx 'speed-time = 60' "$G3/r" && [ "$(tail -n 1 "$G3/r")" = "retry = 2" ] && ok || ko "g3: curlrc dos instaladores = o da pessoa + limites [$(cat "$G3/r")]"
+( WS_STEP_LOG="$G3/inst.log"; printf 'curl: (6) Could not resolve host: antes.test\n' > "$WS_STEP_LOG"; n0=$(wc -c < "$WS_STEP_LOG")
+  printf 'curl: (28) Operation too slow. Less than 1024 bytes/sec transferred the last 60 seconds\nDownload failed\n' >> "$WS_STEP_LOG"; a=$(ws_installer_net_code "$n0")
+  printf 'curl: (6) Could not resolve host: downloads.claude.ai\n' > "$WS_STEP_LOG"; b=$(ws_installer_net_code 0)
+  printf 'curl: (23) Failure writing output to destination\n' > "$WS_STEP_LOG"; c=$(ws_installer_net_code 0 || echo E-CC-01)
+  printf 'curl: (6) Could not resolve host: antes.test\nInstalling...\n' > "$WS_STEP_LOG"; d=$(ws_installer_net_code 44 || echo E-CC-01)
+  printf '%s|%s|%s|%s' "$a" "$b" "$c" "$d" ) > "$G3/r"
+eq "$(cat "$G3/r")" "E-NET-07|E-NET-02|E-CC-01|E-CC-01" "g3: o erro do curl de um instalador oficial da o codigo de rede (so o que veio depois)"
+eq "$(NO_PROXY='127.0.0.1, .corp.internal,*' no_proxy='intranet,localhost' ws_no_proxy)" "localhost,127.0.0.1,.corp.internal,*,intranet" "g3: NO_PROXY junta o da pessoa, sem repetidos"
+eq "$(ws_proxy_show 'http://bea:s3gr3d0@proxy.corp:8080')|$(ws_proxy_show 'socks5h://127.0.0.1:1080')" "http://proxy.corp:8080|socks5h://127.0.0.1:1080" "g3: proxy mostrado sem palavra-passe"
+( unset HTTPS_PROXY https_proxy all_proxy; ALL_PROXY=socks5h://127.0.0.1:1; WS_CUR=0; SN_0=""; ws_detect_proxy; printf '%s|%s|%s' "$WS_PROXY_ENV" "$WS_PROXY" "$WS_PROXY_DEAD" ) > "$G3/r"
+eq "$(cat "$G3/r")" "socks5h://127.0.0.1:1 (ALL_PROXY)||1" "g3: ALL_PROXY morto e detetado e nunca vai para o settings.json"
+( unset https_proxy ALL_PROXY all_proxy; HTTPS_PROXY=http://bea:pw@127.0.0.1:1; WS_CUR=0; SN_0=""; ws_detect_proxy; printf '%s|%s|%s|%s' "$WS_PROXY_ENV" "$WS_PROXY" "$WS_PROXY_DEAD" "$SN_0" ) > "$G3/r"
+eq "$(cat "$G3/r")" "http://127.0.0.1:1 (HTTPS_PROXY)||1|System proxy: http://127.0.0.1:1 (HTTPS_PROXY)" "g3: HTTPS_PROXY morto (e a palavra-passe nunca aparece)"
+( PATH="$G3/bin:$PATH"; export G3_MODE=alive; unset https_proxy ALL_PROXY all_proxy; HTTPS_PROXY=http://proxy.corp:8080; WS_CUR=0; ws_detect_proxy; printf '%s|%s' "$WS_PROXY" "$WS_PROXY_DEAD" ) > "$G3/r"
+eq "$(cat "$G3/r")" "http://proxy.corp:8080|0" "g3: proxy que responde (mesmo com recusa) fica"
+printf '#!/bin/sh\n: > "%s/claude-chamado"\n' "$G3" > "$G3/bin/claude-falso"; chmod +x "$G3/bin/claude-falso"
+( HOME=$G3; CLAUDE_DIR="$G3/claude"; mkdir -p "$CLAUDE_DIR"; printf '{"env":{"HTTPS_PROXY":"http://127.0.0.1:1","NO_PROXY":"localhost"}}' > "$CLAUDE_DIR/settings.json"
+  WS_CUR=12; SF_12=""; WS_CLAUDE="$G3/bin/claude-falso"; ws_s12_install; printf '%s|%s|%s' "$?" "$SF_12" "$([ -e "$G3/claude-chamado" ] && echo chamado)" ) > "$G3/r"
+eq "$(cat "$G3/r")" "1|E-NET-08|http://127.0.0.1:1 · ~/claude/settings.json|" "g3: proxy morto no settings.json = E-NET-08 logo, sem os 3 minutos do claude -p"
+( HOME=$G3; CLAUDE_DIR="$G3/claude2"; mkdir -p "$CLAUDE_DIR"; printf '{"env":{"MEU":"1"}}' > "$CLAUDE_DIR/settings.json"; ws_settings_proxy_dead; printf '%s' "$?" ) > "$G3/r"
+eq "$(cat "$G3/r")" 1 "g3: settings.json sem proxy"
+g3net() { # modo proxy -> SW_0 de ws_check_network com o curl falso
+  ( PATH="$G3/bin:$PATH"; export G3_MODE=$1; WS_PROXY_ENV=$2; WS_TMP="$G3/net-$1"; mkdir -p "$WS_TMP"; WS_CUR=0; SW_0=""; SN_0=""
+    C_NET_CHECK_HOSTS="api.anthropic.com claude.test nodejs.test"; C_CLAUDE_INSTALL_SH_URL=https://claude.test/install.sh
+    D_REPO_HOST=""; D_MEMORY_HOST=""; D_KIT_URL_MAC=https://nodejs.test/kit.tgz
+    ws_check_network >/dev/null; printf '%s|%s' "$WS_NET_OK" "$SW_0" )
+}
+eq "$(g3net net407 'http://127.0.0.1:18407 (HTTPS_PROXY)')" "0|E-NET-03|http://127.0.0.1:18407 (HTTPS_PROXY)" "g3: passo 0 atras de um proxy 407 = so E-NET-03, com o proxy (sem E-NET-05 nem E-NET-01)"
+eq "$(g3net netfilter '')" "2|E-NET-01|claude.test" "g3: passo 0 testa o instalador do claude.ai e um 403 de um filtro conta como bloqueado"
+( WS_CUR=10; ST_10=aviso; SD_10=""; SF_10=""; SN_10=""; SW_10="E-MEM-01|v9.9.9
+"; ws_print_result 10 >/dev/null; printf '%s' "$SD_10" ) > "$G3/r"
+eq "$(cat "$G3/r")" "The Agent Memory app release is not published yet (E-MEM-01)" "g3: passo nao bloqueante falhado tem detalhe no resumo"
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
