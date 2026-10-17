@@ -888,6 +888,7 @@ Describe 'chaos G2-profiles' {
     BeforeEach {
       $script:UserHome = Join-Path $TestDrive 'u'; $script:WsHome = Join-Path $script:UserHome '.workshop-claude'; $script:NodeExe = $null
       $script:Lb = Join-Path $script:UserHome '.local\bin'; $script:Kb = Join-Path $script:WsHome 'bin'; $script:Kn = Join-Path $script:WsHome 'node'
+      Remove-Item -LiteralPath $script:UserHome -Recurse -Force -ErrorAction SilentlyContinue   # cada caso comeca sem as pastas no disco
       $script:RegPath = $null; $script:Written = $null
       Mock Get-WsUserEnvRaw { return $script:RegPath }
       Mock New-ItemProperty { $script:Written = $Value }
@@ -915,6 +916,23 @@ Describe 'chaos G2-profiles' {
       $script:RegPath = $null
       Update-WsUserPathFront
       Should -Invoke New-ItemProperty -Times 0 -Exactly
+    }
+    It 'uma pasta do kit que existe no disco mas saiu do PATH do utilizador volta a entrar' {
+      New-Item -ItemType Directory -Path $script:Kb -Force | Out-Null
+      $script:RegPath = ('C:\npm;{0}' -f $script:Lb)
+      Mock Add-WsUserPath { }
+      Update-WsUserPathFront
+      Should -Invoke Add-WsUserPath -Times 1 -Exactly
+      Should -Invoke Add-WsUserPath -Times 1 -Exactly -ParameterFilter { $Dir -eq $script:Kb }
+    }
+    It 'uma GPO apagou o PATH do utilizador: as pastas do kit voltam pela ordem certa e ficam para o --uninstall' {
+      New-Item -ItemType Directory -Path $script:Lb, $script:Kb -Force | Out-Null
+      Mock New-ItemProperty { $script:Written = $Value; $script:RegPath = $Value }
+      Update-WsUserPathFront
+      $script:RegPath | Should -Be ('{0};{1}' -f $script:Lb, $script:Kb)
+      Should -Invoke Register-WsExtra -Times 2 -Exactly -ParameterFilter { $Tipo -eq 'path_utilizador' }
+      Update-WsUserPathFront
+      Should -Invoke New-ItemProperty -Times 3 -Exactly
     }
     It 'o node do kit so vai para a frente quando e o que esta em uso' {
       $script:RegPath = ('C:\nvm;{0};{1}' -f $script:Kn, $script:Lb)

@@ -954,19 +954,27 @@ function Add-WsUserPath {
 }
 
 function Update-WsUserPathFront {
-  # No fim de cada instalacao (como o bloco do perfil no Mac): as pastas do kit que ja estao no PATH do utilizador
-  # passam para o inicio dele, numa so escrita e so se a ordem mudar. Assim um claude, uv ou gh antigo que venha
-  # antes (npm em %APPDATA%\npm, pipx, winget) deixa de passar a frente num terminal novo, tambem quando os passos
-  # ja estavam feitos e nenhum Install-WsStepN correu. Nao acrescenta pastas (isso e o Add-WsUserPath, que as
-  # regista) nem mexe no PATH da maquina (precisa de admin; num terminal novo vem sempre antes do do utilizador).
+  # No fim de cada instalacao (como o bloco do perfil no Mac): as pastas do kit passam para o inicio do PATH do
+  # utilizador, so se a ordem mudar. Assim um claude, uv ou gh antigo que venha antes (npm em %APPDATA%\npm, pipx,
+  # winget) deixa de passar a frente num terminal novo, tambem quando os passos ja estavam feitos e nenhum
+  # Install-WsStepN correu. Uma pasta do kit que existe no disco mas saiu do PATH do utilizador (uma GPO ou um
+  # perfil itinerante que o repoe no logon, uma limpeza a mao) volta a entrar pelo Add-WsUserPath, que a regista
+  # para o --uninstall; o Test-WsStepN encontrava-a na mesma (o Update-WsSessionPath poe-na no PATH desta sessao)
+  # e um terminal novo nao. Nao mexe no PATH da maquina (precisa de admin; num terminal novo vem sempre antes).
   try {
-    $cur = Get-WsUserEnvRaw 'Path'
-    if (-not $cur) { return }
     $dirs = @(Join-Path $script:UserHome '.local\bin')
     # o node do kit so quando e o que esta em uso (como o WS_NODE_BIN_DIR no Mac): nao passa a frente de um mais novo
     $kn = Join-Path $script:WsHome 'node'
     if ($script:NodeExe -and (Split-Path $script:NodeExe) -ieq $kn) { $dirs += $kn }
     $dirs += (Join-Path $script:WsHome 'bin')
+    foreach ($d in $dirs) {
+      if ((Test-Path -LiteralPath $d -PathType Container) -and -not (Test-WsPathHas (Get-WsUserEnvRaw 'Path') $d)) {
+        Write-WsLog ('user PATH: workshop folder missing, added back: ' + $d)
+        Add-WsUserPath $d
+      }
+    }
+    $cur = Get-WsUserEnvRaw 'Path'
+    if (-not $cur) { return }
     $new = Move-WsPathFront $cur $dirs
     if ($new -eq $cur) { return }
     New-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -Value $new -PropertyType ExpandString -Force -ErrorAction Stop | Out-Null
