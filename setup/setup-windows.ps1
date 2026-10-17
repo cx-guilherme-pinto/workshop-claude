@@ -1856,6 +1856,9 @@ function Read-WsInstallUserOutput {
       'aviso' { if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }; Set-WsWarn $kv[1] 'statusLine' }
       'erro' { Set-WsFail $kv[1] '' }
       'falta' { Write-WsLog ('missing: ' + $kv[1]) }
+      # skills/agentes do kit que a pessoa tinha alterado: a copia dela ficou no backup
+      'editado' { Add-WsNote (M 's8_editado' @{ NOME = (Split-Path ($kv[1] -replace '/', '\') -Leaf); PASTA = (Format-WsShowPath $kv[1]) }) }
+      'anteriores' { Add-WsNote (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) }) }
     }
   }
   Set-WsDetail (M 's8_ja' @{ SKILLS = $skills; AGENTES = $agentes })
@@ -1887,11 +1890,62 @@ function Install-WsStep8 {
 
 # =============================================================== PASSO 9 - projetos
 
+# git so no .git da propria pasta: com -C o git procura nas pastas de cima, e um %USERPROFILE% com os dotfiles em
+# git fazia passar por "feito" um projeto sem .git. Sem tag assinada (um tag.gpgsign=true global abria o editor ou
+# um pedido do 1Password / pinentry). Ver ws_git_own no setup-mac.sh.
+function Get-WsGitOwnArgs {
+  param([string]$Dir)
+  return @(('--git-dir=' + (Join-Path $Dir '.git')), '-c', 'tag.gpgsign=false')
+}
+
 function Test-WsGitTag {
   param([string]$Dir, [string]$Ref)
   if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
-  $r = Invoke-WsProcess $script:GitExe @('-C', $Dir, 'rev-parse', '-q', '--verify', $Ref) -TimeoutSec 60
+  $r = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $Dir) + @('rev-parse', '-q', '--verify', $Ref)) -TimeoutSec 60
   return ($r.ExitCode -eq 0)
+}
+
+# Estado de um projeto do workshop (ver ws_proj_state no setup-mac.sh):
+#   vazia       nao existe ou esta vazia
+#   alheia      tem ficheiros e nao tem a marca do kit (E-DEMO-03: o setup nao lhe toca)
+#   incompleta  montagem interrompida: marca {"status":"incomplete"} (Ctrl-C a meio da copia) ou sem commits no
+#               proprio .git (o git falhou, ou a pessoa apagou o .git); o assembler volta a montar e, se a pasta
+#               nao for so a copia incompleta do kit, guarda-a primeiro em %USERPROFILE%\.workshop-claude\backup\
+#   ok          marca e ref (a tag arena-start da Arena, o HEAD do projeto de treino)
+#   propria     marca e commits, mas sem a ref: historico da pessoa (E-DEMO-04, fica como esta)
+#   semgit      so no Windows: o git nem arrancou (AppLocker, WDAC, antivirus) ou passou do tempo, e nao se sabe;
+#               o projeto nao e tocado (com --force a pasta da pessoa ia para o backup e a montagem falhava no git)
+function Get-WsProjState {
+  param([string]$Dir, [string]$Mark, [string]$Ref)
+  if (-not (Test-Path -LiteralPath $Dir) -or @(Get-ChildItem -LiteralPath $Dir -Force -ErrorAction SilentlyContinue).Count -eq 0) { return 'vazia' }
+  $mf = Join-Path $Dir $Mark
+  if (-not (Test-Path -LiteralPath $mf -PathType Leaf)) { return 'alheia' }
+  $txt = ''
+  try { $txt = [IO.File]::ReadAllText($mf) } catch { $txt = '' }
+  if ($txt -match '"status"\s*:\s*"incomplete"') { return 'incompleta' }
+  if (-not (Test-Path -LiteralPath (Join-Path $Dir '.git'))) { return 'incompleta' }
+  if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
+  $r = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $Dir) + @('rev-parse', '-q', '--verify', 'HEAD')) -TimeoutSec 60
+  if ($r.ExitCode -lt 0) { return 'semgit' }
+  if ($r.ExitCode -ne 0) { return 'incompleta' }
+  if (Test-WsGitTag $Dir $Ref) { return 'ok' }
+  return 'propria'
+}
+
+# Caminho para mostrar: barras do Windows e a pasta do perfil como %USERPROFILE% (o install-user e os assemblers
+# escrevem C:/Users/...).
+function Format-WsShowPath {
+  param([string]$Path, [string]$UserHome)
+  $p = ([string]$Path) -replace '/', '\'
+  $homes = @($UserHome)
+  if (-not $UserHome) { $homes = @($script:UserHome, $env:USERPROFILE) }
+  foreach ($h in $homes) {
+    $h = ([string]$h -replace '/', '\').TrimEnd('\')
+    if (-not $h) { continue }
+    if ($p.Equals($h, [StringComparison]::OrdinalIgnoreCase)) { return '%USERPROFILE%' }
+    if ($p.StartsWith($h + '\', [StringComparison]::OrdinalIgnoreCase)) { return '%USERPROFILE%' + $p.Substring($h.Length) }
+  }
+  return $p
 }
 
 # Nomes desde a v1.0.0-rc.2: o projeto de treino e %USERPROFILE%\workshop-claude\practice-project (era
@@ -1904,7 +1958,7 @@ $script:PracticeDirOld = 'exemplo-projeto-real'
 function Invoke-WsStep9Migrate {
   $demo = Join-Path $script:Proj 'demo-project'
   if ((Test-Path -LiteralPath (Join-Path $demo '.arena-kit.json')) -and -not (Test-WsGitTag $demo 'refs/tags/arena-start') -and (Test-WsGitTag $demo 'refs/tags/arena-inicial')) {
-    $r = Invoke-WsProcess $script:GitExe @('-C', $demo, 'tag', 'arena-start', 'arena-inicial') -TimeoutSec 60
+    $r = Invoke-WsProcess $script:GitExe ((Get-WsGitOwnArgs $demo) + @('tag', 'arena-start', 'arena-inicial')) -TimeoutSec 60
     if ($r.ExitCode -eq 0) { Write-WsLog 'demo-project: tag arena-start added (from arena-inicial)' }
   }
   $old = Join-Path $script:Proj $script:PracticeDirOld
@@ -1918,9 +1972,14 @@ function Test-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   $demo = Join-Path $script:Proj 'demo-project'
   $sb = Join-Path $script:Proj $script:PracticeDir
-  if (-not (Test-Path -LiteralPath (Join-Path $demo '.arena-kit.json')) -or -not (Test-WsGitTag $demo 'refs/tags/arena-start')) { Set-WsFail 'E-DEMO-01' $demo; return $false }
+  # Uma Arena com historico proprio (commits, sem a tag arena-start) e um aviso e fica como esta.
+  switch (Get-WsProjState $demo '.arena-kit.json' 'refs/tags/arena-start') {
+    'ok' { }
+    'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $demo) }
+    default { Set-WsFail 'E-DEMO-01' $demo; return $false }
+  }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
-    if (-not (Test-Path -LiteralPath (Join-Path $sb '.sandbox-kit.json')) -or -not (Test-WsGitTag $sb 'HEAD')) { Set-WsFail 'E-DEMO-01' $sb; return $false }
+    if ((Get-WsProjState $sb '.sandbox-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $sb; return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   if ($script:Mode -ne 'install') { return (Test-WsAppTests) }
@@ -1939,19 +1998,37 @@ function Test-WsAppTests {
   return $false
 }
 
+# Monta um projeto conforme o estado (Get-WsProjState). Nunca apaga trabalho da pessoa: o historico proprio fica
+# como esta (E-DEMO-04) e uma pasta substituida vai para o backup (o assembler diz onde: "backup" no JSON). O
+# --force so vai para uma montagem incompleta (antes ia tambem para uma Arena sem a tag, e apagava os commits, as
+# notas e as cartas alteradas da pessoa).
 function Invoke-WsAssemble {
-  param([string]$Script, [string]$Dest, [string]$Mark, [string[]]$Extra)
+  param([string]$Script, [string]$Dest, [string]$Mark, [string]$Ref, [string[]]$Extra)
   $force = @()
-  if ((Test-Path -LiteralPath $Dest) -and @(Get-ChildItem -LiteralPath $Dest -Force).Count -gt 0) {
-    if (Test-Path -LiteralPath (Join-Path $Dest $Mark)) {
-      $ref = 'HEAD'
-      if ($Mark -eq '.arena-kit.json') { $ref = 'refs/tags/arena-start' }
-      if (-not (Test-WsGitTag $Dest $ref)) { $force = @('--force') }
-    } else { Set-WsFail 'E-DEMO-03' $Dest; return $false }
+  switch (Get-WsProjState $Dest $Mark $Ref) {
+    'alheia' { Set-WsFail 'E-DEMO-03' $Dest; return $false }
+    'incompleta' { $force = @('--force') }
+    'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $Dest); Register-WsExtra 'projeto' (Split-Path $Dest -Leaf) $Dest '' ''; return $true }
+    'semgit' { Set-WsFail 'E-DEMO-01' ('git rev-parse HEAD: ' + $Dest); return $false }
   }
   $a = @((Join-Path $script:KitSrc ('installer\' + $Script)), '--dest', $Dest) + $Extra + $force
   $r = Invoke-WsProcess $script:NodeExe $a -TimeoutSec 600
-  if ($r.ExitCode -ne 0) { Set-WsFail 'E-DEMO-01' $Script; return $false }
+  if ($r.ExitCode -ne 0) {
+    # A causa no ecra (ex.: "git commit ... failed: ..." ou "could not move ... (is it open in another program?)").
+    $d = $Script
+    $why = @(([string]$r.StdErr -split "`r?`n") | Where-Object { $_ -like 'ERROR: *' } | Select-Object -Last 1)
+    if ($why.Count -gt 0) {
+      $w = Protect-WsText (([string]$why[0]).Substring(7).Trim()) $script:Literals
+      if ($w.Length -gt 200) { $w = $w.Substring(0, 200) }
+      if ($w) { $d = $Script + ': ' + $w }
+    }
+    Set-WsFail 'E-DEMO-01' $d
+    return $false
+  }
+  $last = [string](@(([string]$r.StdOut).Trim() -split "`r?`n") | Select-Object -Last 1)
+  $j = $null
+  if ($last -match '^\s*\{') { try { $j = ConvertFrom-Json -InputObject $last -ErrorAction Stop } catch { $j = $null } }
+  if ($j -and $j.backup) { Add-WsNote (M 's9_backup' @{ PASTA = (Format-WsShowPath ([string]$j.backup)) }) }
   Register-WsExtra 'projeto' (Split-Path $Dest -Leaf) $Dest '' ''
   return $true
 }
@@ -1961,9 +2038,9 @@ function Install-WsStep9 {
   New-Item -ItemType Directory -Path $script:Proj -Force | Out-Null
   if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
   Invoke-WsStep9Migrate
-  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
+  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' 'refs/tags/arena-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
-    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' @('--language', $script:LangKit))) { return $false }
+    if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' 'HEAD' @('--language', $script:LangKit))) { return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   return (Test-WsAppTests)
@@ -2448,6 +2525,8 @@ function Invoke-WsUninstall {
       'settings' { if ($kv[1] -eq 'reposto') { Write-WsSay ('  ' + (M 'desinst_settings_reposto')) } elseif ($kv[1] -eq 'limpo') { Write-WsSay ('  ' + (M 'desinst_settings_limpo')) } }
       'projeto_removido' { Write-WsSay ('  ' + (M 'desinst_projeto_removido' @{ CAMINHO = $kv[1] })) }
       'projeto_mantido' { Write-WsSay ('  ' + (M 'desinst_projeto_mantido' @{ CAMINHO = $kv[1] })) }
+      'editado' { Write-WsSay ('  ' + (M 'desinst_editado' @{ NOME = (Split-Path ($kv[1] -replace '/', '\') -Leaf); PASTA = (Format-WsShowPath $kv[1]) })) }
+      'anteriores' { Write-WsSay ('  ' + (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) })) }
       'erro' { Write-WsSay ('  ' + $kv[1]) 'Red' }
     }
   }

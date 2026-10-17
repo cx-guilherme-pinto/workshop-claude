@@ -806,3 +806,200 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $ps.Dispose()
   }
 }
+
+Describe 'chaos G5-arena-git' {
+  BeforeAll {
+    $script:GitExe = Get-WsGit
+    # Um repositorio de teste isolado da configuracao global de quem corre os testes (assinaturas, hooks).
+    function New-TestRepo([string]$Dir, [string]$Tag) {
+      $c = @('-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', '-c', 'core.hooksPath=.git/no-hooks', '-c', 'user.name=t', '-c', 'user.email=t@t.invalid')
+      New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+      & $script:GitExe -C $Dir init -q '--template=' | Out-Null
+      & $script:GitExe -C $Dir @c commit -q --allow-empty -m init | Out-Null
+      if ($Tag) { & $script:GitExe -C $Dir @c tag $Tag | Out-Null }
+    }
+    function New-TestProj([string]$Dir, [string]$Mark, [string]$Json) {
+      New-Item -ItemType Directory -Path $Dir -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $Dir $Mark), $Json)
+      [IO.File]::WriteAllText((Join-Path $Dir 'README.md'), 'x')
+    }
+  }
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+  }
+
+  It 'o git so olha para o .git da propria pasta e nunca assina a tag' {
+    $a = Get-WsGitOwnArgs (Join-Path $TestDrive 'demo-project')
+    $a[0] | Should -BeExactly ('--git-dir=' + (Join-Path (Join-Path $TestDrive 'demo-project') '.git'))
+    $a[1..2] -join ' ' | Should -BeExactly '-c tag.gpgsign=false'
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Not -Match "'-C', \`$(Dir|demo)"
+    ${function:Test-WsGitTag}.ToString() | Should -Match 'Get-WsGitOwnArgs \$Dir'
+    ${function:Invoke-WsStep9Migrate}.ToString() | Should -Match "\(Get-WsGitOwnArgs \`$demo\) \+ @\('tag', 'arena-start', 'arena-inicial'\)"
+  }
+
+  It 'estado de um projeto: vazia, alheia, incompleta, ok e propria' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    $m = '.arena-kit.json'; $ref = 'refs/tags/arena-start'; $real = '{"version":"v1","language":"en"}'
+    Get-WsProjState (Join-Path $TestDrive 'nao-existe') $m $ref | Should -BeExactly 'vazia'
+    $d = Join-Path $TestDrive 'vazia'; New-Item -ItemType Directory -Path $d | Out-Null
+    Get-WsProjState $d $m $ref | Should -BeExactly 'vazia'
+    $d = Join-Path $TestDrive 'alheia'; New-Item -ItemType Directory -Path $d | Out-Null; [IO.File]::WriteAllText((Join-Path $d 'notas.txt'), 'x')
+    Get-WsProjState $d $m $ref | Should -BeExactly 'alheia'
+    $d = Join-Path $TestDrive 'copia'; New-TestProj $d $m '{"status":"incomplete","language":"en"}'
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    $d = Join-Path $TestDrive 'semgit'; New-TestProj $d $m $real
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    # Um %USERPROFILE% com os dotfiles em git (e ate uma tag arena-start): a Arena sem .git continua incompleta.
+    $up = Join-Path $TestDrive 'perfil'; New-TestRepo $up 'arena-start'
+    $d = Join-Path $up 'workshop-claude/demo-project'; New-TestProj $d $m $real
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    # ... e com um .git vazio (git init interrompido) o git nao vai buscar o HEAD e a tag do repositorio de cima.
+    New-Item -ItemType Directory -Path (Join-Path $d '.git') | Out-Null
+    Test-WsGitTag $d 'refs/tags/arena-start' | Should -BeFalse
+    Get-WsProjState $d $m $ref | Should -BeExactly 'incompleta'
+    $d = Join-Path $TestDrive 'ok'; New-TestProj $d $m $real; New-TestRepo $d 'arena-start'
+    Get-WsProjState $d $m $ref | Should -BeExactly 'ok'
+    $d = Join-Path $TestDrive 'propria'; New-TestProj $d $m $real; New-TestRepo $d ''
+    Get-WsProjState $d $m $ref | Should -BeExactly 'propria'
+    Get-WsProjState $d '.sandbox-kit.json' 'HEAD' | Should -BeExactly 'alheia'
+    $d = Join-Path $TestDrive 'treino'; New-TestProj $d '.sandbox-kit.json' $real; New-TestRepo $d ''
+    Get-WsProjState $d '.sandbox-kit.json' 'HEAD' | Should -BeExactly 'ok'
+    # Um git que nem arrancou (bloqueado pela seguranca): nao se sabe, e o projeto nao e tocado.
+    $keep = $script:GitExe
+    try {
+      $script:GitExe = Join-Path $TestDrive 'bloqueado/git.exe'
+      Get-WsProjState (Join-Path $TestDrive 'ok') $m $ref | Should -BeExactly 'semgit'
+      Get-WsProjState (Join-Path $TestDrive 'semgit') $m $ref | Should -BeExactly 'incompleta'
+      Get-WsProjState (Join-Path $TestDrive 'copia') $m $ref | Should -BeExactly 'incompleta'
+    } finally { $script:GitExe = $keep }
+  }
+
+  It 'mostra os caminhos com barras do Windows e a pasta do perfil como %USERPROFILE%' {
+    Format-WsShowPath 'C:/Users/ana/.workshop-claude/backup/2026-10-17T10-00-00/demo-project' 'C:\Users\ana' | Should -BeExactly '%USERPROFILE%\.workshop-claude\backup\2026-10-17T10-00-00\demo-project'
+    Format-WsShowPath 'c:/users/ANA/x' 'C:\Users\ana\' | Should -BeExactly '%USERPROFILE%\x'
+    Format-WsShowPath 'C:\Users\anabela\x' 'C:\Users\ana' | Should -BeExactly 'C:\Users\anabela\x'
+    Format-WsShowPath 'D:/backup/x' 'C:\Users\ana' | Should -BeExactly 'D:\backup\x'
+    $script:UserHome = 'C:\Users\rui'
+    Format-WsShowPath 'C:/Users/rui/.workshop-claude/backup' | Should -BeExactly '%USERPROFILE%\.workshop-claude\backup'
+  }
+
+  It 'passo 9: o --force so vai para uma montagem incompleta, nunca para uma Arena sem a tag' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Not -Match "\`$ref = 'refs/tags/arena-start'"
+    $text | Should -Match "Invoke-WsAssemble 'assemble-demo\.mjs' \(Join-Path \`$script:Proj 'demo-project'\) '\.arena-kit\.json' 'refs/tags/arena-start' @\("
+    $text | Should -Match "Invoke-WsAssemble 'assemble-sandbox\.mjs' \(Join-Path \`$script:Proj \`$script:PracticeDir\) '\.sandbox-kit\.json' 'HEAD' @\("
+    $f = ${function:Invoke-WsAssemble}.ToString()
+    $f | Should -Match "'incompleta' \{ \`$force = @\('--force'\) \}"
+    ([regex]::Matches($f, '--force')).Count | Should -Be 1
+  }
+
+  It 'Invoke-WsAssemble decide pelo estado, mostra a causa de uma falha e o backup' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $node) { Set-ItResult -Skipped -Because 'sem node'; return }
+    $script:NodeExe = $node.Source
+    $script:KitSrc = Join-Path $TestDrive 'kit'
+    $script:WsHome = Join-Path $TestDrive 'wsg5'
+    $script:UserHome = 'C:\Users\x'
+    $script:Literals = @()
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer'), $script:WsHome -Force | Out-Null
+    $argsFile = Join-Path $TestDrive 'args.txt'
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-ok.mjs'), (
+        "import { writeFileSync } from 'node:fs';`n" +
+        "writeFileSync(process.env.WS_G5_ARGS, process.argv.slice(2).join('|'));`n" +
+        "console.log('copying...');`n" +
+        "console.log(JSON.stringify({ status: 'assembled', version: 'v1', backup: 'C:/Users/x/.workshop-claude/backup/2026-10-17T10-00-00/demo-project' }));`n"))
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/fake-fail.mjs'), (
+        "console.error('ERROR: git commit -q -m x failed: error: gpg failed to sign the data (token=sk-ant-abcdef123456)');`n" +
+        "process.exit(1);`n"))
+    $env:WS_G5_ARGS = $argsFile
+    try {
+      # vazia: monta sem --force e mostra onde ficou o backup
+      $script:Cur = '9'
+      $d = Join-Path $TestDrive 'p-vazia'
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @('--language', 'en') | Should -BeTrue
+      [IO.File]::ReadAllText($argsFile) | Should -Not -Match '--force'
+      $script:T['9'].Notas -join ' ' | Should -BeExactly 'Your previous folder is saved in %USERPROFILE%\.workshop-claude\backup\2026-10-17T10-00-00\demo-project.'
+      # incompleta: --force (o assembler guarda a pasta no backup antes de montar)
+      $script:T = New-WsStateTable
+      $d = Join-Path $TestDrive 'p-inc'; New-TestProj $d '.arena-kit.json' '{"version":"v1","language":"en"}'
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @('--language', 'en') | Should -BeTrue
+      [IO.File]::ReadAllText($argsFile) | Should -Match '\|--force$'
+      # propria: aviso E-DEMO-04, o assembler nem corre
+      $script:T = New-WsStateTable
+      Remove-Item -LiteralPath $argsFile
+      $d = Join-Path $TestDrive 'p-propria'; New-TestProj $d '.arena-kit.json' '{"version":"v1","language":"en"}'; New-TestRepo $d ''
+      Invoke-WsAssemble 'fake-fail.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeTrue
+      $script:T['9'].Falha | Should -BeNullOrEmpty
+      $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-04'
+      Test-Path -LiteralPath $argsFile | Should -BeFalse
+      # alheia: E-DEMO-03
+      $script:T = New-WsStateTable
+      $d = Join-Path $TestDrive 'p-alheia'; New-Item -ItemType Directory -Path $d | Out-Null; [IO.File]::WriteAllText((Join-Path $d 'x.txt'), 'x')
+      Invoke-WsAssemble 'fake-ok.mjs' $d '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-03'
+      # semgit (git bloqueado): falha sem correr o assembler, e a pasta fica onde esta
+      $script:T = New-WsStateTable
+      $keep = $script:GitExe
+      try {
+        $script:GitExe = Join-Path $TestDrive 'bloqueado/git.exe'
+        Invoke-WsAssemble 'fake-ok.mjs' (Join-Path $TestDrive 'p-propria') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      } finally { $script:GitExe = $keep }
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+      $script:T['9'].Falha[1] | Should -Match '^git rev-parse HEAD: '
+      Test-Path -LiteralPath $argsFile | Should -BeFalse
+      # falha do assembler: a causa no detalhe (sem segredos), e nao so o nome do script
+      $script:T = New-WsStateTable
+      Invoke-WsAssemble 'fake-fail.mjs' (Join-Path $TestDrive 'p-falha') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeFalse
+      $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+      $script:T['9'].Falha[1] | Should -BeExactly 'fake-fail.mjs: git commit -q -m x failed: error: gpg failed to sign the data (token=***'
+    } finally { Remove-Item Env:WS_G5_ARGS -ErrorAction SilentlyContinue }
+  }
+
+  It 'Test-WsStep9: historico proprio da Arena e um aviso (E-DEMO-04), e nao E-DEMO-01' {
+    if (-not $script:GitExe) { Set-ItResult -Skipped -Because 'sem git'; return }
+    Mock Initialize-WsKit { return $true }
+    $script:Proj = Join-Path $TestDrive 'proj9'
+    $script:KitSrc = Join-Path $TestDrive 'kit9'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+    $script:Mode = 'install'
+    $script:Cur = '9'
+    New-Item -ItemType Directory -Path $script:KitSrc -Force | Out-Null
+    $demo = Join-Path $script:Proj 'demo-project'
+    Test-WsStep9 | Should -BeFalse
+    $script:T['9'].Falha[0] | Should -BeExactly 'E-DEMO-01'
+    $script:T = New-WsStateTable
+    New-TestProj $demo '.arena-kit.json' '{"version":"v1","language":"en"}'; New-TestRepo $demo ''
+    Test-WsStep9 | Should -BeTrue
+    $script:T['9'].Falha | Should -BeNullOrEmpty
+    $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-04'
+    $script:T = New-WsStateTable
+    & $script:GitExe -C $demo -c tag.gpgsign=false tag arena-start | Out-Null
+    Test-WsStep9 | Should -BeTrue
+    $script:T['9'].Avisos.Count | Should -Be 0
+  }
+
+  It 'passo 8 e -Uninstall: as skills/agentes alterados pela pessoa e as versoes anteriores' {
+    $script:Cur = '8'
+    $script:UserHome = 'C:\Users\x'
+    Read-WsInstallUserOutput "skills`t7`nagentes`t6`neditado`tC:/Users/x/.workshop-claude/backup/t/edited/skills/task-plan`nanteriores`tC:/Users/x/.workshop-claude/backup/t/previous`n"
+    $n = $script:T['8'].Notas
+    $n[0] | Should -BeExactly 'You had changed task-plan: your copy is saved in %USERPROFILE%\.workshop-claude\backup\t\edited\skills\task-plan, and the kit''s version is back in its place.'
+    $n[1] | Should -Match ([regex]::Escape('%USERPROFILE%\.workshop-claude\backup\t\previous'))
+    $f = ${function:Invoke-WsUninstall}.ToString()
+    $f | Should -Match "'editado' \{ Write-WsSay \('  ' \+ \(M 'desinst_editado'"
+    $f | Should -Match "'anteriores' \{ Write-WsSay \('  ' \+ \(M 's8_anteriores'"
+  }
+
+  It 'as mensagens novas existem nos dois catalogos' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($cat in @($script:Msgs, $pt)) {
+      foreach ($k in @('s9_backup', 's8_editado', 's8_anteriores', 'desinst_editado')) { $cat.ui.PSObject.Properties.Name | Should -Contain $k }
+      $cat.erros.'E-DEMO-04'.windows[0] | Should -Match 'Rename-Item \{PROJETOS\}\\demo-project demo-project-old'
+    }
+    $script:Msgs.ui.s9_backup | Should -Match '\{PASTA\}'
+    $script:Msgs.ui.s8_editado | Should -Match '\{NOME\}.*\{PASTA\}'
+  }
+}
