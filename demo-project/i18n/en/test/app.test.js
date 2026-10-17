@@ -149,7 +149,7 @@ test('right MIME types', async () => {
   }
 });
 
-test('/status and the older /estado serve the same page', async () => {
+test('/status and its older alias serve the same page', async () => {
   const a = await ask(realPort, '/status');
   const b = await ask(realPort, '/estado');
   assert.equal(a.status, 200);
@@ -327,10 +327,10 @@ test('/api/replay/<name> serves events and snapshot in English, and ignores brok
   assert.equal((await ask(fakePort, '/api/replay/demo/events.jsonl')).status, 200);
   assert.equal((await ask(fakePort, '/api/replay/does-not-exist')).status, 404);
   const list = JSON.parse((await ask(fakePort, '/api/replay')).body);
-  assert.deepEqual(list.replays.map((x) => x.name), ['demo', 'gravacao']);
+  assert.deepEqual(list.replays.map((x) => x.name), ['demo', 'recording']);
 });
 
-test('?replay=recording opens the older replays/gravacao (and the other way round)', async () => {
+test('?replay=recording also opens a recording saved under the older folder name (and the other way round)', async () => {
   const d = JSON.parse((await ask(fakePort, '/api/replay/recording')).body);
   assert.equal(d.name, 'recording');
   assert.equal(d.events[0].type, 'start');

@@ -84,6 +84,11 @@ if (platform() === 'darwin') {
   } else if (install) {
     console.log(T.installMac(plist, time[0], cmd));
     if (yes) {
+      // The routine installed by an older kit, under its old name, would run the review a second time.
+      if (existsSync(oldPlist)) {
+        spawnSync('launchctl', ['unload', oldPlist]);
+        unlinkSync(oldPlist);
+      }
       mkdirSync(dirname(plist), { recursive: true });
       writeFileSync(plist, xml);
       spawnSync('launchctl', ['load', plist]);
@@ -105,8 +110,11 @@ if (platform() === 'darwin') {
     }
   } else if (install) {
     console.log(T.installWin(tn, hhmm, tr));
-    if (yes) spawnSync('schtasks', ['/Create', '/SC', 'DAILY', '/TN', tn, '/TR', tr, '/ST', hhmm, '/F'], { stdio: 'inherit' });
-    else console.log(T.nothingChanged);
+    if (yes) {
+      // The task installed by an older kit, under its old name, would run the review a second time.
+      spawnSync('schtasks', ['/Delete', '/TN', oldTn, '/F'], { stdio: 'ignore' });
+      spawnSync('schtasks', ['/Create', '/SC', 'DAILY', '/TN', tn, '/TR', tr, '/ST', hhmm, '/F'], { stdio: 'inherit' });
+    } else console.log(T.nothingChanged);
   } else {
     console.log(T.runs(hhmm, tr));
   }

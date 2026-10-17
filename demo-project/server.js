@@ -419,13 +419,18 @@ function replayFolder(root, name) {
   return null;
 }
 
+// Each replay under its English name: a folder with an older name (gravacao, exemplo) is listed as
+// recording/example, unless the folder with the English name also exists (that one wins).
 function listReplays(root) {
   const out = [];
-  for (const n of list(join(root, 'replays')).sort()) {
+  const names = list(join(root, 'replays')).sort();
+  for (const n of names) {
+    const name = REPLAY_ENGLISH[n] ?? n;
+    if (name !== n && names.includes(name)) continue;
     const r = replayFolder(root, n);
     if (!r || r.name !== n || !existsSync(join(r.dir, 'events.jsonl'))) continue;
     const s = normalizeSnapshot(readJson(join(r.dir, 'snapshot.json'), {})) || {};
-    out.push({ name: n, description: typeof s.description === 'string' ? s.description : null, total: s.total ?? null, synthetic: !!s.synthetic });
+    out.push({ name, description: typeof s.description === 'string' ? s.description : null, total: s.total ?? null, synthetic: !!s.synthetic });
   }
   return out;
 }

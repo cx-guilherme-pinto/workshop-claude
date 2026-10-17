@@ -14,9 +14,9 @@ Each replay is a folder `replays/<name>/` (name with lowercase letters, numbers 
 | `events.jsonl` | The events of the run, one JSON per line, in the order they happened. It is the `.workshop/events.jsonl` that the orchestrator and the hooks write. |
 | `snapshot.json` | The final snapshot (the same one that `/api/status` returns). It gives the list and order of the tasks, the titles, the result of each test and the real total cost. |
 
-`example/` is **synthetic**: 15 tasks in about 20 minutes, to test replay mode before there is a real recording. Its `snapshot.json` has `"synthetic": true`. `/status?replay=recording` opens the presenter's recording; the older names (`?replay=exemplo`, `?replay=gravacao`) still work.
+`example/` is **synthetic**: 15 tasks in about 20 minutes, to test replay mode before there is a real recording. Its `snapshot.json` has `"synthetic": true`. `/status?replay=recording` opens the presenter's recording; the names used by older kits still work.
 
-The server sends both files to the page in the shape below. Recordings made by an older kit, with Portuguese keys (`tipo`, `tarefa`, `estado: "verde"`…), are read too.
+The server sends both files to the page in the shape below. Recordings made by an older kit, with the older key names, are read too.
 
 ## Events (`events.jsonl`)
 

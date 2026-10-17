@@ -1,6 +1,6 @@
 // Arena texts (English): app (public/), card templates (templates/), server, security checks
 // and browser tests. Runs in the browser (/lib/texts.js) and in Node.
-// installer/assemble-demo.mjs --lingua en puts this file in place of the Portuguese lib/texts.js.
+// installer/assemble-demo.mjs --language en puts this file in place of the Portuguese lib/texts.js.
 // Both versions have the same keys; only the text changes.
 
 export const LANG = 'en';

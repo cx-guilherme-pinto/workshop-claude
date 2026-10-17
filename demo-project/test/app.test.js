@@ -327,7 +327,7 @@ test('/api/replay/<name> serve eventos e fotografia em inglês, e ignora linhas 
   assert.equal((await ask(fakePort, '/api/replay/demo/events.jsonl')).status, 200);
   assert.equal((await ask(fakePort, '/api/replay/does-not-exist')).status, 404);
   const list = JSON.parse((await ask(fakePort, '/api/replay')).body);
-  assert.deepEqual(list.replays.map((x) => x.name), ['demo', 'gravacao']);
+  assert.deepEqual(list.replays.map((x) => x.name), ['demo', 'recording']);
 });
 
 test('?replay=recording abre o antigo replays/gravacao (e vice-versa)', async () => {

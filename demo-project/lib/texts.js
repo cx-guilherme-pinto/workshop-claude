@@ -1,7 +1,7 @@
 // Arena texts (Portuguese, pt-PT): app (public/), card templates (templates/), server,
 // security checks and browser tests. Runs in the browser (/lib/texts.js) and in Node.
 // The English Arena puts i18n/en/lib/texts.js in place of this file (installer/assemble-demo.mjs
-// --lingua en). Both versions have the same keys; only the text changes.
+// --language en). Both versions have the same keys; only the text changes.
 
 export const LANG = 'pt';
 
