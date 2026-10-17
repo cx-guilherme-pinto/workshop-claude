@@ -138,6 +138,7 @@
     "s8_lingua_mudou": "Language changed from {DE} to {PARA}, because WORKSHOP_LANG asked for it.",
     "s8_editado": "You had changed {NOME}: your copy is saved in {PASTA}, and the kit's version is back in its place.",
     "s8_anteriores": "The previous versions of the kit's skills and agents are saved in {PASTA}, in case you had changed one.",
+    "s8_claude_dir": "Claude Code folder (CLAUDE_CONFIG_DIR): {CAMINHO}",
     "s9_ja": "{PROJETOS}",
     "s9_backup": "Your previous folder is saved in {PASTA}.",
     "s9_testes_ok": "App tests: {OK} passed.",
@@ -328,6 +329,23 @@
         "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern proxy"
       ]
     },
+    "E-NET-09": {
+      "titulo": "A certificate variable points to a missing or wrong file",
+      "so": "todos",
+      "causa": "SSL_CERT_FILE, CURL_CA_BUNDLE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE or SSL_CERT_DIR (shown in brackets), or a cacert line in ~/.curlrc, points to a certificate file that does not exist or does not have the right certificates. It is often left over from an old Homebrew, Anaconda or Zscaler install. curl then fails on every site with \"curl: (77) error setting certificate verify locations\", and uv fails with \"invalid peer certificate\". The setup ignores the variable in its own commands, but your terminal still has it.",
+      "fazer": [
+        "If the install command itself stops with curl: (77), run the first command below in the same terminal and paste the install command again.",
+        "Find the export in your shell profile with the second command, delete that line (or point it to the right file) and open a new terminal."
+      ],
+      "mac": [
+        "unset SSL_CERT_FILE CURL_CA_BUNDLE GIT_SSL_CAINFO NODE_EXTRA_CA_CERTS REQUESTS_CA_BUNDLE SSL_CERT_DIR",
+        "grep -nE 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS|cacert' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile ~/.curlrc 2>/dev/null"
+      ],
+      "windows": [
+        "Get-ChildItem Env: | Where-Object Name -match 'SSL_CERT|CA_BUNDLE|CAINFO|EXTRA_CA_CERTS'",
+        "[Environment]::SetEnvironmentVariable('SSL_CERT_FILE', $null, 'User')"
+      ]
+    },
     "E-SO-01": {
       "titulo": "Windows older than 10.0.18362 (version 1903)",
       "so": "windows",
@@ -426,6 +444,31 @@
       "windows": [
         "{ONE_LINER_WINDOWS}"
       ]
+    },
+    "E-SO-09": {
+      "titulo": "The temporary folder variable points to a folder that cannot be used",
+      "so": "todos",
+      "causa": "TMPDIR (on Windows, TEMP or TMP), shown in brackets, points to a folder that does not exist or cannot be written, often an export copied from another computer. The setup used another temporary folder, but other programs in your terminal (Claude Code, uv, npm) may fail.",
+      "fazer": [
+        "Find the export with the first command and delete it (macOS sets TMPDIR by itself), then open a new terminal."
+      ],
+      "mac": [
+        "grep -n TMPDIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null",
+        "unset TMPDIR"
+      ],
+      "windows": [
+        "[Environment]::GetEnvironmentVariable('TEMP', 'User'); [Environment]::GetEnvironmentVariable('TMP', 'User')"
+      ]
+    },
+    "E-SO-10": {
+      "titulo": "The setup's temporary folder was deleted while it ran",
+      "so": "todos",
+      "causa": "Something deleted the setup's temporary folder (shown in brackets) in the middle of a step, usually a cleaning app or a script that empties the temporary folders. The step lost the files it had downloaded.",
+      "fazer": [
+        "Pause the cleaning app for a few minutes and run the setup again: the steps already done are skipped."
+      ],
+      "mac": [],
+      "windows": []
     },
     "E-CFG-01": {
       "titulo": "There are company-managed settings (managed-settings)",
@@ -538,6 +581,54 @@
       ],
       "windows": [
         "Get-ChildItem Env:UV_*"
+      ]
+    },
+    "E-CFG-08": {
+      "titulo": "CLAUDE_CONFIG_DIR is not an absolute path",
+      "so": "todos",
+      "causa": "CLAUDE_CONFIG_DIR (shown in brackets) is a relative path, or starts with a ~ inside quotes. Neither Claude Code nor the setup expands it, so every folder where you run claude would get its own copy of the settings, the skills and the logins (for example a folder named ~ inside the Arena). The setup stopped before changing anything.",
+      "fazer": [
+        "Find the line with the first command. Write the path with $HOME, for example export CLAUDE_CONFIG_DIR=\"$HOME/.claude-work\" (no quotes around a ~), or delete the line if you do not need a separate Claude Code folder.",
+        "Open a new terminal, check the value with the second command and run the setup again."
+      ],
+      "mac": [
+        "grep -n CLAUDE_CONFIG_DIR ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null",
+        "echo \"$CLAUDE_CONFIG_DIR\""
+      ],
+      "windows": [
+        "[Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')",
+        "Remove-Item Env:CLAUDE_CONFIG_DIR"
+      ]
+    },
+    "E-CFG-09": {
+      "titulo": "New terminals do not use the same Claude Code folder",
+      "so": "todos",
+      "causa": "This terminal has CLAUDE_CONFIG_DIR, so the setup put the skills, the hooks and the MCP servers in that folder (shown in brackets). A new terminal has another value, or none, so the claude you open there will not see them. This happens when the variable was exported only in this terminal, by an IDE or by direnv.",
+      "fazer": [
+        "To keep that folder: save the variable for new terminals with the first command, open a new terminal and run the setup again.",
+        "To use the normal folder (~/.claude): open a new terminal where CLAUDE_CONFIG_DIR is not set and run the setup again."
+      ],
+      "mac": [
+        "echo \"export CLAUDE_CONFIG_DIR=\\\"$CLAUDE_CONFIG_DIR\\\"\" >> ~/.zshrc"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CONFIG_DIR', $env:CLAUDE_CONFIG_DIR, 'User')"
+      ]
+    },
+    "E-CFG-10": {
+      "titulo": "A model override is set for Claude Code",
+      "so": "todos",
+      "causa": "A variable (shown in brackets, from the shell or from the \"env\" of a settings file) replaces the models Claude Code uses. That is the session model, or the sonnet, haiku and opus aliases of the workshop skills and agents. A retired model id, or one that only exists on Bedrock or Vertex, fails with a Console login, and another model changes the costs. The final test picks its own model, so it does not show this.",
+      "fazer": [
+        "If you do not need the override, remove it: run the second command in this terminal, delete the line from ~/.zshrc and, if it is in ~/.claude/settings.json, remove it from \"env\". Then open a new terminal.",
+        "If your company set it (managed settings), talk to the organizer before the workshop."
+      ],
+      "mac": [
+        "env | grep -E '^(ANTHROPIC_(MODEL|DEFAULT_[A-Z]+_MODEL|SMALL_FAST_MODEL)|CLAUDE_CODE_SUBAGENT_MODEL)='",
+        "unset ANTHROPIC_MODEL ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_SUBAGENT_MODEL"
+      ],
+      "windows": [
+        "Get-ChildItem Env: | Where-Object Name -match 'ANTHROPIC_.*MODEL|CLAUDE_CODE_SUBAGENT_MODEL'"
       ]
     },
     "E-PERM-01": {
@@ -804,6 +895,23 @@
       "windows": [
         "Get-Command node -All",
         "node -v"
+      ]
+    },
+    "E-NODE-03": {
+      "titulo": "NODE_OPTIONS breaks Node in your terminal",
+      "so": "todos",
+      "causa": "NODE_OPTIONS (shown in brackets) makes every Node script fail. It is usually a --require of a file that no longer exists (VS Code or Cursor \"Debug: Auto Attach\", a monitoring agent) or an option this Node version rejects. The setup ran Node without it, but the workshop hooks, the statusline and the skills run Node from your terminal: the cost display and the budget warnings would not work.",
+      "fazer": [
+        "In this terminal, run the first command. In VS Code or Cursor, run \"Debug: Toggle Auto Attach\" and choose Disabled or Smart, then open a new terminal.",
+        "If the export is in your shell profile, find it with the second command and delete it, then open a new terminal."
+      ],
+      "mac": [
+        "unset NODE_OPTIONS",
+        "grep -n NODE_OPTIONS ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null"
+      ],
+      "windows": [
+        "Remove-Item Env:NODE_OPTIONS",
+        "[Environment]::GetEnvironmentVariable('NODE_OPTIONS', 'User')"
       ]
     },
     "E-UV-01": {
@@ -1144,6 +1252,47 @@
         "icacls \"$env:USERPROFILE\\.agent-memory\"",
         "agent-memory selftest"
       ]
+    },
+    "E-MEM-08": {
+      "titulo": "uv is pointed at a package mirror that does not work",
+      "so": "todos",
+      "causa": "A variable (shown in brackets: UV_DEFAULT_INDEX, UV_INDEX_URL, UV_INDEX or UV_EXTRA_INDEX_URL) sends uv to a company package mirror instead of pypi.org, and that mirror did not answer or does not have the packages of the app. Often it only works on the company VPN. The skills work without the app.",
+      "fazer": [
+        "Connect to the company VPN and run the setup again.",
+        "Or, if you do not need the mirror, remove the variable in this terminal (command below), delete it from your shell profile and run the setup again."
+      ],
+      "mac": [
+        "unset UV_DEFAULT_INDEX UV_INDEX_URL UV_INDEX UV_EXTRA_INDEX_URL"
+      ],
+      "windows": [
+        "Remove-Item Env:UV_DEFAULT_INDEX, Env:UV_INDEX_URL, Env:UV_INDEX, Env:UV_EXTRA_INDEX_URL -ErrorAction SilentlyContinue"
+      ]
+    },
+    "E-MEM-09": {
+      "titulo": "PYTHONHOME or PYTHONPATH is set in your terminal",
+      "so": "todos",
+      "causa": "Your terminal exports PYTHONHOME or PYTHONPATH (shown in brackets), often left over from an old Anaconda or conda install. They make the Python of the Agent Memory app load the wrong files and fail (\"No module named encodings\", ImportError). The setup and the memory MCP of Claude Code run the app without them, but agent-memory typed in your terminal fails.",
+      "fazer": [
+        "Find the export with the command below and delete it (or the old conda block), then open a new terminal."
+      ],
+      "mac": [
+        "grep -nE 'PYTHONHOME|PYTHONPATH|conda' ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.profile 2>/dev/null"
+      ],
+      "windows": [
+        "[Environment]::GetEnvironmentVariable('PYTHONHOME', 'User'); [Environment]::GetEnvironmentVariable('PYTHONPATH', 'User')"
+      ]
+    },
+    "E-MEM-10": {
+      "titulo": "Your home folder path is too long for the Agent Memory app",
+      "so": "mac",
+      "causa": "The app keeps its search index in <memories folder>/.index/index-v3.sqlite, and the SQLite of its Python only opens database paths of up to 504 bytes (in brackets, the length here). With a very long home folder path the index never opens: running the setup again or agent-memory reindex does not fix it. Your notes are safe, and the skills work without the app.",
+      "fazer": [
+        "Put the memories in a shorter folder: add the line below to ~/.zshrc, open a new terminal and run the setup again. The notes you already have stay in the old folder: copy them over if you want them."
+      ],
+      "mac": [
+        "echo 'export AGENT_MEMORY_HOME=\"/Users/Shared/agent-memory-$USER\"' >> ~/.zshrc"
+      ],
+      "windows": []
     },
     "E-DESK-01": {
       "titulo": "Claude Desktop has limits with the Console",

@@ -19,6 +19,22 @@
 # A lingua da maquina (WORKSHOP_LANG, a lingua guardada na instalacao, AppleLanguages, LC_ALL, LC_MESSAGES, LANG)
 # so configura o resto: a "language" do Claude Code e a lingua dos textos do kit e dos projetos (pt ou en).
 
+# Um bash nao interativo ("curl | bash", "bash ficheiro") ja leu o $BASH_ENV (um .bashrc partilhado) e importou as
+# funcoes exportadas antes desta linha: desfaz-se o que mudam no setup (noclobber recusa os ">", errexit/nounset
+# param a meio, xtrace mostra os comandos, uma funcao cd que corre ls suja os "$(cd X && pwd -P)", CDPATH, IFS,
+# aliases). Aqui e nao dentro de main(): os aliases expandem-se quando o bash le a definicao de main. So neste
+# processo e nos filhos dele (o BASH_ENV sai do ambiente: o install.sh do Claude e do uv nao o voltam a ler).
+set +o noclobber +o errexit +o nounset +o pipefail +o xtrace +o verbose +o allexport +o noglob +o errtrace +o functrace 2>/dev/null
+set +o posix 2>/dev/null
+for _ws_o in expand_aliases failglob nullglob nocasematch nocaseglob dotglob extdebug; do shopt -u "$_ws_o" 2>/dev/null; done
+unalias -a 2>/dev/null
+trap - DEBUG ERR RETURN 2>/dev/null
+unset -f cd pushd popd 2>/dev/null
+# (os testes fazem "source" deste ficheiro com WS_SOURCE_ONLY=1 e tem as suas funcoes: so a execucao a serio as limpa)
+if [ "${WS_SOURCE_ONLY:-0}" != 1 ]; then for _ws_o in $(compgen -A function); do unset -f "$_ws_o"; done; fi
+unset _ws_o CDPATH BASH_ENV ENV GLOBIGNORE TMOUT POSIXLY_CORRECT
+IFS=$' \t\n'
+
 # >>> WS-INJETADO >>>
 # Na fonte este bloco esta vazio. tools/build-release.sh injeta aqui os valores do repos.conf,
 # o SHA-256 do arquivo do kit, o pricing.json e as mensagens.
@@ -31,6 +47,8 @@ umask 022
 
 WS_TAB=$(printf '\t')
 WS_CR=$(printf '\r')
+WS_NL='
+'
 # Limites de tempo (segundos, ws_timeout) dos comandos que esperam pela rede e podem ficar presos sem VPN ou com
 # um proxy parado. O "auth status" tem mais tempo porque pode esperar pelo dialogo do Keychain.
 WS_TMO_GH=25 WS_TMO_MCP=60 WS_TMO_AUTH=120 WS_TMO_SMOKE=90 WS_TMO_HELPER=90 WS_TMO_DOCTOR=180
@@ -63,7 +81,7 @@ EOF
 }
 
 # Primeira versao numerica encontrada no texto (ex.: "gh version 2.102.0 (2026-..)" -> 2.102.0)
-ws_ver_of() { printf '%s' "$1" | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1; }
+ws_ver_of() { printf '%s' "$1" | grep --color=never -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n 1; }
 
 # Filtro de redacao (mesmas regras que installer/lib/redact.mjs; casos em tools/test/redact-cases.json).
 # Na ultima regra (chave=valor) a palavra-chave nao pode vir logo a seguir a um algarismo: em "1Password: agent"
@@ -221,18 +239,20 @@ ws_lang_detect() {
 # ---------------------------------------------------------------- JS (node se houver, senao JXA)
 ws_js() { # codigo-js args...  (o codigo define o corpo de main(A) e devolve texto)
   local code=$1 f; shift
+  ws_tmp_gone
   f="$WS_TMP/js-$RANDOM.js"
   if [ -n "${WS_NODE:-}" ] && [ -x "$WS_NODE" ]; then
     { printf '%s\n' 'var readText=function(p){return require("fs").readFileSync(p,"utf8");};'
       printf 'var main=function(A){\n%s\n};\n' "$code"
       printf '%s\n' 'var r=main(process.argv.slice(2)); if(r!==undefined&&r!==null) process.stdout.write(String(r));'
-    } > "$f"
-    "$WS_NODE" "$f" "$@" </dev/null
+    } 2>/dev/null > "$f" || return 1   # disco cheio ou pasta temporaria apagada: sem script, nada a correr
+    # Um erro do node (pilha de chamadas) vai para o log do passo, nunca para o ecra.
+    "$WS_NODE" "$f" "$@" </dev/null 2>>"${WS_STEP_LOG:-/dev/null}"
   else
     { printf '%s\n' 'ObjC.import("Foundation");' 'var readText=function(p){var s=$.NSString.stringWithContentsOfFileEncodingError(p,$.NSUTF8StringEncoding,null); return s.isNil()?"":ObjC.unwrap(s);};'
       printf 'var main=function(A){\n%s\n};\n' "$code"
       printf '%s\n' 'function run(argv){var r=main(argv); return (r===undefined||r===null)?"":String(r);}'
-    } > "$f"
+    } 2>/dev/null > "$f" || return 1
     osascript -l JavaScript "$f" "$@" </dev/null
   fi
 }
@@ -337,7 +357,8 @@ ws_say() { printf '%s\n' "$*"; printf '%s\n' "$*" | ws_redact 2>/dev/null >> "$W
 ws_bold() { if [ "$WS_COLOR" = 1 ]; then printf '\033[1m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 ws_dim() { if [ "$WS_COLOR" = 1 ]; then printf '\033[2m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 # Negrito e cinzento so num terminal que os mostra (TERM=dumb e NO_COLOR desligam).
-ws_color_detect() { if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ]; then WS_COLOR=1; else WS_COLOR=0; fi; }
+# (O ws_env_sanitize poe NO_COLOR=1 para os comandos que o setup corre: conta o que a pessoa tinha, WS_NO_COLOR0.)
+ws_color_detect() { if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${WS_NO_COLOR0-${NO_COLOR:-}}" ]; then WS_COLOR=1; else WS_COLOR=0; fi; }
 
 ws_has_tty() { [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null; }
 # Se outro programa ficou com o terminal, ler dele suspende o setup ("zsh: suspended (tty input)").
@@ -491,7 +512,7 @@ ws_curl_home() {
   # A mesma ordem que o curl: $CURL_HOME/.curlrc, $XDG_CONFIG_HOME/curlrc, ~/.curlrc (so o primeiro que existir).
   for f in "${CURL_HOME:+$CURL_HOME/.curlrc}" "${XDG_CONFIG_HOME:+$XDG_CONFIG_HOME/curlrc}" "$HOME/.curlrc"; do
     [ -n "$f" ] && [ -f "$f" ] && { cat "$f" 2>/dev/null; printf '\n'; break; }
-  done > "$d/.curlrc"
+  done >| "$d/.curlrc"
   printf '%s\n' 'connect-timeout = 20' 'speed-limit = 1024' 'speed-time = 60' 'retry = 2' >> "$d/.curlrc"
   printf '%s' "$d"
 }
@@ -513,6 +534,8 @@ ws_installer_net_code() { # bytes-do-log-antes
 ws_dl() {
   local url=$1 out=$2 auth=${3:-} part="$2.part" host w code conn
   rm -f "$part"
+  # Disco cheio (WS_DISK_FULL, ver ws_disk_full) e ainda cheio: nem se descarrega (curl 23, erro de escrita).
+  if [ "${WS_DISK_FULL:-0}" = 1 ] && ws_disk_full; then ws_log "download skipped, disk full: $url"; WS_DL_RC=23; WS_DL_HTTP=000; WS_DL_HOST=""; return 23; fi
   ws_log "download: $url"
   host=${url#*://}; host=${host%%/*}; WS_DL_URLHOST=$host
   ws_hb_start "$part"
@@ -583,7 +606,9 @@ ws_net_code() { # rc http
     6) if [ "${WS_PROXY_DEAD:-0}" = 1 ]; then echo E-NET-03; else echo E-NET-02; fi ;;
     7|28) if [ "${WS_PROXY_DEAD:-0}" = 1 ]; then echo E-NET-03; else echo E-NET-01; fi ;;
     52|55|56) echo E-NET-01 ;;
-    35|51|53|54|58|59|60|77|83|90|91) echo E-NET-04 ;;
+    # 77: o ficheiro de certificados que o curl devia ler nao existe (SSL_CERT_FILE, CURL_CA_BUNDLE, o cacert do ~/.curlrc).
+    77) echo E-NET-09 ;;
+    35|51|53|54|58|59|60|83|90|91) echo E-NET-04 ;;
     *) echo E-NET-07 ;;
   esac
 }
@@ -662,7 +687,10 @@ EOF
 ws_step() { # numero deps...
   local n=$1 d; shift
   WS_CUR=$n; WS_STEP_FAILED=""
-  WS_STEP_LOG="$WS_TMP/passo-$n.log"; : > "$WS_STEP_LOG"
+  # A pasta temporaria apagada entre passos volta a existir; sem espaco para o log do passo, o log e o /dev/null
+  # (assim cada "2>>" do passo nao falha antes de correr o comando, nem escreve erros do bash no ecra).
+  ws_tmp_gone; WS_TMP_WIPED_STEP=""
+  WS_STEP_LOG="$WS_TMP/passo-$n.log"; { : > "$WS_STEP_LOG"; } 2>/dev/null || WS_STEP_LOG=/dev/null
   ws_set SD "$n" ""; ws_set SW "$n" ""; ws_set SF "$n" ""; ws_set SN "$n" ""
   local title="M_passos_$n"; title=${!title}
   ws_say ""
@@ -690,7 +718,7 @@ ws_step() { # numero deps...
     else ws_set ST "$n" ok; fi
   elif [ "$WS_MODE" != install ]; then
     local f="SF_$n" prev=""; [ -n "${!f}" ] || ws_fail "$(ws_default_code "$n")" ""
-    ws_perm_reclass
+    ws_fail_reclass
     # "Ainda nao instalado": a causa real da ultima instalacao (se falhou) vem do setup.log, porque o
     # --check e o --doctor nao voltam a correr a instalacao.
     if ws_is_missing_code "${!f%%|*}"; then prev=$(ws_last_install_result "$n"); ws_fail E-SETUP-01 "${!f%%|*}"; fi
@@ -700,11 +728,18 @@ ws_step() { # numero deps...
   else
     ws_set SW "$n" ""
     ws_set SF "$n" ""
-    if "ws_s${n}_install"; then
+    # Disco cheio (no passo 0 ou num passo anterior) e ainda cheio: os passos que descarregam nem tentam instalar
+    # (cada um falhava com outra causa, a rede ou o GitHub, e descarregava tudo outra vez). O que ja esta feito fica;
+    # os logins (3, 6), o MCP (7) e o teste final (12) correm, e uma falha deles passa a E-SO-06 (ws_fail_reclass).
+    local ok=1
+    if [ "${WS_DISK_FULL:-0}" = 1 ] && case "$n" in 1|2|4|5|8|9|10|11) true ;; *) false ;; esac && ws_disk_full; then
+      ws_fail E-SO-06 "$(ws_disk_detail)"; ok=0
+    elif ! "ws_s${n}_install"; then ok=0; fi
+    if [ "$ok" = 1 ]; then
       local w="SW_$n"; if [ -n "${!w}" ]; then ws_set ST "$n" aviso; else ws_set ST "$n" feito; fi
     else
       local f="SF_$n"; [ -n "${!f}" ] || ws_fail "$(ws_default_code "$n")" ""
-      ws_perm_reclass
+      ws_fail_reclass
       WS_STEP_FAILED=${!f}
       if ws_nonblocking "$n"; then
         ws_set ST "$n" aviso; ws_warn "${!f%%|*}" "${!f#*|}"; ws_set SF "$n" ""
@@ -733,6 +768,33 @@ ws_default_code() {
     6) echo E-GH-01 ;; 7) echo E-MCP-01 ;; 8) echo E-KIT-03 ;; 9) echo E-DEMO-01 ;; 10) echo E-MEM-03 ;; 11) echo E-DESK-02 ;; *) echo E-SMOKE-01 ;; esac
 }
 
+# A causa comum de uma falha ganha ao codigo generico do passo: o disco cheio, a pasta temporaria apagada a meio
+# (uma app de limpeza) e a falta de permissao (ws_perm_reclass).
+ws_fail_reclass() {
+  ws_disk_reclass && return 0
+  if ws_tmp_gone || [ -n "${WS_TMP_WIPED_STEP:-}" ]; then ws_fail E-SO-10 "$(ws_tilde "$WS_TMP")"; return 0; fi
+  ws_perm_reclass
+}
+# Disco cheio: menos de 50 MB livres na HOME ou na pasta temporaria (WS_DISK_MB), ou "No space left" no log do
+# passo. Com o disco a 0 o log do passo nem se escreve: por isso tambem o df.
+ws_disk_full() {
+  local t kb
+  WS_DISK_MB=""
+  for t in "$HOME" "${WS_TMP:-$HOME}"; do
+    kb=$(df -k "$t" 2>/dev/null | awk 'NR==2{print $4}')
+    case "$kb" in ''|*[!0-9]*) continue ;; esac
+    [ "$kb" -lt 51200 ] && { WS_DISK_MB=$((kb / 1024)); return 0; }
+  done
+  grep -aqE 'No space left on device|ENOSPC|os error 28' "$WS_STEP_LOG" 2>/dev/null
+}
+ws_disk_detail() { if [ -n "${WS_DISK_MB:-}" ]; then printf '%s MB free' "$WS_DISK_MB"; else printf 'No space left on device'; fi; }
+ws_disk_reclass() {
+  local f="SF_$WS_CUR"
+  case "${!f%%|*}" in E-SO-06|E-PERM-*|E-CFG-05|E-GH-02|E-SMOKE-02|E-SMOKE-03) return 1 ;; esac
+  ws_disk_full || return 1
+  WS_DISK_FULL=1
+  ws_fail E-SO-06 "$(ws_disk_detail) · ${!f%%|*}"
+}
 # Um erro de permissao (ou "nao e uma pasta") na saida do passo ganha ao codigo generico do passo, que fala da
 # rede ou do antivirus: mostra-se E-PERM-01 com a linha que o diz (restos de um "sudo", pastas bloqueadas).
 ws_perm_reclass() {
@@ -810,7 +872,12 @@ ws_path_front() {
   PATH="${PATH#:}"; PATH="${PATH%:}"; PATH="$1${PATH:+:$PATH}"
 }
 ws_path_setup() {
-  local d
+  local d rest="$PATH:" e out=""
+  # So ficam as entradas absolutas: um ".", um "./node_modules/.bin" ou uma vazia (o terminal do VS Code num
+  # projeto JavaScript) tornavam relativo o claude ou o node encontrado aqui, que deixava de servir depois de um
+  # cd e ia parar ao settings.json.
+  while [ -n "$rest" ]; do e=${rest%%:*}; rest=${rest#*:}; case "$e" in /*) out="${out:+$out:}$e" ;; esac; done
+  PATH=$out
   # A mesma ordem que o bloco do perfil (fica node/bin, depois bin, depois .local/bin a frente): um gh, git ou
   # acli antigo em ~/.local/bin nao passa a frente dos do setup, e cada pasta vai para a frente mesmo que ja
   # esteja no PATH (um claude antigo do npm a frente do ~/.local/bin).
@@ -889,9 +956,9 @@ ws_profile_update() {
 ws_zdotdir() {
   local z="" o="$WS_TMP/zdotdir.out" pid i=0
   if [ -e /etc/zshenv ] || [ -e "$HOME/.zshenv" ]; then
-    : > "$o"
+    : 2>/dev/null > "$o"
     env -i HOME="$HOME" USER="${USER:-}" LOGNAME="${LOGNAME:-${USER:-}}" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
-      /bin/zsh -c 'print -r -- "WSZDOTDIR=${ZDOTDIR:-$HOME}"' </dev/null >"$o" 2>/dev/null &
+      /bin/zsh -c 'print -r -- "WSZDOTDIR=${ZDOTDIR:-$HOME}"' </dev/null 2>/dev/null >|"$o" &
     pid=$!
     while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
     if kill -0 "$pid" 2>/dev/null; then { kill -9 "$pid"; wait "$pid"; } 2>/dev/null; ws_log "zsh -c (ZDOTDIR) did not answer in 5 s"; fi
@@ -916,10 +983,12 @@ ws_zdotdir() {
 # - antes da primeira alteracao guarda uma copia em ~/.workshop-claude/backup.
 ws_profile_put() { # ficheiro bloco
   local f=$1 tmp="$WS_TMP/perfil.ws-tmp" novo="" bk="" rc
+  ws_tmp_gone
   [ -f "$f.ws-tmp" ] && [ ! -L "$f.ws-tmp" ] && rm -f "$f.ws-tmp"   # sobra das versoes antigas do setup
   if [ -e "$f" ] || [ -L "$f" ]; then
     if [ ! -f "$f" ] || [ ! -r "$f" ]; then ws_profile_warn E-PROF-01 "$f"; return 1; fi
-    ws_profile_strip "$f" > "$tmp" 2>>"$WS_LOG"; rc=$?
+    # (o erro de um ">" que falha, ex.: disco cheio, vai para o log e nao para o ecra)
+    { ws_profile_strip "$f" > "$tmp"; } 2>>"$WS_LOG"; rc=$?
     if [ "$rc" != 0 ]; then
       rm -f "$tmp"
       # bloco antigo incompleto: fica no manifest, para o --uninstall dizer que nao o conseguiu tirar
@@ -932,7 +1001,8 @@ ws_profile_put() { # ficheiro bloco
     mkdir -p "$(dirname "$f")" 2>>"$WS_LOG" || { ws_profile_warn E-PROF-01 "$f"; return 1; }
     : > "$tmp"; novo=criado
   fi
-  printf '\n%s\n' "$2" >> "$tmp"
+  # (sem esta verificacao, uma escrita que falhasse deixava o perfil sem o bloco)
+  printf '\n%s\n' "$2" >> "$tmp" 2>/dev/null || { rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1; }
   if [ -z "$novo" ]; then
     if cmp -s "$f" "$tmp"; then rm -f "$tmp"; ws_registar perfil "$f" "$f"; return 0; fi
     [ -w "$f" ] || { rm -f "$tmp"; ws_profile_warn E-PROF-01 "$f"; return 1; }
@@ -975,6 +1045,8 @@ ws_profile_write() { # ficheiro conteudo
 # em varios passos). Fica no passo que esta a correr (que passa a "com aviso"); depois do resultado do passo 12 ja
 # nao ha passo onde o mostrar: vai logo para o ecra e o passo 12 passa a "com aviso" (conta no resumo).
 ws_profile_warn() { # codigo ficheiro
+  # Sem espaco no disco a copia do perfil nao se escreve: nao e um ficheiro so de leitura nem de outro utilizador.
+  [ "$1" = E-PROF-01 ] && ws_disk_full && set -- E-SO-06 "$2"
   ws_log "profile left unchanged ($1): $2"
   case "${WS_PERFIL_AVISADOS:-}" in *"|$2|"*) return 0 ;; esac
   WS_PERFIL_AVISADOS="${WS_PERFIL_AVISADOS:-}|$2|"
@@ -1050,7 +1122,7 @@ ws_kit_ensure() {
   [ "$WS_MODE" = install ] || return 1
   local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd rc sum
   url=$(ws_release_url workshop "$name")
-  tmpd="$WS_TMP/kit"; rm -rf "$tmpd"; mkdir -p "$tmpd/x"
+  tmpd="$WS_TMP/kit"; rm -rf "$tmpd"; mkdir -p "$tmpd/x" 2>>"$WS_STEP_LOG" || return 1
   ws_say "  $(ws_msg a_descarregar O_QUE="$name")"
   # Com o SHA-256 injetado (release), um arquivo truncado ou alterado e descarregado uma segunda vez.
   if [ -n "$WS_INJ_KIT_SHA256" ]; then ws_dl_check "$url" "$tmpd/$name" "$WS_INJ_KIT_SHA256" auth; else ws_dl "$url" "$tmpd/$name" auth; fi
@@ -1071,6 +1143,7 @@ ws_kit_ensure() {
   # Recurso: git clone da tag (o REPO_TOKEN, se existir, vai por variaveis de configuracao do git).
   # Os mesmos limites que o ws_dl: uma transferencia parada (menos de 1 KB/s durante 60 s) falha.
   command -v git >/dev/null 2>&1 && xcode_ok || return 1
+  [ "${WS_DISK_FULL:-0}" = 1 ] && return 1   # disco cheio: o clone tambem nao cabe
   rm -rf "$tmpd/clone"
   ws_log "fallback: git clone --depth 1 --branch $C_WORKSHOP_VERSION $C_WORKSHOP_REPO_URL"
   if [ -n "${REPO_TOKEN:-}" ]; then
@@ -1120,9 +1193,14 @@ ws_s0_detect() {
   local keys; keys=$(ws_env_keys) && ws_warn E-CFG-02 "$keys"
   local cloud; cloud=$(ws_cloud_where) && ws_warn E-CFG-04 "$cloud"
   local b; for b in $(ws_uv_python_blockers); do ws_warn E-CFG-07 "$b=${!b}"; done
+  ws_s0_env_warnings
 
   local kb; kb=$(df -k "$HOME" 2>/dev/null | awk 'NR==2{print $4}')
-  if [ -n "$kb" ]; then ws_note "$(ws_msg s0_disco GB="$((kb / 1048576))")"; [ "$kb" -lt 3145728 ] && ws_warn E-SO-06 "$((kb / 1048576)) GB"; fi
+  # Com uma casa decimal: "0 GB" com 590 MB livres escondia quanto falta.
+  local gb; gb=$(LC_ALL=C awk -v k="${kb:-0}" 'BEGIN { g = k / 1048576; printf (g < 0.1 ? "%.2f" : "%.1f"), g }')
+  if [ -n "$kb" ]; then ws_note "$(ws_msg s0_disco GB="$gb")"; [ "$kb" -lt 3145728 ] && ws_warn E-SO-06 "$gb GB"; fi
+  # Menos de 50 MB: os passos que ainda faltam nem tentam instalar (ws_step).
+  ws_disk_full && WS_DISK_FULL=1
   case "$(cd "$HOME" 2>/dev/null && pwd -P)" in *OneDrive*|*CloudStorage*) ws_warn E-SO-03 "$HOME" ;; esac
   [ -d "$WS_PROJ" ] && case "$(cd "$WS_PROJ" && pwd -P)" in *OneDrive*|*CloudStorage*) ws_warn E-SO-03 "$WS_PROJ" ;; esac
   ws_perm_scan
@@ -1137,6 +1215,20 @@ ws_s0_detect() {
   return 0
 }
 ws_s0_install() { ws_s0_detect; }
+# Variaveis do terminal que o setup contorna mas que continuam a partir o que a pessoa corre la.
+ws_s0_env_warnings() {
+  # Modelos trocados por variaveis (na shell ou no "env" das definicoes): mudam o "sonnet"/"haiku" das skills e dos
+  # agentes e o modelo da sessao; um id antigo ou so do Bedrock falha com o login do Console. Os ids nao sao segredos.
+  local mv r out=""
+  for mv in ANTHROPIC_MODEL ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_SUBAGENT_MODEL; do
+    if [ -n "${!mv:-}" ]; then out="$out · $mv=${!mv} (shell)"
+    elif r=$(ws_settings_env "$mv"); then out="$out · $mv=${r%%"$WS_TAB"*} ($(ws_path_show "${r#*"$WS_TAB"}"))"; fi
+  done
+  [ -z "$out" ] || ws_warn E-CFG-10 "${out# · }"
+  # O que o ws_env_sanitize tirou do ambiente do setup, mas o terminal da pessoa ainda tem (um aviso para todas).
+  [ -z "${WS_CA_BAD0:-}" ] || ws_warn E-NET-09 "${WS_CA_BAD0//$WS_NL/ · }"
+  [ -z "${WS_TMPDIR_BAD0:-}" ] || ws_warn E-SO-09 "TMPDIR=$WS_TMPDIR_BAD0"
+}
 
 # shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
 ws_path_show() { case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;; *) printf '%s' "$1" ;; esac; }
@@ -1457,7 +1549,8 @@ ws_check_network() {
   if [ -n "$fails" ]; then
     ws_note "$(ws_msg s0_rede_falha LISTA="$(ws_trim "$fails")")"
     # Se a causa e o proxy (E-NET-03), o E-NET-05 ("define o HTTPS_PROXY") so confundia.
-    [ "$WS_NET_API_OK" = 0 ] && ! grep -q '^E-NET-03 ' "$dir/codes" && ws_warn E-NET-05 "api.anthropic.com"
+    # O mesmo com um ficheiro de certificados que nao existe (E-NET-09): a rede esta bem.
+    [ "$WS_NET_API_OK" = 0 ] && ! grep -qxE 'E-NET-0[39]' "$dir/codes" && ws_warn E-NET-05 "api.anthropic.com"
     # um aviso por codigo, com os servidores desse codigo (o primeiro vai para os comandos do aviso)
     local c d; while IFS= read -r c; do
       [ -n "$c" ] || continue
@@ -1633,7 +1726,14 @@ ws_s3_install() {
 }
 
 # ================================================================= PASSO 4 - Node
-ws_node_major() { "$1" -v 2>/dev/null </dev/null | sed -E 's/^v([0-9]+).*/\1/'; }
+# Com -e e nao -v: um node que responde ao -v mas nao corre scripts (um NODE_OPTIONS que o parte) nao serve.
+ws_node_major() { "$1" -e 'process.stdout.write(process.versions.node)' 2>/dev/null </dev/null | sed -E 's/^([0-9]+).*/\1/'; }
+# O Node do workshop inteiro? Um tar que acabou bem com a pasta temporaria apagada a meio (uma app de limpeza)
+# deixa o bin/node sem o npm: o node -v responde e o "npm test" dos projetos nao.
+ws_node_complete() { # pasta do node
+  [ -x "$1/bin/node" ] && [ -f "$1/lib/node_modules/npm/bin/npm-cli.js" ] &&
+    "$1/bin/node" "$1/lib/node_modules/npm/bin/npm-cli.js" -v </dev/null >/dev/null 2>&1
+}
 
 ws_node_candidates() {
   local brew major=${C_NODE_VERSION%%.*}
@@ -1654,6 +1754,7 @@ ws_node_candidates() {
 # foi trocado por outro programa (exec tmux) ou falhou antes do comando.
 ws_newterm() { # comando
   local sh=${SHELL:-/bin/zsh} out="$WS_TMP/newterm-$RANDOM.out" rc
+  ws_tmp_gone
   [ -x "$sh" ] || sh=/bin/zsh
   [ -n "${WS_NODE:-}" ] && [ -x "$WS_NODE" ] || return 1
   case "$sh" in
@@ -1680,6 +1781,7 @@ ws_s4_detect() {
   local c m found=""
   while IFS= read -r c; do
     [ -n "$c" ] && [ -x "$c" ] || continue
+    [ "$c" = "$WS_HOME/node/bin/node" ] && ! ws_node_complete "$WS_HOME/node" && { ws_log "incomplete node in $WS_HOME/node (npm does not start)"; continue; }
     m=$(ws_node_major "$c")
     if [ -n "$m" ] && [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null; then found=$c; break; fi
   done <<EOF
@@ -1689,6 +1791,11 @@ EOF
   [ -n "$WS_NODE" ] || { ws_fail E-NODE-01 "node >= $C_NODE_MIN_MAJOR"; return 1; }
   case "$WS_NODE" in "$WS_HOME"/node/bin/node|*/opt/node@*/bin/node) WS_NODE_BIN_DIR=$(dirname "$WS_NODE") ;; esac
   ws_detail "$(ws_msg s4_ja VERSAO="$("$WS_NODE" -v </dev/null)" CAMINHO="${WS_NODE/#"$HOME"/~}")"
+  # O setup corre o node sem o NODE_OPTIONS da pessoa (ws_env_sanitize); se esse partir o Node, os hooks, a
+  # statusline e as skills partem no terminal dela.
+  if [ -n "${WS_NODE_OPTIONS0:-}" ] && ! NODE_OPTIONS="$WS_NODE_OPTIONS0" "$WS_NODE" -e 0 >/dev/null 2>&1 </dev/null; then
+    ws_warn E-NODE-03 "NODE_OPTIONS=$WS_NODE_OPTIONS0"
+  fi
   ws_registar_flush
   # O --uninstall so precisa do WS_NODE: nao corre o perfil da pessoa.
   [ "$WS_MODE" = uninstall ] && return 0
@@ -1731,14 +1838,18 @@ ws_s4_install() {
     want=$(ws_sum_for "$d/SHASUMS256.txt" "$file")
     ws_dl_check "$url" "$d/$file" "$want"
     case $? in 1) ws_dl_fail "$url"; return 1 ;; 2) ws_fail E-NODE-01 "SHA-256 $file"; return 1 ;; esac
-    ws_run tar -xJf "$d/$file" -C "$d/x" || { ws_fail E-NODE-01 "tar"; return 1; }
+    # Extrai-se ao lado do destino (fora da pasta temporaria) e so se troca depois de o npm arrancar.
+    local nn="$WS_HOME/node.new"
+    rm -rf "$nn"; mkdir -p "$nn" || { ws_fail E-PERM-01 "$nn"; return 1; }
+    ws_run tar -xJf "$d/$file" -C "$nn" || { rm -rf "$nn"; ws_fail E-NODE-01 "tar"; return 1; }
+    ws_node_complete "$nn/node-v$C_NODE_VERSION-darwin-$WS_ARCH" || { rm -rf "$nn"; ws_fail E-NODE-01 "tar (incomplete)"; return 1; }
     rm -rf "$WS_HOME/node.old"; [ -d "$WS_HOME/node" ] && mv "$WS_HOME/node" "$WS_HOME/node.old"
-    mv "$d/x/node-v$C_NODE_VERSION-darwin-$WS_ARCH" "$WS_HOME/node" || { ws_fail E-PERM-01 "$WS_HOME/node"; return 1; }
-    rm -rf "$WS_HOME/node.old"
+    mv "$nn/node-v$C_NODE_VERSION-darwin-$WS_ARCH" "$WS_HOME/node" || { ws_fail E-PERM-01 "$WS_HOME/node"; return 1; }
+    rm -rf "$WS_HOME/node.old" "$nn"
     WS_NODE="$WS_HOME/node/bin/node"; WS_NODE_BIN_DIR="$WS_HOME/node/bin"
   fi
   ws_path_setup
-  "$WS_NODE" -v >/dev/null 2>&1 </dev/null || { ws_fail E-PERM-02 "$WS_NODE"; return 1; }
+  "$WS_NODE" -e 0 >/dev/null 2>&1 </dev/null || { ws_fail E-PERM-02 "$WS_NODE"; return 1; }
   ws_profile_update
   ws_s4_detect
 }
@@ -1874,7 +1985,9 @@ ws_s7_acli() { # $1=1 depois de tentar instalar
   a=$(ws_acli)
   if [ -z "$a" ] || ! v=$(ws_timeout 15 "$a" --version 2>/dev/null </dev/null); then
     [ "$WS_MODE" = install ] && [ "${1:-}" != 1 ] && return 1
-    ws_warn E-ACLI-01 "${WS_ACLI_ERR:-}"; return 0
+    # O tar do acli num disco cheio ("Write failed: No space left") nao e a rede da empresa.
+    if [ "$WS_MODE" = install ] && ws_disk_full; then WS_DISK_FULL=1; ws_warn E-SO-06 "$(ws_disk_detail) · acli"; else ws_warn E-ACLI-01 "${WS_ACLI_ERR:-}"; fi
+    return 0
   fi
   ws_detail "$(ws_msg s7_ja_acli VERSAO="$(ws_ver_of "$v")")"
   ws_acli_login_ok "$a" && return 0
@@ -2008,6 +2121,17 @@ EOF
   elif [ "$nossa" = 1 ]; then ws_note "$(ws_msg s8_lingua_nossa NOME="$lang" KIT="$kit")"
   else ws_note "$(ws_msg s8_lingua_tua NOME="$lang" KIT="$kit")"; fi
 }
+# Com CLAUDE_CONFIG_DIR, as skills, os hooks e os MCP vao para essa pasta: diz-se qual e e, se um terminal novo
+# nao tiver a mesma variavel (exportada so neste terminal, por um IDE ou pelo direnv), o claude de la nao os ve.
+ws_s8_config_dir() {
+  [ -n "${CLAUDE_CONFIG_DIR:-}" ] || return 0
+  ws_note "$(ws_msg s8_claude_dir CAMINHO="$(ws_path_show "$CLAUDE_DIR")")"
+  local nt
+  nt=$(ws_newterm 'printf "%s\n" "${CLAUDE_CONFIG_DIR:-}"') || return 0
+  nt=$(printf '%s\n' "$nt" | head -n 1)
+  ws_log "CLAUDE_CONFIG_DIR in a new login shell: ${nt:-unset}"
+  [ "${nt%/}" = "$CLAUDE_CONFIG_DIR" ] || ws_warn E-CFG-09 "$(ws_path_show "$CLAUDE_DIR") · new terminal: ${nt:-not set}"
+}
 ws_s8_detect() {
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   ws_registar_flush
@@ -2015,7 +2139,7 @@ ws_s8_detect() {
   out=$(ws_iu verificar); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   ws_s8_parse "$out"
-  [ "$rc" = 0 ] && return 0
+  if [ "$rc" = 0 ]; then ws_s8_config_dir; return 0; fi
   # --check/--doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
   [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && return 0
   return 1
@@ -2034,6 +2158,7 @@ ws_s8_install() {
   case "$rc" in 0) ;; 3) [ -n "${SF_8:-}" ] || ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
   [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_mudou DE="$de" PARA="$para")"
   ws_registar_flush
+  ws_s8_config_dir
   return 0
 }
 
@@ -2208,7 +2333,7 @@ ws_s10_detect() {
   # O config.json e o atalho sao extras: ao instalar refazem-se aqui (sem reinstalar a app). Sem escrita na pasta
   # (dados ou ~/Applications), reinstalar nao resolve: fica um aviso (o selftest diz o resto).
   if [ ! -f "$(ws_memory_home)/config.json" ]; then
-    if [ "$WS_MODE" = install ]; then ws_memory_config || ws_log "config.json not written: $(ws_memory_home_show) is not writable"
+    if [ "$WS_MODE" = install ]; then ws_memory_config || ws_log "config.json not written in $(ws_memory_home_show) (see the step output)"
     elif ws_dir_writable "$(ws_memory_home)"; then ws_fail E-MEM-03 "config.json"; return 1; fi
   fi
   if [ ! -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ]; then
@@ -2233,8 +2358,12 @@ ws_memory_mcp_ok() { # bin
   c=$(ws_mcp_field Command)
   if [ -n "$c" ]; then [ "$c" = "$1" ] || return 1
   else case "$WS_MCP_OUT" in *"$1"*) ;; *) return 1 ;; esac; fi
+  # Com um PYTHONHOME/PYTHONPATH na shell, um registo sem as variaveis vazias nao arranca.
+  [ -z "${WS_PYTHON_ENV0:-}" ] || ws_memory_mcp_env || return 1
   ! ws_mcp_get memoria
 }
+# O registo lido por ws_mcp_get tem o PYTHONHOME vazio (ws_memory_mcp)?
+ws_memory_mcp_env() { case "$WS_MCP_OUT" in *PYTHONHOME=*) return 0 ;; esac; return 1; }
 # Corre "agent-memory selftest" e mostra o Python gerido pelo uv ("Agent Memory 0.5.0 · Python 3.12.13 · Darwin arm64").
 # O texto do selftest segue a lingua da app (pt, en, hi, he): pede-se em ingles (AGENT_MEMORY_LANG=en e, para
 # versoes antigas, MEMORIA_LANG=en, como o resto do setup) e o resultado vem do codigo de saida. So a etiqueta
@@ -2244,6 +2373,9 @@ ws_memory_selftest() {
   out=$(AGENT_MEMORY_LANG=en MEMORIA_LANG=en "$1" selftest 2>&1 </dev/null); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   py=$(printf '%s\n' "$out" | sed -nE 's/.*Python ([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p' | head -n 1)
+  # O setup corre a app sem o PYTHONHOME/PYTHONPATH da pessoa (ws_env_sanitize) e o MCP regista-se sem eles; no
+  # terminal dela, "agent-memory" escrito a mao continua a falhar.
+  [ -n "${WS_PYTHON_ENV0:-}" ] && ws_warn E-MEM-09 "$WS_PYTHON_ENV0"
   if [ "$rc" = 0 ]; then
     ws_detail "$(ws_msg s10_ok VERSAO="$2" PY="${py:-?}")"; return 0
   fi
@@ -2251,6 +2383,10 @@ ws_memory_selftest() {
   fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[OK\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
   # Pasta das memorias sem escrita (do root depois de um sudo, um ficheiro, um link partido): reinstalar nao
   # resolve, por isso tem o seu codigo e o comando exato.
+  # O SQLite do Python do uv nao abre bases de dados com mais de 504 bytes no caminho (MAX_PATHNAME 512 com o
+  # "-journal"): com uma HOME muito comprida o indice nunca abre, e reinstalar ou reindexar nao resolve.
+  local nb; nb=$(printf '%s' "$(ws_memory_home)/.index/index-v3.sqlite" | LC_ALL=C wc -c | tr -d ' ')
+  if [ "$nb" -gt 504 ] 2>/dev/null; then ws_warn E-MEM-10 "$nb bytes: $(ws_memory_home_show)"; return 1; fi
   case "$fails" in
     *"Cannot write to"*|*"readonly database"*|*"Permission denied"*|*"Read-only file system"*|*"Not a directory"*|*"File exists"*)
       ws_warn E-MEM-07 "$fails"; ws_perm_fix_notes "$(ws_memory_home)" ;;
@@ -2281,10 +2417,23 @@ ws_s10_install() {
   if ! ws_uv_tool_install "$d/$whl" "$d/constraints.txt"; then
     # Certificado da empresa: o passo 0 so testa a api.anthropic.com, e um proxy pode inspecionar so o github.com
     # (o Python do uv) ou o pypi.org. Repete uma vez com os certificados do sistema (Keychain).
-    grep -qiE 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed' "$WS_STEP_LOG" || { ws_fail E-MEM-03 "uv tool install"; return 1; }
-    [ "${UV_SYSTEM_CERTS:-}" = true ] && { ws_fail E-NET-04 "uv: github.com / pypi.org"; return 1; }
-    ws_log "uv: certificate error, retrying with UV_SYSTEM_CERTS=true"
-    UV_SYSTEM_CERTS=true ws_uv_tool_install "$d/$whl" "$d/constraints.txt" || { ws_fail E-NET-04 "uv: github.com / pypi.org"; return 1; }
+    if ! grep -qiE 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed' "$WS_STEP_LOG"; then
+      # O uv apontado para um espelho de pacotes da empresa (UV_DEFAULT_INDEX...) que nao responde ou nao tem os
+      # pacotes: a causa e essa, nao o pypi.org. O URL aparece sem utilizador nem palavra-passe.
+      local ix; ix=$(ws_uv_index)
+      if [ -n "$ix" ]; then ws_fail E-MEM-08 "$ix"; else ws_fail E-MEM-03 "uv tool install"; fi
+      return 1
+    fi
+    # O uv da prioridade ao SSL_CERT_FILE (e ao SSL_CERT_DIR) mesmo com UV_SYSTEM_CERTS: um ficheiro antigo de
+    # certificados (um Zscaler de outra empresa) so se resolve sem ele, e so neste comando.
+    [ "${UV_SYSTEM_CERTS:-}" = true ] && [ -z "${SSL_CERT_FILE:-}${SSL_CERT_DIR:-}" ] && { ws_fail E-NET-04 "uv: github.com / pypi.org"; return 1; }
+    ws_log "uv: certificate error, retrying with UV_SYSTEM_CERTS=true, without SSL_CERT_FILE/SSL_CERT_DIR"
+    if ( unset SSL_CERT_FILE SSL_CERT_DIR; UV_SYSTEM_CERTS=true ws_uv_tool_install "$d/$whl" "$d/constraints.txt" ); then
+      [ -n "${SSL_CERT_FILE:-}" ] && ws_warn E-NET-09 "SSL_CERT_FILE=$SSL_CERT_FILE"
+    else
+      if [ -n "${SSL_CERT_FILE:-}" ]; then ws_fail E-NET-09 "SSL_CERT_FILE=$SSL_CERT_FILE"; else ws_fail E-NET-04 "uv: github.com / pypi.org"; fi
+      return 1
+    fi
   fi
   # A distribuicao mudou de nome? Tirar a antiga do uv (so o programa: os dados ficam).
   if [ "$dist" != memoria ] && "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq '^memoria v?[0-9]'; then
@@ -2294,11 +2443,20 @@ ws_s10_install() {
   ws_registar app "$dist"
   b=$(ws_memory_bin) || { ws_fail E-MEM-03 "agent-memory"; return 1; }
   # O config.json e o atalho nao impedem o resto: sem eles a app, o MCP e o selftest continuam.
-  ws_memory_config || ws_log "config.json not written: $(ws_memory_home_show) is not writable"
+  ws_memory_config || ws_log "config.json not written in $(ws_memory_home_show) (see the step output)"
   ws_memory_shortcut "$b" || ws_warn E-MEM-06 "$(ws_show_path "$HOME/Applications")"
   ws_memory_mcp "$b" || { ws_fail E-MEM-03 "claude mcp add $WS_MCP_NAME"; return 1; }
   ws_memory_selftest "$b" "$ver"
   ws_note "$(ws_m s10_update)"
+}
+# Espelho de pacotes para o uv (o primeiro definido), sem utilizador nem palavra-passe no URL.
+ws_uv_index() {
+  local v
+  for v in UV_DEFAULT_INDEX UV_INDEX_URL UV_INDEX UV_EXTRA_INDEX_URL; do
+    [ -n "${!v:-}" ] || continue
+    printf '%s=%s' "$v" "$(ws_proxy_show "${!v}")"; return 0
+  done
+  return 1
 }
 # "uv tool install" do wheel, com o uv do passo 5 e o Python gerido pelo uv (--managed-python): nao depende de
 # nenhum Python do sistema. As variaveis que o proibiriam sao retiradas so deste comando (env -u), nunca globalmente.
@@ -2325,12 +2483,16 @@ ws_memory_mcp() {
   fi
   if ws_mcp_get "$WS_MCP_NAME"; then
     c=$(ws_mcp_field Command)
-    if [ -n "$c" ]; then [ "$c" = "$b" ] && return 0
-    else case "$WS_MCP_OUT" in *"$b"*) return 0 ;; esac; fi
+    # Um registo de uma versao anterior do setup (sem o PYTHONHOME vazio, ver abaixo) e refeito.
+    if [ -n "$c" ]; then [ "$c" = "$b" ] && ws_memory_mcp_env && return 0
+    else case "$WS_MCP_OUT" in *"$b"*) ws_memory_mcp_env && return 0 ;; esac; fi
     ws_timeout "$WS_TMO_MCP" "$WS_CLAUDE" mcp remove --scope user "$WS_MCP_NAME" >>"$WS_LOG" 2>&1 </dev/null || true
-    [ -n "$c" ] && ws_note "$(ws_msg s10_mcp_substituido ANTIGO="$c")"
+    [ -n "$c" ] && [ "$c" != "$b" ] && ws_note "$(ws_msg s10_mcp_substituido ANTIGO="$c")"
   fi
-  ws_run "$WS_CLAUDE" mcp add --scope user "$WS_MCP_NAME" -- "$b" mcp || return 1
+  # O Claude Code passa ao servidor o ambiente do terminal: um PYTHONHOME ou PYTHONPATH de um Anaconda antigo
+  # partia o Python da app ("No module named encodings"). Vazios, o Python ignora-os. O nome vem antes do -e
+  # (o -e aceita varios valores e engolia o nome).
+  ws_run "$WS_CLAUDE" mcp add --scope user "$WS_MCP_NAME" -e PYTHONHOME= -e PYTHONPATH= -e PYTHONSTARTUP= -- "$b" mcp || return 1
   ws_registar mcp "$WS_MCP_NAME"
 }
 # <pasta dos dados>/config.json com as chaves que a app usa para se atualizar (mesmos nomes que o repos.conf).
@@ -2413,6 +2575,8 @@ ws_s11_install() {
 ws_parse_result() { # ficheiro-json -> define WSR_*
   local k v
   WSR_JSON=0; WSR_ERRO=1; WSR_RESPOSTA=""; WSR_CURTA=""; WSR_USD=""; WSR_USD_TEXTO="US\$ ?"; WSR_CAUSA=""; WSR_CMDS=""
+  # O pricing.json da release esta na pasta temporaria: uma app de limpeza pode te-lo apagado entretanto.
+  [ -f "${WS_PRICING:-}" ] || [ -z "${WS_INJ_PRICING:-}" ] || printf '%s\n' "$WS_INJ_PRICING" > "$WS_PRICING" 2>/dev/null
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
       json) WSR_JSON=$v ;; erro) WSR_ERRO=$v ;; resposta) WSR_RESPOSTA=$v ;; resposta_curta) WSR_CURTA=$v ;; usd) WSR_USD=$v ;; usd_texto) WSR_USD_TEXTO=$v ;;
@@ -2439,9 +2603,9 @@ ws_s12_install() {
   t0=$(date +%s)
   # Com limite de tempo (sem resposta, o Claude Code tenta outra vez durante minutos) e sem servidores MCP
   # (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo.
-  ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" --strict-mcp-config > "$out" 2> "$err" </dev/null )
+  ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" --strict-mcp-config > "$out" 2> "$err" </dev/null ) 2>/dev/null
   local rc=$?; t1=$(date +%s)
-  { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG"
+  { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG" 2>/dev/null
   ws_parse_result "$out"
   ws_log "final test: rc=$rc error=$WSR_ERRO cost=$WSR_USD_TEXTO"
   if [ "$rc" = 0 ] && [ "$WSR_JSON" = 1 ] && [ "$WSR_ERRO" = 0 ]; then
@@ -2455,7 +2619,9 @@ ws_s12_install() {
     if [ -n "$gw" ]; then ws_fail E-AUTH-05 "$gw"; else ws_fail E-SMOKE-01 "no answer in $WS_TMO_SMOKE s"; fi
     return 1
   fi
-  local all; all="$(cat "$err") $WSR_RESPOSTA"
+  # O claude respondeu (rc 0) mas o JSON nao se leu: o problema e do setup (node, disco), nao do login nem da rede.
+  [ "$rc" = 0 ] && [ "$WSR_JSON" = 0 ] && { ws_fail E-SMOKE-01 "exit 0, reply not readable"; return 1; }
+  local all; all="$(cat "$err" 2>/dev/null) $WSR_RESPOSTA"
   case "$all" in
     *[Cc]redit\ balance*|*billing*) ws_fail E-SMOKE-02 "" ;;
     *429*|*rate_limit*|*[Rr]ate\ limit*) ws_fail E-SMOKE-03 "" ;;
@@ -2469,7 +2635,8 @@ ws_s12_install() {
       keys=$(ws_env_keys)
       case "${WS_AUTH_SOURCE:-}" in ''|none|"/login managed key") ;; *) [ -n "$keys" ] || keys=$WS_AUTH_SOURCE ;; esac
       if [ -n "$keys" ]; then ws_fail E-AUTH-04 "$keys"; else ws_fail E-AUTH-01 ""; fi ;;
-    *) ws_fail E-SMOKE-01 "codigo $rc" ;;
+    # 126/127: o claude nao arranca ou nao esta onde estava (um caminho relativo, um programa apagado).
+    *) case "$rc" in 126|127) ws_fail E-CC-02 "$WS_CLAUDE (exit $rc)" ;; *) ws_fail E-SMOKE-01 "exit $rc" ;; esac ;;
   esac
   return 1
 }
@@ -2500,7 +2667,7 @@ ws_helper_offer() {
   [ "${WS_GW_DOWN:-0}" = 1 ] && return 1
   # Sem rede ou sem login o Claude tambem nao responde; o GitHub sem resposta (E-GH-03) ja tem a causa certa e,
   # sem login no GitHub (E-GH-02), o setup ja mostra o comando: a analise so custaria dinheiro.
-  case "$code" in E-NET-*|E-AUTH-*|E-GH-02|E-GH-03) return 1 ;; esac
+  case "$code" in E-NET-*|E-AUTH-*|E-GH-02|E-GH-03|E-SO-06|E-SO-10) return 1 ;; esac
   ws_say ""
   ws_ask "$(ws_m helper_pergunta)" s || return 1
   ws_say "  $(ws_m helper_a_pedir)"
@@ -2584,18 +2751,22 @@ ws_doctor() {
 }
 
 # ================================================================= resumo
+# A tabela monta-se em memoria e so depois se grava: num disco cheio o ecra mostra-a na mesma.
 ws_summary() {
-  local n st title d line="" faltam=0 lista="" avisos=0 r="$WS_TMP/summary.txt"
-  {
+  local n st title d txt faltam=0 lista="" avisos=0 r="$WS_RESUMO.tmp"
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
+    st=$(ws_st "$n"); title="M_passos_$n"
+    case "$st" in
+      falhou|falta|naoexec) faltam=$((faltam + 1)); lista="${lista:+$lista; }$n (${!title})" ;;
+      aviso) avisos=$((avisos + 1)) ;;
+    esac
+  done
+  txt=$({
     printf '%s\n' "$(ws_m resumo) · $(date '+%Y-%m-%d %H:%M') · $WS_OS"
     printf '%s %s %s\n' "$(ws_pad "$(ws_m resumo_cab_passo)" 42)" "$(ws_pad "$(ws_m resumo_cab_estado)" 20)" "$(ws_m resumo_cab_detalhe)"
     for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
       st=$(ws_st "$n"); title="M_passos_$n"; d="SD_$n"
       printf '%s %s %s %s %s\n' "$(ws_pad "$n" 5)" "$(ws_pad "${!title}" 36)" "$(ws_sym "$st")" "$(ws_pad "$(ws_state_label "$st")" 17)" "${!d}"
-      case "$st" in
-        falhou|falta|naoexec) faltam=$((faltam + 1)); lista="${lista:+$lista; }$n (${!title})" ;;
-        aviso) avisos=$((avisos + 1)) ;;
-      esac
     done
     printf '\n'
     if [ "$faltam" = 0 ]; then
@@ -2607,14 +2778,19 @@ ws_summary() {
     fi
     if [ "$avisos" = 1 ]; then printf '%s\n' "$(ws_m final_aviso1)"
     elif [ "$avisos" -gt 1 ]; then printf '%s\n' "$(ws_msg final_avisos N="$avisos")"; fi
-  } > "$r"
+  })
   ws_say ""
   ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
-  while IFS= read -r line; do ws_say "$line"; done < "$r"
+  ws_say "$txt"
   [ "$WS_MODE" = install ] && ws_need_reopen && ws_say "$(ws_m final_reiniciar)"
   [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "$(ws_m s7_oauth)"
-  ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"
-  cp -f "$r" "$WS_RESUMO" 2>/dev/null && rm -f "$WS_HOME/resumo.txt"   # o nome antigo do resumo
+  # O resumo antigo so e trocado se o novo ficou gravado inteiro (resumo.txt e o nome antigo).
+  if { printf '%s\n' "$txt" > "$r" && mv -f "$r" "$WS_RESUMO"; } 2>/dev/null; then
+    rm -f "$WS_HOME/resumo.txt"
+    ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"
+  else
+    rm -f "$r" 2>/dev/null
+  fi
   WS_FALTAM=$faltam
 }
 # Reabrir o terminal so faz falta se esta execucao mudou o perfil, ou se o terminal onde o setup arrancou
@@ -2698,6 +2874,69 @@ the language chosen at the first install is kept on later runs. To choose it, pu
   curl -fsSL <url>/setup-mac.sh | WORKSHOP_LANG=pt-BR bash
   WORKSHOP_LANG=pt-BR bash ~/.workshop-claude/setup-mac.sh
 __WS_USO__
+}
+
+# Ambiente herdado que parte o setup (dotfiles antigos, o terminal do VS Code, restos de outras instalacoes).
+# Muda so este processo e os filhos dele, nunca o terminal da pessoa. O que a pessoa tinha fica em WS_*0
+# (exportadas: chegam a copia nova do ws_self_update) para os avisos dos passos.
+ws_env_sanitize() {
+  local v l bad=""
+  # Cores forcadas: o grep -o (GREP_OPTIONS), o uv (CLICOLOR_FORCE/FORCE_COLOR), o node --test e o claude
+  # (FORCE_COLOR) punham codigos ESC no texto que o setup le (versoes, pastas, numero de testes). O negrito do
+  # proprio setup segue o NO_COLOR original (ws_color_detect).
+  export WS_NO_COLOR0="${WS_NO_COLOR0-${NO_COLOR-}}"
+  unset GREP_OPTIONS GREP_COLOR GREP_COLORS CLICOLOR_FORCE FORCE_COLOR
+  export NO_COLOR=1
+  # NODE_OPTIONS (o "Auto Attach" do VS Code/Cursor, um agente de APM): um --require de um ficheiro que ja nao
+  # existe, ou uma opcao que o Node recusa, partia todos os scripts do setup. O passo 4 avisa (E-NODE-03).
+  export WS_NODE_OPTIONS0="${WS_NODE_OPTIONS0-${NODE_OPTIONS-}}"
+  unset NODE_OPTIONS
+  # Python de outro ambiente (Anaconda/conda antigo, um venv ativo): o PYTHONHOME e o PYTHONPATH partem o Python
+  # que o uv instala para a app (selftest e MCP). O passo 10 avisa (E-MEM-09).
+  for v in PYTHONHOME PYTHONPATH; do [ -n "${!v:-}" ] && bad="$bad${bad:+ }$v=${!v}"; done
+  export WS_PYTHON_ENV0="${WS_PYTHON_ENV0-$bad}"
+  unset PYTHONHOME PYTHONPATH PYTHONSTARTUP VIRTUAL_ENV CONDA_PREFIX
+  # Certificados que apontam para um ficheiro (ou pasta) que ja nao existe: o curl falha com 77 em todos os
+  # sites, e o node e o git tambem. Saem do ambiente do setup; o passo 0 avisa com o nome e o valor (E-NET-09).
+  bad=""
+  for v in SSL_CERT_FILE CURL_CA_BUNDLE GIT_SSL_CAINFO NODE_EXTRA_CA_CERTS REQUESTS_CA_BUNDLE SSL_CERT_DIR; do
+    [ -n "${!v:-}" ] || continue
+    if [ "$v" = SSL_CERT_DIR ]; then [ -d "$SSL_CERT_DIR" ] && continue; else [ -f "${!v}" ] && [ -r "${!v}" ] && continue; fi
+    l="$v=${!v}"; bad="$bad${bad:+$WS_NL}$l"; unset "$v"
+  done
+  export WS_CA_BAD0="${WS_CA_BAD0-$bad}"
+}
+# Pasta temporaria do setup: o TMPDIR, senao /tmp, senao ~/.workshop-claude/tmp. O TMPDIR dos dotfiles pode
+# apontar para uma pasta que ja nao existe (copiados de outro portatil) ou sem escrita. O que serve passa para
+# os filhos (instaladores, uv, node); o que nao serve fica em WS_TMPDIR_BAD0 para o aviso do passo 0 (E-SO-09).
+# O .ws-tmp marca a pasta: se desaparecer, uma app de limpeza apagou-a a meio (ws_tmp_gone).
+ws_tmp_make() {
+  local t
+  WS_TMP=""
+  for t in "${TMPDIR:-}" /tmp "$WS_HOME/tmp"; do
+    [ -n "$t" ] || continue
+    [ "$t" = "$WS_HOME/tmp" ] && mkdir -p "$t" 2>/dev/null
+    [ -d "$t" ] && [ -w "$t" ] && WS_TMP=$(mktemp -d "${t%/}/ws-setup.XXXXXX" 2>/dev/null) && [ -d "$WS_TMP" ] &&
+      : > "$WS_TMP/.ws-tmp" 2>/dev/null && break
+    [ -n "$WS_TMP" ] && rm -rf "$WS_TMP" 2>/dev/null
+    WS_TMP=""
+  done
+  if [ -z "$WS_TMP" ]; then
+    printf 'No usable temporary folder: TMPDIR (%s), /tmp and %s/tmp do not exist, cannot be written or the disk is full.\n' "${TMPDIR:-not set}" "$WS_HOME" >&2
+    printf 'Fix or remove the "export TMPDIR=" line in ~/.zshrc or ~/.zprofile, free some disk space, open a new terminal and run the setup again.\n' >&2
+    return 1
+  fi
+  if [ -n "${TMPDIR:-}" ] && [ "$t" != "$TMPDIR" ]; then export WS_TMPDIR_BAD0="${WS_TMPDIR_BAD0-$TMPDIR}"; export TMPDIR="$t"; fi
+  return 0
+}
+# 0 se a pasta temporaria (ou a marca dela) desapareceu: volta a ser criada (WS_TMP_WIPED_STEP fica com o passo), e
+# o passo que falhar diz porque (E-SO-10). Chama-se antes de escrever la (ws_js, ws_newterm, ws_profile_put).
+ws_tmp_gone() {
+  [ -f "$WS_TMP/.ws-tmp" ] && return 1
+  { mkdir -p "$WS_TMP" && : > "$WS_TMP/.ws-tmp"; } 2>/dev/null || return 1
+  WS_TMP_WIPED_STEP=${WS_CUR:-?}
+  ws_log "temporary folder $WS_TMP was deleted while the setup ran (a cleaning app?): created again"
+  return 0
 }
 
 ws_load_messages() {
@@ -2835,7 +3074,8 @@ ws_main() {
   WS_PROJ_SHOW='~/workshop-claude'
   WS_UA="workshop-claude-setup (curl; macOS)"
   mkdir -p "$WS_HOME" || { printf 'No permission to create %s\n' "$WS_HOME" >&2; return 1; }
-  WS_TMP=$(mktemp -d "${TMPDIR:-/tmp}/ws-setup.XXXXXX") || return 1
+  ws_env_sanitize
+  ws_tmp_make || return 1
   WS_STEP_LOG="$WS_TMP/inicio.log"
   ws_color_detect
   trap ws_interrupted INT TERM HUP
@@ -2883,6 +3123,15 @@ EOF
 
   ws_load_messages || { printf 'Could not read the messages (setup/messages.en.json).\n' >&2; return 2; }
   ws_lang_detect
+  # CLAUDE_CONFIG_DIR relativo ou com um "~" literal (export CLAUDE_CONFIG_DIR="~/.claude-work"): o Claude Code
+  # nao o expande e cada pasta onde se corre o claude ganhava a sua copia (um "~" dentro da Arena). Para aqui,
+  # com o que fazer. Um caminho absoluto fica sem a "/" do fim (o resto do setup compara caminhos).
+  if [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then
+    case "$CLAUDE_CONFIG_DIR" in
+      /*) CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR%/}; export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-/}"; CLAUDE_DIR=$CLAUDE_CONFIG_DIR ;;
+      *) WS_CUR=pre; ws_print_code E-CFG-08 "CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR" "  "; return 1 ;;
+    esac
+  fi
   # ~/.workshop-claude do root (um "sudo" antigo): sem escrita nao ha lock, log nem copia guardada.
   if [ ! -w "$WS_HOME" ] || [ ! -x "$WS_HOME" ]; then
     WS_CUR=pre; ws_print_code E-PERM-01 "$(ws_show_path "$WS_HOME")" "  "

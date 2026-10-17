@@ -15,13 +15,17 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, extname, join } from 'node:path';
+import { dirname, extname, isAbsolute, join } from 'node:path';
 import { homedir } from 'node:os';
 
 export const fwd = (p) => String(p).replace(/\\/g, '/');
 
 export function userPaths(env = process.env) {
   const home = env.WS_HOME_OVERRIDE || (process.platform === 'win32' ? env.USERPROFILE || homedir() : env.HOME || homedir());
+  // Um CLAUDE_CONFIG_DIR relativo (ou com um "~" literal) dependia da pasta atual: o setup ja para com E-CFG-08.
+  if (env.CLAUDE_CONFIG_DIR && !isAbsolute(env.CLAUDE_CONFIG_DIR)) {
+    throw Object.assign(new Error(`CLAUDE_CONFIG_DIR must be an absolute path (now: ${env.CLAUDE_CONFIG_DIR})`), { exit: 2 });
+  }
   const claudeDir = env.CLAUDE_CONFIG_DIR || join(home, '.claude');
   const wsDir = join(home, '.workshop-claude');
   return {
@@ -60,7 +64,13 @@ export function writeAtomic(file, data) {
 function writeAtomicAt(file, data) {
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, data);
+  // Disco cheio (ENOSPC) a meio: o original fica como estava e a copia a meio nao fica para tras.
+  try {
+    writeFileSync(tmp, data);
+  } catch (e) {
+    rmSync(tmp, { force: true });
+    throw e;
+  }
   // as mesmas permissoes (um settings.json 600 continua 600), mas sempre com escrita para o dono: um 444 (Nix)
   // copiado tal e qual impedia a proxima escrita, ex.: a desinstalacao
   if (process.platform !== 'win32') {

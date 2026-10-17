@@ -56,6 +56,7 @@ Depois, fecha e volta a abrir o terminal (e o VS Code).
 
 - Volta a correr o mesmo comando: os passos feitos são saltados.
 - Procura o código do erro em [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+- O comando do macOS para logo com `curl: (77) error setting certificate verify locations`: uma variável de certificados aponta para um ficheiro que já não existe. Corre `unset SSL_CERT_FILE CURL_CA_BUNDLE` no mesmo terminal e volta a colar o comando (código E-NET-09).
 - Diagnóstico com ajuda do Claude (custa menos de US$ 0,01): `{{DOCTOR_MAC}}` ou `{{DOCTOR_WINDOWS}}`.
 - Envia ao organizador o ficheiro `~/.workshop-claude/summary.txt`. O `setup.log` também ajuda e já vem sem segredos.
 
