@@ -452,7 +452,7 @@ Describe 'chaos G9-windows: o Windows PowerShell de 64 bits (F2)' {
     $text | Should -Match '-File \$PSCommandPath @self \| Out-Default'
     # Os logins correm numa janela sua (chaos G4: Invoke-WsLogin), e nunca capturados.
     $text | Should -Match "Invoke-WsLogin \`$script:ClaudeExe @\('auth', 'login', '--console'\)"
-    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web'\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web'\) -CancelCodes @\(2\)"
     $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login'\)"
   }
   It 'erros de download do PowerShell 5.1 e 7 dao o codigo certo' {
@@ -839,7 +839,8 @@ Describe 'chaos G4-auth-tools' {
   }
 
   It 'login numa janela sua: um Ctrl-C la so cancela o login (nota) e nada vai para a saida do passo' {
-    $script:Cur = '3'
+    $script:Cur = '3'; $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
     Mock Start-Process { $script:Sp = @{ File = $FilePath; Args = @($ArgumentList) -join ' '; Wait = [bool]$Wait }; return (New-FakeProcess $script:SpExit) }
     $script:SpExit = -1073741510
     @(Invoke-WsLogin 'C:\u\claude.exe' @('auth', 'login', '--console')).Count | Should -Be 0
@@ -847,9 +848,16 @@ Describe 'chaos G4-auth-tools' {
     $script:Sp.Args | Should -BeExactly 'auth login --console'
     $script:Sp.Wait | Should -BeFalse -Because 'o -Wait do 5.1 esperava tambem pelo browser'
     $script:T['3'].Notas | Should -Contain (M 'login_cancelado')
+    $script:Said | Should -Contain ('  ' + (M 'login_janela')) -Because 'a janela do setup diz onde esta o login'
     $script:T = New-WsStateTable; $script:SpExit = 0
     Invoke-WsLogin 'gh.exe' @('auth', 'login', '--hostname', 'github.com')
     $script:T['3'].Notas.Count | Should -Be 0
+    # O gh sai com 2 num Ctrl-C nas perguntas dele; para os outros logins o 2 nao e um cancelamento.
+    $script:SpExit = 2
+    Invoke-WsLogin 'acli.exe' @('auth', 'login')
+    $script:T['3'].Notas.Count | Should -Be 0
+    Invoke-WsLogin 'gh.exe' @('auth', 'login', '--hostname', 'github.com') -CancelCodes @(2)
+    $script:T['3'].Notas | Should -Contain (M 'login_cancelado')
     Mock Start-Process { throw [ComponentModel.Win32Exception]::new(1260) }
     { Invoke-WsLogin 'acli.exe' @('auth', 'login') } | Should -Not -Throw
     $script:Blocked | Should -BeExactly 'acli.exe'
@@ -922,6 +930,10 @@ Describe 'chaos G4-auth-tools' {
   It 'cloud (Bedrock, Vertex, Foundry): verdadeiro na shell ou no "env" das definicoes (o JSON true tambem conta)' {
     foreach ($v in @('1', 'true', 'True', 'YES', 'on')) { Test-WsTruthy $v | Should -BeTrue -Because $v }
     foreach ($v in @('0', 'false', '', 'no', 'off')) { Test-WsTruthy $v | Should -BeFalse -Because $v }
+    # O E-CFG-04 do Windows tem o comando para limpar cada uma das tres.
+    foreach ($n in @('BEDROCK', 'VERTEX', 'FOUNDRY')) {
+      ($script:Msgs.erros.'E-CFG-04'.windows -join "`n") | Should -Match ('SetEnvironmentVariable\(''CLAUDE_CODE_USE_{0}'', \$null, ''User''\)' -f $n)
+    }
     Get-WsCloudWhere | Should -BeNullOrEmpty
     $sf = Join-Path $script:ClaudeDir 'settings.json'
     [IO.File]::WriteAllText($sf, '{"env":{"CLAUDE_CODE_USE_BEDROCK":true}}')
@@ -1096,6 +1108,8 @@ Describe 'chaos G4-auth-tools' {
     Get-WsGhHosts | Should -BeExactly 'ghe.empresa.pt github.com'
     Remove-Item Env:GH_HOST
     $script:Status = @(-2); $script:StatusN = 0; $script:Calls = @()
+    # Sem um gh verdadeiro no PATH: o -Exe tem de chegar (no Mac do autor havia um /opt/homebrew/bin/gh).
+    Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'gh' }
     Mock Test-WsInteractive { return $true }
     Mock Read-WsYesNo { return $true }
     Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
@@ -1122,6 +1136,7 @@ Describe 'chaos G4-auth-tools' {
   It 'passo 6: sem login, o "auth status" so se repete depois de tentar o login (pelo Invoke-WsLogin)' {
     $script:Cur = '6'; $script:WsHome = Join-Path $TestDrive 'ws'
     $gh = Join-Path $TestDrive 'gh.exe'; Set-Content -LiteralPath $gh -Value 'x'
+    Mock Get-Command { return $null } -ParameterFilter { $Name -eq 'gh' }
     Mock Test-WsInteractive { return $true }
     Mock Read-WsYesNo { return $true }
     Mock Invoke-WsLogin { $script:Login = @($Arguments) -join ' ' }
@@ -1141,6 +1156,7 @@ Describe 'chaos G4-auth-tools' {
     $script:Login | Should -BeExactly 'auth login --hostname github.com --git-protocol https --web'
     $script:Calls | Should -Contain 'auth setup-git (25)'
     $script:GhSemLogin | Should -BeFalse
+    Should -Invoke Get-Command -Times 0 -Exactly -ParameterFilter { $Name -eq 'gh' } -Because 'com -Exe nao se procura o gh no PATH'
   }
 
   It 'acli: sem resposta no primeiro "auth status", nao tenta o segundo' {
@@ -1250,7 +1266,7 @@ Describe 'chaos G4-auth-tools' {
     Test-WsClaudeJson | Should -BeTrue
     [IO.File]::WriteAllText($f, "  `r`n")
     Test-WsClaudeJson | Should -BeTrue
-    Remove-Item -LiteralPath $f
+    Remove-Item -LiteralPath $f -Force
     Test-WsClaudeJson | Should -BeTrue
     $cd = Join-Path $TestDrive 'cfgdir'; New-Item -ItemType Directory -Path $cd -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $cd '.claude.json'), '{,}')

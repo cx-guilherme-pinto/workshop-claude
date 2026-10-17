@@ -1677,6 +1677,7 @@ function Install-WsStep2 {
 # =============================================================== PASSO 3 - login
 
 # Codigos de saida de um login cancelado: 0xC000013A (STATUS_CONTROL_C_EXIT: Ctrl-C ou a janela fechada) e 130.
+# Cada login pode juntar os seus com -CancelCodes (o gh sai com 2 num Ctrl-C nas perguntas dele: "gh help exit-codes").
 $script:LoginCancelCodes = @(-1073741510, 130)
 
 function Invoke-WsLogin {
@@ -1686,8 +1687,10 @@ function Invoke-WsLogin {
   # Sem -Wait: no Windows PowerShell 5.1 o -Wait espera tambem pelos filhos, e o browser que o login abre pode ser
   # um deles (o setup ficava a espera ate a pessoa fechar o browser). Espera-se so por este processo, aos bocados
   # (como no Invoke-WsProcess), para um Ctrl-C na janela do setup ainda chegar ao PowerShell.
-  param([string]$Exe, [string[]]$Arguments)
+  param([string]$Exe, [string[]]$Arguments, [int[]]$CancelCodes = @())
   $p = $null
+  # A janela do login fecha-se quando ele acaba: dizer onde olhar, senao o setup parece parado.
+  Write-WsSay ('  ' + (M 'login_janela'))
   try {
     $line = ConvertTo-WsArgLine $Arguments
     if ($line) { $p = Start-Process -FilePath $Exe -ArgumentList $line -PassThru -ErrorAction Stop }
@@ -1711,7 +1714,7 @@ function Invoke-WsLogin {
   try { $code = $p.ExitCode } catch { }
   if ($null -eq $code) { return }
   if ($code -ne 0) { Write-WsLog ('login exit {0}' -f $code) }
-  if ($script:LoginCancelCodes -contains [int]$code) { Write-WsLog 'login cancelled (Ctrl-C)'; Add-WsNote (M 'login_cancelado') }
+  if (($script:LoginCancelCodes + $CancelCodes) -contains [int]$code) { Write-WsLog 'login cancelled (Ctrl-C)'; Add-WsNote (M 'login_cancelado') }
 }
 
 function Read-WsAuth {
@@ -1944,15 +1947,17 @@ function Get-WsGhHosts {
 
 function Test-WsStep6 {
   # -Exe: depois de instalar, o gh que o setup acabou de por (e nao o primeiro do PATH, que pode estar estragado).
+  # Os nomes de variaveis do PowerShell nao distinguem maiusculas: $exe e $Exe sao a mesma. Daqui o $ghExe.
   param([string]$Exe)
-  $exe = $null
-  if ($Exe) { if (Test-Path -LiteralPath $Exe) { $exe = $Exe } }
+  $ghExe = $null
+  if ($Exe) { if (Test-Path -LiteralPath $Exe) { $ghExe = $Exe } }
   else {
     $gh = Get-Command gh -ErrorAction SilentlyContinue
-    if ($gh -and $gh.CommandType -eq 'Application') { $exe = $gh.Source }
-    elseif (Test-Path -LiteralPath (Join-Path $script:WsHome 'bin\gh.exe')) { $exe = Join-Path $script:WsHome 'bin\gh.exe' }
+    if ($gh -and $gh.CommandType -eq 'Application') { $ghExe = $gh.Source }
+    elseif (Test-Path -LiteralPath (Join-Path $script:WsHome 'bin\gh.exe')) { $ghExe = Join-Path $script:WsHome 'bin\gh.exe' }
   }
-  if (-not $exe) { return $false }
+  if (-not $ghExe) { return $false }
+  $exe = $ghExe
   $r = Invoke-WsProcess $exe @('--version') -TimeoutSec 60
   if ($r.ExitCode -ne 0) { return $false }
   $script:GhExe = $exe
@@ -1965,7 +1970,7 @@ function Test-WsStep6 {
     $script:GhAsked = $true
     if (Read-WsYesNo (M 's6_pergunta_login') $true) {
       Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
-      Invoke-WsLogin $exe @('auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web')
+      Invoke-WsLogin $exe @('auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web') -CancelCodes @(2)
       $rc = (Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
     }
   }

@@ -1322,6 +1322,7 @@ Comandos (Windows):
 ```
 [Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')
 [Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_VERTEX', $null, 'User')
+[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_FOUNDRY', $null, 'User')
 Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern CLAUDE_CODE_USE_
 ```
 
