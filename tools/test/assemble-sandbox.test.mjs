@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { montar } from '../../installer/assemble-sandbox.mjs';
+import { gitOverrides, kitGit, KIT_GIT_CONFIG } from '../../installer/lib/kit-repo.mjs';
+import { hostileGitHome } from './hostile-git.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const AS = join(ROOT, 'installer', 'assemble-sandbox.mjs');
@@ -18,11 +20,12 @@ let env;
 before(() => {
   base = mkdtempSync(join(tmpdir(), 'ws-sandbox-'));
   // git without the person's global config (signed commits, hooks); node --test without the parent's context.
+  // The backups of --force go to a temporary HOME (WS_HOME_OVERRIDE), never to the real ~/.workshop-claude.
   writeFileSync(join(base, 'gitconfig'), '');
-  env = { ...process.env, GIT_CONFIG_GLOBAL: join(base, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1' };
+  env = { ...process.env, GIT_CONFIG_GLOBAL: join(base, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1', WS_HOME_OVERRIDE: join(base, 'home') };
   delete env.NODE_TEST_CONTEXT;
   delete env.WORKSHOP_LANG;
-  Object.assign(process.env, { GIT_CONFIG_GLOBAL: env.GIT_CONFIG_GLOBAL, GIT_CONFIG_NOSYSTEM: '1' });
+  Object.assign(process.env, { GIT_CONFIG_GLOBAL: env.GIT_CONFIG_GLOBAL, GIT_CONFIG_NOSYSTEM: '1', WS_HOME_OVERRIDE: env.WS_HOME_OVERRIDE });
 });
 after(() => rmSync(base, { recursive: true, force: true }));
 
@@ -123,6 +126,75 @@ test('default language comes from WORKSHOP_LANG; existing project is kept unless
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.out.language, 'pt');
   assert.ok(existsSync(join(dest, 'src', 'livros.js')) && !existsSync(join(dest, 'src', 'books.js')));
+  // --force never deletes: the previous project went to the backup, with its git history.
+  assert.ok(r.out.backup && r.out.backup.startsWith(env.WS_HOME_OVERRIDE.replace(/\\/g, '/')), JSON.stringify(r.out));
+  assert.ok(existsSync(join(r.out.backup, 'src', 'books.js')));
+  assert.equal(git(r.out.backup, 'log', '-1', '--format=%s'), ESPERADO.en.commit);
+});
+
+// ---------- chaos G5: interrupted copies, the person's work and a hostile global git config ----------
+
+const MARCA_SB = '.sandbox-kit.json';
+
+test('chaos G5: a hostile global git config does not break or shrink the practice project', () => {
+  const h = hostileGitHome(join(base, 'hostil'));
+  const dest = join(base, 'hostil', 'practice-project');
+  const r = assemble(['--dest', dest, '--language', 'en'], h.env);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.out.status, 'assembled');
+  const g = (...a) => spawnSync('git', a, { cwd: dest, encoding: 'utf8', env: { ...env, ...h.env } });
+  // Every copied file is in the commit, even with the person's gitignore (the same view as the gate and worktrees).
+  assert.deepEqual(g('ls-files').stdout.trim().split('\n').sort(), files(dest));
+  assert.equal(g('rev-parse', '--abbrev-ref', 'HEAD').stdout.trim(), 'main');
+  assert.equal(g('log', '-1', '--format=%G?').stdout.trim(), 'N', 'not signed');
+  assert.ok(!existsSync(h.ran), 'no hook of the person ran');
+  // Later git commands of the workshop (plain git, with the person's config) see the same: the repo's own config.
+  writeFileSync(join(dest, 'src', 'new.js'), 'export const x = 1;\n');
+  assert.match(g('status', '--porcelain', '--untracked-files=all').stdout, /src\/new\.js/);
+  assert.equal(g('worktree', 'add', '-q', join(base, 'hostil', 'wt'), 'HEAD').status, 0);
+  assert.equal((g('-C', join(base, 'hostil', 'wt'), 'ls-files', '--eol').stdout.match(/w\/crlf/g) || []).length, 0, 'no CRLF in worktrees');
+  assert.ok(existsSync(join(base, 'hostil', 'wt', 'CLAUDE.md')));
+  assert.equal(g('checkout', '-q', '-b', 'feat').status, 0);
+  assert.equal(g('add', 'src/new.js').status, 0);
+  assert.equal(g('commit', '-q', '-m', 'no Jira key').status, 0);
+  assert.equal(g('checkout', '-q', 'main').status, 0);
+  const m = g('merge', '--no-ff', '--no-edit', 'feat');
+  assert.equal(m.status, 0, m.stderr);
+  assert.ok(!existsSync(h.ran), 'no hook of the person ran in later commits');
+});
+
+test('chaos G5: an interrupted copy (incomplete marker) is rebuilt without --force and without a backup', () => {
+  const dest = join(base, 'interrompido', 'practice-project');
+  mkdirSync(join(dest, 'src'), { recursive: true });
+  writeFileSync(join(dest, MARCA_SB), JSON.stringify({ status: 'incomplete', language: 'en' }) + '\n');
+  writeFileSync(join(dest, 'package.json'), '{}\n');
+  const r = assemble(['--dest', dest, '--language', 'en']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.out.status, 'assembled');
+  assert.equal(r.out.backup, undefined, 'the kit\'s own half copy is not kept');
+  assert.notEqual(JSON.parse(readFileSync(join(dest, MARCA_SB), 'utf8')).status, 'incomplete');
+  assert.equal(git(dest, 'status', '--porcelain'), '');
+});
+
+test('chaos G5: a git command that waits for a prompt (signer, editor) fails after the timeout, with no hang', { skip: process.platform === 'win32' && 'fake git is a shell script' }, () => {
+  const fake = join(base, 'fake-git');
+  mkdirSync(fake, { recursive: true });
+  writeFileSync(join(fake, 'git'), '#!/bin/sh\nsleep 30\n', { mode: 0o755 });
+  const t0 = Date.now();
+  assert.throws(() => kitGit(base, ['commit', '-q', '-m', 'x'], { env: { ...env, PATH: `${fake}:${process.env.PATH}` }, timeout: 500 }), /did not finish in 1 s/);
+  assert.ok(Date.now() - t0 < 10000, 'returned well before the fake git ends');
+  assert.deepEqual(gitOverrides().filter((x, i) => i % 2), KIT_GIT_CONFIG.map(([k, v]) => `${k}=${v}`));
+});
+
+test('chaos G5: --force keeps the person\'s work in the backup (no .git: the setup forces a rebuild)', () => {
+  const dest = join(base, 'trabalho', 'practice-project');
+  assert.equal(assemble(['--dest', dest, '--language', 'en']).status, 0);
+  writeFileSync(join(dest, 'MY-NOTES.md'), 'mine\n');
+  rmSync(join(dest, '.git'), { recursive: true, force: true });
+  const r = assemble(['--dest', dest, '--language', 'en', '--force']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(readFileSync(join(r.out.backup, 'MY-NOTES.md'), 'utf8'), 'mine\n');
+  assert.ok(!existsSync(join(dest, 'MY-NOTES.md')));
 });
 
 test('errors: missing --dest, empty --language, non-empty folder that is not a sandbox', () => {

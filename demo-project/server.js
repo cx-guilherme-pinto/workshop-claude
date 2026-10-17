@@ -11,6 +11,7 @@
 //   /api/replay/<name>    replays/<name>/events.jsonl + snapshot.json for the replay mode
 // /estado and ?replay=gravacao (the older names) still work.
 import { createServer } from 'node:http';
+import { createConnection } from 'node:net';
 import { createReadStream, existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -492,28 +493,58 @@ export function createArenaServer({ root = ROOT } = {}) {
   return srv;
 }
 
-// Binds only to 127.0.0.1. If the port is busy, it tries the next ones.
+// Does a program answer on host:port? A connection, not a test bind: on macOS another dev server on [::]
+// (Next.js, Express) or on ::1 (Vite) does not make a bind on 127.0.0.1 (or on ::1) fail, and the browser, which
+// tries ::1 first for "localhost", would open that other app at the address this server prints.
+function answers(port, host, ms = 300) {
+  return new Promise((ok) => {
+    const c = createConnection({ port, host });
+    const end = (v) => {
+      c.destroy();
+      ok(v);
+    };
+    c.setTimeout(ms, () => end(false));
+    c.once('connect', () => end(true));
+    c.once('error', () => end(false));
+  });
+}
+
+export async function portTaken(port) {
+  const r = await Promise.all([answers(port, '127.0.0.1'), answers(port, '::1')]);
+  return r.some(Boolean);
+}
+
+// Binds only to 127.0.0.1. If the port is busy (bound, or another program answers on 127.0.0.1 or ::1),
+// it tries the next ones.
 export function start({ port = 3000, root = ROOT, attempts = 20 } = {}) {
   return new Promise((ok, fail) => {
     const srv = createArenaServer({ root });
     let current = port;
     let n = 0;
+    const listen = async () => {
+      while (port !== 0 && n < attempts && (await portTaken(current))) {
+        n++;
+        current++;
+      }
+      srv.listen(current, '127.0.0.1');
+    };
     const onError = (e) => {
       if (e.code === 'EADDRINUSE' && port !== 0 && n < attempts) {
         n++;
         current++;
-        srv.listen(current, '127.0.0.1');
-      } else {
-        srv.off('error', onError);
-        fail(e);
-      }
+        listen().catch(stop);
+      } else stop(e);
+    };
+    const stop = (e) => {
+      srv.off('error', onError);
+      fail(e);
     };
     srv.on('error', onError);
     srv.once('listening', () => {
       srv.off('error', onError);
       ok(srv);
     });
-    srv.listen(current, '127.0.0.1');
+    listen().catch(stop);
   });
 }
 

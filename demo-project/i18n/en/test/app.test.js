@@ -362,6 +362,41 @@ test('start() binds only to 127.0.0.1 and moves to the next port if it is busy',
   }
 });
 
+// Another dev server on [::] (Next.js, Express) or on ::1 (Vite): on macOS the bind on 127.0.0.1 still works,
+// but the browser opens "localhost" on ::1 and reached the other app.
+for (const host of ['::', '::1']) {
+  test(`start() moves to the next port if another program is on [${host}]`, async (t) => {
+    const busy = http.createServer((q, s) => s.end('OTHER-APP'));
+    const p = await new Promise((ok) => {
+      busy.once('error', () => ok(null));
+      busy.listen(0, host, () => ok(busy.address().port));
+    });
+    if (!p) return t.skip('no IPv6 on this machine');
+    const srv = await start({ port: p, root: fakeDir });
+    try {
+      assert.equal(srv.address().address, '127.0.0.1');
+      assert.notEqual(srv.address().port, p);
+    } finally {
+      srv.closeAll();
+      srv.close();
+      busy.close();
+    }
+  });
+}
+
+test('start() keeps the asked port when it is free', async () => {
+  const probe = http.createServer();
+  const p = await listen(probe);
+  await new Promise((ok) => probe.close(ok));
+  const srv = await start({ port: p, root: fakeDir });
+  try {
+    assert.equal(srv.address().port, p);
+  } finally {
+    srv.closeAll();
+    srv.close();
+  }
+});
+
 // ---------- source ----------
 
 test('no dangerous patterns in public/, templates/, pages/ and server.js', () => {

@@ -75,6 +75,7 @@
     "desinst_perfil": "Linhas do PATH removidas de {FICHEIRO}.",
     "desinst_projeto_removido": "Projeto removido (estava intacto): {CAMINHO}.",
     "desinst_projeto_mantido": "Projeto mantido porque tem alterações tuas: {CAMINHO}. Apaga-o à mão se quiseres.",
+    "desinst_editado": "Tinhas alterado {NOME}: a tua cópia ficou guardada em {PASTA}.",
     "desinst_fim": "Desinstalação concluída. Ficaram o git, o Claude Code, o Node, o uv, o gh e os backups em {BACKUP}.",
     "desinst_sem_manifest": "Não encontrei {MANIFEST}. Não há nada do workshop para desfazer.",
     "s0_so": "Sistema: {SO}",
@@ -111,7 +112,10 @@
     "s8_lingua_nossa": "O Claude responde em {NOME} (definição \"language\" do Claude Code). Textos do workshop: {KIT}.",
     "s8_lingua_tua": "Já tinhas uma definição \"language\" ({NOME}): mantive-a. Textos do workshop: {KIT}.",
     "s8_lingua_nenhuma": "Sem definição \"language\" para {LINGUA}: o Claude responde na língua em que escreves. Textos do workshop: {KIT}.",
+    "s8_editado": "Tinhas alterado {NOME}: a tua cópia ficou guardada em {PASTA} e a versão do kit voltou ao seu lugar.",
+    "s8_anteriores": "As versões anteriores das skills e dos agentes do kit ficaram guardadas em {PASTA}, caso tenhas alterado alguma.",
     "s9_ja": "{PROJETOS}",
+    "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
     "s10_ja": "agent-memory {VERSAO}",
@@ -801,8 +805,8 @@
       "so": "todos",
       "causa": "A cópia ou o git init dos projetos falhou.",
       "fazer": [
-        "Lê a mensagem no log (procura «assemble»).",
-        "Se a pasta já existir com outro conteúdo, muda-lhe o nome e volta a correr o setup."
+        "A razão está entre parênteses acima, e a mensagem completa está no log (procura «assemble»).",
+        "Depois de corrigires, volta a correr o setup: um projeto montado a meio é refeito sozinho, e o teu trabalho nunca é apagado."
       ],
       "mac": [
         "ls -la {PROJETOS}"
@@ -838,6 +842,21 @@
       ],
       "windows": [
         "Rename-Item {PROJETOS} workshop-claude-antigo"
+      ]
+    },
+    "E-DEMO-04": {
+      "titulo": "A Arena tem um histórico git próprio: deixei-a como está",
+      "so": "todos",
+      "causa": "A Arena tem commits mas não tem a tag arena-start (o ponto de partida), por isso o /demo-reset não a consegue repor no início. O setup nunca apaga o teu trabalho.",
+      "fazer": [
+        "Não há nada a fazer se quiseres continuar a trabalhar nesta Arena.",
+        "Para teres uma Arena nova, muda o nome desta pasta e volta a correr o setup."
+      ],
+      "mac": [
+        "mv {PROJETOS}/demo-project {PROJETOS}/demo-project-old"
+      ],
+      "windows": [
+        "Rename-Item {PROJETOS}\\demo-project demo-project-old"
       ]
     },
     "E-MEM-01": {

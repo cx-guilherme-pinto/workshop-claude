@@ -244,6 +244,9 @@ ws_fill() { # texto CHAVE=valor...
 
 ws_msg() { local key=$1; shift; ws_fill "$(ws_m "$key")" "$@"; }
 
+# Caminho para mostrar: o HOME como ~.
+ws_tilde() { case "$1" in "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
+
 ws_err_field() { # codigo campo
   local c=${1//-/_} n; n="M_erros_${c}_$2"; printf '%s' "${!n:-}"
 }
@@ -1072,6 +1075,9 @@ ws_s8_parse() { # le a saida TSV de install-user
       aviso) [ "$v" = E-CFG-06 ] && ws_note "$(ws_m s8_statusline_mantida)"; ws_warn "$v" "statusLine" ;;
       erro) ws_fail "$v" "" ;;
       falta) ws_log "missing: $v" ;;
+      # skills/agentes do kit que a pessoa tinha alterado: a copia dela ficou no backup
+      editado) ws_note "$(ws_msg s8_editado NOME="${v##*/}" PASTA="$(ws_tilde "$v")")" ;;
+      anteriores) ws_note "$(ws_msg s8_anteriores PASTA="$(ws_tilde "$v")")" ;;
     esac
   done <<EOF
 $1
@@ -1110,11 +1116,29 @@ ws_s8_install() {
 # perder trabalho: a pasta antiga so e movida se a nova nao existir, e a tag nova aponta para o mesmo commit.
 WS_PRACTICE=practice-project
 WS_PRACTICE_OLD=exemplo-projeto-real
+# git so no .git da propria pasta (nunca num repositorio acima, ex.: um HOME com os dotfiles em git), sem tag assinada.
+ws_git_own() { local d=$1; shift; git --git-dir="$d/.git" -c tag.gpgsign=false "$@" </dev/null; }
+# Estado de um projeto do workshop (pasta marca ref):
+#   vazia       nao existe ou esta vazia
+#   alheia      tem ficheiros e nao tem a marca do kit (E-DEMO-03: o setup nao lhe toca)
+#   incompleta  montagem interrompida: marca {"status":"incomplete"} (Ctrl-C a meio da copia) ou sem commits no
+#               proprio .git (git falhou, ou a pessoa apagou o .git); o assembler volta a montar e, se a pasta
+#               nao for so a copia incompleta do kit, guarda-a primeiro em ~/.workshop-claude/backup/
+#   ok          marca e ref (a tag arena-start da Arena, o HEAD do projeto de treino)
+#   propria     marca e commits, mas sem a ref: historico da pessoa (E-DEMO-04, fica como esta)
+ws_proj_state() {
+  local dir=$1 mark=$2 ref=$3
+  if [ ! -e "$dir" ] || [ -z "$(ls -A "$dir" 2>/dev/null)" ]; then echo vazia; return 0; fi
+  [ -f "$dir/$mark" ] || { echo alheia; return 0; }
+  if grep -Eq '"status" *: *"incomplete"' "$dir/$mark" 2>/dev/null; then echo incompleta; return 0; fi
+  ws_git_own "$dir" rev-parse -q --verify HEAD >/dev/null 2>&1 || { echo incompleta; return 0; }
+  if ws_git_own "$dir" rev-parse -q --verify "$ref" >/dev/null 2>&1; then echo ok; else echo propria; fi
+}
 ws_s9_migrate() {
   local demo="$WS_PROJ/demo-project" old="$WS_PROJ/$WS_PRACTICE_OLD" new="$WS_PROJ/$WS_PRACTICE"
-  if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null &&
-    git -C "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1 </dev/null; then
-    git -C "$demo" tag arena-start arena-inicial >>"$WS_LOG" 2>&1 </dev/null && ws_log "demo-project: tag arena-start added (from arena-inicial)"
+  if [ -f "$demo/.arena-kit.json" ] && ! ws_git_own "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 &&
+    ws_git_own "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1; then
+    ws_git_own "$demo" tag arena-start arena-inicial >>"$WS_LOG" 2>&1 && ws_log "demo-project: tag arena-start added (from arena-inicial)"
   fi
   if [ ! -e "$new" ] && [ -f "$old/.sandbox-kit.json" ]; then
     mv "$old" "$new" >>"$WS_LOG" 2>&1 && ws_log "practice project moved: $old -> $new"
@@ -1124,9 +1148,13 @@ ws_s9_migrate() {
 ws_s9_detect() {
   local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE"
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
-  [ -f "$demo/.arena-kit.json" ] && git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$demo"; return 1; }
+  case "$(ws_proj_state "$demo" .arena-kit.json refs/tags/arena-start)" in
+    ok) ;;
+    propria) ws_warn E-DEMO-04 "$(ws_tilde "$demo")" ;;
+    *) ws_fail E-DEMO-01 "$demo"; return 1 ;;
+  esac
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
-    [ -f "$sb/.sandbox-kit.json" ] && git -C "$sb" rev-parse -q --verify HEAD >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$sb"; return 1; }
+    [ "$(ws_proj_state "$sb" .sandbox-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$sb"; return 1; }
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   [ "$WS_MODE" = install ] || ws_s9_tests
@@ -1141,33 +1169,37 @@ ws_s9_tests() {
   if [ "$rc" = 0 ]; then ws_note "$(ws_msg s9_testes_ok OK="${n:-?}")"; return 0; fi
   ws_fail E-DEMO-02 "node --test test/app.test.js"; return 1
 }
-ws_assemble() { # script destino marca [--node]
-  local script=$1 dest=$2 mark=$3; shift 3
-  local force=""
-  if [ -e "$dest" ] && [ -n "$(ls -A "$dest" 2>/dev/null)" ]; then
-    if [ -f "$dest/$mark" ]; then
-      git -C "$dest" rev-parse -q --verify HEAD >/dev/null 2>&1 </dev/null || force=--force   # montagem interrompida
-    else
-      ws_fail E-DEMO-03 "$dest"; return 1
-    fi
+# Monta um projeto conforme o estado (ws_proj_state). Nunca apaga trabalho da pessoa: o historico proprio fica
+# como esta (E-DEMO-04) e uma pasta substituida vai para o backup (o assembler diz onde: "backup" no JSON).
+ws_assemble() { # script destino marca ref [--node ...]
+  local script=$1 dest=$2 mark=$3 ref=$4; shift 4
+  local force="" out rc why bk
+  case "$(ws_proj_state "$dest" "$mark" "$ref")" in
+    alheia) ws_fail E-DEMO-03 "$dest"; return 1 ;;
+    incompleta) force=--force ;;
+    propria) ws_warn E-DEMO-04 "$(ws_tilde "$dest")"; ws_registar projeto "$(basename "$dest")" "$dest"; return 0 ;;
+  esac
+  ws_log "\$ $WS_NODE $KIT_SRC/installer/$script --dest $dest $* $force"
+  out=$("$WS_NODE" "$KIT_SRC/installer/$script" --dest "$dest" "$@" ${force:+"$force"} 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  printf '%s\n' "$out" >> "$WS_STEP_LOG"
+  ws_log "  -> exit $rc"
+  if [ "$rc" != 0 ]; then
+    # A causa no ecra (ex.: "git commit ... failed: ..."), nao so no log.
+    why=$(sed -n 's/^ERROR: //p' "$WS_STEP_LOG" | tail -n 1 | cut -c1-200 | ws_redact)
+    ws_fail E-DEMO-01 "$script${why:+: $why}"; return 1
   fi
-  ws_run "$WS_NODE" "$KIT_SRC/installer/$script" --dest "$dest" "$@" ${force:+"$force"} || { ws_fail E-DEMO-01 "$script"; return 1; }
+  bk=$(printf '%s\n' "$out" | sed -n 's/.*"backup":"\([^"]*\)".*/\1/p' | head -n 1)
+  [ -n "$bk" ] && ws_note "$(ws_msg s9_backup PASTA="$(ws_tilde "$bk")")"
   ws_registar projeto "$(basename "$dest")" "$dest"
 }
 ws_s9_install() {
   ws_set SF 9 ""
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   mkdir -p "$WS_PROJ" || { ws_fail E-PERM-01 "$WS_PROJ"; return 1; }
-  local demo="$WS_PROJ/demo-project"
   ws_s9_migrate
-  if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null; then
-    ws_run "$WS_NODE" "$KIT_SRC/installer/assemble-demo.mjs" --dest "$demo" --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" --force || { ws_fail E-DEMO-01 assemble-demo; return 1; }
-    ws_registar projeto demo-project "$demo"
-  else
-    ws_assemble assemble-demo.mjs "$demo" .arena-kit.json --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
-  fi
+  ws_assemble assemble-demo.mjs "$WS_PROJ/demo-project" .arena-kit.json refs/tags/arena-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
-    ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json --language "${WS_LANG_KIT:-en}" || return 1
+    ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json HEAD --language "${WS_LANG_KIT:-en}" || return 1
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   ws_s9_tests
@@ -1540,6 +1572,8 @@ EOF
       settings) [ "$v" = reposto ] && ws_say "  $(ws_m desinst_settings_reposto)"; [ "$v" = limpo ] && ws_say "  $(ws_m desinst_settings_limpo)" ;;
       projeto_removido) ws_say "  $(ws_msg desinst_projeto_removido CAMINHO="$v")" ;;
       projeto_mantido) ws_say "  $(ws_msg desinst_projeto_mantido CAMINHO="$v")" ;;
+      editado) ws_say "  $(ws_msg desinst_editado NOME="${v##*/}" PASTA="$(ws_tilde "$v")")" ;;
+      anteriores) ws_say "  $(ws_msg s8_anteriores PASTA="$(ws_tilde "$v")")" ;;
       erro) ws_say "  ❌ $v" ;;
     esac
   done <<EOF

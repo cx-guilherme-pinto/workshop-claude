@@ -66,6 +66,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-DEMO-01` | I couldn't set up the workshop projects | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | The Arena app tests failed | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | The project folder already exists and is not from the kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
+| `E-DEMO-04` | The Arena has its own git history: I left it as it is | [macOS](#mac-e-demo-04) · [Windows](#windows-e-demo-04) |
 | `E-MEM-01` | The Agent Memory app release is not published yet | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
 | `E-MEM-02` | The Agent Memory app file does not match (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
 | `E-MEM-03` | Installing the Agent Memory app failed | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
@@ -669,8 +670,8 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 - **Why:** Copying the projects or running git init on them failed.
 - **What to do:**
-  - Read the message in the log (search for "assemble").
-  - If the folder already exists with other content, rename it and run the setup again.
+  - The reason is in brackets above, and the full message is in the log (search for "assemble").
+  - Once it is fixed, run the setup again: a half-made project is rebuilt by itself, and your work is never deleted.
 
 Command (macOS):
 
@@ -705,6 +706,21 @@ Command (macOS):
 
 ```
 mv ~/workshop-claude ~/workshop-claude-old
+```
+
+<a id="mac-e-demo-04"></a>
+
+### E-DEMO-04 · The Arena has its own git history: I left it as it is
+
+- **Why:** The Arena has commits but not the arena-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.
+- **What to do:**
+  - Nothing to do if you want to keep working in this Arena.
+  - To get a fresh Arena, rename this folder and run the setup again.
+
+Command (macOS):
+
+```
+mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
 ```
 
 <a id="mac-e-mem-01"></a>
@@ -1452,8 +1468,8 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 - **Why:** Copying the projects or running git init on them failed.
 - **What to do:**
-  - Read the message in the log (search for "assemble").
-  - If the folder already exists with other content, rename it and run the setup again.
+  - The reason is in brackets above, and the full message is in the log (search for "assemble").
+  - Once it is fixed, run the setup again: a half-made project is rebuilt by itself, and your work is never deleted.
 
 Command (Windows):
 
@@ -1488,6 +1504,21 @@ Command (Windows):
 
 ```
 Rename-Item ~/workshop-claude workshop-claude-old
+```
+
+<a id="windows-e-demo-04"></a>
+
+### E-DEMO-04 · The Arena has its own git history: I left it as it is
+
+- **Why:** The Arena has commits but not the arena-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.
+- **What to do:**
+  - Nothing to do if you want to keep working in this Arena.
+  - To get a fresh Arena, rename this folder and run the setup again.
+
+Command (Windows):
+
+```
+Rename-Item ~/workshop-claude\demo-project demo-project-old
 ```
 
 <a id="windows-e-mem-01"></a>

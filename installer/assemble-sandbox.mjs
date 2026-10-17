@@ -7,11 +7,16 @@
 // English project: the code is translated too, so the file names change (src/livros.js -> src/books.js) and it
 // cannot be laid over the Portuguese files. pt copies the project without i18n/; en copies only i18n/en/.
 // tools/test/assemble-sandbox.test.mjs checks that both versions keep the same shape and that their tests pass.
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+//
+// Like assemble-demo.mjs: the marker .sandbox-kit.json is written first with {"status":"incomplete"} (an
+// interrupted copy is rebuilt on the next run), git runs isolated from the person's global config
+// (lib/kit-repo.mjs), and --force moves an existing project to ~/.workshop-claude/backup/<date>/ instead of
+// deleting it ("backup" in the JSON output).
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 import { isMain } from './lib/is-main.mjs';
+import { clearForAssembly, initKitRepo, isIncomplete, kitGit, writeIncompleteMark } from './lib/kit-repo.mjs';
 import { lingua as linguaDoKit, normalizar } from '../hooks/lib/language.mjs';
 
 // The kit folder with the practice project (exemplo-projeto-real until v1.0.0-rc.1).
@@ -63,26 +68,23 @@ export function montar({ dest, force = false, lingua = null, kit = KIT }) {
   const origem = l === 'pt' ? proj : join(proj, 'i18n', l);
   if (!existsSync(join(origem, 'package.json'))) throw new Error(`training project not found: ${origem}`);
   const marca = join(dest, MARCA);
+  let backup = null;
   if (existsSync(dest) && readdirSync(dest).length) {
-    if (existsSync(marca) && !force) return { status: 'already_there', language: lerMarca(marca).language ?? 'pt' };
-    if (!force) throw new Error(`the folder ${dest} already exists (use --force to replace it)`);
-    rmSync(dest, { recursive: true, force: true });
+    const incompleto = isIncomplete(dest, marca);
+    if (existsSync(marca) && !force && !incompleto) return { status: 'already_there', language: lerMarca(marca).language ?? 'pt' };
+    if (!force && !incompleto) throw new Error(`the folder ${dest} already exists (use --force to replace it)`);
+    backup = clearForAssembly(dest, marca);
   }
   mkdirSync(dest, { recursive: true });
+  writeIncompleteMark(marca, l);
   copiar(origem, dest);
   writeFileSync(join(dest, '.gitignore'), 'node_modules/\n.DS_Store\n');
   writeFileSync(marca, JSON.stringify({ created_at: new Date().toISOString(), language: l }) + '\n');
   const t = TEXTOS[l];
-  const git = (...x) => {
-    const r = spawnSync('git', x, { cwd: dest, encoding: 'utf8' });
-    if (r.status !== 0) throw new Error(`git ${x.join(' ')}: ${r.stderr}`);
-  };
-  git('init', '-q', '-b', 'main');
-  git('config', 'user.name', t.nome);
-  git('config', 'user.email', t.email);
-  git('add', '-A');
-  git('commit', '-q', '-m', t.commit);
-  return { status: 'assembled', dest: dest.replace(/\\/g, '/'), language: l };
+  initKitRepo(dest, { name: t.nome, email: t.email });
+  kitGit(dest, ['add', '-A']);
+  kitGit(dest, ['commit', '-q', '-m', t.commit]);
+  return { status: 'assembled', dest: dest.replace(/\\/g, '/'), language: l, ...(backup ? { backup } : {}) };
 }
 
 if (isMain(import.meta.url)) {

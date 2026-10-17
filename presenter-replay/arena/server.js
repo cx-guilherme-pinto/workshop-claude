@@ -10,6 +10,7 @@
 //   /api/events           o mesmo, em SSE, sempre que .workshop/ muda (consulta a cada 1 s)
 //   /api/replay/<nome>    replays/<nome>/events.jsonl + snapshot.json para o modo repeticao
 import { createServer } from 'node:http';
+import { createConnection } from 'node:net';
 import { createReadStream, existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -463,28 +464,54 @@ export function criarServidor({ raiz = RAIZ } = {}) {
   return srv;
 }
 
-// Liga so em 127.0.0.1. Se a porta estiver ocupada, tenta as seguintes.
+// Alguem responde em host:porta? Uma ligacao, nao um bind de teste: no macOS outro servidor em [::] (Next.js,
+// Express) ou em ::1 (Vite) nao faz falhar o bind em 127.0.0.1, e o browser, que tenta ::1 primeiro para
+// "localhost", abria a outra app (o mesmo que demo-project/server.js).
+function responde(porta, host, ms = 300) {
+  return new Promise((ok) => {
+    const c = createConnection({ port: porta, host });
+    const fim = (v) => {
+      c.destroy();
+      ok(v);
+    };
+    c.setTimeout(ms, () => fim(false));
+    c.once('connect', () => fim(true));
+    c.once('error', () => fim(false));
+  });
+}
+
+const portaUsada = async (p) => (await Promise.all([responde(p, '127.0.0.1'), responde(p, '::1')])).some(Boolean);
+
+// Liga so em 127.0.0.1. Se a porta estiver ocupada (ou outro programa responder em 127.0.0.1 ou ::1), tenta as seguintes.
 export function iniciar({ porta = 3000, raiz = RAIZ, tentativas = 20 } = {}) {
   return new Promise((ok, falha) => {
     const srv = criarServidor({ raiz });
     let atual = porta;
     let n = 0;
+    const ligar = async () => {
+      while (porta !== 0 && n < tentativas && (await portaUsada(atual))) {
+        n++;
+        atual++;
+      }
+      srv.listen(atual, '127.0.0.1');
+    };
+    const parar = (e) => {
+      srv.off('error', aoErro);
+      falha(e);
+    };
     const aoErro = (e) => {
       if (e.code === 'EADDRINUSE' && porta !== 0 && n < tentativas) {
         n++;
         atual++;
-        srv.listen(atual, '127.0.0.1');
-      } else {
-        srv.off('error', aoErro);
-        falha(e);
-      }
+        ligar().catch(parar);
+      } else parar(e);
     };
     srv.on('error', aoErro);
     srv.once('listening', () => {
       srv.off('error', aoErro);
       ok(srv);
     });
-    srv.listen(atual, '127.0.0.1');
+    ligar().catch(parar);
   });
 }
 

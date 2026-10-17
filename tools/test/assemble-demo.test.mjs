@@ -2,12 +2,13 @@
 // ficheiros gerados e coerencia entre as traducoes do codigo (demo-project/i18n/en/) e o original.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { args, linguaArena, montar } from '../../installer/assemble-demo.mjs';
+import { hostileGitHome } from './hostile-git.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DEMO = join(ROOT, 'demo-project');
@@ -156,5 +157,92 @@ test('testes ingleses: os mesmos testes que os portugueses', () => {
   const conta = (src) => (src.match(/^\s*test\(/gm) || []).length;
   for (const f of [nome('paginaCategoria'), nome('paginaPontuacao'), 'lib/hash.test.js']) {
     assert.equal(conta(ler(join(EN, f))), conta(ler(join(DEMO, f))), `${f}: numero de testes diferente`);
+  }
+});
+
+// ---------- chaos G5: interrupted copies, the person's work and a hostile global git config ----------
+
+const AD = join(ROOT, 'installer', 'assemble-demo.mjs');
+
+// The assembler as the setup runs it (a process), with a temporary HOME for the backups and no system gitconfig.
+function montarProc(base, args, extraEnv = {}) {
+  if (!existsSync(join(base, 'empty-gitconfig'))) writeFileSync(join(base, 'empty-gitconfig'), '');
+  const env = { ...semLingua(), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(base, 'empty-gitconfig'), WS_HOME_OVERRIDE: join(base, 'home'), ...extraEnv };
+  delete env.NODE_TEST_CONTEXT;
+  const r = spawnSync(process.execPath, [AD, ...args], { encoding: 'utf8', env });
+  let out = null;
+  try {
+    out = JSON.parse(r.stdout.trim().split('\n').pop());
+  } catch {
+    /* no JSON: error */
+  }
+  const git = (...a) => spawnSync('git', a, { cwd: args[args.indexOf('--dest') + 1], encoding: 'utf8', env });
+  return { ...r, out, env, git };
+}
+
+function ficheirosEm(dir, rel = '', out = []) {
+  for (const e of readdirSync(join(dir, rel), { withFileTypes: true })) {
+    if (e.name === '.git') continue;
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) ficheirosEm(dir, r, out);
+    else out.push(r);
+  }
+  return out;
+}
+
+test('chaos G5: a hostile global git config does not break, sign or shrink the Arena', () => {
+  const base = mkdtempSync(join(tmpdir(), 'arena-hostil-'));
+  try {
+    const h = hostileGitHome(join(base, 'git'));
+    const dest = join(base, 'demo-project');
+    const r = montarProc(base, ['--dest', dest, '--language', 'pt'], h.env);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.out.status, 'assembled');
+    // Everything on disk is in the commit (.workshop/ is empty and ignored by the Arena's own .gitignore).
+    assert.deepEqual(r.git('ls-files').stdout.trim().split('\n').sort(), ficheirosEm(dest).sort());
+    assert.equal(r.git('cat-file', '-t', 'arena-start').stdout.trim(), 'commit', 'lightweight tag, not a signed one');
+    assert.equal(r.git('rev-parse', '--abbrev-ref', 'HEAD').stdout.trim(), 'main');
+    assert.ok(!existsSync(h.ran), 'no hook of the person ran');
+    // /demo-reset with the person's config: restores a changed file and deletes a new .js file.
+    writeFileSync(join(dest, 'lib', 'hash.js'), '// changed\n');
+    writeFileSync(join(dest, 'lib', 'extra.js'), '// new\n');
+    const reset = spawnSync(process.execPath, ['tools/reset.mjs'], { cwd: dest, encoding: 'utf8', env: r.env });
+    assert.equal(reset.status, 0, reset.stderr);
+    assert.equal(r.git('status', '--porcelain', '--untracked-files=all').stdout, '');
+    assert.ok(!existsSync(join(dest, 'lib', 'extra.js')));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('chaos G5: an interrupted copy (incomplete marker) is rebuilt; --force keeps an Arena with work in the backup', () => {
+  const base = mkdtempSync(join(tmpdir(), 'arena-rerun-'));
+  try {
+    const dest = join(base, 'demo-project');
+    mkdirSync(join(dest, 'cards'), { recursive: true });
+    writeFileSync(join(dest, '.arena-kit.json'), JSON.stringify({ status: 'incomplete', language: 'pt' }) + '\n');
+    writeFileSync(join(dest, 'README.md'), 'half\n');
+    let r = montarProc(base, ['--dest', dest, '--language', 'pt']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.out.status, 'assembled');
+    assert.equal(r.out.backup, undefined, 'the kit\'s own half copy is not kept');
+    assert.equal(r.git('rev-parse', '-q', '--verify', 'refs/tags/arena-start').status, 0);
+    assert.notEqual(lerJson(join(dest, '.arena-kit.json')).status, 'incomplete');
+    // The person's own history (a commit, no tag) and an untracked note: --force moves it all to the backup.
+    writeFileSync(join(dest, 'MY-NOTES.md'), 'mine\n');
+    r.git('tag', '-d', 'arena-start');
+    r.git('commit', '-q', '--allow-empty', '-m', 'my own history');
+    r = montarProc(base, ['--dest', dest, '--language', 'pt', '--force']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(r.out.backup && r.out.backup.startsWith(join(base, 'home').replace(/\\/g, '/')), JSON.stringify(r.out));
+    assert.equal(readFileSync(join(r.out.backup, 'MY-NOTES.md'), 'utf8'), 'mine\n');
+    assert.equal(spawnSync('git', ['log', '-1', '--format=%s'], { cwd: r.out.backup, encoding: 'utf8', env: r.env }).stdout.trim(), 'my own history');
+    assert.ok(!existsSync(join(dest, 'MY-NOTES.md')));
+    assert.equal(r.git('rev-parse', '-q', '--verify', 'refs/tags/arena-start').status, 0);
+    // Without --force, a finished Arena stays as it is.
+    r = montarProc(base, ['--dest', dest, '--language', 'en']);
+    assert.equal(r.out.status, 'already_there');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
   }
 });
