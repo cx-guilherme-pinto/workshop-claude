@@ -10,7 +10,7 @@
       "MCP do Jira (Atlassian)",
       "skills, agentes, hooks e statusline do workshop",
       "os projetos do workshop em {PROJETOS}",
-      "a app Memória",
+      "a app Agent Memory",
       "o Claude Desktop (opcional; salta com {FLAG_SEM_DESKTOP})"
     ],
     "tempo": "Tempo estimado: 10 a 20 minutos. Se parar a meio, volta a correr o mesmo comando: os passos feitos são saltados.",
@@ -68,8 +68,8 @@
     "desinst_settings_reposto": "settings.json reposto a partir do backup.",
     "desinst_settings_limpo": "settings.json alterado depois da instalação: removi só as chaves do workshop.",
     "desinst_mcp": "MCP removido: {NOME}.",
-    "desinst_app": "App Memória removida.",
-    "desinst_memorias": "As tuas memórias em ~/.memoria ficaram intactas. Apaga a pasta à mão só se já não precisares delas.",
+    "desinst_app": "App Agent Memory removida.",
+    "desinst_memorias": "As tuas memórias em {CAMINHO} ficaram intactas. Apaga a pasta à mão só se já não precisares delas.",
     "desinst_atalho": "Atalho removido: {CAMINHO}.",
     "desinst_perfil": "Linhas do PATH removidas de {FICHEIRO}.",
     "desinst_projeto_removido": "Projeto removido (estava intacto): {CAMINHO}.",
@@ -112,9 +112,9 @@
     "s9_ja": "{PROJETOS}",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
-    "s10_ja": "memoria {VERSAO}",
-    "s10_ok": "App Memória {VERSAO} (Python {PY} gerido pelo uv, FTS5 ok)",
-    "s10_update": "Para atualizar a app mais tarde: memoria update. No Windows, fecha primeiro o Claude Code; a atualização termina numa janela nova do PowerShell.",
+    "s10_ja": "agent-memory {VERSAO}",
+    "s10_ok": "App Agent Memory {VERSAO} (Python {PY} gerido pelo uv, FTS5 ok)",
+    "s10_update": "Para atualizar a app mais tarde: agent-memory update. No Windows, fecha primeiro o Claude Code; a atualização termina numa janela nova do PowerShell.",
     "s11_ja": "Claude Desktop em {CAMINHO}",
     "s11_aviso": "O Claude Desktop só entra com uma conta claude.ai, e o separador Code exige assinatura. O hands-on do workshop corre todo no Claude Code (terminal).",
     "s12_prompt": "responde só OK",
@@ -136,7 +136,7 @@
     "7": "Jira (MCP Atlassian e Atlassian CLI)",
     "8": "Skills, agentes, hooks e statusline",
     "9": "Projetos do workshop",
-    "10": "App Memória",
+    "10": "App Agent Memory",
     "11": "Claude Desktop (opcional)",
     "12": "Teste final"
   },
@@ -425,7 +425,7 @@
     "E-CFG-07": {
       "titulo": "O uv está proibido de usar o Python gerido",
       "so": "todos",
-      "causa": "Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Memória precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.",
+      "causa": "Há uma variável de ambiente (UV_PYTHON_DOWNLOADS, UV_NO_MANAGED_PYTHON ou UV_PYTHON_PREFERENCE) que impede o uv de descarregar o seu próprio Python. A app Agent Memory precisa desse Python. O setup ignora a variável só no comando dele, mas outros comandos uv continuam afetados.",
       "fazer": [
         "Se a variável foi posta pela empresa, fala com o IT antes de a mudar.",
         "Não precisas de ter Python instalado: o uv traz o dele."
@@ -839,9 +839,9 @@
       ]
     },
     "E-MEM-01": {
-      "titulo": "A release da app Memória ainda não foi publicada",
+      "titulo": "A release da app Agent Memory ainda não foi publicada",
       "so": "todos",
-      "causa": "Não encontrei os ficheiros da app Memória {MEMORY_APP_VERSION} no servidor. A app é opcional: as skills funcionam sem ela.",
+      "causa": "Não encontrei os ficheiros da app Agent Memory {MEMORY_APP_VERSION} no servidor. A app é opcional: as skills funcionam sem ela.",
       "fazer": [
         "Podes continuar. Mais perto do workshop, volta a correr o setup para a instalar."
       ],
@@ -849,7 +849,7 @@
       "windows": []
     },
     "E-MEM-02": {
-      "titulo": "O ficheiro da app Memória não confere (SHA-256)",
+      "titulo": "O ficheiro da app Agent Memory não confere (SHA-256)",
       "so": "todos",
       "causa": "O wheel descarregado é diferente do publicado em SHA256SUMS. Não o instalei.",
       "fazer": [
@@ -859,7 +859,7 @@
       "windows": []
     },
     "E-MEM-03": {
-      "titulo": "A instalação da app Memória falhou",
+      "titulo": "A instalação da app Agent Memory falhou",
       "so": "todos",
       "causa": "O uv não conseguiu instalar a app (Python {PYTHON_VERSION} ou as dependências). Costuma ser rede (pypi.org, files.pythonhosted.org ou github.com).",
       "fazer": [
@@ -876,7 +876,7 @@
     "E-MEM-04": {
       "titulo": "Falta o WebView2 (Windows)",
       "so": "windows",
-      "causa": "A janela da app Memória usa o Microsoft Edge WebView2, e não o encontrei nem o consegui instalar. Sem ele, a app abre no browser.",
+      "causa": "A janela da app Agent Memory usa o Microsoft Edge WebView2, e não o encontrei nem o consegui instalar. Sem ele, a app abre no browser.",
       "fazer": [
         "Podes continuar: a app abre no browser.",
         "Para a janela própria, instala o WebView2 Runtime pelo portal de software da empresa ou pede ao IT."
@@ -885,7 +885,7 @@
       "windows": []
     },
     "E-MEM-05": {
-      "titulo": "O teste da app Memória falhou",
+      "titulo": "O teste da app Agent Memory falhou",
       "so": "todos",
       "causa": "A app ficou instalada, mas o autoteste falhou. O Python que o uv instalou, a pesquisa nas notas (FTS5) ou a pasta das memórias não estão a funcionar. As skills funcionam sem a app.",
       "fazer": [
@@ -893,10 +893,10 @@
         "Volta a correr o setup: o uv volta a instalar a app e o Python dela."
       ],
       "mac": [
-        "memoria selftest"
+        "agent-memory selftest"
       ],
       "windows": [
-        "memoria selftest"
+        "agent-memory selftest"
       ]
     },
     "E-DESK-01": {

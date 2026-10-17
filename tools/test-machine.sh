@@ -15,7 +15,7 @@
 #   --write                    at the end, offers to post 1 test comment on the --jira issue (asks first)
 #   --only <phases>            only these phases, e.g. --only 1,3 (1 kit, 2 setup, 3 accounts,
 #                              4 Project 2, 5 release, 6 Arena, 7 write)
-#   --memory-repo <dir>        clone of the Memória app, to run its tests (default ../claude-memory-app)
+#   --memory-repo <dir>        clone of the Agent Memory app, to run its tests (default ../claude-memory-app)
 #   --out <dir>                where the report goes (default ~/workshop-test/<date>)
 #
 # Portuguese options still work: --versao, --instalar, --escrever, --so, --memoria-repo, --saida.
@@ -89,7 +89,7 @@ jfield() { [ -n "$NODE" ] || return 1; "$NODE" -e 'try{const j=JSON.parse(requir
 # cost of a "claude -p --output-format json" result (tokens x pricing.json; see D-13)
 cost() {
   [ -n "$NODE" ] && [ -s "$1" ] || { printf 'US$ ?'; return; }
-  local t; t=$("$NODE" "$KIT/installer/lib/custo.mjs" "$1" "$KIT/pricing.json" 2>/dev/null)
+  local t; t=$("$NODE" "$KIT/installer/lib/cost.mjs" "$1" "$KIT/pricing.json" 2>/dev/null)
   printf '%s\n' "$t" | awk -F'\t' '$1=="usd" && $2!="" {print $2}' >> "$COSTS"
   printf '%s\n' "$t" | awk -F'\t' '$1=="usd" && $2!="" {v=$2+0; if (v < 0.01) printf "US$ %.4f\n", v; else printf "US$ %.2f\n", v}'
 }
@@ -109,7 +109,7 @@ p1_kit() {
   title 1 "Automated kit tests (no accounts)"
   if [ -z "$NODE" ]; then fail "Node.js" "not found: run the setup first (--install)"; return; fi
   ok "Node.js" "$("$NODE" --version)"
-  local args=""; has docker && docker info >/dev/null 2>&1 || args="--sem-docker"
+  local args=""; has docker && docker info >/dev/null 2>&1 || args="--no-docker"
   if tm 1800 bash "$KIT/tools/test-all.sh" $args > "$LOGS/1-test-all.log" 2>&1; then
     ok "tools/test-all.sh" "$(grep -c ' ok$' "$LOGS/1-test-all.log") groups green${args:+ (no Docker: no shellcheck)}"
   else
@@ -122,15 +122,15 @@ p1_kit() {
     if [ ! -f "$MEMREPO/src/memoria/web_dist/index.html" ]; then
       if (cd "$MEMREPO/web" && tm 900 npm ci && tm 900 npm run build) > "$LOGS/1-memory-ui.log" 2>&1 &&
          rm -rf "$MEMREPO/src/memoria/web_dist" && cp -R "$MEMREPO/web/dist" "$MEMREPO/src/memoria/web_dist"; then
-        ok "Memória app (UI build)" "web/dist copied to src/memoria/web_dist"
-      else fail "Memória app (UI build)" "see logs/1-memory-ui.log"; fi
+        ok "Agent Memory app (UI build)" "web/dist copied to src/memoria/web_dist"
+      else fail "Agent Memory app (UI build)" "see logs/1-memory-ui.log"; fi
     fi
     (cd "$MEMREPO" && tm 900 uv run playwright install chromium) > "$LOGS/1-memory-playwright.log" 2>&1 ||
-      warn "Memória app (Playwright Chromium)" "not installed: the browser tests will fail (see logs/1-memory-playwright.log)"
-    if (cd "$MEMREPO" && tm 1200 uv run pytest -q) > "$LOGS/1-memory-pytest.log" 2>&1; then ok "Memória app (pytest)" "$(tail -1 "$LOGS/1-memory-pytest.log")"
-    else fail "Memória app (pytest)" "$(tail -1 "$LOGS/1-memory-pytest.log") (see logs/1-memory-pytest.log)"; fi
+      warn "Agent Memory app (Playwright Chromium)" "not installed: the browser tests will fail (see logs/1-memory-playwright.log)"
+    if (cd "$MEMREPO" && tm 1200 uv run pytest -q) > "$LOGS/1-memory-pytest.log" 2>&1; then ok "Agent Memory app (pytest)" "$(tail -1 "$LOGS/1-memory-pytest.log")"
+    else fail "Agent Memory app (pytest)" "$(tail -1 "$LOGS/1-memory-pytest.log") (see logs/1-memory-pytest.log)"; fi
   else
-    skip "Memória app (pytest)" "no clone at $MEMREPO, or no uv"
+    skip "Agent Memory app (pytest)" "no clone at $MEMREPO, or no uv"
   fi
 }
 
@@ -173,9 +173,9 @@ p5_release() { # host repo version
   mem_url=$(sed -n 's/^MEMORY_APP_REPO_URL=//p' "$d/setup-mac.sh" | head -1); mem_v=$(sed -n 's/^MEMORY_APP_VERSION=//p' "$d/setup-mac.sh" | head -1)
   case "$mem_url" in
     *"$h/"*) local mr=${mem_url#*"$h/"}; mr=${mr%.git}
-      if GH_HOST=$h tm 120 gh release view "$mem_v" -R "$h/$mr" --json tagName > /dev/null 2>> "$LOGS/5-release.err"; then ok "Memória app release $mem_v" "$h/$mr"
-      else fail "Memória app release $mem_v" "not found on $h/$mr"; fi ;;
-    *) warn "Memória app release" "the release points to $mem_url (outside $h)" ;;
+      if GH_HOST=$h tm 120 gh release view "$mem_v" -R "$h/$mr" --json tagName > /dev/null 2>> "$LOGS/5-release.err"; then ok "Agent Memory app release $mem_v" "$h/$mr"
+      else fail "Agent Memory app release $mem_v" "not found on $h/$mr"; fi ;;
+    *) warn "Agent Memory app release" "the release points to $mem_url (outside $h)" ;;
   esac
 }
 
@@ -194,7 +194,8 @@ p2_setup() { # install
   fi
   if tm 900 bash "$s" --check > "$LOGS/2-check.log" 2>&1 < /dev/null; then ok "setup --check" "everything is ready for the workshop"
   else fail "setup --check" "some steps are missing (summary below and logs/2-check.log)"; fi
-  [ -f "$HOME/.workshop-claude/resumo.txt" ] && cp "$HOME/.workshop-claude/resumo.txt" "$OUT/setup-summary.txt"
+  local sm="$HOME/.workshop-claude/summary.txt"; [ -f "$sm" ] || sm="$HOME/.workshop-claude/resumo.txt"   # older setups
+  [ -f "$sm" ] && cp "$sm" "$OUT/setup-summary.txt"
 }
 
 # ---------------------------------------------------------------- 3. accounts and integrations (read only)
@@ -269,12 +270,13 @@ p3_accounts() { # host repo jira conf
   else
     warn "Atlassian CLI" "not found (the Jira fallback): run the setup"
   fi
-  # Memória app
-  if has memoria; then
-    if tm 300 env MEMORIA_LANG=en memoria selftest > "$LOGS/3-memory.log" 2>&1; then ok "Memória app (selftest)" "$(head -1 "$LOGS/3-memory.log")"
-    else fail "Memória app (selftest)" "$(grep -v '\[OK\]' "$LOGS/3-memory.log" | grep -m1 '\[')"; fi
-  else warn "Memória app" "not found (optional): run the setup"; fi
-  if has claude && claude mcp get memoria > /dev/null 2>&1; then ok "memoria MCP registered" ""; else warn "memoria MCP registered" "no"; fi
+  # Agent Memory app (agent-memory since v0.5.0; older versions only have memoria)
+  local mem=""; if has agent-memory; then mem=agent-memory; elif has memoria; then mem=memoria; fi
+  if [ -n "$mem" ]; then
+    if tm 300 env AGENT_MEMORY_LANG=en MEMORIA_LANG=en "$mem" selftest > "$LOGS/3-memory.log" 2>&1; then ok "Agent Memory app (selftest)" "$(head -1 "$LOGS/3-memory.log")"
+    else fail "Agent Memory app (selftest)" "$(grep -v '\[OK\]' "$LOGS/3-memory.log" | grep -m1 '\[')"; fi
+  else warn "Agent Memory app" "not found (optional): run the setup"; fi
+  if has claude && claude mcp get agent-memory > /dev/null 2>&1; then ok "agent-memory MCP registered" ""; else warn "agent-memory MCP registered" "no"; fi
   rm -rf "$t"
 }
 
@@ -287,7 +289,7 @@ p4_project2() { # jira
   [ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/task-intake/SKILL.md" ] || { fail "/task-intake" "skill not installed: run the setup"; return; }
   for mode in mcp acli; do
     local p="$OUT/project2-$mode" f="$LOGS/4-intake-$mode.json"
-    rm -rf "$p"; cp -R "$KIT/exemplo-projeto-real" "$p"
+    rm -rf "$p"; cp -R "$KIT/practice-project" "$p"
     (cd "$p" && git init -q && git add -A && git -c user.name=test -c user.email=test@example.invalid commit -qm initial) > /dev/null 2>&1
     local -a extra=()
     [ "$mode" = acli ] && extra=(--disallowedTools mcp__atlassian__getAccessibleAtlassianResources mcp__atlassian__getJiraIssue mcp__atlassian__searchJiraIssuesUsingJql mcp__atlassian__getConfluenceContent)
@@ -295,19 +297,19 @@ p4_project2() { # jira
       --allowedTools "Bash(node *)" "Bash(git rev-parse *)" "Bash(git log *)" Read Glob "Write(.workshop/**)" \
         mcp__atlassian__getAccessibleAtlassianResources mcp__atlassian__getJiraIssue mcp__atlassian__searchJiraIssuesUsingJql mcp__atlassian__getConfluenceContent \
         "Bash(acli auth status*)" "Bash(acli jira auth status*)" "Bash(acli jira workitem view *)" "Bash(acli jira workitem search *)" \
-        "Bash(acli confluence auth status*)" "Bash(acli confluence page view *)" mcp__memoria__memoria_procurar \
+        "Bash(acli confluence auth status*)" "Bash(acli confluence page view *)" mcp__agent-memory__memory_search \
       ${extra[@]+"${extra[@]}"}
-    local tj="$p/.workshop/tarefa.json" via id denied
+    local tj="$p/.workshop/task.json" via id denied
     denied=$(jfield "$f" '(j.permission_denials||[]).map(d=>d.tool_name).join(",")')
-    if [ ! -s "$tj" ]; then fail "/task-intake via $mode" "did not write .workshop/tarefa.json (see logs/4-intake-$mode.json)"; continue; fi
+    if [ ! -s "$tj" ]; then fail "/task-intake via $mode" "did not write .workshop/task.json (see logs/4-intake-$mode.json)"; continue; fi
     id=$(jfield "$tj" 'j.id'); via=$(jfield "$tj" 'j.via || ""')
-    if [ "$(jfield "$tj" 'j.fonte')" = jira ] && [ "$id" = "$jira" ] && [ -n "$(jfield "$tj" 'j.titulo')" ]; then
+    if [ "$(jfield "$tj" 'j.source')" = jira ] && [ "$id" = "$jira" ] && [ -n "$(jfield "$tj" 'j.title')" ]; then
       if [ "$mode" = acli ] && [ "$via" != acli ]; then warn "/task-intake via acli" "read the issue but via=\"$via\" (expected acli)"
-      else ok "/task-intake via $mode" "id $id, via ${via:-?}, epic $(jfield "$tj" 'j.epico || "-"') · $(cost "$f")"; fi
-    else fail "/task-intake via $mode" "incomplete tarefa.json (see $tj)"; fi
+      else ok "/task-intake via $mode" "id $id, via ${via:-?}, epic $(jfield "$tj" 'j.epic || "-"') · $(cost "$f")"; fi
+    else fail "/task-intake via $mode" "incomplete task.json (see $tj)"; fi
     [ -z "$denied" ] || warn "Permissions denied ($mode)" "$denied"
-    if grep -q '^## Documentação (Confluence)' "$p/.workshop/tarefa.md" 2>/dev/null; then ok "Confluence in tarefa.md ($mode)" "section present"
-    else skip "Confluence in tarefa.md ($mode)" "the issue has no page links (or they were not read)"; fi
+    if grep -q '^## Documentation (Confluence)' "$p/.workshop/task.md" 2>/dev/null; then ok "Confluence in task.md ($mode)" "section present"
+    else skip "Confluence in task.md ($mode)" "the issue has no page links (or they were not read)"; fi
   done
 }
 

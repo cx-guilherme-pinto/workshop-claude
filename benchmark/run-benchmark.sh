@@ -2,7 +2,8 @@
 # Benchmark de custo e tempo da sessao completa do participante (ou do apresentador),
 # de forma nao interativa: /demo-plan -> /demo-swarm -> /demo-review -> /demo-cost.
 #
-#   benchmark/run-benchmark.sh [--modo participante|apresentador] [--n 10] [--max 8] [--gravar]
+#   benchmark/run-benchmark.sh [--mode participant|presenter] [--n 10] [--max 8] [--gravar]
+#   (--modo participante|apresentador continua a funcionar)
 #
 # Isolamento: se existir no Keychain o servico "workshop-benchmark-oauth" (token criado com
 # `claude setup-token`), cada execucao usa um CLAUDE_CONFIG_DIR temporario, como um participante novo.
@@ -11,12 +12,22 @@
 # Lingua da Arena: pt por defeito (a das medicoes da D-16); BENCH_LINGUA=en mede a Arena em ingles (D-20).
 set -euo pipefail
 
+# O programa da app (agent-memory desde a v0.5.0; memoria nas versoes antigas): AGENT_MEMORY_BIN (ou MEMORIA_BIN),
+# o instalado so para o benchmark (benchmark/tmp/bin) ou o do sistema.
+bench_memory_bin() {
+  local b
+  for b in "${AGENT_MEMORY_BIN:-}" "${MEMORIA_BIN:-}" "$1/benchmark/tmp/bin/agent-memory" "$1/benchmark/tmp/bin/memoria"; do
+    [ -n "$b" ] && [ -x "$b" ] && { printf '%s' "$b"; return 0; }
+  done
+  command -v agent-memory || command -v memoria || true
+}
+
 main() {
   local KIT; KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  local MODO=participante N=10 MAX="" GRAVAR=0 SEM_ISOLAMENTO=0
+  local MODO=participant N=10 MAX="" GRAVAR=0 SEM_ISOLAMENTO=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --modo) MODO="$2"; shift 2 ;;
+      --mode|--modo) MODO="$2"; shift 2 ;;
       --n) N="$2"; shift 2 ;;
       --max) MAX="$2"; shift 2 ;;
       --gravar) GRAVAR=1; shift ;;
@@ -24,7 +35,8 @@ main() {
       *) echo "opcao desconhecida: $1" >&2; exit 2 ;;
     esac
   done
-  [ -z "$MAX" ] && { [ "$MODO" = apresentador ] && MAX=16 || MAX=8; }
+  case "$MODO" in participante) MODO=participant ;; apresentador) MODO=presenter ;; esac
+  [ -z "$MAX" ] && { [ "$MODO" = presenter ] && MAX=16 || MAX=8; }
   local NODE; NODE="$(command -v node)"
   local RUNS="$KIT/benchmark/runs"; mkdir -p "$RUNS"
   # BENCH_CSV / BENCH_REPORT: escrever noutro sitio (tools/test-machine.sh nao mexe nos resultados do repositorio)
@@ -42,12 +54,12 @@ main() {
     local ID; ID="$(date +%Y%m%d-%H%M%S)-$MODO-$i"
     local RUN="$RUNS/$ID"; mkdir -p "$RUN"
     local ARENA="$RUN/arena"
-    "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --lingua "${BENCH_LINGUA:-pt}" >/dev/null
-    # Plano no modo pedido (o /demo-plan --auto usa o modo participante por defeito).
-    local MODO_ARG=""; [ "$MODO" = apresentador ] && MODO_ARG="--modo apresentador"
+    "$NODE" "$KIT/installer/assemble-demo.mjs" --dest "$ARENA" --node "$NODE" --language "${BENCH_LINGUA:-pt}" >/dev/null
+    # Plano no modo pedido (o /demo-plan --auto usa o modo participant por defeito).
+    local MODO_ARG=""; [ "$MODO" = presenter ] && MODO_ARG="--mode presenter"
 
     local -a FLAGS=(--output-format json --permission-mode acceptEdits)
-    local -a ENVV=(ARENA_MAX_PARALELO="$MAX")
+    local -a ENVV=(ARENA_MAX_PARALLEL="$MAX" ARENA_MAX_PARALELO="$MAX")
     if [ "$ISOLADO" = 1 ]; then
       local CFG="$RUN/config"; mkdir -p "$CFG"
       "$NODE" -e '
@@ -55,28 +67,26 @@ main() {
         fs.writeFileSync(cfg+"/.claude.json",JSON.stringify({hasCompletedOnboarding:true,projects:{[arena]:{hasTrustDialogAccepted:true}}},null,2));
       ' "$CFG" "$ARENA"
       ENVV+=(CLAUDE_CONFIG_DIR="$CFG")
-      # App de memoria: a instalada so para o benchmark (benchmark/tmp/bin) ou a do sistema;
-      # cada execucao tem a sua pasta de memorias, para nao tocar em ~/.memoria.
-      local MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
-      [ -x "$MEMBIN" ] || MEMBIN="$(command -v memoria || true)"
+      # App Agent Memory: a instalada so para o benchmark (benchmark/tmp/bin) ou a do sistema;
+      # cada execucao tem a sua pasta de memorias, para nao tocar na do utilizador.
+      local MEMBIN; MEMBIN=$(bench_memory_bin "$KIT")
       if [ -n "$MEMBIN" ]; then
-        mkdir -p "$RUN/memoria"
-        env "${ENVV[@]}" claude mcp add --scope user -e MEMORIA_HOME="$RUN/memoria" memoria -- "$MEMBIN" mcp >/dev/null 2>&1 || true
+        mkdir -p "$RUN/agent-memory"
+        env "${ENVV[@]}" claude mcp add --scope user -e AGENT_MEMORY_HOME="$RUN/agent-memory" -e MEMORIA_HOME="$RUN/agent-memory" agent-memory -- "$MEMBIN" mcp >/dev/null 2>&1 || true
       fi
     else
       # Sem isolamento: config do utilizador, mas so as definicoes do projeto e so o MCP da memoria.
-      local MEMBIN="${MEMORIA_BIN:-$KIT/benchmark/tmp/bin/memoria}"
-      [ -x "$MEMBIN" ] || MEMBIN="$(command -v memoria || true)"
-      mkdir -p "$RUN/memoria"
+      local MEMBIN; MEMBIN=$(bench_memory_bin "$KIT")
+      mkdir -p "$RUN/agent-memory"
       if [ -n "$MEMBIN" ]; then
-        "$NODE" -e 'const [f,b,h]=process.argv.slice(1);require("fs").writeFileSync(f,JSON.stringify({mcpServers:{memoria:{type:"stdio",command:b,args:["mcp"],env:{MEMORIA_HOME:h}}}}))' "$RUN/mcp.json" "$MEMBIN" "$RUN/memoria"
+        "$NODE" -e 'const [f,b,h]=process.argv.slice(1);require("fs").writeFileSync(f,JSON.stringify({mcpServers:{"agent-memory":{type:"stdio",command:b,args:["mcp"],env:{AGENT_MEMORY_HOME:h,MEMORIA_HOME:h}}}}))' "$RUN/mcp.json" "$MEMBIN" "$RUN/agent-memory"
       else
         echo '{"mcpServers":{}}' > "$RUN/mcp.json"
       fi
       # shellcheck disable=SC2054 # "project,local" e um so argumento
       FLAGS+=(--setting-sources project,local --strict-mcp-config --mcp-config "$RUN/mcp.json"
         --allowedTools "Bash(node --test *)" "Bash(node tools/*)" "Bash(node server.js*)" "Read" "Edit" "Write" "Glob" "Grep"
-        "mcp__memoria__memoria_procurar" "mcp__memoria__memoria_adicionar" "mcp__memoria__memoria_relacionadas")
+        "mcp__agent-memory__memory_search" "mcp__agent-memory__memory_add" "mcp__agent-memory__memory_related")
       TOKEN=""
     fi
 

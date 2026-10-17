@@ -85,15 +85,19 @@ export function summarize(path, pricing, { onlyMainThread = false } = {}) {
   };
 }
 
-// Marcadores que o orquestrador poe no prompt de cada subagente.
+// Markers the orchestrator puts in each subagent's prompt (TASK:, AGENT:, ATTEMPT:;
+// older versions wrote TAREFA:, AGENTE:, TENTATIVA:, which are still read).
 export function parseMarkers(text) {
-  const get = (k) => {
-    const m = new RegExp('^\\s*' + k + ':\\s*([^\\s]+)', 'mi').exec(text || '');
-    return m ? m[1] : null;
+  const get = (...ks) => {
+    for (const k of ks) {
+      const m = new RegExp('^\\s*' + k + ':\\s*([^\\s]+)', 'mi').exec(text || '');
+      if (m) return m[1];
+    }
+    return null;
   };
   return {
-    tarefa: get('TAREFA'),
-    agente: get('AGENTE'),
-    tentativa: Number(get('TENTATIVA') || 1) || 1,
+    tarefa: get('TASK', 'TAREFA'),
+    agente: get('AGENT', 'AGENTE'),
+    tentativa: Number(get('ATTEMPT', 'TENTATIVA') || 1) || 1,
   };
 }

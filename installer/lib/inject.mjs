@@ -9,7 +9,7 @@ import { join as _join, resolve as _resolve } from 'node:path';
 import { fileURLToPath as _f2p } from 'node:url';
 import { expand, loadConf, repoParts } from './conf.mjs';
 import { flattenToShell } from './messages.mjs';
-import { ehPrincipal } from './principal.mjs';
+import { isMain as ehPrincipal } from './is-main.mjs';
 
 export const INICIO = '# >>> WS-INJETADO >>>';
 export const FIM = '# <<< WS-INJETADO <<<';

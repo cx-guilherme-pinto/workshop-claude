@@ -38,9 +38,9 @@ export function parseSettings(text) {
   try {
     v = JSON.parse(String(text).replace(/^﻿/, ''));
   } catch (e) {
-    throw new SettingsError(`settings.json nao e JSON valido: ${e.message}`);
+    throw new SettingsError(`settings.json is not valid JSON: ${e.message}`);
   }
-  if (!isObj(v)) throw new SettingsError('settings.json tem de ser um objeto JSON');
+  if (!isObj(v)) throw new SettingsError('settings.json must be a JSON object');
   return v;
 }
 
@@ -56,7 +56,7 @@ export function expectedEntries({ node, kitDir }) {
 // Devolve { settings, record, changed, warnings }.
 export function mergeSettings(current, opts, prevRecord = null) {
   const { node, kitDir, env = {}, substituirStatusline = false, language = null } = opts;
-  if (!node || !kitDir) throw new Error('mergeSettings: faltam node e kitDir');
+  if (!node || !kitDir) throw new Error('mergeSettings: node and kitDir are required');
   const s = clone(current) || {};
   const before = JSON.stringify(s);
   const warnings = [];
@@ -74,12 +74,12 @@ export function mergeSettings(current, opts, prevRecord = null) {
   };
   const exp = expectedEntries({ node, kitDir });
 
-  if (s.hooks !== undefined && !isObj(s.hooks)) throw new SettingsError('"hooks" no settings.json nao e um objeto');
+  if (s.hooks !== undefined && !isObj(s.hooks)) throw new SettingsError('"hooks" in settings.json is not an object');
   s.hooks = s.hooks || {};
   for (const { event, command: cmd } of exp.hooks) {
     const file = cmd.split('/').pop(); // ex.: stop.mjs" (com a aspa final)
     if (s.hooks[event] !== undefined && !Array.isArray(s.hooks[event])) {
-      throw new SettingsError(`"hooks.${event}" no settings.json nao e uma lista`);
+      throw new SettingsError(`"hooks.${event}" in settings.json is not a list`);
     }
     let groups = s.hooks[event] || [];
     let found = false;
@@ -121,7 +121,7 @@ export function mergeSettings(current, opts, prevRecord = null) {
     warnings.push('E-CFG-06');
   }
 
-  if (s.env !== undefined && !isObj(s.env)) throw new SettingsError('"env" no settings.json nao e um objeto');
+  if (s.env !== undefined && !isObj(s.env)) throw new SettingsError('"env" in settings.json is not an object');
   s.env = s.env || {};
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined || v === null || v === '') continue;

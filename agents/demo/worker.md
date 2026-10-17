@@ -20,4 +20,4 @@ Security rules (the tests check them):
 - In `card.js`: only imports from `../../templates/` and `../../lib/`; no `document`, `window`, `innerHTML`, `eval`, `Function`, `fetch` or `localStorage`.
 - The `render` comes from the template. Never write it by hand.
 
-At the end answer with ONE single line: `OK <id>` or `FALHOU <id>: <reason in a few words>`. Do not explain the code.
+At the end answer with ONE single line: `OK <id>` or `FAILED <id>: <reason in a few words>`. Do not explain the code.

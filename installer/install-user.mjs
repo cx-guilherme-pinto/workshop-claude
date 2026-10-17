@@ -11,12 +11,12 @@
 //   node installer/install-user.mjs extras
 //
 // O que faz "instalar":
-//   - copia hooks/ orquestrador/ statusline/ pricing.json para ~/.workshop-claude/kit/
+//   - copia hooks/ orchestrator/ statusline/ pricing.json para ~/.workshop-claude/kit/
 //   - copia skills-prod/* e skills-shared/* para ~/.claude/skills/ e agents/prod/*.md para ~/.claude/agents/,
 //     trocando {{KIT_DIR}} pelo caminho absoluto do kit (barras "/" tambem no Windows)
 //   - faz backup e merge seguro do ~/.claude/settings.json (hooks, statusLine so se nao houver, env e, com
 //     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma)
-//   - com --lingua-maquina, escreve ~/.workshop-claude/kit/lingua.json (pt ou en: a lingua dos textos do kit)
+//   - com --lingua-maquina, escreve ~/.workshop-claude/kit/language.json (pt ou en: a lingua dos textos do kit)
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
@@ -26,8 +26,9 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseConf } from './lib/conf.mjs';
-import { linguaMaquina } from './lib/linguas.mjs';
-import { ehPrincipal } from './lib/principal.mjs';
+import { linguaMaquina } from './lib/languages.mjs';
+import { isMain as ehPrincipal } from './lib/is-main.mjs';
+import { LANGUAGE_FILE, storedLanguage } from '../hooks/lib/language.mjs';
 import {
   checkSettings,
   mergeSettings,
@@ -50,7 +51,7 @@ import {
 } from './lib/fsx.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MOTOR = ['hooks', 'orquestrador', 'statusline', 'pricing.json'];
+const MOTOR = ['hooks', 'orchestrator', 'statusline', 'pricing.json'];
 
 function parseArgs(argv) {
   const o = { cmd: argv[0], flags: {} };
@@ -115,8 +116,9 @@ export function linguaDe(flags) {
   return typeof flags['lingua-maquina'] === 'string' ? linguaMaquina(flags['lingua-maquina']) : null;
 }
 
+// The kit language written at install time (language.json; lingua.json in older installs).
 function linguaKitInstalada(P) {
-  return readJson(join(P.kitDir, 'lingua.json'), null)?.lingua ?? null;
+  return existsSync(P.kitDir) ? storedLanguage(P.kitDir) : null;
 }
 
 function loadManifest(P) {
@@ -157,9 +159,9 @@ export function instalar(flags, env = process.env) {
   const P = userPaths(env);
   const kitSrc = resolve(typeof flags['kit-src'] === 'string' ? flags['kit-src'] : join(HERE, '..'));
   const node = flags.node;
-  if (typeof node !== 'string') throw Object.assign(new Error('falta --node <caminho do node>'), { exit: 2 });
+  if (typeof node !== 'string') throw Object.assign(new Error('missing --node <path to node>'), { exit: 2 });
   for (const m of MOTOR) {
-    if (!existsSync(join(kitSrc, m))) throw new Error(`o kit em ${kitSrc} nao tem ${m}`);
+    if (!existsSync(join(kitSrc, m))) throw new Error(`the kit in ${kitSrc} has no ${m}`);
   }
   const ts = timestamp();
   const manifest = loadManifest(P) || { v: 1, instalado_em: new Date().toISOString(), skills: [], agentes: [], extras: [] };
@@ -184,7 +186,7 @@ export function instalar(flags, env = process.env) {
     if (statSync(src).isDirectory()) copyTree(src, join(P.kitDir, m));
     else copyFileSync(src, join(P.kitDir, m));
   }
-  if (lm) writeAtomic(join(P.kitDir, 'lingua.json'), JSON.stringify({ lingua: lm.kit, maquina: lm.tag }, null, 2) + '\n');
+  if (lm) writeAtomic(join(P.kitDir, LANGUAGE_FILE), JSON.stringify({ language: lm.kit, machine: lm.tag }, null, 2) + '\n');
 
   // 3. Skills e agentes.
   const replacements = { KIT_DIR: fwd(P.kitDir) };
@@ -315,7 +317,7 @@ export function registar(flags, env = process.env) {
   const P = userPaths(env);
   const manifest = loadManifest(P) || { v: 1, instalado_em: new Date().toISOString(), skills: [], agentes: [], extras: [] };
   if (typeof flags.tipo !== 'string' || typeof flags.nome !== 'string') {
-    throw Object.assign(new Error('registar precisa de --tipo e --nome'), { exit: 2 });
+    throw Object.assign(new Error('registar needs --tipo and --nome'), { exit: 2 });
   }
   const item = { tipo: flags.tipo, nome: flags.nome };
   if (typeof flags.caminho === 'string') item.caminho = fwd(flags.caminho);
@@ -404,7 +406,7 @@ if (isMain) {
   const { cmd, flags } = parseArgs(process.argv.slice(2));
   const fn = CMDS[cmd];
   if (!fn) {
-    process.stderr.write(`uso: install-user.mjs ${Object.keys(CMDS).join('|')} [opcoes]\n`);
+    process.stderr.write(`usage: install-user.mjs ${Object.keys(CMDS).join('|')} [options]\n`);
     process.exit(2);
   }
   try {
@@ -412,10 +414,10 @@ if (isMain) {
   } catch (e) {
     if (e instanceof SettingsError) {
       out('erro', e.code);
-      process.stderr.write(`ERRO install-user: ${e.message}\n`);
+      process.stderr.write(`ERROR install-user: ${e.message}\n`);
       process.exitCode = 3;
     } else {
-      process.stderr.write(`ERRO install-user: ${e.message}\n`);
+      process.stderr.write(`ERROR install-user: ${e.message}\n`);
       process.exitCode = e.exit || 4;
     }
   }

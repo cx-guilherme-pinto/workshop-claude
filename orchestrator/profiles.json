@@ -1,0 +1,80 @@
+{
+  "note": "Typical tokens per agent (benchmark average). 'orchestrator_<mode>' is per batch of the main session. 'margin' is added to the total so the estimate does not fall below the real cost.",
+  "calibrated_on": "2026-10-16",
+  "profiles": {
+    "worker": {
+      "requests": 3,
+      "input": 6,
+      "cache_write_5m": 6193,
+      "cache_write_1h": 0,
+      "cache_read": 27987,
+      "output": 1361
+    },
+    "implementer": {
+      "requests": 3,
+      "input": 5,
+      "cache_write_5m": 9642,
+      "cache_write_1h": 0,
+      "cache_read": 16403,
+      "output": 1530
+    },
+    "integrator": {
+      "requests": 4,
+      "input": 9,
+      "cache_write_5m": 5683,
+      "cache_write_1h": 0,
+      "cache_read": 31547,
+      "output": 736
+    },
+    "reviewer": {
+      "requests": 3,
+      "input": 6,
+      "cache_write_5m": 48882,
+      "cache_write_1h": 0,
+      "cache_read": 20634,
+      "output": 2325
+    },
+    "planner": {
+      "requests": 2,
+      "input": 4,
+      "cache_write_5m": 2049,
+      "cache_write_1h": 0,
+      "cache_read": 4489,
+      "output": 991
+    },
+    "orchestrator": {
+      "requests": 3,
+      "input": 9,
+      "cache_write_5m": 0,
+      "cache_write_1h": 5281,
+      "cache_read": 182518,
+      "output": 1142
+    },
+    "memory-extractor": {
+      "requests": 3,
+      "input": 7,
+      "cache_write_5m": 3745,
+      "cache_write_1h": 0,
+      "cache_read": 13601,
+      "output": 2825
+    },
+    "orchestrator_participant": {
+      "requests": 3,
+      "input": 9,
+      "cache_write_5m": 0,
+      "cache_write_1h": 5281,
+      "cache_read": 182518,
+      "output": 1142
+    },
+    "orchestrator_presenter": {
+      "requests": 4,
+      "input": 11,
+      "cache_write_5m": 0,
+      "cache_write_1h": 12237,
+      "cache_read": 499679,
+      "output": 2481
+    }
+  },
+  "calibration": "11 benchmark runs (participant and presenter)",
+  "margin": 0.15
+}

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { loadPricing } from '../hooks/lib/cost.mjs';
 import { summarize, readJsonl } from '../hooks/lib/transcript.mjs';
-import { lingua, textos } from '../hooks/lib/lingua.mjs';
+import { lingua, textos } from '../hooks/lib/language.mjs';
 
 const L = lingua();
 const T = textos({
@@ -82,8 +82,8 @@ if (existsSync(ws)) {
     /* sem usage */
   }
   if (projeto !== null) {
-    const alvo = pricing?.orcamento?.alvo_usd ?? 5;
-    const teto = pricing?.orcamento?.teto_usd ?? 10;
+    const alvo = pricing?.budget?.target_usd ?? 5;
+    const teto = pricing?.budget?.cap_usd ?? 10;
     const aviso = projeto >= teto ? ` ⚠ ${T.teto}` : projeto >= alvo ? ` ⚠ ${T.alvo}` : '';
     partes.push(`${T.projeto} ${usd(projeto)} ${T.de} ${usd(alvo)}${aviso}`);
   }

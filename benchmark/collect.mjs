@@ -32,36 +32,44 @@ for (const p of passos) {
 
 // Custo pelos nossos precos (hooks) e estado final.
 let rel = {};
-const r = spawnSync(process.execPath, [join(ARENA, 'tools/workshop/orquestrador/report.mjs'), '--projeto', ARENA, '--json'], { encoding: 'utf8' });
+// O motor da Arena em tools/workshop/orchestrator/ (tools/workshop/orquestrador/ em Arenas antigas).
+const motor = ['orchestrator', 'orquestrador'].map((d) => join(ARENA, 'tools/workshop', d, 'report.mjs')).find((f) => existsSync(f));
+const r = spawnSync(process.execPath, [motor, '--project', ARENA, '--projeto', ARENA, '--json'], { encoding: 'utf8' });
 try {
   rel = JSON.parse(r.stdout);
 } catch {
   rel = {};
 }
-const porModelo = rel.por_modelo || {};
-const custoModelo = (n) => (porModelo[n]?.custo || 0).toFixed(4);
-const agentes = Object.values(porModelo).reduce((s, v) => s + (v.agentes || 0), 0);
+// --json: chaves em ingles desde a v1.0.0-rc.2 (cost/count/by_model); antes em portugues.
+const porModelo = rel.by_model || rel.por_modelo || {};
+const custoModelo = (n) => (porModelo[n]?.cost ?? porModelo[n]?.custo ?? 0).toFixed(4);
+const agentes = Object.values(porModelo).reduce((s, v) => s + (v.agents ?? v.agentes ?? 0), 0);
+const contagem = rel.count ? { verde: rel.count.green, falhou: rel.count.failed } : rel.contagem || {};
+const custoTotal = rel.cost?.total ?? rel.custo?.total ?? 0;
 
 // Suite completa no fim (testes a passar sim/nao).
 // Suite do plano (a mesma verificacao da integracao: so os cartoes deste modo).
-const t = spawnSync(process.execPath, ['tools/check-integracao.mjs'], { cwd: ARENA, encoding: 'utf8' });
+const check = ['tools/check-integration.mjs', 'tools/check-integracao.mjs'].find((f) => existsSync(join(ARENA, f)));
+const t = spawnSync(process.execPath, [check], { cwd: ARENA, encoding: 'utf8' });
 const pass = Number((/ℹ pass (\d+)/.exec(t.stdout) || [])[1] || 0);
 const fail = t.status === 0 ? Number((/ℹ fail (\d+)/.exec(t.stdout) || [])[1] || 0) : Math.max(1, Number((/ℹ fail (\d+)/.exec(t.stdout) || [])[1] || 0));
-const veredito = existsSync(join(ARENA, '.workshop/veredito.json')) ? JSON.parse(readFileSync(join(ARENA, '.workshop/veredito.json'), 'utf8')).veredito : '';
-const gate = existsSync(join(ARENA, '.workshop/gate.json')) ? (JSON.parse(readFileSync(join(ARENA, '.workshop/gate.json'), 'utf8')).bloqueado ? 'reprovado' : 'aprovado') : '';
+const fVeredito = ['.workshop/verdict.json', '.workshop/veredito.json'].map((f) => join(ARENA, f)).find((f) => existsSync(f));
+const jVeredito = fVeredito ? JSON.parse(readFileSync(fVeredito, 'utf8')) : {};
+const veredito = jVeredito.verdict ?? jVeredito.veredito ?? '';
+const gate = existsSync(join(ARENA, '.workshop/gate.json')) ? (JSON.parse(readFileSync(join(ARENA, '.workshop/gate.json'), 'utf8')).bloqueado ? 'rejected' : 'approved') : '';
 
 const linha = {
   id: opt('--id'),
   modo: opt('--modo'),
   isolado: opt('--isolado'),
   duracao_s: opt('--duracao'),
-  custo_total: (rel.custo?.total || 0).toFixed(4),
+  custo_total: (custoTotal || 0).toFixed(4),
   custo_haiku: custoModelo('Haiku'),
   custo_sonnet: custoModelo('Sonnet'),
   custo_opus: custoModelo('Opus'),
   agentes,
-  verdes: rel.contagem?.verde ?? '',
-  falhadas: rel.contagem?.falhou ?? '',
+  verdes: contagem.verde ?? '',
+  falhadas: contagem.falhou ?? '',
   testes_pass: pass,
   testes_fail: fail,
   testes_ok: fail === 0 && pass > 0 ? 'sim' : 'nao',

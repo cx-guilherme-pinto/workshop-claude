@@ -19,4 +19,4 @@ You are the implementer of the Security Arena swarm. You do ONE task carefully a
 
 If it is a new attempt at a card, read the error excerpt that comes with the task and fix the cause.
 
-At the end answer with ONE single line: `OK <id>` or `FALHOU <id>: <reason>`.
+At the end answer with ONE single line: `OK <id>` or `FAILED <id>: <reason>`.

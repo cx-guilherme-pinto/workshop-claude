@@ -210,7 +210,7 @@ function res(id){
   if(!pr||!id) return null;
   var m=String(id).toLowerCase().replace(/\[.*\]$/,"");
   if(pr.aliases&&pr.aliases[m]) return pr.aliases[m];
-  var ks=Object.keys(pr.modelos).sort(function(a,b){return b.length-a.length;});
+  var ks=Object.keys(pr.models||pr.modelos||{}).sort(function(a,b){return b.length-a.length;});
   for(var i=0;i<ks.length;i++){var k=ks[i]; if(m===k||m.indexOf(k+"-")===0||m.indexOf(k+"@")===0) return k;}
   return null;
 }
@@ -219,8 +219,9 @@ for(var id in mu){
   if(!mu.hasOwnProperty(id)) continue;
   var u=mu[id]||{}, k=res(id);
   if(!k){unk=true; line("desconhecido",id); continue;}
-  var p=pr.modelos[k], it=u.inputTokens||0, cr=u.cacheReadInputTokens||0, cw=u.cacheCreationInputTokens||0, ot=u.outputTokens||0;
-  if(p.prompt_longo&&(it+cr+cw)>p.prompt_longo.acima_de_tokens) p=p.prompt_longo;
+  var p=(pr.models||pr.modelos)[k], it=u.inputTokens||0, cr=u.cacheReadInputTokens||0, cw=u.cacheCreationInputTokens||0, ot=u.outputTokens||0;
+  var lp=p.long_prompt||p.prompt_longo;
+  if(lp&&(it+cr+cw)>(lp.above_tokens!==undefined?lp.above_tokens:lp.acima_de_tokens)) p=lp;
   tot+=(it*p.input+ot*p.output+cw*p.cache_write_5m+cr*p.cache_read)/1e6;
 }
 if(unk||!pr){ line("usd",""); line("usd_texto","US$ ?"); }
@@ -1086,10 +1087,26 @@ ws_s8_install() {
 }
 
 # ================================================================= PASSO 9 - projetos
+# Nomes desde a v1.0.0-rc.2: o projeto de treino e ~/workshop-claude/practice-project (era exemplo-projeto-real)
+# e a tag do estado inicial da Arena e arena-start (era arena-inicial). Instalacoes antigas sao migradas sem
+# perder trabalho: a pasta antiga so e movida se a nova nao existir, e a tag nova aponta para o mesmo commit.
+WS_PRACTICE=practice-project
+WS_PRACTICE_OLD=exemplo-projeto-real
+ws_s9_migrate() {
+  local demo="$WS_PROJ/demo-project" old="$WS_PROJ/$WS_PRACTICE_OLD" new="$WS_PROJ/$WS_PRACTICE"
+  if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null &&
+    git -C "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1 </dev/null; then
+    git -C "$demo" tag arena-start arena-inicial >>"$WS_LOG" 2>&1 </dev/null && ws_log "demo-project: tag arena-start added (from arena-inicial)"
+  fi
+  if [ ! -e "$new" ] && [ -f "$old/.sandbox-kit.json" ]; then
+    mv "$old" "$new" >>"$WS_LOG" 2>&1 && ws_log "practice project moved: $old -> $new"
+  fi
+  return 0
+}
 ws_s9_detect() {
-  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/exemplo-projeto-real"
+  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE"
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
-  [ -f "$demo/.arena-kit.json" ] && git -C "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$demo"; return 1; }
+  [ -f "$demo/.arena-kit.json" ] && git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$demo"; return 1; }
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     [ -f "$sb/.sandbox-kit.json" ] && git -C "$sb" rev-parse -q --verify HEAD >/dev/null 2>&1 </dev/null || { ws_fail E-DEMO-01 "$sb"; return 1; }
   fi
@@ -1124,43 +1141,69 @@ ws_s9_install() {
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   mkdir -p "$WS_PROJ" || { ws_fail E-PERM-01 "$WS_PROJ"; return 1; }
   local demo="$WS_PROJ/demo-project"
-  if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-inicial >/dev/null 2>&1 </dev/null; then
-    ws_run "$WS_NODE" "$KIT_SRC/installer/assemble-demo.mjs" --dest "$demo" --node "$WS_NODE" --lingua "${WS_LANG_KIT:-en}" --force || { ws_fail E-DEMO-01 assemble-demo; return 1; }
+  ws_s9_migrate
+  if [ -f "$demo/.arena-kit.json" ] && ! git -C "$demo" rev-parse -q --verify refs/tags/arena-start >/dev/null 2>&1 </dev/null; then
+    ws_run "$WS_NODE" "$KIT_SRC/installer/assemble-demo.mjs" --dest "$demo" --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" --force || { ws_fail E-DEMO-01 assemble-demo; return 1; }
     ws_registar projeto demo-project "$demo"
   else
-    ws_assemble assemble-demo.mjs "$demo" .arena-kit.json --node "$WS_NODE" --lingua "${WS_LANG_KIT:-en}" || return 1
+    ws_assemble assemble-demo.mjs "$demo" .arena-kit.json --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
   fi
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
-    ws_assemble assemble-sandbox.mjs "$WS_PROJ/exemplo-projeto-real" .sandbox-kit.json --lingua "${WS_LANG_KIT:-en}" || return 1
+    ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json --language "${WS_LANG_KIT:-en}" || return 1
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   ws_s9_tests
 }
 
-# ================================================================= PASSO 10 - app Memoria (nao bloqueante)
+# ================================================================= PASSO 10 - app Agent Memory (nao bloqueante)
 # Instala o wheel publicado (SHA-256 verificado) com "uv tool install --managed-python" (Python com FTS5).
-# Os comandos da app sao "memoria" (CLI e MCP) e "memoria-gui" (janela). As memorias (~/.memoria) sao
-# dados da pessoa: o --desinstalar nunca lhes toca.
-WS_APP_BUNDLE='Memória.app'
+# Desde a v0.5.0 os comandos da app sao "agent-memory" (CLI e MCP) e "agent-memory-gui" (janela); "memoria" e
+# "memoria-gui" ficam como sinonimos, e as versoes antigas so tem esses. O servidor MCP regista-se como
+# "agent-memory" (um registo antigo "memoria" e substituido). As memorias sao dados da pessoa: ficam em
+# ~/.agent-memory (ou em ~/.memoria, de versoes antigas; ver ws_memory_home) e o --desinstalar nunca lhes toca.
+WS_APP_BUNDLE='Agent Memory.app'
+WS_APP_BUNDLE_OLD='Memória.app'
+WS_APP_EXE=agent-memory-app
+WS_MCP_NAME=agent-memory
 ws_uv_bin_dir() { uv tool dir --bin 2>/dev/null </dev/null || printf '%s' "$HOME/.local/bin"; }
-ws_memoria_bin() { local b; b="$(ws_uv_bin_dir)/memoria"; [ -x "$b" ] && printf '%s' "$b"; }
+ws_memory_bin() {
+  local d b; d=$(ws_uv_bin_dir)
+  for b in "$d/agent-memory" "$d/memoria"; do [ -x "$b" ] && { printf '%s' "$b"; return 0; }; done
+  return 1
+}
+# Pasta dos dados da app (o mesmo contrato da app): AGENT_MEMORY_HOME; MEMORIA_HOME; ~/.memoria se existir e
+# ~/.agent-memory nao; senao ~/.agent-memory. Nunca se move nem apaga nada.
+ws_memory_home() {
+  if [ -n "${AGENT_MEMORY_HOME:-}" ]; then printf '%s' "$AGENT_MEMORY_HOME"
+  elif [ -n "${MEMORIA_HOME:-}" ]; then printf '%s' "$MEMORIA_HOME"
+  elif [ ! -d "$HOME/.agent-memory" ] && [ -d "$HOME/.memoria" ]; then printf '%s' "$HOME/.memoria"
+  else printf '%s' "$HOME/.agent-memory"; fi
+}
+# shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
+ws_memory_home_show() { local h; h=$(ws_memory_home); case "$h" in "$HOME"/*) printf '~/%s' "${h#"$HOME"/}" ;; *) printf '%s' "$h" ;; esac; }
+# Nome do wheel publicado para a versao (lido do SHA256SUMS: "memoria-..." ate a v0.4, o nome novo depois).
+ws_memory_wheel() {
+  local ver=$1 f=$2 w
+  w=$(awk -v v="-$ver-py3-none-any.whl" '{n=$2; sub(/^\*/,"",n); if (substr(n, length(n)-length(v)+1) == v) {print n; exit}}' "$f" 2>/dev/null)
+  printf '%s' "${w:-memoria-$ver-py3-none-any.whl}"
+}
 ws_s10_detect() {
   local b ver=${C_MEMORY_APP_VERSION#v}
-  b=$(ws_memoria_bin) || { ws_fail E-MEM-01 ""; return 1; }
-  uv tool list 2>/dev/null </dev/null | grep -Eq "^memoria v?$ver( |$)" || { ws_fail E-MEM-03 "versao $ver"; return 1; }
-  [ -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/memoria-app" ] || { ws_fail E-MEM-03 "atalho"; return 1; }
-  [ -f "$HOME/.memoria/config.json" ] || { ws_fail E-MEM-03 "config.json"; return 1; }
-  if [ -n "${WS_CLAUDE:-}" ]; then "$WS_CLAUDE" mcp get memoria >/dev/null 2>&1 </dev/null || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
-  ws_memoria_selftest "$b" "$ver"
+  b=$(ws_memory_bin) || { ws_fail E-MEM-01 ""; return 1; }
+  uv tool list 2>/dev/null </dev/null | grep -Eq "^(agent-memory|agent_memory|memoria) v?$ver( |$)" || { ws_fail E-MEM-03 "version $ver"; return 1; }
+  [ -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ] || { ws_fail E-MEM-03 "shortcut"; return 1; }
+  [ -f "$(ws_memory_home)/config.json" ] || { ws_fail E-MEM-03 "config.json"; return 1; }
+  if [ -n "${WS_CLAUDE:-}" ]; then "$WS_CLAUDE" mcp get "$WS_MCP_NAME" >/dev/null 2>&1 </dev/null || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
+  ws_memory_selftest "$b" "$ver"
   return 0
 }
-# Corre "memoria selftest" e mostra o Python gerido pelo uv ("Memória 0.1.0 · Python 3.12.13 · Darwin arm64").
-# Desde a v0.3.0 o texto do selftest segue a lingua da app (pt, en, hi, he): pede-se em ingles (MEMORIA_LANG=en,
-# como o resto do setup) e o resultado vem do codigo de saida. So a etiqueta [OK] e igual em todas as linguas;
-# qualquer outra etiqueta ([FALHOU], [FAIL]...) e um motivo de falha.
-ws_memoria_selftest() {
+# Corre "agent-memory selftest" e mostra o Python gerido pelo uv ("Agent Memory 0.5.0 · Python 3.12.13 · Darwin arm64").
+# O texto do selftest segue a lingua da app (pt, en, hi, he): pede-se em ingles (AGENT_MEMORY_LANG=en e, para
+# versoes antigas, MEMORIA_LANG=en, como o resto do setup) e o resultado vem do codigo de saida. So a etiqueta
+# [OK] e igual em todas as linguas; qualquer outra etiqueta ([FAIL]...) e um motivo de falha.
+ws_memory_selftest() {
   local out rc py fails
-  out=$(MEMORIA_LANG=en "$1" selftest 2>&1 </dev/null); rc=$?
+  out=$(AGENT_MEMORY_LANG=en MEMORIA_LANG=en "$1" selftest 2>&1 </dev/null); rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   py=$(printf '%s\n' "$out" | sed -nE 's/.*Python ([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p' | head -n 1)
   if [ "$rc" = 0 ]; then
@@ -1168,18 +1211,18 @@ ws_memoria_selftest() {
   fi
   ws_detail "$(ws_msg s10_ja VERSAO="$2")"
   fails=$(printf '%s\n' "$out" | grep -Ev '^[[:space:]]*\[OK\]' | sed -nE 's/^[[:space:]]*\[[^]]+\][[:space:]]*//p' | tr '\n' ';' | sed 's/;$//')
-  ws_warn E-MEM-05 "${fails:-memoria selftest ($rc)}"
+  ws_warn E-MEM-05 "${fails:-$(basename "$1") selftest ($rc)}"
   return 1
 }
 ws_s10_install() {
-  local ver=${C_MEMORY_APP_VERSION#v} d="$WS_TMP/memoria" whl want got b f
-  whl="memoria-$ver-py3-none-any.whl"
+  local ver=${C_MEMORY_APP_VERSION#v} d="$WS_TMP/agent-memory" whl want got b f dist
   rm -rf "$d"; mkdir -p "$d"
-  ws_say "  $(ws_msg a_descarregar O_QUE="$whl")"
   if ! ws_dl "$(ws_release_url memory SHA256SUMS)" "$d/SHA256SUMS" auth; then
     case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$C_MEMORY_APP_VERSION" ;; *) ws_fail "$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP")" "SHA256SUMS" ;; esac
     return 1
   fi
+  whl=$(ws_memory_wheel "$ver" "$d/SHA256SUMS"); dist=${whl%%-*}
+  ws_say "  $(ws_msg a_descarregar O_QUE="$whl")"
   for f in "$whl" constraints.txt; do
     ws_dl "$(ws_release_url memory "$f")" "$d/$f" auth || { case "$WS_DL_HTTP" in 404|403|410) ws_fail E-MEM-01 "$f" ;; *) ws_fail E-NET-07 "$f" ;; esac; return 1; }
     want=$(ws_sum_for "$d/SHA256SUMS" "$f"); got=$(ws_sha256 "$d/$f")
@@ -1191,21 +1234,38 @@ ws_s10_install() {
   ws_run env -u UV_PYTHON_DOWNLOADS -u UV_NO_MANAGED_PYTHON -u UV_PYTHON_PREFERENCE -u UV_PYTHON \
     uv tool install --managed-python --python "$C_PYTHON_VERSION" "$d/$whl" --constraints "$d/constraints.txt" --force ||
     { ws_fail E-MEM-03 "uv tool install"; return 1; }
-  ws_registar app memoria
-  b=$(ws_memoria_bin) || { ws_fail E-MEM-03 "memoria"; return 1; }
-  ws_memoria_config
-  ws_memoria_shortcut "$b" || { ws_fail E-MEM-03 "atalho"; return 1; }
-  if [ -n "${WS_CLAUDE:-}" ] && ! "$WS_CLAUDE" mcp get memoria >/dev/null 2>&1 </dev/null; then
-    ws_run "$WS_CLAUDE" mcp add --scope user memoria -- "$b" mcp || { ws_fail E-MEM-03 "claude mcp add memoria"; return 1; }
-    ws_registar mcp memoria
+  # A distribuicao mudou de nome? Tirar a antiga do uv (so o programa: os dados ficam).
+  if [ "$dist" != memoria ] && uv tool list 2>/dev/null </dev/null | grep -Eq '^memoria v?[0-9]'; then
+    uv tool uninstall memoria >>"$WS_LOG" 2>&1 </dev/null || true
+    ws_run env -u UV_PYTHON_DOWNLOADS -u UV_NO_MANAGED_PYTHON -u UV_PYTHON_PREFERENCE -u UV_PYTHON \
+      uv tool install --managed-python --python "$C_PYTHON_VERSION" "$d/$whl" --constraints "$d/constraints.txt" --force >/dev/null 2>&1 || true
   fi
-  ws_memoria_selftest "$b" "$ver"
+  ws_registar app "$dist"
+  b=$(ws_memory_bin) || { ws_fail E-MEM-03 "agent-memory"; return 1; }
+  ws_memory_config
+  ws_memory_shortcut "$b" || { ws_fail E-MEM-03 "shortcut"; return 1; }
+  ws_memory_mcp "$b" || { ws_fail E-MEM-03 "claude mcp add $WS_MCP_NAME"; return 1; }
+  ws_memory_selftest "$b" "$ver"
   ws_note "$(ws_m s10_update)"
 }
-# ~/.memoria/config.json com as chaves que a app usa para se atualizar (mesmos nomes que o repos.conf).
-ws_memoria_config() {
-  local cfg="$HOME/.memoria/config.json" uvp
-  mkdir -p "$HOME/.memoria"
+# Regista o servidor MCP da app como "agent-memory" (comando "<bin> mcp"). Um registo antigo "memoria" sai, e um
+# "agent-memory" que aponte para outro programa (ex.: o "memoria" de uma versao antiga) e refeito.
+ws_memory_mcp() {
+  local b=$1 cur
+  [ -n "${WS_CLAUDE:-}" ] || return 0
+  if "$WS_CLAUDE" mcp get memoria >/dev/null 2>&1 </dev/null; then
+    "$WS_CLAUDE" mcp remove --scope user memoria >>"$WS_LOG" 2>&1 </dev/null || true
+  fi
+  cur=$("$WS_CLAUDE" mcp get "$WS_MCP_NAME" 2>/dev/null </dev/null) && case "$cur" in *"$b"*) return 0 ;; esac
+  [ -n "$cur" ] && { "$WS_CLAUDE" mcp remove --scope user "$WS_MCP_NAME" >>"$WS_LOG" 2>&1 </dev/null || true; }
+  ws_run "$WS_CLAUDE" mcp add --scope user "$WS_MCP_NAME" -- "$b" mcp || return 1
+  ws_registar mcp "$WS_MCP_NAME"
+}
+# <pasta dos dados>/config.json com as chaves que a app usa para se atualizar (mesmos nomes que o repos.conf).
+ws_memory_config() {
+  local home cfg uvp
+  home=$(ws_memory_home); cfg="$home/config.json"
+  mkdir -p "$home"
   uvp=$(command -v uv 2>/dev/null)
   if [ -n "${WS_NODE:-}" ]; then
     "$WS_NODE" -e '
@@ -1219,19 +1279,22 @@ ws_memoria_config() {
       "$C_MEMORY_APP_REPO_URL" "$C_RELEASE_DOWNLOAD_URL" "$C_PYTHON_VERSION" "$uvp" > "$cfg"
   fi
 }
-ws_memoria_shortcut() { # bundle .app minimo que abre a janela da app pelo caminho absoluto
-  local app="$HOME/Applications/$WS_APP_BUNDLE" b=$1 gui
-  gui="$(dirname "$b")/memoria-gui"; [ -x "$gui" ] || gui=$b
+ws_memory_shortcut() { # bundle .app minimo que abre a janela da app pelo caminho absoluto
+  local app="$HOME/Applications/$WS_APP_BUNDLE" old="$HOME/Applications/$WS_APP_BUNDLE_OLD" b=$1 gui g
+  gui=$b
+  for g in "$(dirname "$b")/agent-memory-gui" "$(dirname "$b")/memoria-gui"; do [ -x "$g" ] && { gui=$g; break; }; done
+  # O atalho antigo ("Memória.app") era nosso: sai (so se tiver o nosso executavel).
+  [ -x "$old/Contents/MacOS/memoria-app" ] && rm -rf "$old"
   mkdir -p "$app/Contents/MacOS" || return 1
   cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Memória</string>
-  <key>CFBundleDisplayName</key><string>Memória</string>
-  <key>CFBundleIdentifier</key><string>pt.workshop.memoria</string>
-  <key>CFBundleExecutable</key><string>memoria-app</string>
+  <key>CFBundleName</key><string>Agent Memory</string>
+  <key>CFBundleDisplayName</key><string>Agent Memory</string>
+  <key>CFBundleIdentifier</key><string>pt.workshop.agent-memory</string>
+  <key>CFBundleExecutable</key><string>$WS_APP_EXE</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${C_MEMORY_APP_VERSION#v}</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
@@ -1239,8 +1302,8 @@ ws_memoria_shortcut() { # bundle .app minimo que abre a janela da app pelo camin
 </dict>
 </plist>
 EOF
-  printf '#!/bin/sh\nexec "%s" "$@"\n' "$gui" > "$app/Contents/MacOS/memoria-app"
-  chmod +x "$app/Contents/MacOS/memoria-app"
+  printf '#!/bin/sh\nexec "%s" "$@"\n' "$gui" > "$app/Contents/MacOS/$WS_APP_EXE"
+  chmod +x "$app/Contents/MacOS/$WS_APP_EXE"
   ws_registar atalho "$WS_APP_BUNDLE" "$app"
 }
 
@@ -1401,7 +1464,7 @@ ws_doctor() {
 
 # ================================================================= resumo
 ws_summary() {
-  local n st title d line="" faltam=0 lista="" avisos=0 r="$WS_TMP/resumo.txt"
+  local n st title d line="" faltam=0 lista="" avisos=0 r="$WS_TMP/summary.txt"
   {
     printf '%s\n' "$(ws_m resumo) · $(date '+%Y-%m-%d %H:%M') · $WS_OS"
     printf '%s %s %s\n' "$(ws_pad "$(ws_m resumo_cab_passo)" 42)" "$(ws_pad "$(ws_m resumo_cab_estado)" 20)" "$(ws_m resumo_cab_detalhe)"
@@ -1428,7 +1491,7 @@ ws_summary() {
   [ "$WS_MODE" = install ] && ws_say "$(ws_m final_reiniciar)"
   [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "$(ws_m s7_oauth)"
   ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"
-  cp -f "$r" "$WS_RESUMO" 2>/dev/null || true
+  cp -f "$r" "$WS_RESUMO" 2>/dev/null && rm -f "$WS_HOME/resumo.txt"   # o nome antigo do resumo
   WS_FALTAM=$faltam
 }
 
@@ -1447,7 +1510,7 @@ ws_uninstall() {
   while IFS="$WS_TAB" read -r t n c v a; do
     case "$t" in
       mcp) [ -n "$WS_CLAUDE" ] && "$WS_CLAUDE" mcp remove --scope user "$n" >>"$WS_LOG" 2>&1 </dev/null && ws_say "  $(ws_msg desinst_mcp NOME="$n")" ;;
-      app) uv tool uninstall memoria >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_m desinst_memorias)"; } ;;
+      app) uv tool uninstall "${n:-memoria}" >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_msg desinst_memorias CAMINHO="$(ws_memory_home_show)")"; } ;;
       atalho) [ -n "$c" ] && rm -rf "$c" && ws_say "  $(ws_msg desinst_atalho CAMINHO="$c")" ;;
       perfil) if [ -f "$c" ]; then ws_profile_strip "$c" > "$c.ws-tmp" && mv -f "$c.ws-tmp" "$c" && ws_say "  $(ws_msg desinst_perfil FICHEIRO="$c")"; fi ;;
     esac
@@ -1550,7 +1613,7 @@ ws_main() {
   [ -n "${HOME:-}" ] && [ -d "$HOME" ] || { printf 'Invalid HOME.\n' >&2; return 2; }
   [ "$(id -u)" = 0 ] && { printf 'Do not run the setup with sudo or as root.\n' >&2; return 2; }
 
-  WS_HOME="$HOME/.workshop-claude"; WS_LOG="$WS_HOME/setup.log"; WS_RESUMO="$WS_HOME/resumo.txt"
+  WS_HOME="$HOME/.workshop-claude"; WS_LOG="$WS_HOME/setup.log"; WS_RESUMO="$WS_HOME/summary.txt"
   CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
   WS_PROJ="$HOME/workshop-claude"
   # shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir

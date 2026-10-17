@@ -1,0 +1,19 @@
+{
+  "id": "EX-1",
+  "source": "local",
+  "url": "issues/EX-1.json",
+  "title": "Validar ISBN e email ao criar livros e leitores",
+  "description": "Hoje é possível criar livros com ISBN inválido e leitores com email mal escrito, o que estraga as pesquisas e os avisos de devolução. Queremos validar os dois campos na criação e devolver erro 400 com uma mensagem clara.",
+  "criteria": [
+    "criarLivro recusa ISBN que não seja um ISBN-13 válido (13 dígitos, aceita hífens, dígito de controlo certo) com ErroValidacao",
+    "criarLeitor recusa emails sem formato válido (algo@dominio.tld) com ErroValidacao",
+    "POST /livros e POST /leitores devolvem 400 com a mensagem do erro",
+    "Os casos válidos existentes continuam a funcionar",
+    "Há testes para os casos válidos e inválidos"
+  ],
+  "epic": "EX-100",
+  "labels": [
+    "validacao",
+    "qualidade"
+  ]
+}

@@ -66,8 +66,8 @@ Describe 'redacao (casos partilhados)' {
 }
 
 Describe 'custo (casos partilhados)' {
-  It 'calcula o custo de todos os casos de tools/test/custo-cases.json' {
-    foreach ($c in (Read-Fixture 'custo-cases.json').casos) {
+  It 'calcula o custo de todos os casos de tools/test/cost-cases.json' {
+    foreach ($c in (Read-Fixture 'cost-cases.json').casos) {
       $r = Get-WsCusto $c.resultado $script:Pricing
       if ($null -eq $c.usd) { $r.Usd | Should -BeNullOrEmpty -Because $c.nome }
       else { [math]::Abs($r.Usd - [double]$c.usd) | Should -BeLessThan 1e-9 -Because $c.nome }
@@ -78,6 +78,12 @@ Describe 'custo (casos partilhados)' {
     Resolve-WsModel 'haiku' $script:Pricing | Should -Be 'claude-haiku-5-5'
     Resolve-WsModel 'claude-sonnet-5-5[1m]' $script:Pricing | Should -Be 'claude-sonnet-5-5'
     Resolve-WsModel 'claude-misterio-9' $script:Pricing | Should -BeNullOrEmpty
+  }
+  It 'le o pricing.json antigo (chaves em portugues) com os mesmos precos' {
+    $old = '{"modelos":{"claude-haiku-5-5":{"nome":"Haiku 5.5","input":0.1,"output":0.5,"cache_write_5m":0.125,"cache_write_1h":0.2,"cache_read":0.01,"prompt_longo":{"acima_de_tokens":100000,"input":0.5,"output":2.5,"cache_write_5m":0.625,"cache_write_1h":1,"cache_read":0.05}}},"aliases":{"haiku":"claude-haiku-5-5"}}' | ConvertFrom-Json
+    $res = '{"modelUsage":{"claude-haiku-5-5":{"inputTokens":150000,"outputTokens":1000,"cacheReadInputTokens":0,"cacheCreationInputTokens":0}}}' | ConvertFrom-Json
+    (Get-WsCusto $res $old).Usd | Should -Be (Get-WsCusto $res $script:Pricing).Usd
+    [math]::Abs((Get-WsCusto $res $script:Pricing).Usd - 0.0775) | Should -BeLessThan 1e-9
   }
 }
 
@@ -119,8 +125,8 @@ Describe 'argumentos de processos' {
 }
 
 Describe 'lingua da maquina (casos partilhados)' {
-  It 'normaliza as etiquetas e escolhe a lingua do kit (tools/test/lingua-cases.json)' {
-    foreach ($c in (Read-Fixture 'lingua-cases.json').etiquetas) {
+  It 'normaliza as etiquetas e escolhe a lingua do kit (tools/test/language-cases.json)' {
+    foreach ($c in (Read-Fixture 'language-cases.json').etiquetas) {
       $t = ConvertTo-WsLangTag $c.in
       if (-not $t) { $t = 'en' }
       $t | Should -BeExactly $c.tag -Because $c.in
@@ -128,14 +134,54 @@ Describe 'lingua da maquina (casos partilhados)' {
     }
   }
   It 'escolhe WORKSHOP_LANG, depois Get-UICulture, depois Get-Culture' {
-    foreach ($c in (Read-Fixture 'lingua-cases.json').windows) {
+    foreach ($c in (Read-Fixture 'language-cases.json').windows) {
       Select-WsLang $c.override $c.ui $c.cultura | Should -BeExactly $c.tag -Because $c.nome
     }
   }
   It 'passa a lingua do kit a montagem dos projetos' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
-    $text | Should -Match '''assemble-demo\.mjs''.*''--lingua'', \$script:LangKit'
-    $text | Should -Match '''assemble-sandbox\.mjs''.*''--lingua'', \$script:LangKit'
+    $text | Should -Match '''assemble-demo\.mjs''.*''--language'', \$script:LangKit'
+    $text | Should -Match '''assemble-sandbox\.mjs''.*''--language'', \$script:LangKit'
+  }
+}
+
+Describe 'app Agent Memory (contrato da app)' {
+  It 'pasta dos dados: AGENT_MEMORY_HOME, MEMORIA_HOME, ~/.memoria antiga, ~/.agent-memory' {
+    $h = Join-Path ([IO.Path]::GetTempPath()) ('ws-mh-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $h -Force | Out-Null
+    Get-WsMemoryHome @{ AGENT_MEMORY_HOME = '/x/a'; MEMORIA_HOME = '/x/m' } $h | Should -Be '/x/a'
+    Get-WsMemoryHome @{ MEMORIA_HOME = '/x/m' } $h | Should -Be '/x/m'
+    Get-WsMemoryHome @{} $h | Should -Be (Join-Path $h '.agent-memory')
+    New-Item -ItemType Directory -Path (Join-Path $h '.memoria') -Force | Out-Null
+    Get-WsMemoryHome @{} $h | Should -Be (Join-Path $h '.memoria')
+    New-Item -ItemType Directory -Path (Join-Path $h '.agent-memory') -Force | Out-Null
+    Get-WsMemoryHome @{} $h | Should -Be (Join-Path $h '.agent-memory')
+    Remove-Item -LiteralPath $h -Recurse -Force
+  }
+  It 'nome do wheel pelo SHA256SUMS (o antigo quando nao esta la)' {
+    $f = Join-Path ([IO.Path]::GetTempPath()) ('ws-sums-' + [guid]::NewGuid().ToString('N'))
+    [IO.File]::WriteAllText($f, (('a' * 64) + '  agent_memory-0.5.0-py3-none-any.whl' + "`n" + ('b' * 64) + '  constraints.txt' + "`n"))
+    Get-WsMemoryWheel $f '0.5.0' | Should -BeExactly 'agent_memory-0.5.0-py3-none-any.whl'
+    Get-WsMemoryWheel $f '0.4.1' | Should -BeExactly 'memoria-0.4.1-py3-none-any.whl'
+    Remove-Item -LiteralPath $f -Force
+  }
+  It 'regista o MCP como agent-memory e tira o registo antigo memoria' {
+    $script:ClaudeExe = 'claude-falso'
+    $script:Calls = @()
+    $script:Registered = @{ memoria = $true }
+    Mock Invoke-WsProcess {
+      $a = @($Arguments)
+      $script:Calls += ($a -join ' ')
+      if ($a[1] -eq 'get') { if ($script:Registered[$a[2]]) { return @{ ExitCode = 0; StdOut = 'x' } } else { return @{ ExitCode = 1; StdOut = '' } } }
+      if ($a[1] -eq 'remove') { $script:Registered.Remove($a[4]); return @{ ExitCode = 0; StdOut = '' } }
+      if ($a[1] -eq 'add') { $script:Registered[$a[4]] = $true; return @{ ExitCode = 0; StdOut = '' } }
+      return @{ ExitCode = 0; StdOut = '' }
+    }
+    Mock Register-WsExtra { }
+    Register-WsMemoryMcp 'C:\u\agent-memory.exe' | Should -BeTrue
+    $script:Registered.ContainsKey('memoria') | Should -BeFalse
+    $script:Registered.ContainsKey('agent-memory') | Should -BeTrue
+    ($script:Calls -join ';') | Should -Match 'mcp add --scope user agent-memory -- C:\\u\\agent-memory\.exe mcp'
   }
 }
 
@@ -173,7 +219,7 @@ Describe 'Python gerido pelo uv' {
     (Get-WsUvPythonBlockers @{ UV_PYTHON_DOWNLOADS = 'Never' }) | Should -Be @('UV_PYTHON_DOWNLOADS')
     (Get-WsUvPythonBlockers @{ UV_NO_MANAGED_PYTHON = '1'; UV_PYTHON_PREFERENCE = 'only-system' }) -join ',' | Should -Be 'UV_NO_MANAGED_PYTHON,UV_PYTHON_PREFERENCE'
   }
-  It 'le a versao do Python e o FTS5 da saida do memoria selftest' {
+  It 'le a versao do Python e o FTS5 da saida do agent-memory selftest' {
     $ok = "Mem" + [char]0x00F3 + "ria 0.1.0 " + [char]0x00B7 + " Python 3.12.13 " + [char]0x00B7 + " Windows AMD64`n  [OK] SQLite 3.50.4 com FTS5`n  [OK] Pesquisa FTS5`nselftest: OK"
     $r = Read-WsSelftest $ok
     $r.Python | Should -Be '3.12.13'
@@ -321,7 +367,7 @@ Describe 'script da release (injetado)' {
       $env:WS_NO_MAIN = '1'
       . $dist.FullName
       [void](Initialize-WsConfig)
-      @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ($script:Pricing.modelos.PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
+      @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ((Get-WsPricingModels $script:Pricing).PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
     }
     $r.V | Should -Match '^v'
     $r.P | Should -BeExactly 'Everything is ready for the workshop.'

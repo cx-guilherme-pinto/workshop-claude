@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Hook Stop: no fim de cada resposta da sessao principal, regista o custo cumulativo
-// dessa sessao (so a conversa principal; os subagentes sao medidos no SubagentStop).
+// Stop hook: at the end of each answer of the main session, records that session's cumulative cost
+// (only the main conversation; the subagents are measured in SubagentStop).
 import { join } from 'node:path';
 import { runHook, workshopDir, appendJsonl } from './lib/workshop.mjs';
 import { loadPricing, tokensFromUsage, requestCost } from './lib/cost.mjs';

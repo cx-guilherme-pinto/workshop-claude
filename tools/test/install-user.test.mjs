@@ -14,15 +14,15 @@ const IU = join(ROOT, 'installer', 'install-user.mjs');
 function fakeKit(base) {
   // Kit minimo e controlado: 1 skill prod, 1 skill partilhada, 1 agente, motor e pricing.
   const k = join(base, 'kit src');
-  for (const d of ['hooks/lib', 'orquestrador/lib', 'statusline', 'skills-prod/task-plan', 'skills-shared/design', 'agents/prod', 'setup']) mkdirSync(join(k, d), { recursive: true });
+  for (const d of ['hooks/lib', 'orchestrator/lib', 'statusline', 'skills-prod/task-plan', 'skills-shared/design', 'agents/prod', 'setup']) mkdirSync(join(k, d), { recursive: true });
   writeFileSync(join(k, 'hooks/subagent-stop.mjs'), '// hook\n');
   writeFileSync(join(k, 'hooks/stop.mjs'), '// hook\n');
   writeFileSync(join(k, 'hooks/lib/cost.mjs'), 'export {};\n');
-  writeFileSync(join(k, 'orquestrador/next-wave.mjs'), 'import "../hooks/lib/cost.mjs";\n');
+  writeFileSync(join(k, 'orchestrator/next-wave.mjs'), 'import "../hooks/lib/cost.mjs";\n');
   writeFileSync(join(k, 'statusline/statusline.mjs'), '// sl\n');
   writeFileSync(join(k, 'pricing.json'), '{"modelos":{}}\n');
   writeFileSync(join(k, 'repos.conf'), 'WORKSHOP_VERSION=v9.9.9-teste\n');
-  writeFileSync(join(k, 'skills-prod/task-plan/SKILL.md'), '---\nname: task-plan\n---\nCorre `node "{{KIT_DIR}}/orquestrador/next-wave.mjs"`.\n');
+  writeFileSync(join(k, 'skills-prod/task-plan/SKILL.md'), '---\nname: task-plan\n---\nCorre `node "{{KIT_DIR}}/orchestrator/next-wave.mjs"`.\n');
   writeFileSync(join(k, 'skills-shared/design/SKILL.md'), '---\nname: design\n---\nSem marcadores.\n');
   writeFileSync(join(k, 'agents/prod/ws-worker.md'), '---\nname: ws-worker\n---\nKit em {{KIT_DIR}}.\n');
   return k;
@@ -63,10 +63,10 @@ test('instalar, verificar, repetir e desinstalar num HOME com espaco e acentos',
     assert.deepEqual(r.get('aviso'), ['E-CFG-06'], 'statusline alheia mantida com aviso');
 
     const kitDir = join(home, '.workshop-claude', 'kit');
-    assert.ok(existsSync(join(kitDir, 'orquestrador', 'next-wave.mjs')));
+    assert.ok(existsSync(join(kitDir, 'orchestrator', 'next-wave.mjs')));
     assert.ok(existsSync(join(kitDir, 'hooks', 'lib', 'cost.mjs')), 'mesma estrutura relativa (../hooks/lib)');
     const skill = readFileSync(join(claude, 'skills', 'task-plan', 'SKILL.md'), 'utf8');
-    assert.ok(skill.includes(`node "${kitDir.replace(/\\/g, '/')}/orquestrador/next-wave.mjs"`), skill);
+    assert.ok(skill.includes(`node "${kitDir.replace(/\\/g, '/')}/orchestrator/next-wave.mjs"`), skill);
     assert.ok(!skill.includes('{{KIT_DIR}}'));
     assert.ok(readFileSync(join(claude, 'agents', 'ws-worker.md'), 'utf8').includes(kitDir.replace(/\\/g, '/')));
     assert.equal(readFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'utf8'), '---\nname: design\n---\nSem marcadores.\n');
@@ -158,17 +158,17 @@ test('o kit real instala as skills e os agentes de producao com {{KIT_DIR}} troc
     }
     for (const a of readdirSync(join(claude, 'agents'))) assert.ok(!readFileSync(join(claude, 'agents', a), 'utf8').includes('{{KIT_DIR}}'));
     const kitDir = join(home, '.workshop-claude', 'kit');
-    for (const f of ['hooks/subagent-stop.mjs', 'hooks/stop.mjs', 'statusline/statusline.mjs', 'pricing.json', 'orquestrador/next-wave.mjs']) {
+    for (const f of ['hooks/subagent-stop.mjs', 'hooks/stop.mjs', 'statusline/statusline.mjs', 'pricing.json', 'orchestrator/next-wave.mjs']) {
       assert.ok(existsSync(join(kitDir, f)), f);
     }
-    const n = spawnSync(process.execPath, ['-e', `import(${JSON.stringify('file://' + join(kitDir, 'orquestrador', 'next-wave.mjs'))}).catch(e=>{if(/Cannot find module|ERR_MODULE_NOT_FOUND/.test(String(e)))process.exit(9)})`], { encoding: 'utf8', input: '' });
-    assert.notEqual(n.status, 9, 'os imports relativos do orquestrador resolvem dentro do kit');
+    const n = spawnSync(process.execPath, ['-e', `import(${JSON.stringify('file://' + join(kitDir, 'orchestrator', 'next-wave.mjs'))}).catch(e=>{if(/Cannot find module|ERR_MODULE_NOT_FOUND/.test(String(e)))process.exit(9)})`], { encoding: 'utf8', input: '' });
+    assert.notEqual(n.status, 9, 'the orchestrator relative imports resolve inside the kit');
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
 });
 
-test('--lingua-maquina grava lingua.json do kit e a language do Claude Code (so se nao houver) e o desinstalar tira-a', () => {
+test('--lingua-maquina grava language.json do kit e a language do Claude Code (so se nao houver) e o desinstalar tira-a', () => {
   const base = mkdtempSync(join(tmpdir(), 'ws-iu-lingua-'));
   const home = join(base, 'Dana Levi');
   const kit = fakeKit(base);
@@ -176,12 +176,12 @@ test('--lingua-maquina grava lingua.json do kit e a language do Claude Code (so 
   const node = process.execPath;
   mkdirSync(claude, { recursive: true });
   writeFileSync(join(claude, 'settings.json'), '{"model":"claude-sonnet-5-5"}\n');
-  const lingua = () => JSON.parse(readFileSync(join(home, '.workshop-claude', 'kit', 'lingua.json'), 'utf8'));
+  const lingua = () => JSON.parse(readFileSync(join(home, '.workshop-claude', 'kit', 'language.json'), 'utf8'));
   const settings = () => JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8'));
   try {
     let r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'he-IL']);
     assert.equal(r.status, 0, r.stderr);
-    assert.deepEqual(lingua(), { lingua: 'en', maquina: 'he-IL' });
+    assert.deepEqual(lingua(), { language: 'en', machine: 'he-IL' });
     assert.equal(settings().language, 'Hebrew');
     assert.deepEqual([r.get('lingua'), r.get('lingua_kit'), r.get('language'), r.get('language_nossa')], [['he-IL'], ['en'], ['Hebrew'], ['1']]);
 
@@ -192,7 +192,7 @@ test('--lingua-maquina grava lingua.json do kit e a language do Claude Code (so 
     assert.ok(r.get('falta').some((f) => f.startsWith('lingua do kit')), r.stdout);
 
     r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--lingua-maquina', 'pt_PT.UTF-8']);
-    assert.deepEqual(lingua(), { lingua: 'pt', maquina: 'pt-PT' });
+    assert.deepEqual(lingua(), { language: 'pt', machine: 'pt-PT' });
     assert.equal(settings().language, 'European Portuguese', 'a nossa acompanha a maquina');
 
     writeFileSync(join(claude, 'settings.json'), JSON.stringify({ ...settings(), language: 'japanese' }));
