@@ -186,6 +186,8 @@ export function mergeSettings(current, opts, prevRecord = null) {
     record.statusline_mantida = true;
     warnings.push('E-CFG-06');
   }
+  // "disableAllHooks": true desliga os hooks de custo e a statusline do workshop (D-08): so se avisa, e da pessoa.
+  if (s.disableAllHooks === true) warnings.push('E-CFG-11');
 
   s.env = s.env || {};
   for (const [k, v] of Object.entries(env)) {
@@ -291,7 +293,7 @@ export function checkSettings(current, opts) {
   const sl = current?.statusLine;
   const statusline = !sl ? 'falta' : isOurs(sl.command) ? (sl.command === exp.statusLine.command ? 'nossa' : 'desatualizada') : 'alheia';
   if (statusline === 'falta' || statusline === 'desatualizada') faltam.push('statusLine');
-  return { ok: faltam.length === 0, faltam, statusline };
+  return { ok: faltam.length === 0, faltam, statusline, hooksOff: current?.disableAllHooks === true };
 }
 
 export function serialize(s) {

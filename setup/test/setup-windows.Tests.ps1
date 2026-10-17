@@ -1698,7 +1698,7 @@ Describe 'chaos G4-auth-tools' {
     Remove-Item Env:CLAUDE_CODE_USE_BEDROCK
     $script:T = New-WsStateTable
     Test-WsStep3 | Should -BeFalse
-    $script:AuthCloud | Should -BeExactly 'bedrock: managed settings'
+    $script:AuthCloud | Should -BeExactly 'bedrock: Claude Code settings'
     # outro metodo: o aviso mostra a origem (o nome da variavel), nunca o valor
     $script:T = New-WsStateTable
     $script:AuthJson = '{"loggedIn":true,"authMethod":"api_key","apiKeySource":"ANTHROPIC_API_KEY"}'
@@ -2740,7 +2740,7 @@ Describe 'chaos G6-lifecycle' {
     } finally { chmod 755 (Join-Path $TestDrive 'pr10') }
   }
 
-  It 'passo 10: uv com erro de certificado repete uma vez com UV_SYSTEM_CERTS=true; ja com ele, ou a falhar outra vez, e E-NET-04' {
+  It 'passo 10: uv com erro de certificado repete uma vez com UV_SYSTEM_CERTS=true; ja com ele, ou a falhar outra vez (sem ca.pem), e E-NET-10' {
     $script:Cur = '10'
     $script:C = @{ MEMORY_APP_VERSION = 'v0.5.0'; PYTHON_VERSION = '3.12.13'; MEMORY_APP_REPO_URL = 'https://h/o/app'; RELEASE_DOWNLOAD_URL = 'https://h/{file}' }
     $script:Tmp = Join-Path $TestDrive 'uvtmp'
@@ -2779,12 +2779,12 @@ Describe 'chaos G6-lifecycle' {
       $script:UvCalls -join ',' | Should -BeExactly 'certs=,certs=true'
       $script:T = New-WsStateTable; $script:RetryCode = 1; $script:UvCalls = @()
       Install-WsStep10 | Should -BeFalse
-      $script:T['10'].Falha -join '|' | Should -BeExactly 'E-NET-04|uv: github.com / pypi.org'
+      $script:T['10'].Falha -join '|' | Should -BeExactly 'E-NET-10|uv: github.com / pypi.org'
       $env:UV_SYSTEM_CERTS = 'true'
       $script:T = New-WsStateTable; $script:UvCalls = @()
       Install-WsStep10 | Should -BeFalse
       $script:UvCalls -join ',' | Should -BeExactly 'certs='
-      $script:T['10'].Falha[0] | Should -Be 'E-NET-04'
+      $script:T['10'].Falha[0] | Should -Be 'E-NET-10'
       Remove-Item Env:UV_SYSTEM_CERTS -ErrorAction SilentlyContinue
       $script:T = New-WsStateTable; $script:UvErr = 'No solution found when resolving dependencies'; $script:UvCalls = @()
       Install-WsStep10 | Should -BeFalse
@@ -2804,7 +2804,7 @@ Describe 'chaos G6-lifecycle' {
     $script:T['2'].Detalhe | Should -BeExactly 'This step is not done yet (E-SETUP-01)'
     $script:Said = @()
     Write-WsSummary | Should -Be 1
-    ($script:Said -join "`n") | Should -Match 'There are 1 warnings above'
+    ($script:Said -join "`n") | Should -Match 'There is 1 warning above'
     ($script:Said -join "`n") | Should -Match "Couldn't create the Agent Memory shortcut \(E-MEM-06\)"
   }
 }
@@ -3024,3 +3024,202 @@ Describe 'chaos G7-language' {
   }
 }
 
+
+Describe 'chaos round 2 R2-cfg-auth' {
+  BeforeEach {
+    $script:T = New-WsStateTable; $script:Cur = '0'; $script:Mode = 'install'; $script:Sim = $false; $script:SubstSl = $false
+    $script:ClaudeDir = Join-Path $TestDrive 'r2claude'
+    $script:UserHome = Join-Path $TestDrive 'r2home'
+    $script:Tmp = Join-Path $TestDrive 'r2tmp'
+    New-Item -ItemType Directory -Path $script:ClaudeDir, $script:UserHome, $script:Tmp -Force | Out-Null
+    Remove-Item -LiteralPath (Join-Path $script:ClaudeDir 'settings.json') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $script:UserHome '.claude.json') -Force -ErrorAction SilentlyContinue
+    $script:GwDown = $false; $script:GwUrl = ''; $script:EnvProxyDead = $false; $script:ClaudeExe = 'claude-falso'
+    $script:R2Keep = @{}
+    foreach ($k in @('CLAUDE_CONFIG_DIR', 'ProgramFiles', 'ProgramData', 'HTTPS_PROXY', 'UV_SYSTEM_CERTS', 'UV_CONFIG_FILE', 'APPDATA')) {
+      $script:R2Keep[$k] = [Environment]::GetEnvironmentVariable($k)
+      [Environment]::SetEnvironmentVariable($k, $null)
+    }
+    Mock Write-WsSay { }
+  }
+  AfterEach {
+    foreach ($k in $script:R2Keep.Keys) { [Environment]::SetEnvironmentVariable($k, $script:R2Keep[$k]) }
+  }
+
+  It 'Read-WsResult: um hook que bloqueia o pedido (0 turnos) e a resposta curta' {
+    $o = Read-WsResult ('{"is_error":false,"subtype":"success","num_turns":0,"result":"UserPromptSubmit operation blocked by hook:\nCompany policy: every prompt needs a ticket id\n\nOriginal prompt: Reply","modelUsage":{}}')
+    $o.Hook | Should -BeExactly 'UserPromptSubmit'
+    $o.HookMotivo | Should -BeExactly 'Company policy: every prompt needs a ticket id'
+    $o.Turnos | Should -Be 0
+    $o = Read-WsResult ('{"is_error":false,"num_turns":1,"result":"\n OK \n\nThe MCP server needs authentication: run /mcp and a very long tail of text","modelUsage":{}}')
+    $o.Hook | Should -BeExactly ''
+    $o.Curta | Should -BeExactly 'OK'
+    $o = Read-WsResult ('{"is_error":false,"result":"' + ('x' * 60) + '"}')
+    $o.Turnos | Should -BeNullOrEmpty
+    $o.Curta.Length | Should -Be 40
+  }
+
+  It 'passo 12: hook que bloqueia = E-SMOKE-05; 0 turnos sem hook = E-SMOKE-01; resposta normal continua Done' {
+    $script:Cur = '12'
+    $script:R2Out = '{"is_error":false,"num_turns":0,"result":"UserPromptSubmit operation blocked by hook:\nCompany policy: ticket id\n\nOriginal prompt: x","modelUsage":{}}'
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = $script:R2Out; StdErr = '' } }
+    Install-WsStep12 | Should -BeFalse
+    $script:T['12'].Falha -join '|' | Should -BeExactly 'E-SMOKE-05|UserPromptSubmit: Company policy: ticket id'
+    $script:T = New-WsStateTable
+    $script:R2Out = '{"is_error":false,"num_turns":0,"result":"","modelUsage":{}}'
+    Install-WsStep12 | Should -BeFalse
+    $script:T['12'].Falha[0] | Should -Be 'E-SMOKE-01'
+    $script:T = New-WsStateTable
+    $script:R2Out = '{"is_error":false,"num_turns":1,"result":"OK","modelUsage":{}}'
+    Install-WsStep12 | Should -BeTrue
+    $script:T['12'].Detalhe | Should -Match '"OK"|OK'
+  }
+
+  It 'passo 12: sem resposta com um SessionStart da pessoa, tenta uma vez sem hooks (--settings) = E-SMOKE-06' {
+    $script:Cur = '12'
+    [IO.File]::WriteAllText((Join-Path $script:ClaudeDir 'settings.json'), '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"git -C notes pull","timeout":600}]}],"Stop":[{"hooks":[{"type":"command","command":"\"C:/n/node.exe\" \"C:/u/.workshop-claude/kit/hooks/stop.mjs\""}]}]}}')
+    Get-WsUserHooks | Should -BeExactly 'SessionStart'
+    $script:R2Args = @()
+    Mock Invoke-WsProcess {
+      $script:R2Args += , (@($Arguments) -join ' ')
+      if (@($Arguments) -contains '--settings') { return @{ ExitCode = 0; StdOut = '{"is_error":false,"num_turns":1,"result":"OK"}'; StdErr = '' } }
+      return @{ ExitCode = -2; StdOut = ''; StdErr = '' }
+    }
+    Install-WsStep12 | Should -BeFalse
+    $script:T['12'].Falha[0] | Should -Be 'E-SMOKE-06'
+    $script:T['12'].Falha[1] | Should -Match '^SessionStart . .*settings\.json$'
+    $script:R2Args.Count | Should -Be 2
+    $script:R2Args[1] | Should -Match '--settings \{"disableAllHooks":true\}'
+    [IO.File]::WriteAllText((Join-Path $script:ClaudeDir 'settings.json'), '{"model":"sonnet"}')
+    $script:T = New-WsStateTable; $script:R2Args = @()
+    Install-WsStep12 | Should -BeFalse
+    $script:T['12'].Falha[0] | Should -Be 'E-SMOKE-01'
+    $script:R2Args.Count | Should -Be 1
+  }
+
+  It 'ajudante: corre sem os hooks da pessoa; E-SMOKE-05/06 nao o oferecem' {
+    $script:R2Args = ''
+    Mock Invoke-WsProcess { $script:R2Args = (@($Arguments) -join ' '); return @{ ExitCode = 0; StdOut = '{"is_error":false,"result":"{}"}'; StdErr = '' } }
+    [void](Invoke-WsClaudeHelper 'pedido' '' 5)
+    $script:R2Args | Should -Match '--settings \{"disableAllHooks":true\}'
+    $script:AuthOk = $true
+    foreach ($c in @('E-SMOKE-05', 'E-SMOKE-06')) {
+      $script:T = New-WsStateTable; $script:T['12'].Falha = @($c, 'x')
+      Invoke-WsHelper '12' | Should -BeFalse
+    }
+    Should -Invoke Write-WsSay -Times 0 -Exactly -ParameterFilter { $Text -match 'analy' }
+  }
+
+  It 'passo 3: o auth status corre na pasta temporaria; sem origem conhecida diz "Claude Code settings"' {
+    $script:R2Wd = ''
+    Mock Invoke-WsProcess { $script:R2Wd = $WorkingDirectory; return @{ ExitCode = 0; StdOut = '{"loggedIn":true,"apiProvider":"firstParty"}' } }
+    [void](Read-WsAuth)
+    $script:R2Wd | Should -BeExactly $script:Tmp
+  }
+
+  It 'passo 7: um registo stdio antigo no .claude.json decide-se sem o "mcp get"; os segredos dos argumentos nao aparecem' {
+    $script:Cur = '7'
+    $script:C = @{ ATLASSIAN_MCP_URL = 'https://mcp.atlassian.com/v2/mcp' }
+    $u = Get-WsMcpUser 'atlassian' '{"mcpServers":{"atlassian":{"type":"stdio","command":"npx","args":["-y","mcp-remote","https://mcp.atlassian.com/v1/sse","--header","Authorization: Bearer segredo","--api-token=abc"]}}}'
+    $u.Kind | Should -Be 'cmd'
+    $u.Cmd | Should -BeExactly 'npx -y mcp-remote https://mcp.atlassian.com/v1/sse --header *** --api-token=***'
+    (Get-WsMcpUser 'atlassian' '{"mcpServers":{}}').Kind | Should -Be 'nenhum'
+    (Get-WsMcpUser 'atlassian' '{"mcpServers":{"atlassian":{"type":"http","url":"https://mcp.atlassian.com/v2/mcp"}}}').Url | Should -BeExactly 'https://mcp.atlassian.com/v2/mcp'
+    Get-WsMcpUser 'atlassian' '{ estragado' | Should -BeNullOrEmpty
+    Get-WsMcpUser 'atlassian' | Should -BeNullOrEmpty -Because 'sem .claude.json fica o mcp get'
+    [IO.File]::WriteAllText((Join-Path $script:UserHome '.claude.json'), '{"mcpServers":{"atlassian":{"type":"stdio","command":"npx","args":["-y","mcp-remote","https://mcp.atlassian.com/v1/sse"]},"agent-memory":{"type":"stdio","command":"C:\\u\\bin\\agent-memory.exe","args":["mcp"]}}}')
+    $script:R2Calls = @()
+    Mock Invoke-WsProcess { $script:R2Calls += , (@($Arguments) -join ' '); return @{ ExitCode = 0; StdOut = ''; StdErr = '' } }
+    Test-WsStep7 | Should -BeFalse
+    $script:T['7'].Falha -join '|' | Should -BeExactly 'E-MCP-01|atlassian: npx -y mcp-remote https://mcp.atlassian.com/v1/sse'
+    $script:S7Old | Should -BeExactly 'npx -y mcp-remote https://mcp.atlassian.com/v1/sse'
+    @($script:R2Calls | Where-Object { $_ -like 'mcp get*' }).Count | Should -Be 0
+    Test-WsMemoryMcp 'C:\U\BIN\agent-memory.exe' | Should -BeTrue
+    Test-WsMemoryMcp 'C:\outro\agent-memory.exe' | Should -BeFalse
+    @($script:R2Calls | Where-Object { $_ -like 'mcp get*' }).Count | Should -Be 0
+  }
+
+  It 'passo 8: E-CFG-11 (disableAllHooks), nota do item da pessoa e -ReplaceStatusline num kit instalado' {
+    $script:Cur = '8'
+    Read-WsInstallUserOutput ("skills`t7`nagentes`t6`naviso`tE-CFG-11`nalheio`t" + $script:UserHome + '/.workshop-claude/backup/2026/skills/memory' + "`n")
+    $script:T['8'].Avisos[0][0] | Should -Be 'E-CFG-11'
+    $script:T['8'].Avisos[0][1] | Should -Match 'settings\.json: disableAllHooks$'
+    ($script:T['8'].Notas -join "`n") | Should -Match 'Your memory has the same name as one in the kit'
+    Mock Initialize-WsKit { return $true }
+    Mock Sync-WsExtras { }
+    Mock Invoke-WsInstallUser { return @{ ExitCode = 0; StdOut = "ok`t1`nskills`t7`nagentes`t6`nstatusline`talheia`naviso`tE-CFG-06`n" } }
+    $script:SubstSl = $true; $script:Mode = 'install'
+    Test-WsStep8 | Should -BeFalse
+    $script:SubstSl = $false
+    Test-WsStep8 | Should -BeTrue
+    $script:SubstSl = $true; $script:Mode = 'check'
+    Test-WsStep8 | Should -BeTrue
+  }
+
+  It 'passo 10: definicoes do uv da pessoa = E-UV-03 (sintaxe) e E-UV-04 (mirror que nao responde)' {
+    $cfg = Join-Path $TestDrive 'uv.toml'
+    [IO.File]::WriteAllText($cfg, 'python-install-mirror = "http://10.255.255.1/artifactory/github"')
+    $r = Get-WsUvConfigCause ("error: Failed to parse: ``AppData\Roaming\uv\uv.toml```n  Caused by: TOML parse error at line 2, column 13") @($cfg) 'C:\Users\Ana'
+    $r[0] | Should -Be 'E-UV-03'
+    $r[1] | Should -Match 'uv\.toml . TOML parse error at line 2, column 13$'
+    $r = Get-WsUvConfigCause "error: Failed to download http://10.255.255.1/artifactory/github/x.tar.gz`n  Caused by: operation timed out" @($cfg) ''
+    $r -join '|' | Should -Match '^E-UV-04\|.*uv\.toml . 10\.255\.255\.1$'
+    Get-WsUvConfigCause 'error: Failed to fetch: `https://pypi.org/simple/x/`' @($cfg) '' | Should -BeNullOrEmpty
+    Get-WsUvConfigCause 'error: Failed to download http://10.255.255.1/x' @((Join-Path $TestDrive 'nao-existe.toml')) '' | Should -BeNullOrEmpty
+  }
+
+  It 'passo 10: certificado da empresa: UV_SYSTEM_CERTS, depois o ca.pem do IT pelo SSL_CERT_FILE; sem ca.pem = E-NET-10' {
+    $script:Cur = '10'
+    $script:C = @{ MEMORY_APP_VERSION = 'v0.5.0'; PYTHON_VERSION = '3.12.13'; MEMORY_APP_REPO_URL = 'https://h/o/app'; RELEASE_DOWNLOAD_URL = 'https://h/{file}' }
+    $script:WsHome = Join-Path $TestDrive 'r2ws'; New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    Remove-Item -LiteralPath (Join-Path $script:WsHome 'ca.pem') -Force -ErrorAction SilentlyContinue
+    $script:UvExe = 'uv.exe'; $script:ClaudeExe = $null
+    Mock Get-WsReleaseUrl { return ('https://rel.invalid/' + $File) }
+    Mock Invoke-WsDownload { Set-Content -LiteralPath $OutFile -Value 'x'; return $true }
+    Mock Get-WsMemoryWheel { return 'agent_memory-0.5.0-py3-none-any.whl' }
+    Mock Get-WsSumFor { return 'abc' }
+    Mock Get-WsSha256 { return 'abc' }
+    Mock Install-WsWebView2 { return $true }
+    Mock Register-WsExtra { }
+    Mock Get-WsUvBin { return (Join-Path $TestDrive 'r2bin') }
+    Mock Get-WsMemoryExe { return $null }
+    Mock Invoke-WsProcess {
+      if ((@($Arguments) -join ' ') -like 'tool install*') {
+        $c = ''; $s = ''
+        if ($Environment) { $c = [string]$Environment['UV_SYSTEM_CERTS']; $s = [string]$Environment['SSL_CERT_FILE'] }
+        $script:UvCalls += ('certs=' + $c + ' ssl=' + [bool]$s)
+        if ($s -and ([IO.File]::ReadAllText($s) -match 'CA DO IT')) { return @{ ExitCode = 0; StdOut = ''; StdErr = '' } }
+        return @{ ExitCode = 1; StdOut = ''; StdErr = 'error: invalid peer certificate: UnknownIssuer' }
+      }
+      return @{ ExitCode = 0; StdOut = ''; StdErr = '' }
+    }
+    $script:UvCalls = @()
+    Install-WsStep10 | Should -BeFalse
+    $script:T['10'].Falha -join '|' | Should -BeExactly 'E-NET-10|uv: github.com / pypi.org'
+    $script:UvCalls -join ',' | Should -BeExactly 'certs= ssl=False,certs=true ssl=False'
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'ca.pem'), "-----BEGIN CERTIFICATE-----`nCA DO IT`n-----END CERTIFICATE-----`n")
+    $script:T = New-WsStateTable; $script:UvCalls = @()
+    Install-WsStep10 | Should -BeFalse
+    $script:T['10'].Falha[0] | Should -Be 'E-MEM-03' -Because 'passou o uv (o programa falso nao existe)'
+    $script:UvCalls -join ',' | Should -BeExactly 'certs= ssl=False,certs=true ssl=False,certs=true ssl=True'
+    [IO.File]::ReadAllText((Join-Path $script:WsHome 'ca.pem')) | Should -Match 'CA DO IT'
+  }
+
+  It 'passo 0: o Test-WsTls nunca escreve o ca.pem da pessoa (junta-o no ca-company.pem)' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $tls = ([regex]::Match($text, '(?s)function Test-WsTls \{.*?\n\}')).Value
+    $tls | Should -Match "'ca-company\.pem'"
+    $tls | Should -Match "'ca-system\.pem'"
+    $tls | Should -Not -Match 'WriteAllText\(\$mine'
+  }
+
+  It 'resumo: 1 aviso no singular; as mensagens novas existem nos dois catalogos' {
+    M 'final_aviso1' | Should -BeExactly "There is 1 warning above. It doesn't block the workshop, but read it."
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    foreach ($k in @('final_aviso1', 's12_sem_hooks', 's8_alheio', 's0_proxy_curlrc')) { [string]$pt.ui.$k | Should -Not -BeNullOrEmpty -Because $k }
+    foreach ($c in @('E-SMOKE-05', 'E-SMOKE-06', 'E-CFG-11', 'E-UV-03', 'E-UV-04', 'E-NET-10')) {
+      $script:Msgs.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+      $pt.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
+    }
+  }
+}

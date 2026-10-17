@@ -2019,9 +2019,15 @@ function Test-WsTls {
   foreach ($store in @('Cert:\LocalMachine\Root', 'Cert:\CurrentUser\Root')) {
     try { foreach ($c in (Get-ChildItem -Path $store -ErrorAction Stop)) { $raws += , $c.RawData } } catch { }
   }
-  $pem = Join-Path $script:WsHome 'ca.pem'
+  # ca.pem e da pessoa (o PEM que o IT deu, ver E-NET-04): o setup nunca o escreve. O que o setup exporta do Windows
+  # vai para ca-system.pem, e o Claude Code recebe os dois juntos (ca-company.pem).
+  $pem = Join-Path $script:WsHome 'ca-company.pem'
+  $mine = Join-Path $script:WsHome 'ca.pem'
   if ($raws.Count -gt 0) {
-    [IO.File]::WriteAllText($pem, (ConvertTo-WsPem $raws), $script:Utf8NoBom)
+    $sys = ConvertTo-WsPem $raws
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'ca-system.pem'), $sys, $script:Utf8NoBom)
+    if (Test-Path -LiteralPath $mine -PathType Leaf) { try { $sys += "`n" + [IO.File]::ReadAllText($mine) } catch { } }
+    [IO.File]::WriteAllText($pem, $sys, $script:Utf8NoBom)
     $script:CaPem = $pem
     $env:NODE_EXTRA_CA_CERTS = $pem
     $env:UV_SYSTEM_CERTS = 'true'
@@ -2335,7 +2341,9 @@ function Invoke-WsLogin {
 }
 
 function Read-WsAuth {
-  $r = Invoke-WsProcess $script:ClaudeExe @('auth', 'status') -TimeoutSec 120
+  # Na pasta temporaria, como o teste final: o .claude\settings.json da pasta onde a pessoa corre o setup (ex.: um
+  # repositorio da empresa aberto no terminal do VS Code) pode ligar o Bedrock so ali.
+  $r = Invoke-WsProcess $script:ClaudeExe @('auth', 'status') -WorkingDirectory $script:Tmp -TimeoutSec 120
   $j = $null
   try { $j = $r.StdOut | ConvertFrom-Json } catch { }
   $a = @{ Logged = $false; Method = ''; Source = ''; Sub = ''; Org = ''; Provider = '' }
@@ -2368,7 +2376,7 @@ function Test-WsStep3 {
   $script:AuthCloud = ''
   if ($script:Auth.Provider -and $script:Auth.Provider -ne 'firstParty') {
     $w = Get-WsCloudWhere
-    if (-not $w) { $w = 'managed settings' }
+    if (-not $w) { $w = 'Claude Code settings' }
     $script:AuthCloud = $script:Auth.Provider + ': ' + $w
     Set-WsDetail (M 's3_outro' @{ METODO = $script:Auth.Provider })
     Set-WsFail 'E-CFG-04' $script:AuthCloud
@@ -2737,12 +2745,64 @@ function Test-WsAtlassianMcp {
   return (-not (Get-WsMcpField $Out 'Command'))
 }
 
+function Get-WsMcpUser {
+  # Registo MCP do ambito "user" lido do .claude.json, sem se ligar ao servidor: o "mcp get" arranca o comando de um
+  # registo stdio (ex.: um "npx -y mcp-remote .../v1/sse" antigo, que abre o browser para o OAuth, ou um programa
+  # que fica preso 30 s). Devolve @{ Kind = nenhum|cmd|url; Exe; Cmd (comando e argumentos, sem os valores de opcoes
+  # com token/key/secret/pass/auth/header); Args; Url }, ou $null se nao deu para ler (fica o "mcp get").
+  param([string]$Name, $Text = $null)
+  if ($null -eq $Text) {
+    $dir = $env:CLAUDE_CONFIG_DIR
+    if (-not $dir) { $dir = $script:UserHome }
+    if (-not $dir) { return $null }
+    $f = Join-Path $dir '.claude.json'
+    # Sem o ficheiro fica o "mcp get" (que sem registos nao arranca nada).
+    if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { return $null }
+    try { $Text = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) } catch { return $null }
+  }
+  $j = $null
+  try { $j = ([string]$Text).TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+  $o = @{ Kind = 'nenhum'; Exe = ''; Cmd = ''; Args = ''; Url = '' }
+  if (-not $j -or -not $j.mcpServers -or -not ($j.mcpServers.PSObject.Properties.Name -contains $Name)) { return $o }
+  $e = $j.mcpServers.$Name
+  if (-not $e) { return $o }
+  if ($e.command) {
+    $o.Kind = 'cmd'; $o.Exe = [string]$e.command
+    $show = @($o.Exe); $esc = $false; $all = @()
+    foreach ($a in @($e.args)) {
+      if ($null -eq $a) { continue }
+      $x = [string]$a; $all += $x
+      if ($esc) { $show += '***'; $esc = $false; continue }
+      if ($x -match 'token|key|secret|pass|auth|header') {
+        if ($x -match '^-' -and $x -notmatch '=') { $esc = $true; $show += $x } elseif ($x -match '=') { $show += ($x -replace '=.*', '=***') } else { $show += '***' }
+        continue
+      }
+      $show += $x
+    }
+    $o.Args = ($all -join ' ')
+    $o.Cmd = ($show -join ' ')
+    if ($o.Cmd.Length -gt 200) { $o.Cmd = $o.Cmd.Substring(0, 200) }
+    return $o
+  }
+  $o.Kind = 'url'; $o.Url = [string]$e.url
+  return $o
+}
+
 function Test-WsStep7 {
   param([switch]$AcliTried)
   if (-not $script:ClaudeExe) { $script:ClaudeExe = Get-WsClaude }
+  # Um registo antigo no .claude.json decide-se sem o "mcp get" (que o arrancava duas vezes, aqui e no Install).
+  # $script:S7Old fica com o destino antigo, para o Install-WsStep7 o trocar sem o voltar a ler.
+  $script:S7Old = ''
+  $u = Get-WsMcpUser 'atlassian'
+  if ($u) {
+    if ($u.Kind -eq 'cmd') { $script:S7Old = $u.Cmd }
+    elseif ($u.Kind -eq 'url' -and $u.Url -ne $script:C.ATLASSIAN_MCP_URL) { $script:S7Old = $u.Url; if (-not $script:S7Old) { $script:S7Old = '?' } }
+    if ($script:S7Old) { Set-WsFail 'E-MCP-01' ('atlassian: ' + $script:S7Old); return $false }
+  }
   $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
-  if (-not (Test-WsAtlassianMcp $r.StdOut)) { Set-WsFail 'E-MCP-01' ('atlassian: ' + (Get-WsMcpField $r.StdOut 'URL') + (Get-WsMcpField $r.StdOut 'Command')); return $false }
+  if (-not (Test-WsAtlassianMcp $r.StdOut)) { $script:S7Old = (Get-WsMcpField $r.StdOut 'URL') + (Get-WsMcpField $r.StdOut 'Command'); Set-WsFail 'E-MCP-01' ('atlassian: ' + $script:S7Old); return $false }
   Set-WsDetail (M 's7_ja')
   Add-WsNote (M 's7_oauth')
   $script:TodoMcp = $true
@@ -2778,18 +2838,22 @@ function Install-WsAcli {
 
 function Install-WsStep7 {
   $script:T['7'].Notas = @()   # o Test volta a escrever as notas
-  $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   # Um registo atlassian antigo (ex.: o SSE .../v1/sse) e trocado pelo do workshop, com uma nota a dizer qual era.
-  if ($g.ExitCode -eq 0 -and -not (Test-WsAtlassianMcp $g.StdOut)) {
-    $old = (Get-WsMcpField $g.StdOut 'URL') + (Get-WsMcpField $g.StdOut 'Command')
-    if (-not $old) { $old = '?' }
+  # O Test-WsStep7 (corre sempre antes) deixou o destino antigo em $script:S7Old: nao se volta a ler (nem a arrancar).
+  # Sem esse valor (o .claude.json nao se leu), o "mcp get" diz qual era.
+  if (-not $script:S7Old) {
+    $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
+    if ($g.ExitCode -eq 0 -and -not (Test-WsAtlassianMcp $g.StdOut)) { $script:S7Old = (Get-WsMcpField $g.StdOut 'URL') + (Get-WsMcpField $g.StdOut 'Command'); if (-not $script:S7Old) { $script:S7Old = '?' } }
+  }
+  if ($script:S7Old) {
+    $old = $script:S7Old; $script:S7Old = ''
     if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', 'atlassian') -TimeoutSec 120).ExitCode -ne 0 -and
       (Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', 'atlassian') -TimeoutSec 120).ExitCode -ne 0) {
       Set-WsFail 'E-MCP-01' 'claude mcp remove atlassian'; return $false
     }
     Add-WsNote (M 's7_substituido' @{ ANTIGO = $old })
-    $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   }
+  $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'atlassian') -TimeoutSec 120
   if ($g.ExitCode -ne 0) {
     $r = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--transport', 'http', '--scope', 'user', 'atlassian', $script:C.ATLASSIAN_MCP_URL) -TimeoutSec 120
     if ($r.ExitCode -ne 0) { Set-WsFail 'E-MCP-01' ''; return $false }
@@ -2820,7 +2884,10 @@ function Read-WsInstallUserOutput {
       'language' { $lang = $kv[1] }
       'language_nossa' { $nossa = $kv[1] }
       'lingua_kit' { $kit = $kv[1] }
-      'aviso' { if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }; Set-WsWarn $kv[1] 'statusLine' }
+      'aviso' {
+        if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }
+        if ($kv[1] -eq 'E-CFG-11') { Set-WsWarn $kv[1] ((Join-Path $script:ClaudeDir 'settings.json') + ': disableAllHooks') } else { Set-WsWarn $kv[1] 'statusLine' }
+      }
       'erro' { $err = $kv[1] }
       'erro_detalhe' { $det = $kv[1] }
       'falta' {
@@ -2838,6 +2905,8 @@ function Read-WsInstallUserOutput {
       # skills/agentes do kit que a pessoa tinha alterado: a copia dela ficou no backup
       'editado' { Add-WsNote (M 's8_editado' @{ NOME = (Split-Path ($kv[1] -replace '/', '\') -Leaf); PASTA = (Format-WsShowPath $kv[1]) }) }
       'anteriores' { Add-WsNote (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) }) }
+      # skill/agente da pessoa com o nome de um do kit: foi para o backup (o -Uninstall repoe-o)
+      'alheio' { $pa = ($kv[1] -replace '/', '\'); Add-WsNote (M 's8_alheio' @{ NOME = (Split-Path $pa -Leaf); PASTA = (Format-WsShowPath (Split-Path $pa -Parent)) }) }
     }
   }
   # settings.json com erro: o caminho e onde esta o erro (linha e coluna, ou o campo) ficam no ecra, sem o
@@ -2864,6 +2933,9 @@ function Test-WsStep8 {
   Sync-WsExtras
   $r = Invoke-WsInstallUser 'verificar'
   Read-WsInstallUserOutput $r.StdOut
+  # -ReplaceStatusline (o comando do E-CFG-06): uma statusline alheia conta como em falta, para o passo 8 instalar com
+  # a opcao. Sem isto o passo ficava "ja feito" e o mesmo aviso voltava.
+  if ($script:Mode -eq 'install' -and $script:SubstSl -and ([string]$r.StdOut -match '(?m)^statusline\talheia')) { return $false }
   return ($r.ExitCode -eq 0)
 }
 
@@ -3250,6 +3322,13 @@ function Test-WsMemoryMcp {
   # um que aponte para um programa que ja nao existe (ex.: de uma versao antiga ou de outro utilizador). Um registo
   # antigo "memoria" tambem fica por arrumar (o Register-WsMemoryMcp tira-o).
   param([string]$Exe)
+  # Lido do .claude.json (sem arrancar um programa antigo): o setup regista no ambito "user".
+  $mo = Get-WsMcpUser 'memoria'
+  if ($mo) {
+    if ($mo.Kind -ne 'nenhum') { return $false }
+    $u = Get-WsMcpUser $script:McpName
+    if ($u) { return ($u.Kind -eq 'cmd' -and $Exe -and $u.Exe -ieq $Exe -and $u.Args -eq 'mcp') }
+  }
   $g = Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', $script:McpName) -TimeoutSec 120
   if ($g.ExitCode -ne 0 -or -not (Test-WsMcpCommand $g.StdOut $Exe)) { return $false }
   return ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -ne 0)
@@ -3295,14 +3374,37 @@ function Install-WsStep10 {
   $uvEnv = @{}
   $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv
   if ($r.ExitCode -ne 0) {
+    # As definicoes do uv da pessoa (erro de sintaxe, mirror da empresa sem VPN) antes de tudo: com elas, nenhuma
+    # nova tentativa resolve e o E-MEM-03 apontava para o pypi.org.
+    $cfgs = @($env:UV_CONFIG_FILE)
+    if ($env:APPDATA) { $cfgs += (Join-Path $env:APPDATA 'uv\uv.toml') }
+    $uc = Get-WsUvConfigCause ($r.StdOut + "`n" + $r.StdErr) $cfgs ([Environment]::CurrentDirectory)
+    if ($uc) { Set-WsFail $uc[0] $uc[1]; return $false }
     # Certificado da empresa: o passo 0 so testa a api.anthropic.com, e um proxy pode inspecionar so o github.com (o
-    # Python do uv) ou o pypi.org. Repete uma vez com os certificados do Windows (o uv usa os seus por defeito).
+    # Python do uv) ou o pypi.org. Repete com os certificados do Windows (o uv usa os seus por defeito) e, se ainda
+    # falhar, com a raiz que o IT deu (ca.pem) mais as do Windows: o uv usa o SSL_CERT_FILE.
     if (($r.StdOut + ' ' + $r.StdErr) -notmatch 'certificate|UnknownIssuer|CERTIFICATE_VERIFY_FAILED|local issuer|self.signed') { Set-WsFail 'E-MEM-03' 'uv tool install'; return $false }
-    if (@('true', '1') -contains [string]$env:UV_SYSTEM_CERTS) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
-    Write-WsLog 'uv: certificate error, retrying with UV_SYSTEM_CERTS=true'
     $uvEnv['UV_SYSTEM_CERTS'] = 'true'
-    $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv
-    if ($r.ExitCode -ne 0) { Set-WsFail 'E-NET-04' 'uv: github.com / pypi.org'; return $false }
+    if (@('true', '1') -notcontains [string]$env:UV_SYSTEM_CERTS) {
+      Write-WsLog 'uv: certificate error, retrying with UV_SYSTEM_CERTS=true'
+      $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv
+    }
+    $mine = ''
+    if ($script:WsHome) { $mine = Join-Path $script:WsHome 'ca.pem' }
+    if ($r.ExitCode -ne 0 -and $mine -and (Test-Path -LiteralPath $mine -PathType Leaf)) {
+      $bundle = Join-Path $script:WsHome 'ca-bundle-uv.pem'
+      $raws = @()
+      foreach ($store in @('Cert:\LocalMachine\Root', 'Cert:\CurrentUser\Root')) {
+        try { foreach ($c in (Get-ChildItem -Path $store -ErrorAction Stop)) { $raws += , $c.RawData } } catch { }
+      }
+      try {
+        [IO.File]::WriteAllText($bundle, ((ConvertTo-WsPem $raws) + "`n" + [IO.File]::ReadAllText($mine)), $script:Utf8NoBom)
+        Write-WsLog ('uv: certificate error, retrying with SSL_CERT_FILE=' + $bundle)
+        $uvEnv['SSL_CERT_FILE'] = $bundle
+        $r = Invoke-WsProcess $script:UvExe $uvArgs -TimeoutSec 1800 -RemoveEnv $script:UvBlockEnv -Environment $uvEnv
+      } catch { Write-WsLog ('uv: ' + $bundle + ': ' + $_.Exception.Message) }
+    }
+    if ($r.ExitCode -ne 0) { Set-WsFail 'E-NET-10' 'uv: github.com / pypi.org'; return $false }
   }
   # The distribution changed its name? Take the old one out of uv (only the program: the data stays).
   if ($dist -ne 'memoria') {
@@ -3330,11 +3432,59 @@ function Install-WsStep10 {
   return $true
 }
 
+function Get-WsUvConfigCause {
+  # As definicoes do uv da pessoa (%APPDATA%\uv\uv.toml ou $env:UV_CONFIG_FILE) partiram o "uv tool install": um erro
+  # de sintaxe (ex.: um pip.conf colado) ou um mirror da empresa que nao responde (so na VPN). O setup nunca lhes
+  # mexe. Devolve @(codigo, detalhe), ou $null se a causa nao e esse ficheiro. Ver ws_uv_config_cause no Mac.
+  param([string]$Text, [string[]]$ConfigFiles, [string]$BaseDir)
+  $sep = ' ' + [char]0x00B7 + ' '
+  # "error: Failed to parse: `AppData\Roaming\uv\uv.toml`" (relativo a pasta do processo) e, a seguir, a linha.
+  $m = [regex]::Matches([string]$Text, '(?m)^error: Failed to parse: `?([^`\r\n]*uv\.toml)`?[ \t]*\r?$')
+  if ($m.Count -gt 0) {
+    $f = $m[$m.Count - 1].Groups[1].Value
+    if (-not [IO.Path]::IsPathRooted($f) -and $BaseDir) { $f = [IO.Path]::Combine($BaseDir, $f) }
+    $d = $f
+    $l = [regex]::Match([string]$Text, 'TOML parse error at line [0-9]+, column [0-9]+')
+    if ($l.Success) { $d += $sep + $l.Value }
+    return @('E-UV-03', $d)
+  }
+  $cfg = $null
+  foreach ($c in $ConfigFiles) { if ($c -and (Test-Path -LiteralPath $c -PathType Leaf)) { $cfg = $c; break } }
+  if (-not $cfg) { return $null }
+  # "Failed to download http://mirror/..." ou "Failed to fetch: `http://mirror/...`": o servidor esta no ficheiro?
+  $h = [regex]::Matches([string]$Text, 'Failed to (download|fetch)[: `]+[A-Za-z]+://([^/`: \r\n]+)')
+  if ($h.Count -eq 0) { return $null }
+  $host0 = $h[$h.Count - 1].Groups[2].Value
+  $t = ''
+  try { $t = [IO.File]::ReadAllText($cfg) } catch { return $null }
+  if ($t.IndexOf($host0, [StringComparison]::OrdinalIgnoreCase) -lt 0) { return $null }
+  return @('E-UV-04', ($cfg + $sep + $host0))
+}
+
 function Register-WsMemoryMcp {
   # Registers the app's MCP server as "agent-memory" (command "<exe> mcp"). An old "memoria" registration goes,
   # and an "agent-memory" one that points to another program (e.g. an older memoria.exe) is redone.
   param([string]$Exe)
   if (-not $script:ClaudeExe) { return $true }
+  # Como no Test-WsMemoryMcp: o .claude.json decide sem o "mcp get" (que arrancava o programa antigo).
+  $mo = Get-WsMcpUser 'memoria'
+  $u = $null
+  if ($mo) {
+    if ($mo.Kind -ne 'nenhum') { [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', 'memoria') -TimeoutSec 120) }
+    $u = Get-WsMcpUser $script:McpName
+  }
+  if ($u) {
+    if ($u.Kind -eq 'cmd' -and $u.Exe -ieq $Exe -and $u.Args -eq 'mcp') { return $true }
+    if ($u.Kind -ne 'nenhum') {
+      $c = $u.Exe; if (-not $c) { $c = $u.Url }
+      if ($c) { Add-WsNote (M 's10_mcp_substituido' @{ ANTIGO = $c }) }
+      [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', $script:McpName) -TimeoutSec 120)
+    }
+    $m = Invoke-WsProcess $script:ClaudeExe @('mcp', 'add', '--scope', 'user', $script:McpName, '--', $Exe, 'mcp') -TimeoutSec 120
+    if ($m.ExitCode -ne 0) { return $false }
+    Register-WsExtra 'mcp' $script:McpName '' '' ''
+    return $true
+  }
   if ((Invoke-WsProcess $script:ClaudeExe @('mcp', 'get', 'memoria') -TimeoutSec 120).ExitCode -eq 0) {
     [void](Invoke-WsProcess $script:ClaudeExe @('mcp', 'remove', '--scope', 'user', 'memoria') -TimeoutSec 120)
   }
@@ -3400,13 +3550,24 @@ function Install-WsStep11 {
 
 function Read-WsResult {
   param([string]$Json)
-  $o = @{ Json = $false; Erro = $true; Resposta = ''; Custo = (Get-WsCusto $null $script:Pricing); Causa = ''; Comandos = @(); Raw = $null }
+  $o = @{ Json = $false; Erro = $true; Resposta = ''; Curta = ''; Custo = (Get-WsCusto $null $script:Pricing); Causa = ''; Comandos = @(); Raw = $null; Turnos = $null; Hook = ''; HookMotivo = '' }
   $j = $null
   try { $j = $Json | ConvertFrom-Json } catch { return $o }
   if (-not $j) { return $o }
   $o.Json = $true; $o.Raw = $j
   $o.Erro = [bool]$j.is_error
   if ($j.PSObject.Properties.Name -contains 'result') { $o.Resposta = [string]$j.result }
+  # Para o resumo: so a primeira linha com texto, com no maximo 40 caracteres (o resto fica no log).
+  $r1 = ($o.Resposta.Trim() -split '\r?\n')[0].Trim()
+  if ($r1.Length -gt 40) { $r1 = $r1.Substring(0, 39) + [string][char]0x2026 }
+  $o.Curta = $r1
+  # O modelo respondeu? Um hook UserPromptSubmit da pessoa que bloqueia o pedido da exit 0, is_error false e
+  # num_turns 0, com o motivo no result ("UserPromptSubmit operation blocked by hook:`n<motivo>...").
+  if ($j.PSObject.Properties.Name -contains 'num_turns') { $o.Turnos = [int]$j.num_turns }
+  if (-not $o.Turnos -and $o.Resposta -match '^(\w+) operation blocked by hook:[ \t]*\r?\n[ \t]*([^\r\n]*)') {
+    $o.Hook = $Matches[1]; $o.HookMotivo = $Matches[2]
+    if ($o.HookMotivo.Length -gt 160) { $o.HookMotivo = $o.HookMotivo.Substring(0, 160) }
+  }
   $o.Custo = Get-WsCusto $j $script:Pricing
   $so = $null
   if ($j.PSObject.Properties.Name -contains 'structured_output') { $so = $j.structured_output }
@@ -3418,6 +3579,31 @@ function Read-WsResult {
 function Test-WsStep12 {
   if ($script:Mode -eq 'install') { return $false }
   return (Install-WsStep12)
+}
+
+# Definicoes para os "claude -p" do proprio setup sem os hooks da pessoa (o ajudante e a 2.a tentativa do teste
+# final): --settings vale por cima do settings.json, que nao muda. Os hooks de custo do kit tambem nao correm.
+$script:NoHooks = '{"disableAllHooks":true}'
+
+function Get-WsUserHooks {
+  # Eventos com hooks da pessoa (os do kit nao contam) no settings.json dela e nos da empresa, ex.: "SessionStart".
+  $files = @()
+  if ($script:ClaudeDir) { $files += (Join-Path $script:ClaudeDir 'settings.json') }
+  foreach ($base in @($env:ProgramFiles, $env:ProgramData)) { if ($base) { $files += (Join-Path $base 'ClaudeCode\managed-settings.json') } }
+  $out = @()
+  foreach ($f in $files) {
+    if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+    try { $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+    if (-not $j -or $j.disableAllHooks -eq $true -or -not $j.hooks) { continue }
+    foreach ($ev in $j.hooks.PSObject.Properties) {
+      foreach ($g in @($ev.Value)) {
+        foreach ($h in @($g.hooks)) {
+          if ($h -and $h.command -and ([string]$h.command).Replace('\', '/') -notlike '*/.workshop-claude/kit/*' -and $out -notcontains $ev.Name) { $out += $ev.Name }
+        }
+      }
+    }
+  }
+  return ($out -join ', ')
 }
 
 # Limites (segundos) das chamadas ao Claude: sem resposta, o Claude Code tenta outra vez durante minutos.
@@ -3441,13 +3627,34 @@ function Install-WsStep12 {
   $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '', '--strict-mcp-config') -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
   $secs = [int]((Get-Date) - $t0).TotalSeconds
   $o = Read-WsResult $r.StdOut
-  Write-WsLog ('final test: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
+  Write-WsLog ('final test: exit {0} error {1} turns {2} cost {3}' -f $r.ExitCode, $o.Erro, $o.Turnos, $o.Custo.Texto)
+  # Nenhuma resposta do modelo (0 turnos): um hook da pessoa bloqueou o pedido. Todos os pedidos do workshop vao
+  # ser bloqueados da mesma maneira, por isso nao conta como feito.
+  if ($r.ExitCode -eq 0 -and $o.Json -and -not $o.Erro -and ($o.Hook -or $o.Turnos -eq 0)) {
+    if ($o.Hook) { Set-WsFail 'E-SMOKE-05' (Protect-WsText ('{0}: {1}' -f $o.Hook, $o.HookMotivo) $script:Literals) }
+    else { Set-WsFail 'E-SMOKE-01' 'no reply from the model (0 turns)' }
+    return $false
+  }
   if ($r.ExitCode -eq 0 -and $o.Json -and -not $o.Erro) {
-    Set-WsDetail (M 's12_ok' @{ RESPOSTA = $o.Resposta.Trim(); SEG = $secs; USD = $o.Custo.Texto })
+    if ($o.Resposta.Trim() -ne $o.Curta) { Write-WsLog ('final test: full reply: ' + (Protect-WsText $o.Resposta $script:Literals)) }
+    Set-WsDetail (M 's12_ok' @{ RESPOSTA = $o.Curta; SEG = $secs; USD = $o.Custo.Texto })
     if ($null -eq $o.Custo.Usd) { Add-WsNote (M 's12_custo_desconhecido') }
     return $true
   }
   if ($r.ExitCode -eq -2) {
+    # Um hook da pessoa (ex.: um SessionStart que atualiza um repositorio que so se ve na VPN) prende o Claude antes
+    # do pedido: tenta-se uma vez sem os hooks dela. Se assim responder, o login e a rede estao bem e a causa e o hook.
+    $hk = Get-WsUserHooks
+    if (-not $gw -and $hk) {
+      Write-WsLog ('final test: no answer in {0} s with the hooks of the settings ({1}): once more without them' -f $script:TmoSmoke, $hk)
+      Write-WsSay ('  ' + (M 's12_sem_hooks' @{ HOOKS = $hk }))
+      $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', 'claude-haiku-5-5', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks) -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
+      $o = Read-WsResult $r.StdOut
+      Write-WsLog ('final test without the hooks: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
+      if ($r.ExitCode -eq 0 -and $o.Json -and -not $o.Erro) {
+        Set-WsFail 'E-SMOKE-06' ('{0} {1} {2}' -f $hk, [char]0x00B7, (Join-Path $script:ClaudeDir 'settings.json')); return $false
+      }
+    }
     if ($gw) { Set-WsFail 'E-AUTH-05' $gw } else { Set-WsFail 'E-SMOKE-01' ('no answer in {0} s' -f $script:TmoSmoke) }
     return $false
   }
@@ -3481,12 +3688,13 @@ function Get-WsVersionsLine {
 }
 
 function Invoke-WsClaudeHelper {
-  # Com limite de tempo e sem servidores MCP (--strict-mcp-config), como o teste final. Com o gateway da empresa em
-  # baixo (passo 0) nem tenta: esperaria minutos.
+  # Com limite de tempo e sem servidores MCP (--strict-mcp-config), como o teste final, e sem os hooks da pessoa
+  # (um SessionStart preso ou um UserPromptSubmit que bloqueia nao o deixavam responder). Com o gateway da empresa
+  # em baixo (passo 0) nem tenta: esperaria minutos.
   param([string]$Prompt, [string]$Schema, [int]$TimeoutSec = $script:TmoHelper)
   if ($script:GwDown) { return $null }
   if ($TimeoutSec -le 0) { $TimeoutSec = 90 }
-  $a = @('-p', '--model', 'claude-haiku-5-5', '--tools', '', '--strict-mcp-config', '--disallowedTools', 'mcp__*', '--output-format', 'json')
+  $a = @('-p', '--model', 'claude-haiku-5-5', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks, '--disallowedTools', 'mcp__*', '--output-format', 'json')
   if ($Schema) { $a += @('--json-schema', $Schema) }
   $r = Invoke-WsProcess $script:ClaudeExe $a -StdinText $Prompt -WorkingDirectory $script:Tmp -TimeoutSec $TimeoutSec
   if ($r.ExitCode -ne 0) { return $null }
@@ -3501,7 +3709,8 @@ function Invoke-WsHelper {
   $code = $script:T[$N].Falha[0]
   # Rede, login, Group Policy e antivirus: o Claude nao resolve nada disso a partir daqui. O GitHub sem resposta
   # (E-GH-03) ja tem a causa certa e, sem login no GitHub (E-GH-02), o setup ja mostra o comando: a analise so custaria dinheiro.
-  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02' -or $code -eq 'E-GH-02' -or $code -eq 'E-GH-03') { return $false }
+  # Um hook da pessoa (E-SMOKE-05/06) ja tem a causa e o ficheiro no ecra.
+  if ($code -like 'E-NET-*' -or $code -like 'E-AUTH-*' -or $code -eq 'E-SO-07' -or $code -eq 'E-PERM-02' -or $code -eq 'E-GH-02' -or $code -eq 'E-GH-03' -or $code -eq 'E-SMOKE-05' -or $code -eq 'E-SMOKE-06') { return $false }
   Write-WsSay ''
   if (-not (Read-WsYesNo (M 'helper_pergunta') $true)) { return $false }
   Write-WsSay ('  ' + (M 'helper_a_pedir'))
@@ -3591,7 +3800,7 @@ function Write-WsSummary {
     $lines += (M 'final_voltar')
   }
   # Os avisos contam-se sempre, tambem quando falta algum passo.
-  if ($sum.Avisos -gt 0) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
+  if ($sum.Avisos -eq 1) { $lines += (M 'final_aviso1') } elseif ($sum.Avisos -gt 1) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
   Write-WsSay ''
   Write-WsSay ('-' * 64)
   foreach ($l in $lines) { Write-WsSay $l }

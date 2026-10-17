@@ -22,7 +22,7 @@
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
 //   0 ok · 1 em falta (verificar) · 2 erro de utilizacao · 3 settings.json invalido · 4 outro erro
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, copyFileSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, copyFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConf } from './lib/conf.mjs';
@@ -52,6 +52,16 @@ import {
 } from './lib/fsx.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// existsSync segue links: um link pendente (ex.: para uns dotfiles por montar) contava como livre e a copia
+// rebentava com ENOENT a meio. O lstat ve o proprio link, que e movido como link (o destino nunca e tocado).
+const ocupado = (p) => {
+  try {
+    lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const MOTOR = ['hooks', 'orchestrator', 'statusline', 'pricing.json'];
 
 function parseArgs(argv) {
@@ -143,7 +153,7 @@ function readSettingsFile(P) {
 // Devolve { editado } ou { anterior } com o caminho do backup, ou {} quando se apagou uma copia intacta.
 function retirarNosso(kind, item, P, ts) {
   const dest = item.destino;
-  if (!existsSync(dest)) return {};
+  if (!ocupado(dest)) return {};
   if (item.sha && fingerprint([dest]) === item.sha) {
     rmSync(dest, { recursive: true, force: true });
     return {};
@@ -159,16 +169,27 @@ function placeItem(kind, item, destRoot, P, manifest, replacements, ts) {
   const prev = (manifest[kind] || []).find((x) => x.nome === item.nome);
   let backup = prev?.backup || null;
   let retirado = {};
-  if (existsSync(dest)) {
+  if (ocupado(dest)) {
     if (prev) retirado = retirarNosso(kind, { ...prev, destino: dest }, P, ts);
-    else backup = fwd(moveAside(dest, P.backupDir, join(ts, kind, item.nome)));
+    else {
+      backup = fwd(moveAside(dest, P.backupDir, join(ts, kind, item.nome)));
+      retirado = { alheio: backup };
+    }
   }
-  if (statSync(item.origem).isDirectory()) copyTree(item.origem, dest, replacements);
-  else {
-    mkdirSync(destRoot, { recursive: true });
-    let t = readFileSync(item.origem, 'utf8');
-    for (const [k, v] of Object.entries(replacements)) t = t.split(`{{${k}}}`).join(v);
-    writeAtomic(dest, t);
+  try {
+    if (statSync(item.origem).isDirectory()) copyTree(item.origem, dest, replacements);
+    else {
+      mkdirSync(destRoot, { recursive: true });
+      let t = readFileSync(item.origem, 'utf8');
+      for (const [k, v] of Object.entries(replacements)) t = t.split(`{{${k}}}`).join(v);
+      writeAtomic(dest, t);
+    }
+  } catch (e) {
+    // Desfazer este item: tirar a copia a meio e repor o que la estava (o item da pessoa ou o nosso editado).
+    rmSync(dest, { recursive: true, force: true });
+    const devolver = backup !== (prev?.backup || null) ? backup : retirado.editado;
+    if (devolver) renameSync(devolver, dest);
+    throw e;
   }
   return { nome: item.nome, destino: fwd(dest), backup, sha: fingerprint([dest]), retirado };
 }
@@ -176,6 +197,8 @@ function placeItem(kind, item, destRoot, P, manifest, replacements, ts) {
 // Linhas "editado" (uma por item) e "anteriores" (uma so) para o setup.
 function saidaRetirados(lista) {
   for (const r of lista) if (r.editado) out('editado', r.editado);
+  // skills/agentes da pessoa com o nome de um do kit: ficam no backup e o --desinstalar repoe-nos
+  for (const r of lista) if (r.alheio) out('alheio', r.alheio);
   const ant = lista.find((r) => r.anterior);
   if (ant) out('anteriores', ant.anterior);
 }
@@ -216,8 +239,26 @@ export function instalar(flags, env = process.env) {
   // 3. Skills e agentes.
   const replacements = { KIT_DIR: fwd(P.kitDir) };
   const { skills, agentes } = kitSources(kitSrc);
-  const novasSkills = skills.map((s) => placeItem('skills', s, P.skillsDir, P, manifest, replacements, ts));
-  const novosAgentes = agentes.map((a) => placeItem('agentes', a, P.agentsDir, P, manifest, replacements, ts));
+  // Uma falha a meio (ex.: um caminho sem escrita) nao pode deixar itens da pessoa no backup sem registo: o que ja
+  // ficou no sitio vai para o manifest antes do erro, para o --desinstalar e a proxima corrida o reconhecerem.
+  const feitos = { skills: [], agentes: [] };
+  const por = (kind, root) => (it) => {
+    const r = placeItem(kind, it, root, P, manifest, replacements, ts);
+    feitos[kind].push(r);
+    return r;
+  };
+  let novasSkills, novosAgentes;
+  try {
+    novasSkills = skills.map(por('skills', P.skillsDir));
+    novosAgentes = agentes.map(por('agentes', P.agentsDir));
+  } catch (e) {
+    for (const kind of ['skills', 'agentes']) {
+      const ja = feitos[kind].map(({ retirado, ...x }) => x);
+      manifest[kind] = [...ja, ...(manifest[kind] || []).filter((o) => !ja.some((x) => x.nome === o.nome))];
+    }
+    saveManifest(P, manifest);
+    throw e;
+  }
   const retirados = [...novasSkills, ...novosAgentes].map((x) => x.retirado);
   // Itens nossos de versoes anteriores que ja nao existem no kit: remover (e repor o backup, se houver).
   for (const [kind, now] of [
@@ -284,7 +325,7 @@ function saidaLingua(lm, kit, language, record) {
 
 function restoreItem(kind, item, P, ts) {
   const retirado = retirarNosso(kind, item, P, ts);
-  if (item.backup && existsSync(item.backup)) {
+  if (item.backup && ocupado(item.backup)) {
     mkdirSync(dirname(item.destino), { recursive: true });
     moveAside(item.backup, dirname(item.destino), basename(item.destino));
   }
@@ -318,6 +359,7 @@ export function verificar(flags, env = process.env) {
       statusline = r.statusline;
       faltam.push(...r.faltam.filter((f) => !(f === 'statusLine' && r.statusline === 'alheia')));
       if (r.statusline === 'alheia') avisos.push('E-CFG-06');
+      if (r.hooksOff) avisos.push('E-CFG-11');
       // Sem instalacao ainda nao ha nada a dizer sobre a lingua (a "language" so se grava ao instalar).
       const lm = manifest ? linguaDe(flags) : null;
       if (lm) {

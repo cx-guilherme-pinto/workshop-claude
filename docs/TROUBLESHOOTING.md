@@ -27,6 +27,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-NET-06` | Proxy with NTLM or Kerberos authentication only | [macOS](#mac-e-net-06) · [Windows](#windows-e-net-06) |
 | `E-NET-07` | The download failed | [macOS](#mac-e-net-07) · [Windows](#windows-e-net-07) |
 | `E-NET-08` | Claude Code is set to use a proxy that does not answer on this network | [macOS](#mac-e-net-08) · [Windows](#windows-e-net-08) |
+| `E-NET-10` | uv doesn't trust your company's certificate | [macOS](#mac-e-net-10) · [Windows](#windows-e-net-10) |
 | `E-SO-01` | Windows older than 10.0.18362 (version 1903) | [Windows](#windows-e-so-01) |
 | `E-SO-02` | Windows on ARM64 | [Windows](#windows-e-so-02) |
 | `E-SO-03` | Your home folder is in OneDrive | [macOS](#mac-e-so-03) · [Windows](#windows-e-so-03) |
@@ -42,6 +43,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-CFG-05` | The Claude Code settings.json file has an error | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | You already had a statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | uv is not allowed to use managed Python | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
+| `E-CFG-11` | Your Claude Code hooks are switched off | [macOS](#mac-e-cfg-11) · [Windows](#windows-e-cfg-11) |
 | `E-PERM-01` | No permission to write to your home folder | [macOS](#mac-e-perm-01) · [Windows](#windows-e-perm-01) |
 | `E-PERM-02` | A program was blocked by the computer's security | [macOS](#mac-e-perm-02) · [Windows](#windows-e-perm-02) |
 | `E-PERM-03` | The installer asked for administrator permissions | [macOS](#mac-e-perm-03) · [Windows](#windows-e-perm-03) |
@@ -52,6 +54,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-CC-02` | The claude command is not in the PATH | [macOS](#mac-e-cc-02) · [Windows](#windows-e-cc-02) |
 | `E-CC-03` | The Claude Code version is old | [macOS](#mac-e-cc-03) · [Windows](#windows-e-cc-03) |
 | `E-CC-04` | Your ~/.claude.json file has an error | [macOS](#mac-e-cc-04) · [Windows](#windows-e-cc-04) |
+| `E-CC-05` | A new terminal runs another claude | [macOS](#mac-e-cc-05) |
 | `E-AUTH-01` | Claude Code is not logged in | [macOS](#mac-e-auth-01) · [Windows](#windows-e-auth-01) |
 | `E-AUTH-02` | The login is a claude.ai subscription, not the Console | [macOS](#mac-e-auth-02) · [Windows](#windows-e-auth-02) |
 | `E-AUTH-03` | Claude Code uses another authentication method | [macOS](#mac-e-auth-03) · [Windows](#windows-e-auth-03) |
@@ -61,6 +64,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-NODE-02` | An old or broken Node comes first in the PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
 | `E-UV-01` | I couldn't install uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
 | `E-UV-02` | An older uv comes first in the PATH | [macOS](#mac-e-uv-02) · [Windows](#windows-e-uv-02) |
+| `E-UV-03` | Your uv settings file can't be read | [macOS](#mac-e-uv-03) · [Windows](#windows-e-uv-03) |
+| `E-UV-04` | The company mirror in your uv settings doesn't answer | [macOS](#mac-e-uv-04) · [Windows](#windows-e-uv-04) |
 | `E-GH-01` | I couldn't install GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
 | `E-GH-02` | GitHub login missing (required) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
 | `E-GH-03` | GitHub did not answer | [macOS](#mac-e-gh-03) · [Windows](#windows-e-gh-03) |
@@ -90,6 +95,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-SMOKE-02` | The Console account has no credits | [macOS](#mac-e-smoke-02) · [Windows](#windows-e-smoke-02) |
 | `E-SMOKE-03` | Request limit reached (error 429) | [macOS](#mac-e-smoke-03) · [Windows](#windows-e-smoke-03) |
 | `E-SMOKE-04` | The test model is not available in your account | [macOS](#mac-e-smoke-04) · [Windows](#windows-e-smoke-04) |
+| `E-SMOKE-05` | One of your hooks blocked the test request | [macOS](#mac-e-smoke-05) · [Windows](#windows-e-smoke-05) |
+| `E-SMOKE-06` | One of your hooks makes Claude wait | [macOS](#mac-e-smoke-06) · [Windows](#windows-e-smoke-06) |
 | `E-GIT-04` | The portable git download is corrupted | [macOS](#mac-e-git-04) |
 
 ## macOS
@@ -163,17 +170,15 @@ export NO_PROXY=localhost,127.0.0.1
 
 ### E-NET-04 · Your company intercepts HTTPS traffic (its own certificate)
 
-- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code and uv to use them.
+- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates from the system to ~/.workshop-claude/ca-company.pem, adds your ~/.workshop-claude/ca.pem if you have one, and configures Claude Code to use them and uv to use the system certificates.
 - **What to do:**
   - Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.
-  - If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again.
-  - If the Agent Memory app fails with a certificate error, install its Python with the system certificates (last command below), then run the setup again.
+  - If the final test or the Agent Memory app still fails with a certificate error, ask IT for the company root certificate in PEM format and save it as ~/.workshop-claude/ca.pem (the setup never overwrites that file). Then run the setup again.
 
-Commands (macOS):
+Command (macOS):
 
 ```
-security find-certificate -a -p /Library/Keychains/System.keychain > ~/.workshop-claude/ca.pem
-UV_SYSTEM_CERTS=true uv python install 3.12
+ls -l ~/.workshop-claude/ca.pem ~/.workshop-claude/ca-company.pem
 ```
 
 <a id="mac-e-net-05"></a>
@@ -231,6 +236,22 @@ Commands (macOS):
 ```
 curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | bash
 grep -n -i proxy ~/.claude/settings.json
+```
+
+<a id="mac-e-net-10"></a>
+
+### E-NET-10 · uv doesn't trust your company's certificate
+
+- **Why:** Downloading the app's Python (github.com) or its packages (pypi.org) failed with a certificate error, even with the system certificates (UV_SYSTEM_CERTS) and with ~/.workshop-claude/ca.pem if you have one. Your company's root certificate is not among them.
+- **What to do:**
+  - Ask IT for the company root certificate in PEM format and save it as ~/.workshop-claude/ca.pem. The setup never overwrites that file.
+  - Then run the setup again: it gives that certificate to uv. The commands below do the same by hand. The app is optional: the skills work without it.
+
+Commands (macOS):
+
+```
+cat /etc/ssl/cert.pem ~/.workshop-claude/ca.pem > ~/.workshop-claude/ca-bundle-uv.pem
+SSL_CERT_FILE=~/.workshop-claude/ca-bundle-uv.pem uv python install 3.12
 ```
 
 <a id="mac-e-so-03"></a>
@@ -379,6 +400,21 @@ Command (macOS):
 env | grep -E "^UV_(PYTHON_DOWNLOADS|NO_MANAGED_PYTHON|PYTHON_PREFERENCE)"
 ```
 
+<a id="mac-e-cfg-11"></a>
+
+### E-CFG-11 · Your Claude Code hooks are switched off
+
+- **Why:** ~/.claude/settings.json has "disableAllHooks": true. Claude Code then runs no hooks and no statusline, so the workshop cost hooks and statusline don't work.
+- **What to do:**
+  - Remove the "disableAllHooks": true line from ~/.claude/settings.json, or set it to false.
+  - Then open a new Claude session. You don't need to run the setup again.
+
+Command (macOS):
+
+```
+grep -n disableAllHooks ~/.claude/settings.json
+```
+
 <a id="mac-e-perm-01"></a>
 
 ### E-PERM-01 · No permission to write to your home folder
@@ -495,6 +531,24 @@ Command (macOS):
 
 ```
 node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude.json', 'utf8'))"
+```
+
+<a id="mac-e-cc-05"></a>
+
+### E-CC-05 · A new terminal runs another claude
+
+- **Why:** A new terminal doesn't run the Claude Code the setup installed (~/.local/bin/claude). Shown above: what the terminal runs. An alias, a function or an older copy comes first, often the 2025 alias for ~/.claude/local/claude, which no longer exists.
+- **What to do:**
+  - Find the alias claude= line with the first command and delete it from that file.
+  - Remove it from this terminal too, then open a new terminal and check that claude --version shows 2.1.285 or later.
+
+Commands (macOS):
+
+```
+grep -ns 'alias claude=' ~/.zshrc ~/.zprofile ~/.aliases ~/.zsh_aliases ~/.bashrc ~/.bash_profile ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/*.zsh
+unalias claude
+type -a claude
+claude --version
 ```
 
 <a id="mac-e-auth-01"></a>
@@ -639,6 +693,36 @@ Commands (macOS):
 ```
 which -a uv
 brew upgrade uv
+```
+
+<a id="mac-e-uv-03"></a>
+
+### E-UV-03 · Your uv settings file can't be read
+
+- **Why:** uv stops because its settings file (shown above, with the line) has a syntax error. pip.conf syntax ([global], index-url = ...) is not uv.toml syntax: in uv.toml the values need quotes.
+- **What to do:**
+  - Fix the file, or rename it (command below), then run the setup again.
+  - The Agent Memory app is optional: the skills work without it.
+
+Command (macOS):
+
+```
+mv ~/.config/uv/uv.toml ~/.config/uv/uv.toml.bak
+```
+
+<a id="mac-e-uv-04"></a>
+
+### E-UV-04 · The company mirror in your uv settings doesn't answer
+
+- **Why:** Your uv settings (shown above: the file and the server) send the download of Python and of the app's packages to a company server (python-install-mirror or an index), and that server doesn't answer. It usually only answers on the VPN.
+- **What to do:**
+  - Connect to the VPN and run the setup again.
+  - Or run the setup once without your uv settings (command below). The app is optional: the skills work without it.
+
+Command (macOS):
+
+```
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/setup-mac.sh | UV_NO_CONFIG=1 bash
 ```
 
 <a id="mac-e-gh-01"></a>
@@ -1016,6 +1100,38 @@ claude -p "Reply in English with only the word OK" --model claude-haiku-5-5
 - **What to do:**
   - Check the available models in the Console and talk to the organizer.
 
+<a id="mac-e-smoke-05"></a>
+
+### E-SMOKE-05 · One of your hooks blocked the test request
+
+- **Why:** A hook in your Claude Code settings (~/.claude/settings.json, or one your company manages) blocked the request before it reached Claude. Shown above: the event (usually UserPromptSubmit) and the hook's reason. Every prompt in the workshop would be blocked the same way.
+- **What to do:**
+  - Do what the hook's message asks, or ask whoever set up that hook to let the workshop prompts through.
+  - Or remove that hook from ~/.claude/settings.json for the workshop (the command below shows it), then run the setup again.
+
+Command (macOS):
+
+```
+grep -n -A12 '"hooks"' ~/.claude/settings.json
+```
+
+<a id="mac-e-smoke-06"></a>
+
+### E-SMOKE-06 · One of your hooks makes Claude wait
+
+- **Why:** With your hooks (shown above: the events and the file), Claude didn't answer in time. Without them it answered, so the login and the network are fine. A hook such as SessionStart is waiting for something, often a server that only answers on the VPN, and every Claude session in the workshop would wait for it too.
+- **What to do:**
+  - Connect to the VPN if the hook needs it, or give that hook a short "timeout" (in seconds).
+  - Or remove that hook from ~/.claude/settings.json for the workshop (the first command shows it), then run the setup again.
+  - The second command checks Claude without your hooks.
+
+Commands (macOS):
+
+```
+grep -n -A12 '"hooks"' ~/.claude/settings.json
+claude -p "Reply in English with only the word OK" --model claude-haiku-5-5 --settings '{"disableAllHooks":true}'
+```
+
 <a id="mac-e-git-04"></a>
 
 ### E-GIT-04 · The portable git download is corrupted
@@ -1103,17 +1219,15 @@ $env:NO_PROXY = 'localhost,127.0.0.1'
 
 ### E-NET-04 · Your company intercepts HTTPS traffic (its own certificate)
 
-- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates to ~/.workshop-claude/ca.pem and configures Claude Code and uv to use them.
+- **Why:** A site the setup needs (api.anthropic.com, github.com or pypi.org) shows a certificate that does not come from a public authority: the company network opens the traffic and encrypts it again. The setup exports the company certificates from the system to ~/.workshop-claude/ca-company.pem, adds your ~/.workshop-claude/ca.pem if you have one, and configures Claude Code to use them and uv to use the system certificates.
 - **What to do:**
   - Usually you don't need to do anything: the setup already set NODE_EXTRA_CA_CERTS and UV_SYSTEM_CERTS.
-  - If the final test fails with a certificate error, ask IT for the company root certificate in PEM format and save it to ~/.workshop-claude/ca.pem. Then run the setup again.
-  - If the Agent Memory app fails with a certificate error, install its Python with the system certificates (last command below), then run the setup again.
+  - If the final test or the Agent Memory app still fails with a certificate error, ask IT for the company root certificate in PEM format and save it as ~/.workshop-claude/ca.pem (the setup never overwrites that file). Then run the setup again.
 
-Commands (Windows):
+Command (Windows):
 
 ```
 Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root | Select-Object Subject, Issuer
-$env:UV_SYSTEM_CERTS = 'true'; uv python install 3.12
 ```
 
 <a id="windows-e-net-05"></a>
@@ -1171,6 +1285,22 @@ Commands (Windows):
 ```
 irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
+```
+
+<a id="windows-e-net-10"></a>
+
+### E-NET-10 · uv doesn't trust your company's certificate
+
+- **Why:** Downloading the app's Python (github.com) or its packages (pypi.org) failed with a certificate error, even with the system certificates (UV_SYSTEM_CERTS) and with ~/.workshop-claude/ca.pem if you have one. Your company's root certificate is not among them.
+- **What to do:**
+  - Ask IT for the company root certificate in PEM format and save it as ~/.workshop-claude/ca.pem. The setup never overwrites that file.
+  - Then run the setup again: it gives that certificate to uv. The commands below do the same by hand. The app is optional: the skills work without it.
+
+Commands (Windows):
+
+```
+$env:SSL_CERT_FILE = "$env:USERPROFILE\.workshop-claude\ca-bundle-uv.pem"
+uv python install 3.12
 ```
 
 <a id="windows-e-so-01"></a>
@@ -1373,6 +1503,21 @@ Command (Windows):
 
 ```
 Get-ChildItem Env:UV_*
+```
+
+<a id="windows-e-cfg-11"></a>
+
+### E-CFG-11 · Your Claude Code hooks are switched off
+
+- **Why:** ~/.claude/settings.json has "disableAllHooks": true. Claude Code then runs no hooks and no statusline, so the workshop cost hooks and statusline don't work.
+- **What to do:**
+  - Remove the "disableAllHooks": true line from ~/.claude/settings.json, or set it to false.
+  - Then open a new Claude session. You don't need to run the setup again.
+
+Command (Windows):
+
+```
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern disableAllHooks
 ```
 
 <a id="windows-e-perm-01"></a>
@@ -1651,6 +1796,37 @@ Command (Windows):
 
 ```
 Get-Command uv -All
+```
+
+<a id="windows-e-uv-03"></a>
+
+### E-UV-03 · Your uv settings file can't be read
+
+- **Why:** uv stops because its settings file (shown above, with the line) has a syntax error. pip.conf syntax ([global], index-url = ...) is not uv.toml syntax: in uv.toml the values need quotes.
+- **What to do:**
+  - Fix the file, or rename it (command below), then run the setup again.
+  - The Agent Memory app is optional: the skills work without it.
+
+Command (Windows):
+
+```
+Rename-Item "$env:APPDATA\uv\uv.toml" uv.toml.bak
+```
+
+<a id="windows-e-uv-04"></a>
+
+### E-UV-04 · The company mirror in your uv settings doesn't answer
+
+- **Why:** Your uv settings (shown above: the file and the server) send the download of Python and of the app's packages to a company server (python-install-mirror or an index), and that server doesn't answer. It usually only answers on the VPN.
+- **What to do:**
+  - Connect to the VPN and run the setup again.
+  - Or run the setup once without your uv settings (command below). The app is optional: the skills work without it.
+
+Commands (Windows):
+
+```
+$env:UV_NO_CONFIG = '1'
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-gh-01"></a>
@@ -2011,6 +2187,38 @@ claude -p "Reply in English with only the word OK" --model claude-haiku-5-5
 - **What to do:**
   - Check the available models in the Console and talk to the organizer.
 
+<a id="windows-e-smoke-05"></a>
+
+### E-SMOKE-05 · One of your hooks blocked the test request
+
+- **Why:** A hook in your Claude Code settings (~/.claude/settings.json, or one your company manages) blocked the request before it reached Claude. Shown above: the event (usually UserPromptSubmit) and the hook's reason. Every prompt in the workshop would be blocked the same way.
+- **What to do:**
+  - Do what the hook's message asks, or ask whoever set up that hook to let the workshop prompts through.
+  - Or remove that hook from ~/.claude/settings.json for the workshop (the command below shows it), then run the setup again.
+
+Command (Windows):
+
+```
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern '"hooks"' -Context 0,12
+```
+
+<a id="windows-e-smoke-06"></a>
+
+### E-SMOKE-06 · One of your hooks makes Claude wait
+
+- **Why:** With your hooks (shown above: the events and the file), Claude didn't answer in time. Without them it answered, so the login and the network are fine. A hook such as SessionStart is waiting for something, often a server that only answers on the VPN, and every Claude session in the workshop would wait for it too.
+- **What to do:**
+  - Connect to the VPN if the hook needs it, or give that hook a short "timeout" (in seconds).
+  - Or remove that hook from ~/.claude/settings.json for the workshop (the first command shows it), then run the setup again.
+  - The second command checks Claude without your hooks.
+
+Commands (Windows):
+
+```
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern '"hooks"' -Context 0,12
+claude -p "Reply in English with only the word OK" --model claude-haiku-5-5 --settings '{\"disableAllHooks\":true}'
+```
+
 ## Required domains
 
 Ask IT to allow HTTPS (port 443) to these domains:
@@ -2033,6 +2241,6 @@ Ask IT to allow HTTPS (port 443) to these domains:
 
 - The setup detects the system proxy (on Windows it also resolves the PAC file) and saves `HTTPS_PROXY` and `NO_PROXY` in the `env` of `~/.claude/settings.json`. `NO_PROXY` keeps the value that was already there and adds `localhost,127.0.0.1`, your own `NO_PROXY` entries and the exceptions of the system proxy (the addresses that skip the proxy; on Windows, also the servers that the PAC file sends direct).
 - If you run the setup again on a network without that proxy (for example, at the workshop venue after installing at the office), it removes the `HTTPS_PROXY` and `NO_PROXY` it saved (see `E-NET-08`). Back at the office, run the setup again.
-- If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca.pem` and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.
+- If your company intercepts HTTPS, the setup exports the company root certificates to `~/.workshop-claude/ca-company.pem` (together with your `~/.workshop-claude/ca.pem`, if you have one; the setup never writes it) and sets `NODE_EXTRA_CA_CERTS` and `UV_SYSTEM_CERTS=true`.
 - Proxies that only accept NTLM or Kerberos are not supported (see `E-NET-06`).
 

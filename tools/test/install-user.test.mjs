@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  readlinkSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -381,6 +382,101 @@ test('chaos G5: reinstalar guarda no backup as skills e agentes do kit que a pes
     assert.ok(des, r.stdout);
     assert.equal(readFileSync(join(des, 'SKILL.md'), 'utf8'), 'edited before uninstall\n');
     assert.ok(!existsSync(join(claude, 'skills', 'task-plan')), 'unchanged items are removed');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// chaos round 2 R2-cfg-auth: nomes do kit que a pessoa ja usa (pastas reais, links dos dotfiles e um link pendente)
+const linkOf = (p) => {
+  try {
+    return lstatSync(p).isSymbolicLink() ? readlinkSync(p) : null;
+  } catch {
+    return undefined;
+  }
+};
+
+test('chaos R2: itens da pessoa com o nome de um do kit (pasta, link dos dotfiles, link pendente) vao para o backup e voltam no desinstalar', { skip: process.platform === 'win32' }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-r2-'));
+  const home = join(base, 'Inês Dotfiles');
+  const kit = fakeKit(base);
+  const claude = join(home, '.claude');
+  const node = process.execPath;
+  try {
+    mkdirSync(join(claude, 'skills', 'design'), { recursive: true });
+    writeFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'a minha skill design\n');
+    writeFileSync(join(claude, 'skills', 'design', 'nota-1.md'), 'nota\n');
+    symlinkSync(join(home, 'dotfiles', 'por-montar', 'task-plan'), join(claude, 'skills', 'task-plan'));
+    mkdirSync(join(home, 'dotfiles', 'agents'), { recursive: true });
+    writeFileSync(join(home, 'dotfiles', 'agents', 'ws-worker.md'), 'o meu agente\n');
+    mkdirSync(join(claude, 'agents'), { recursive: true });
+    symlinkSync(join(home, 'dotfiles', 'agents', 'ws-worker.md'), join(claude, 'agents', 'ws-worker.md'));
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.equal(r.get('alheio').length, 3, r.stdout);
+    assert.ok(!existsSync(join(home, 'dotfiles', 'por-montar')), 'nada escrito atraves do link pendente');
+    assert.equal(readFileSync(join(home, 'dotfiles', 'agents', 'ws-worker.md'), 'utf8'), 'o meu agente\n', 'o ficheiro dos dotfiles fica igual');
+    assert.match(readFileSync(join(claude, 'skills', 'task-plan', 'SKILL.md'), 'utf8'), /next-wave/);
+    const bk = r.get('alheio').find((p) => p.endsWith('/skills/task-plan'));
+    assert.equal(linkOf(bk), join(home, 'dotfiles', 'por-montar', 'task-plan'), 'o link pendente foi movido como link');
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(linkOf(join(claude, 'skills', 'task-plan')), join(home, 'dotfiles', 'por-montar', 'task-plan'));
+    assert.equal(linkOf(join(claude, 'agents', 'ws-worker.md')), join(home, 'dotfiles', 'agents', 'ws-worker.md'));
+    assert.equal(readFileSync(join(claude, 'skills', 'design', 'nota-1.md'), 'utf8'), 'nota\n');
+    assert.equal(readFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'utf8'), 'a minha skill design\n');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('chaos R2: uma falha a meio (pasta dos agentes so de leitura) grava no manifest o que ja ficou no sitio, e o desinstalar repoe tudo', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-r2b-'));
+  const home = join(base, 'home');
+  const kit = fakeKit(base);
+  const claude = join(home, '.claude');
+  const node = process.execPath;
+  const ag = join(claude, 'agents');
+  try {
+    mkdirSync(join(claude, 'skills', 'design'), { recursive: true });
+    writeFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'a minha skill design\n');
+    symlinkSync(join(home, 'dotfiles', 'nada'), join(claude, 'skills', 'task-plan'));
+    mkdirSync(ag, { recursive: true });
+    writeFileSync(join(ag, 'ws-worker.md'), 'o meu agente\n');
+    chmodSync(ag, 0o555);
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.notEqual(r.status, 0, 'o agente nao sai da pasta so de leitura');
+    assert.equal(readFileSync(join(ag, 'ws-worker.md'), 'utf8'), 'o meu agente\n', 'o agente da pessoa fica');
+    const m = JSON.parse(readFileSync(join(home, '.workshop-claude', 'manifest.json'), 'utf8'));
+    assert.deepEqual(m.skills.map((x) => x.nome), ['task-plan', 'design'], 'as skills ja colocadas ficaram no manifest');
+    assert.ok(m.skills.every((x) => x.backup), 'com o backup dos itens da pessoa');
+    chmodSync(ag, 0o755);
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(linkOf(join(claude, 'skills', 'task-plan')), join(home, 'dotfiles', 'nada'), 'o desinstalar repoe o link da pessoa');
+    assert.equal(readFileSync(join(claude, 'skills', 'design', 'SKILL.md'), 'utf8'), 'a minha skill design\n', 'e a skill da pessoa');
+  } finally {
+    chmodSync(ag, 0o755);
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('chaos R2: "disableAllHooks": true no settings.json da o aviso E-CFG-11 (instalar e verificar)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-r2c-'));
+  const home = join(base, 'home');
+  const kit = fakeKit(base);
+  const claude = join(home, '.claude');
+  const node = process.execPath;
+  try {
+    mkdirSync(claude, { recursive: true });
+    writeFileSync(join(claude, 'settings.json'), JSON.stringify({ disableAllHooks: true }));
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.get('aviso'), ['E-CFG-11']);
+    assert.equal(JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8')).disableAllHooks, true, 'a escolha da pessoa fica');
+    r = run(home, ['verificar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stdout);
+    assert.deepEqual(r.get('aviso'), ['E-CFG-11']);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
