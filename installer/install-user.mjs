@@ -172,7 +172,7 @@ function placeItem(kind, item, destRoot, P, manifest, replacements, ts) {
   if (ocupado(dest)) {
     if (prev) retirado = retirarNosso(kind, { ...prev, destino: dest }, P, ts);
     else {
-      backup = fwd(moveAside(dest, P.backupDir, join(ts, kind, item.nome)));
+      backup = fwd(moveAside(dest, P.backupDir, join(ts, kind === 'agentes' ? 'agents' : kind, item.nome)));
       retirado = { alheio: backup };
     }
   }
