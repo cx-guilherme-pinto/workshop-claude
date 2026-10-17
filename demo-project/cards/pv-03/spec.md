@@ -1,8 +1,8 @@
 # Cartão pv-03 — A imagem de 1 píxel
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

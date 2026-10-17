@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'cr-10',
   title: 'Números ao acaso a sério',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
   concept: 'Tokens de segurança precisam de um gerador aleatório criptográfico, não de Math.random().',
   prompt: 'Vais gerar o token de um link de recuperação de password. Qual usas?',

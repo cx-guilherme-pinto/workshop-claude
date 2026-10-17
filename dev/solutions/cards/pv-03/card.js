@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'pv-03',
   title: 'A imagem de 1 píxel',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 1,
   concept: 'Um píxel de rastreio num email avisa o remetente de quando e onde o abriste.',
   prompt: 'Um email de publicidade tem uma imagem invisível de 1×1 píxel. Para que serve?',

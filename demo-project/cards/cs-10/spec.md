@@ -1,8 +1,8 @@
 # Cartão cs-10 — Versões fixas
 
-- **Categoria:** codigo-seguro
+- **Categoria:** secure-code
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

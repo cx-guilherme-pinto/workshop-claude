@@ -1,19 +1,19 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 import { sha256Hex } from '../../lib/hash.js';
 
 const MAIUSCULA = sha256Hex('Atlas');
 const MINUSCULA = sha256Hex('atlas');
 const IGUAIS = [...MAIUSCULA.slice(0, 10)].filter((ch, i) => ch === MINUSCULA[i]).length;
 
-export default resposta({
+export default answer({
   id: 'cr-06',
   title: 'Uma letra muda tudo',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
   concept: 'Efeito avalanche: mudar um só carácter na entrada muda o hash todo.',
   prompt: 'Estes dois textos só diferem numa maiúscula. Quantos dos 10 primeiros caracteres dos dois hashes são iguais, na mesma posição?',
   scenario: {
-    kind: 'texto',
+    kind: 'text',
     label: 'SHA-256',
     lines: [
       'Atlas → 9dee1c0ed39ef4e2686f974b5d574531fa5091be91e7ea72875e763278293ad4',

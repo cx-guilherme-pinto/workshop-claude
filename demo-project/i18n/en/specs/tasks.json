@@ -1,0 +1,99 @@
+{
+  "v": 2,
+  "lib": [
+    {
+      "id": "lib-hash",
+      "title": "Cryptography utility lib/hash.js",
+      "wave": 1,
+      "agent": "worker",
+      "spec": "specs/lib-hash.md",
+      "test": [
+        "node",
+        "--test",
+        "lib/hash.test.js"
+      ],
+      "files": [
+        "lib/hash.js"
+      ],
+      "depends": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "category-page",
+      "title": "Category page",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/category-page.md",
+      "test": [
+        "node",
+        "--test",
+        "pages/category.test.js"
+      ],
+      "files": [
+        "pages/category.js"
+      ],
+      "depends": [
+        "*cards"
+      ]
+    },
+    {
+      "id": "score-table",
+      "title": "Score table",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/score-table.md",
+      "test": [
+        "node",
+        "--test",
+        "pages/score.test.js"
+      ],
+      "files": [
+        "pages/score.js"
+      ],
+      "depends": [
+        "*cards"
+      ]
+    }
+  ],
+  "integration": {
+    "id": "integration",
+    "title": "Integration and full suite",
+    "wave": 3,
+    "agent": "integrator",
+    "spec": "specs/integration.md",
+    "test": [
+      "node",
+      "tools/check-integration.mjs"
+    ],
+    "files": [
+      "public/",
+      "pages/"
+    ],
+    "depends": [
+      "category-page",
+      "score-table"
+    ]
+  },
+  "review": {
+    "id": "review",
+    "title": "Security and quality review",
+    "wave": 4,
+    "agent": "reviewer",
+    "spec": "specs/review.md",
+    "prepare": [
+      "node",
+      "tools/review-digest.mjs"
+    ],
+    "test": {
+      "json_file": ".workshop/verdict.json",
+      "field": "verdict"
+    },
+    "files": [
+      ".workshop/verdict.json"
+    ],
+    "depends": [
+      "integration"
+    ]
+  }
+}

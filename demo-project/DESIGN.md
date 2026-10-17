@@ -1,13 +1,13 @@
 # DESIGN — Arena de Segurança (uma página)
 
-Derivado da skill `design-taste-frontend` (pasta `.claude/skills/`). O mesmo sistema serve a Arena, o `/estado`, a app de memória e os slides.
+Derivado da skill `design-taste-frontend` (pasta `.claude/skills/`). O mesmo sistema serve a Arena, o `/status`, a app de memória e os slides.
 
 ## Ideia
 Um jogo de segurança tem o aspeto de um **painel de sinais**: fundo calmo, tinta forte e quatro cores de estado com significado fixo. A cor nunca é decoração: ou é ação (azul), ou é estado.
 
 ## Tokens (CSS custom properties, únicos valores permitidos)
 
-| Papel | Claro | Escuro (`/estado` no projetor) |
+| Papel | Claro | Escuro (`/status` no projetor) |
 |---|---|---|
 | `--bg` fundo | `#f2f2ef` | `#0f1311` |
 | `--surface` superfície (um degrau de tom) | `#e6e6e1` | `#1a201d` |
@@ -16,10 +16,10 @@ Um jogo de segurança tem o aspeto de um **painel de sinais**: fundo calmo, tint
 | `--muted` notas secundárias | `#545c57` | `#9ba59f` |
 | `--accent` ação principal (< 5% do ecrã) | `#1a4be0` | `#7d9bff` |
 | `--accent-ink` texto sobre accent | `#ffffff` | `#0b1020` |
-| `--estado-cinza` por fazer | `#c4c7c1` | `#3a423e` |
-| `--estado-amarelo` a trabalhar | `#f1c232` | `#f1c232` |
-| `--estado-verde` passou | `#1e9e57` | `#2fbf6c` |
-| `--estado-vermelho` falhou | `#d2463f` | `#ef5b52` |
+| `--status-gray` por fazer | `#c4c7c1` | `#3a423e` |
+| `--status-yellow` a trabalhar | `#f1c232` | `#f1c232` |
+| `--status-green` passou | `#1e9e57` | `#2fbf6c` |
+| `--status-red` falhou | `#d2463f` | `#ef5b52` |
 
 Proibido: gradientes, sombras em elementos parados, blur, violeta/índigo, creme com terracota, linhas finas a separar blocos e bordas de 1px em caixas. As superfícies separam-se por degraus de tom.
 
@@ -32,7 +32,7 @@ Proibido: gradientes, sombras em elementos parados, blur, violeta/índigo, creme
   - Títulos de secção podem usar `1.5rem`, peso 650.
 - Títulos com 2 linhas no máximo e `text-wrap: balance`. Texto corrido a cor `--ink`, com 45 a 75 caracteres por linha.
 - Números (pontuação, custo, tempo) com `font-variant-numeric: tabular-nums`.
-- Sem monospace fora de código real (os excertos de `clica-erro` são código real e podem usar `ui-monospace`).
+- Sem monospace fora de código real (os excertos de `spot-the-flaw` são código real e podem usar `ui-monospace`).
 - Sem etiquetas pequenas em maiúsculas, sem "pills" acima de títulos, sem numeração 01/02/03, sem emoji.
 
 ## Espaço e grelha
@@ -45,7 +45,7 @@ Proibido: gradientes, sombras em elementos parados, blur, violeta/índigo, creme
 - **Foco:** `outline: 3px solid var(--accent); outline-offset: 2px` em `:focus-visible`. `::selection` no accent.
 - **Opção escolhida / segmento marcado:** fundo `--ink`, texto `--bg`, sem bordas.
 - **Resultado de um desafio:** faixa de cor de estado (verde/vermelho) com o texto da explicação a `--ink` sobre `--surface`.
-- **Quadrado do `/estado`:** bloco de cor de estado com o id, o modelo, o tempo e o custo em `tabular-nums`. Sem bordas e sem sombras.
+- **Quadrado do `/status`:** bloco de cor de estado com o id, o modelo, o tempo e o custo em `tabular-nums`. Sem bordas e sem sombras.
 
 ## Movimento
 Só `transform` e `opacity`, com `cubic-bezier(.22,1,.36,1)`: carregar no botão 120ms, hover 160ms, mudança de estado de um quadrado 240ms. Respeita sempre `prefers-reduced-motion` (mantém o conteúdo, tira o movimento).

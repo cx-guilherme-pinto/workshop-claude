@@ -1,6 +1,6 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'mb-05',
   title: 'Como se rouba um número de telemóvel',
   category: 'mobile',

@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'ph-04',
   title: 'O nome não prova nada',
   category: 'phishing',
   difficulty: 2,
   concept: 'O nome do remetente é texto livre; o que conta é o domínio depois do @.',
   prompt: 'O Banco Luz só envia emails de @bancoluz.example. Que remetentes são falsos?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Banco Luz <avisos@bancoluz.example>',
     'Banco Luz <extratos@bancoluz.example>',

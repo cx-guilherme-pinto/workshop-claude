@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'pv-07',
   title: 'Sem cookies e ainda te reconhecem',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'A impressão digital do browser junta detalhes técnicos que te identificam sem cookies.',
   prompt: 'Apagaste todos os cookies, mas um site continua a reconhecer-te. Como é possível?',

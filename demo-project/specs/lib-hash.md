@@ -6,10 +6,10 @@ Exporta exatamente estas funções:
 
 | Função | O que faz |
 |---|---|
-| `sha256Hex(texto)` | SHA-256 do texto codificado em UTF-8 (usa `TextEncoder`); devolve 64 caracteres hexadecimais em minúsculas |
-| `cesar(texto, deslocamento)` | cifra de César: desloca só as letras A–Z e a–z, mantém maiúsculas e minúsculas e deixa tudo o resto igual; aceita deslocamentos negativos e maiores do que 26 |
-| `paraBase64(texto)` | Base64 do texto em UTF-8 (tem de funcionar com acentos) |
-| `deBase64(b64)` | o inverso de `paraBase64` |
+| `sha256Hex(text)` | SHA-256 do texto codificado em UTF-8 (usa `TextEncoder`); devolve 64 caracteres hexadecimais em minúsculas |
+| `caesar(text, shift)` | cifra de César: desloca só as letras A–Z e a–z, mantém maiúsculas e minúsculas e deixa tudo o resto igual; aceita deslocamentos negativos e maiores do que 26 |
+| `toBase64(text)` | Base64 do texto em UTF-8 (tem de funcionar com acentos) |
+| `fromBase64(b64)` | o inverso de `toBase64`; se o texto não for Base64 válido, lança um `Error` com a mensagem `Base64 inválido.` |
 
 Verificar:
 

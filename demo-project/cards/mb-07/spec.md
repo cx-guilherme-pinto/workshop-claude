@@ -2,7 +2,7 @@
 
 - **Categoria:** mobile
 - **Dificuldade:** 3
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 

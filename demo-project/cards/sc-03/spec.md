@@ -1,8 +1,8 @@
 # Cartão sc-03 — O .env fica de fora
 
-- **Categoria:** segredos-cloud
+- **Categoria:** cloud-secrets
 - **Dificuldade:** 1
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

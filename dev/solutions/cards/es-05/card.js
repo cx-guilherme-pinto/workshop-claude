@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'es-05',
   title: 'A história da migração',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Pretexting: uma história credível serve para pedir algo que nunca se deve dar.',
   prompt: 'Recebeste estas mensagens no chat da empresa. Que trechos são sinais de alerta?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Olá, sou o Rui da informática.',
     'Estamos a migrar as contas de email hoje.',

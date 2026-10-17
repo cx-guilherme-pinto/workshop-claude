@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'pv-08',
   title: 'A foto do cartão de embarque',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'O código de barras de um cartão de embarque contém o nome e a referência da reserva.',
   prompt: 'Qual destas publicações ajuda mais um burlão?',

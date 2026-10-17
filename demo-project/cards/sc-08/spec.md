@@ -1,8 +1,8 @@
 # Cartão sc-08 — A conta root da cloud
 
-- **Categoria:** segredos-cloud
+- **Categoria:** cloud-secrets
 - **Dificuldade:** 1
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

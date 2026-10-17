@@ -1,8 +1,8 @@
 # Cartão es-01 — O pedido urgente do diretor
 
-- **Categoria:** engenharia-social
+- **Categoria:** social-engineering
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

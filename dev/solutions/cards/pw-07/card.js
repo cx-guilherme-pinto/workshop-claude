@@ -1,6 +1,6 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'pw-07',
   title: 'Como funciona o credential stuffing',
   category: 'passwords',

@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'rd-02',
   title: 'Por onde passa o teu tráfego',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'Cada ponto entre ti e o site pode ver para onde vais; o HTTPS esconde o conteúdo, não o destino.',
   prompt: 'Ordena o caminho de um pedido, do teu portátil até ao site.',

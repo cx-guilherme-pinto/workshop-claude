@@ -13,9 +13,9 @@ Each card is a folder `cards/<id>/` with three files:
 A single `export default` created with one of the 4 templates in `templates/`:
 
 ```js
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'pw-01',                 // same as the folder name
   title: 'Which password is strongest?',
   category: 'passwords',       // same as the spec
@@ -34,14 +34,14 @@ The final object meets `{ id, title, category, difficulty, template, render(cont
 
 | Template | Import | Its own fields | Answer format |
 |---|---|---|---|
-| `escolha` | `../../templates/escolha.js` | `options: [{id, text, detail?}]`, `answer: 'b'`, `scenario?` | option id, e.g. `'b'` |
-| `clicaErro` | `../../templates/clica-erro.js` | `segments: ['…', …]`, `answer: [2]`, `language?` | list of indexes, e.g. `[2]` |
-| `ordenar` | `../../templates/ordenar.js` | `items: [{id, text}]` (shuffled), `answer: ['x','y','z']` | list of ids in the right order |
-| `resposta` | `../../templates/resposta.js` | `accept: ['…']` **or** `check(normalizada, original)`, `placeholder?`, `scenario?` | text |
+| `choice` | `../../templates/choice.js` | `options: [{id, text, detail?}]`, `answer: 'b'`, `scenario?` | option id, e.g. `'b'` |
+| `spotTheFlaw` | `../../templates/spot-the-flaw.js` | `segments: ['…', …]`, `answer: [2]`, `language?` | list of indexes, e.g. `[2]` |
+| `order` | `../../templates/order.js` | `items: [{id, text}]` (shuffled), `answer: ['x','y','z']` | list of ids in the right order |
+| `answer` | `../../templates/answer.js` | `accept: ['…']` **or** `check(normalized, original)`, `placeholder?`, `scenario?` | text |
 
-`scenario` (optional) is `{ kind: 'email' | 'url' | 'texto' | 'conversa', label?: '…', lines: ['…'] }` and is always shown as text.
+`scenario` (optional) is `{ kind: 'email' | 'url' | 'text' | 'chat', label?: '…', lines: ['…'] }` and is always shown as text.
 
-For custom logic in `resposta`, use `check`. The answer arrives normalized (lowercase, no accents, no extra spaces), and `normalizar` is also exported by `templates/resposta.js`.
+For custom logic in `answer`, use `check`. The answer arrives normalized (lowercase, no accents, no extra spaces), and `normalize` is also exported by `templates/answer.js`.
 
 ## Rules (the tests check them)
 

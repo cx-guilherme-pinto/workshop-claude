@@ -1,8 +1,8 @@
 # Cartão es-06 — As fases de um ataque de engenharia social
 
-- **Categoria:** engenharia-social
+- **Categoria:** social-engineering
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

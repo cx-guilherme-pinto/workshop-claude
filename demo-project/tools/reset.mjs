@@ -1,69 +1,70 @@
 #!/usr/bin/env node
-// Volta a Arena ao estado inicial (usado pelo /demo-reset):
-//   1. arquiva .workshop/* (menos historico/) e plan.json/PLANO.md em .workshop/historico/<data>/;
-//   2. git reset --hard arena-inicial;
-//   3. git clean -fd (sem -x: o que esta no .gitignore, como .workshop/, fica).
+// Puts the Arena back in its initial state (used by /demo-reset):
+//   1. archives .workshop/* (except history/) and plan.json/PLAN.md in .workshop/history/<date>/;
+//   2. git reset --hard arena-start;
+//   3. git clean -fd (no -x: what is in .gitignore, such as .workshop/, stays).
 //
-//   node tools/reset.mjs           faz o reset
-//   node tools/reset.mjs --sim     so mostra o que faria
+//   node tools/reset.mjs              does the reset
+//   node tools/reset.mjs --dry-run    only shows what it would do (--sim still works)
 //
-// Recusa se nao estiver dentro de uma Arena montada pelo kit (.arena-kit.json na raiz).
+// Refuses to run outside an Arena assembled by the kit (.arena-kit.json at the root).
+// Arenas assembled by an older kit have the tag arena-inicial and the folder .workshop/historico/: both work.
 import { cpSync, existsSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { arenaTexts } from './engine.mjs';
 
-// Textos na lingua da Arena (tools/workshop/lingua.json). Fora de uma Arena montada (sem tools/workshop/)
-// fica em portugues, para a recusa abaixo aparecer na mesma.
-const { textos } = await import('./workshop/hooks/lib/lingua.mjs').catch(() => ({ textos: (d) => d.pt }));
-
-const T = textos({
+// Texts in the Arena's language. Outside an assembled Arena (no tools/workshop/) they stay in
+// Portuguese, so the refusal below still shows up.
+const T = await arenaTexts({
   pt: {
-    semArena: (root) => `Recusado: ${root} não é uma Arena montada pelo kit (falta .arena-kit.json). Não mexo em nada.`,
-    semGit: 'Recusado: esta pasta não é um repositório git.',
-    outroRepo: (topo, root) => `Recusado: o repositório git começa em ${topo}, não em ${root}.`,
-    semTag: (tag) => `Recusado: não existe a tag ${tag}. Monta a Arena outra vez com o instalador.`,
-    simulacao: 'Simulação: nada vai mudar.\n',
-    arquivo: (carimbo) => `Arquivo em .workshop/historico/${carimbo}/:`,
-    copia: '(cópia)',
-    nadaParaArquivar: 'Nada para arquivar em .workshop/.',
-    repunha: (n) => `repunha ${n} ficheiro(s) alterado(s)`,
-    nadaParaRepor: 'nada para repor',
-    falhou: (cmd, out) => `${cmd} falhou:\n${out}`,
-    apagou: (sim, n) => `${sim ? 'apagava' : 'apagou'} ${n} ficheiro(s) ou pasta(s) fora do git`,
-    nadaParaApagar: 'nada para apagar',
-    eMais: (n) => `… e mais ${n}`,
-    semSim: '\nCorre sem --sim para fazer o reset.',
-    feito: '\nArena de volta ao estado inicial. O histórico ficou em .workshop/historico/.',
+    noArena: (root) => `Recusado: ${root} não é uma Arena montada pelo kit (falta .arena-kit.json). Não mexo em nada.`,
+    noGit: 'Recusado: esta pasta não é um repositório git.',
+    otherRepo: (top, root) => `Recusado: o repositório git começa em ${top}, não em ${root}.`,
+    noTag: (tag) => `Recusado: não existe a tag ${tag}. Monta a Arena outra vez com o instalador.`,
+    dryRun: 'Simulação: nada vai mudar.\n',
+    archive: (stamp) => `Arquivo em .workshop/history/${stamp}/:`,
+    copy: '(cópia)',
+    nothingToArchive: 'Nada para arquivar em .workshop/.',
+    wouldRestore: (n) => `repunha ${n} ficheiro(s) alterado(s)`,
+    nothingToRestore: 'nada para repor',
+    failed: (cmd, out) => `${cmd} falhou:\n${out}`,
+    deleted: (dry, n) => `${dry ? 'apagava' : 'apagou'} ${n} ficheiro(s) ou pasta(s) fora do git`,
+    nothingToDelete: 'nada para apagar',
+    andMore: (n) => `… e mais ${n}`,
+    runWithout: '\nCorre sem --dry-run para fazer o reset.',
+    done: '\nArena de volta ao estado inicial. O histórico ficou em .workshop/history/.',
   },
   en: {
-    semArena: (root) => `Refused: ${root} is not an Arena assembled by the kit (no .arena-kit.json). Nothing was touched.`,
-    semGit: 'Refused: this folder is not a git repository.',
-    outroRepo: (topo, root) => `Refused: the git repository starts at ${topo}, not at ${root}.`,
-    semTag: (tag) => `Refused: the tag ${tag} does not exist. Assemble the Arena again with the installer.`,
-    simulacao: 'Dry run: nothing will change.\n',
-    arquivo: (carimbo) => `Archive in .workshop/historico/${carimbo}/:`,
-    copia: '(copy)',
-    nadaParaArquivar: 'Nothing to archive in .workshop/.',
-    repunha: (n) => `would restore ${n} changed file(s)`,
-    nadaParaRepor: 'nothing to restore',
-    falhou: (cmd, out) => `${cmd} failed:\n${out}`,
-    apagou: (sim, n) => `${sim ? 'would delete' : 'deleted'} ${n} file(s) or folder(s) outside git`,
-    nadaParaApagar: 'nothing to delete',
-    eMais: (n) => `… and ${n} more`,
-    semSim: '\nRun without --sim to do the reset.',
-    feito: '\nArena back to its initial state. The history is in .workshop/historico/.',
+    noArena: (root) => `Refused: ${root} is not an Arena assembled by the kit (no .arena-kit.json). Nothing was touched.`,
+    noGit: 'Refused: this folder is not a git repository.',
+    otherRepo: (top, root) => `Refused: the git repository starts at ${top}, not at ${root}.`,
+    noTag: (tag) => `Refused: the tag ${tag} does not exist. Assemble the Arena again with the installer.`,
+    dryRun: 'Dry run: nothing will change.\n',
+    archive: (stamp) => `Archive in .workshop/history/${stamp}/:`,
+    copy: '(copy)',
+    nothingToArchive: 'Nothing to archive in .workshop/.',
+    wouldRestore: (n) => `would restore ${n} changed file(s)`,
+    nothingToRestore: 'nothing to restore',
+    failed: (cmd, out) => `${cmd} failed:\n${out}`,
+    deleted: (dry, n) => `${dry ? 'would delete' : 'deleted'} ${n} file(s) or folder(s) outside git`,
+    nothingToDelete: 'nothing to delete',
+    andMore: (n) => `… and ${n} more`,
+    runWithout: '\nRun without --dry-run to do the reset.',
+    done: '\nArena back to its initial state. The history is in .workshop/history/.',
   },
 });
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SIM = process.argv.includes('--sim') || process.argv.includes('--dry-run');
+const DRY = process.argv.includes('--dry-run') || process.argv.includes('--sim');
 const WS = join(ROOT, '.workshop');
-const TAG = 'arena-inicial';
+const TAGS = ['arena-start', 'arena-inicial'];
+const HISTORY = ['history', 'historico'];
 
-function sair(msg, codigo = 1) {
+function exit(msg, code = 1) {
   console.error(msg);
-  process.exit(codigo);
+  process.exit(code);
 }
 
 function git(...args) {
@@ -71,63 +72,64 @@ function git(...args) {
   return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}`.trim() };
 }
 
-// ---------- verificacoes ----------
+// ---------- checks ----------
 
 if (!existsSync(join(ROOT, '.arena-kit.json'))) {
-  sair(T.semArena(ROOT));
+  exit(T.noArena(ROOT));
 }
-const topo = git('rev-parse', '--show-toplevel');
-if (!topo.ok) sair(T.semGit);
-// So o repositorio da propria Arena: nunca um repositorio de cima (por exemplo, o do kit).
-if (realpathSync(topo.out) !== realpathSync(ROOT)) sair(T.outroRepo(topo.out, ROOT));
-if (!git('rev-parse', '-q', '--verify', `refs/tags/${TAG}`).ok) sair(T.semTag(TAG));
+const top = git('rev-parse', '--show-toplevel');
+if (!top.ok) exit(T.noGit);
+// Only the Arena's own repository: never one above it (the kit's, for example).
+if (realpathSync(top.out) !== realpathSync(ROOT)) exit(T.otherRepo(top.out, ROOT));
+const TAG = TAGS.find((t) => git('rev-parse', '-q', '--verify', `refs/tags/${t}`).ok);
+if (!TAG) exit(T.noTag(TAGS[0]));
 
-// ---------- 1. arquivar ----------
+// ---------- 1. archive ----------
 
-const carimbo = new Date().toISOString().replace(/[:.]/g, '-');
-const destino = join(WS, 'historico', carimbo);
-const itens = existsSync(WS) ? readdirSync(WS).filter((n) => n !== 'historico') : [];
-const gerados = ['plan.json', 'PLANO.md'].filter((f) => existsSync(join(ROOT, f)));
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+const target = join(WS, 'history', stamp);
+const items = existsSync(WS) ? readdirSync(WS).filter((n) => !HISTORY.includes(n)) : [];
+const generated = ['plan.json', 'PLAN.md', 'PLANO.md'].filter((f) => existsSync(join(ROOT, f)));
 
-console.log(SIM ? T.simulacao : '');
-if (itens.length || gerados.length) {
-  console.log(T.arquivo(carimbo));
-  for (const n of itens) console.log(`  .workshop/${n}`);
-  for (const f of gerados) console.log(`  ${f} ${T.copia}`);
-  if (!SIM) {
-    mkdirSync(destino, { recursive: true });
-    for (const n of itens) {
+console.log(DRY ? T.dryRun : '');
+if (items.length || generated.length) {
+  console.log(T.archive(stamp));
+  for (const n of items) console.log(`  .workshop/${n}`);
+  for (const f of generated) console.log(`  ${f} ${T.copy}`);
+  if (!DRY) {
+    mkdirSync(target, { recursive: true });
+    for (const n of items) {
       try {
-        renameSync(join(WS, n), join(destino, n));
+        renameSync(join(WS, n), join(target, n));
       } catch {
-        cpSync(join(WS, n), join(destino, n), { recursive: true });
+        cpSync(join(WS, n), join(target, n), { recursive: true });
         rmSync(join(WS, n), { recursive: true, force: true });
       }
     }
-    for (const f of gerados) cpSync(join(ROOT, f), join(destino, f));
+    for (const f of generated) cpSync(join(ROOT, f), join(target, f));
   }
 } else {
-  console.log(T.nadaParaArquivar);
+  console.log(T.nothingToArchive);
 }
 
 // ---------- 2. git reset --hard ----------
 
-if (SIM) {
-  const mudados = git('status', '--porcelain', '--untracked-files=no');
-  console.log(`\ngit reset --hard ${TAG}: ${mudados.out ? T.repunha(mudados.out.split('\n').length) : T.nadaParaRepor}`);
+if (DRY) {
+  const changed = git('status', '--porcelain', '--untracked-files=no');
+  console.log(`\ngit reset --hard ${TAG}: ${changed.out ? T.wouldRestore(changed.out.split('\n').length) : T.nothingToRestore}`);
 } else {
   const r = git('reset', '--hard', TAG);
-  if (!r.ok) sair(T.falhou(`git reset --hard ${TAG}`, r.out));
+  if (!r.ok) exit(T.failed(`git reset --hard ${TAG}`, r.out));
   console.log(`\ngit reset --hard ${TAG}: ${r.out}`);
 }
 
-// ---------- 3. git clean -fd (sem -x) ----------
+// ---------- 3. git clean -fd (no -x) ----------
 
-const limpar = git('clean', SIM ? '-fdn' : '-fd');
-if (!limpar.ok) sair(T.falhou('git clean', limpar.out));
-const linhas = limpar.out ? limpar.out.split('\n') : [];
-console.log(`git clean -fd: ${linhas.length ? T.apagou(SIM, linhas.length) : T.nadaParaApagar}`);
-for (const l of linhas.slice(0, 40)) console.log(`  ${l.replace(/^Would remove |^Removing /, '')}`);
-if (linhas.length > 40) console.log(`  ${T.eMais(linhas.length - 40)}`);
+const clean = git('clean', DRY ? '-fdn' : '-fd');
+if (!clean.ok) exit(T.failed('git clean', clean.out));
+const lines = clean.out ? clean.out.split('\n') : [];
+console.log(`git clean -fd: ${lines.length ? T.deleted(DRY, lines.length) : T.nothingToDelete}`);
+for (const l of lines.slice(0, 40)) console.log(`  ${l.replace(/^Would remove |^Removing /, '')}`);
+if (lines.length > 40) console.log(`  ${T.andMore(lines.length - 40)}`);
 
-console.log(SIM ? T.semSim : T.feito);
+console.log(DRY ? T.runWithout : T.done);

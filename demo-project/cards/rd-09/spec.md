@@ -1,8 +1,8 @@
 # Cartão rd-09 — O router mal configurado
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 2
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Estas são as definições do router. Que linhas enfraquecem a rede?
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

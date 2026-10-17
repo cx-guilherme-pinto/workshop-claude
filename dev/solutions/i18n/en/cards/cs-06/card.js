@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'cs-06',
   title: 'Values kept apart from the SQL',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 2,
   concept: 'Parameterized queries send the SQL and the values separately, and the database never mixes them.',
   prompt: 'What is the technique called where you write the SQL with placeholders (like ?) and send the values separately?',

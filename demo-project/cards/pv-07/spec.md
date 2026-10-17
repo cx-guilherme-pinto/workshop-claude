@@ -1,8 +1,8 @@
 # Cartão pv-07 — Sem cookies e ainda te reconhecem
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

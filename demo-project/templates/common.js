@@ -1,17 +1,17 @@
-// Base partilhada pelos 4 modelos de cartao.
-// Regra de ouro: so textContent e atributos de uma lista permitida. Nunca HTML a partir de dados.
-// Os textos (botoes, rotulos, erros) vem de ../lib/textos.js, na lingua da Arena.
-import { T } from '../lib/textos.js';
+// Shared base of the 4 card templates.
+// Golden rule: only textContent and attributes from an allow list. Never HTML built from data.
+// The texts (buttons, labels, errors) come from ../lib/texts.js, in the Arena's language.
+import { T } from '../lib/texts.js';
 
-export const TEXTOS = T.cartao;
+export const TEXT = T.card;
 
-const ATRIBUTOS_PERMITIDOS = new Set([
+const ALLOWED_ATTRIBUTES = new Set([
   'class', 'id', 'role', 'type', 'name', 'value', 'tabindex', 'for', 'placeholder', 'title',
   'draggable', 'disabled', 'hidden', 'lang', 'autocomplete', 'spellcheck', 'maxlength', 'inputmode',
 ]);
 
-// h(doc, 'button', { class: 'x', on: { click: fn }, attrs: { 'aria-pressed': 'false' } }, 'texto', filho)
-export function h(doc, tag, props = {}, ...filhos) {
+// h(doc, 'button', { class: 'x', on: { click: fn }, attrs: { 'aria-pressed': 'false' } }, 'text', child)
+export function h(doc, tag, props = {}, ...children) {
   const el = doc.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (v === undefined || v === null || v === false) continue;
@@ -20,26 +20,26 @@ export function h(doc, tag, props = {}, ...filhos) {
     } else if (k === 'text') {
       el.textContent = String(v);
     } else if (k === 'attrs') {
-      for (const [a, av] of Object.entries(v)) definirAtributo(el, a, av);
+      for (const [a, av] of Object.entries(v)) setAttribute(el, a, av);
     } else {
-      definirAtributo(el, k, v === true ? '' : v);
+      setAttribute(el, k, v === true ? '' : v);
     }
   }
-  for (const f of filhos.flat()) {
-    if (f === undefined || f === null || f === false) continue;
-    el.appendChild(typeof f === 'string' || typeof f === 'number' ? doc.createTextNode(String(f)) : f);
+  for (const c of children.flat()) {
+    if (c === undefined || c === null || c === false) continue;
+    el.appendChild(typeof c === 'string' || typeof c === 'number' ? doc.createTextNode(String(c)) : c);
   }
   return el;
 }
 
-function definirAtributo(el, nome, valor) {
-  const ok = ATRIBUTOS_PERMITIDOS.has(nome) || /^aria-[a-z]+$/.test(nome) || /^data-[a-z][a-z0-9-]*$/.test(nome);
-  if (!ok) throw new Error(TEXTOS.atributoProibido(nome));
-  el.setAttribute(nome, String(valor));
+function setAttribute(el, name, value) {
+  const ok = ALLOWED_ATTRIBUTES.has(name) || /^aria-[a-z]+$/.test(name) || /^data-[a-z][a-z0-9-]*$/.test(name);
+  if (!ok) throw new Error(TEXT.attributeNotAllowed(name));
+  el.setAttribute(name, String(value));
 }
 
-// Normaliza respostas de texto: minusculas, sem acentos, sem espacos a mais nem pontuacao nas pontas.
-export function normalizar(s) {
+// Normalizes text answers: lowercase, no accents, no extra spaces and no punctuation at the ends.
+export function normalize(s) {
   return String(s ?? '')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -49,17 +49,17 @@ export function normalizar(s) {
     .replace(/^[\s"'.,;:!?()[\]{}]+|[\s"'.,;:!?()[\]{}]+$/g, '');
 }
 
-const CAMPOS_OBRIGATORIOS = ['id', 'title', 'category', 'difficulty', 'prompt', 'explanation'];
+const REQUIRED_FIELDS = ['id', 'title', 'category', 'difficulty', 'prompt', 'explanation'];
 
-export function verificarDefinicao(def, template, extra = []) {
-  for (const c of [...CAMPOS_OBRIGATORIOS, ...extra]) {
-    if (def[c] === undefined || def[c] === null || def[c] === '') throw new Error(TEXTOS.faltaCampo(def.id ?? '?', template, c));
+export function checkDefinition(def, template, extra = []) {
+  for (const f of [...REQUIRED_FIELDS, ...extra]) {
+    if (def[f] === undefined || def[f] === null || def[f] === '') throw new Error(TEXT.missingField(def.id ?? '?', template, f));
   }
-  if (!/^[a-z0-9-]+$/.test(def.id)) throw new Error(TEXTOS.idInvalido(def.id));
+  if (!/^[a-z0-9-]+$/.test(def.id)) throw new Error(TEXT.invalidId(def.id));
 }
 
-// Constroi o objeto do contrato (ver cards/CONTRACT.md).
-export function criarCartao(template, def, { render, validate }) {
+// Builds the contract object (see cards/CONTRACT.md).
+export function createCard(template, def, { render, validate }) {
   return Object.freeze({
     id: def.id,
     title: def.title,
@@ -79,28 +79,28 @@ export function criarCartao(template, def, { render, validate }) {
   });
 }
 
-// Cabecalho comum a todos os cartoes.
-export function cabecalho(doc, def) {
-  return h(doc, 'header', { class: 'cartao-cabecalho' },
-    h(doc, 'h2', { class: 'cartao-titulo', text: def.title }),
-    h(doc, 'p', { class: 'cartao-enunciado', text: def.prompt }),
+// Header shared by every card.
+export function cardHeader(doc, def) {
+  return h(doc, 'header', { class: 'card-header' },
+    h(doc, 'h2', { class: 'card-title', text: def.title }),
+    h(doc, 'p', { class: 'card-prompt', text: def.prompt }),
   );
 }
 
-// Cenario opcional: um email, um URL, um excerto de texto ou uma conversa, sempre como texto.
-export function cenario(doc, sc) {
+// Optional scenario: an email, a URL, a text excerpt or a chat, always as text.
+export function scenario(doc, sc) {
   if (!sc) return null;
-  const linhas = Array.isArray(sc.lines) ? sc.lines : [String(sc.text ?? '')];
-  return h(doc, 'figure', { class: `cenario cenario-${sc.kind || 'texto'}` },
-    sc.label ? h(doc, 'figcaption', { class: 'cenario-rotulo', text: sc.label }) : null,
-    h(doc, 'div', { class: 'cenario-corpo' }, ...linhas.map((l) => h(doc, 'p', { class: 'cenario-linha', text: l }))),
+  const lines = Array.isArray(sc.lines) ? sc.lines : [String(sc.text ?? '')];
+  return h(doc, 'figure', { class: `scenario scenario-${sc.kind || 'text'}` },
+    sc.label ? h(doc, 'figcaption', { class: 'scenario-label', text: sc.label }) : null,
+    h(doc, 'div', { class: 'scenario-body' }, ...lines.map((l) => h(doc, 'p', { class: 'scenario-line', text: l }))),
   );
 }
 
-export function botaoConfirmar(doc, aoConfirmar) {
-  return h(doc, 'button', { class: 'botao botao-principal', type: 'button', on: { click: aoConfirmar } }, TEXTOS.confirmar);
+export function confirmButton(doc, onConfirm) {
+  return h(doc, 'button', { class: 'button button-primary', type: 'button', on: { click: onConfirm } }, TEXT.confirm);
 }
 
-export function bloquear(container) {
+export function lock(container) {
   for (const b of container.querySelectorAll('button, input')) b.disabled = true;
 }

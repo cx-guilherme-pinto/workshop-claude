@@ -1,8 +1,8 @@
 # Cartão pv-01 — A calculadora curiosa
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

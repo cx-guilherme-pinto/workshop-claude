@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'ph-03',
   title: 'O anexo disfarçado',
   category: 'phishing',
   difficulty: 1,
   concept: 'Uma extensão dupla esconde um programa atrás de um nome que parece um documento.',
   prompt: 'Estes anexos chegaram de um fornecedor. Qual é um programa disfarçado?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'relatorio_marco.pdf',
     'fatura_0423.pdf.exe',

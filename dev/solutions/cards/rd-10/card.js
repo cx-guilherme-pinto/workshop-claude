@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'rd-10',
   title: 'Aviso de certificado',
-  category: 'redes',
+  category: 'networks',
   difficulty: 1,
   concept: 'Um aviso de certificado pode ser sinal de que alguém está a intercetar a ligação.',
   prompt: "No Wi-Fi do hotel, o browser avisa 'A ligação não é privada' ao abrir loja.example. O que fazes?",

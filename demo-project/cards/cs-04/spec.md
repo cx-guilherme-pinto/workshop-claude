@@ -1,8 +1,8 @@
 # Cartão cs-04 — A calculadora com eval
 
-- **Categoria:** codigo-seguro
+- **Categoria:** secure-code
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

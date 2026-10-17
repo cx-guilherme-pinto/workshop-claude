@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'ph-09',
   title: 'Phishing por SMS',
   category: 'phishing',
   difficulty: 1,
   concept: 'Smishing: o mesmo truque do phishing, mas por SMS, onde é mais difícil ver o link.',
   prompt: 'Este SMS chegou ao teu telemóvel. Que trechos são sinais de smishing?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Correios Rápidos:',
     'A encomenda CR-4471 não foi entregue.',

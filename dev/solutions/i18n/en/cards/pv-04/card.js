@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'pv-04',
   title: 'Taking your data with you',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'The GDPR gives you the right to receive your data in a format another service can read.',
   prompt: 'Which GDPR right lets you take your data to another service, in a machine-readable format?',

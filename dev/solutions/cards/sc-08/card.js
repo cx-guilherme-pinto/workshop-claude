@@ -1,9 +1,9 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'sc-08',
   title: 'A conta root da cloud',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 1,
   concept: 'A conta principal da cloud controla tudo e precisa da proteção mais forte.',
   prompt: 'A conta root da cloud da Empresa Atlas só tem password. Que proteção deves ativar já?',

@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'es-01',
   title: 'O pedido urgente do diretor',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 1,
   concept: 'Fraude do CEO: alguém finge ser um chefe para pedir uma transferência urgente e secreta.',
   prompt: 'Este email chegou à contabilidade da Empresa Atlas. O que fazes?',

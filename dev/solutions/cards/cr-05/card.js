@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'cr-05',
   title: 'Hash ou cifra?',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 1,
   concept: 'Uma cifra reverte-se com a chave; um hash é de sentido único.',
   prompt: 'Qual é a diferença entre cifrar e calcular um hash?',

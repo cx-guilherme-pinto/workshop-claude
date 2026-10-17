@@ -1,6 +1,6 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'mb-03',
   title: 'A app de limpeza quer acessibilidade',
   category: 'mobile',

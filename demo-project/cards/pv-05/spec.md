@@ -1,8 +1,8 @@
 # Cartão pv-05 — Dados a mais na newsletter
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 1
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Este formulário serve só para receber a newsletter. Que campos pedem dados a m
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

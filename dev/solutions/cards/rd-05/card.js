@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'rd-05',
   title: 'O que uma VPN não faz',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'Uma VPN cifra o caminho até ao servidor da VPN; não trava phishing nem malware.',
   prompt: 'Ligaste uma VPN. De que é que ela te protege mesmo?',

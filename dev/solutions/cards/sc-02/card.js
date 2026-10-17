@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'sc-02',
   title: 'Apaguei a chave no commit seguinte',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 2,
   concept: 'O que entra no git fica no histórico; uma chave exposta tem de ser revogada.',
   prompt: 'Fizeste commit de uma chave de API e apagaste-a no commit seguinte. Está resolvido?',

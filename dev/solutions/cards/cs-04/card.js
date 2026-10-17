@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'cs-04',
   title: 'A calculadora com eval',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 1,
   concept: 'eval() executa como código qualquer texto que receber.',
   prompt: 'Uma calculadora web faz eval(entrada) com o que o utilizador escreve. Porque é perigoso?',

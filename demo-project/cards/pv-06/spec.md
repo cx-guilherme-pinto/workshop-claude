@@ -1,8 +1,8 @@
 # Cartão pv-06 — Pedir os teus dados a uma empresa
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 2
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

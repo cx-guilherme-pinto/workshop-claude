@@ -2,7 +2,7 @@
 
 - **Categoria:** phishing
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 
@@ -16,7 +16,7 @@ Num email, o link mostra um endereço, mas ao passar o rato o browser mostra out
 
 ```json
 {
-  "kind": "texto",
+  "kind": "text",
   "label": "Link no email",
   "lines": [
     "Texto do link: https://bancoluz.example/extrato",

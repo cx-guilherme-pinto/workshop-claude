@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'pv-10',
   title: 'Quem vê a tua publicação?',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 1,
   concept: 'Cada nível de partilha alarga quem vê o que publicas; o mais restrito é o mais privado.',
   prompt: 'Ordena as opções de partilha, da mais privada à mais pública.',

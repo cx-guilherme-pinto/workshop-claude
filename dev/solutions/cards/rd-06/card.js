@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'rd-06',
   title: 'Portas a mais na firewall',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'Um servidor web só deve expor à internet as portas de que precisa.',
   prompt: 'Estas são as regras da firewall de um servidor web público. Que regras expõem demasiado?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'allow tcp 443 from any',
     'allow tcp 80 from any (redireciona para 443)',

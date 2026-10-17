@@ -1,8 +1,8 @@
 # Cartão cs-08 — Tentativas sem limite
 
-- **Categoria:** codigo-seguro
+- **Categoria:** secure-code
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

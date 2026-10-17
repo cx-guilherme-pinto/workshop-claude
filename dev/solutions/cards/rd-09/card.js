@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'rd-09',
   title: 'O router mal configurado',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'WEP e WPS são pontos fracos conhecidos no Wi-Fi de casa.',
   prompt: 'Estas são as definições do router. Que linhas enfraquecem a rede?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Nome da rede: CasaSilva',
     'Segurança: WEP',

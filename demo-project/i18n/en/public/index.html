@@ -12,29 +12,29 @@
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <a class="saltar" href="#conteudo">Skip to content</a>
-  <header class="barra">
-    <a class="marca" href="#/">Security Arena</a>
-    <nav class="navegacao" aria-label="Main">
-      <a href="#/" data-nav="inicio">Challenges</a>
-      <a href="#/pontuacao" data-nav="pontuacao">Score</a>
-      <a href="/estado">Swarm status</a>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="top-bar">
+    <a class="brand" href="#/">Security Arena</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="home">Challenges</a>
+      <a href="#/score" data-nav="score">Score</a>
+      <a href="/status">Swarm status</a>
     </nav>
   </header>
-  <main id="conteudo" tabindex="-1">
+  <main id="content" tabindex="-1">
     <noscript>
-      <section class="aviso">
-        <h1 class="titulo-secao">The Arena needs JavaScript</h1>
+      <section class="notice">
+        <h1 class="section-title">The Arena needs JavaScript</h1>
         <p>The challenges are ES modules loaded by this page. Turn on JavaScript and reload.</p>
       </section>
     </noscript>
   </main>
-  <footer class="rodape">
+  <footer class="footer">
     <div>
-      <p class="rodape-marca">Security Arena</p>
-      <p class="rodape-texto">Demo project of the Claude Code workshop. Each card is a module with tests, written by an agent.</p>
+      <p class="footer-brand">Security Arena</p>
+      <p class="footer-text">Demo project of the Claude Code workshop. Each card is a module with tests, written by an agent.</p>
     </div>
-    <button class="botao botao-pequeno" type="button" id="apagar-progresso">Delete my progress</button>
+    <button class="button button-small" type="button" id="delete-progress">Delete my progress</button>
   </footer>
 </body>
 </html>

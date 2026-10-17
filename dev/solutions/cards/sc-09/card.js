@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'sc-09',
   title: 'O segredo na imagem',
-  category: 'segredos-cloud',
+  category: 'cloud-secrets',
   difficulty: 2,
   concept: 'Um segredo escrito no Dockerfile fica gravado na imagem, ao alcance de quem a descarregar.',
   prompt: 'Esta imagem vai para um registo partilhado. Que linha deixa lá um segredo?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'FROM node:22-alpine',
     'WORKDIR /app',

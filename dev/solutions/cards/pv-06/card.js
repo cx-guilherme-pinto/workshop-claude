@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'pv-06',
   title: 'Pedir os teus dados a uma empresa',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 2,
   concept: 'O direito de acesso deixa-te saber que dados uma empresa tem sobre ti.',
   prompt: 'Queres saber que dados a TelcoNet guarda sobre ti. Ordena os passos.',

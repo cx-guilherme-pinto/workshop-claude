@@ -1,6 +1,6 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'web-03',
   title: 'O formulário escondido',
   category: 'web',

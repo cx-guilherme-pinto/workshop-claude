@@ -13,9 +13,9 @@ Cada cartão é uma pasta `cards/<id>/` com três ficheiros:
 Um único `export default` criado com um dos 4 modelos de `templates/`:
 
 ```js
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'pw-01',                 // igual ao nome da pasta
   title: 'Qual é a password mais forte?',
   category: 'passwords',       // igual à spec
@@ -34,14 +34,14 @@ O objeto final cumpre `{ id, title, category, difficulty, template, render(conta
 
 | Modelo | Import | Campos próprios | Formato da resposta |
 |---|---|---|---|
-| `escolha` | `../../templates/escolha.js` | `options: [{id, text, detail?}]`, `answer: 'b'`, `scenario?` | id da opção, ex.: `'b'` |
-| `clicaErro` | `../../templates/clica-erro.js` | `segments: ['…', …]`, `answer: [2]`, `language?` | lista de índices, ex.: `[2]` |
-| `ordenar` | `../../templates/ordenar.js` | `items: [{id, text}]` (baralhados), `answer: ['x','y','z']` | lista de ids pela ordem certa |
-| `resposta` | `../../templates/resposta.js` | `accept: ['…']` **ou** `check(normalizada, original)`, `placeholder?`, `scenario?` | texto |
+| `choice` | `../../templates/choice.js` | `options: [{id, text, detail?}]`, `answer: 'b'`, `scenario?` | id da opção, ex.: `'b'` |
+| `spotTheFlaw` | `../../templates/spot-the-flaw.js` | `segments: ['…', …]`, `answer: [2]`, `language?` | lista de índices, ex.: `[2]` |
+| `order` | `../../templates/order.js` | `items: [{id, text}]` (baralhados), `answer: ['x','y','z']` | lista de ids pela ordem certa |
+| `answer` | `../../templates/answer.js` | `accept: ['…']` **ou** `check(normalized, original)`, `placeholder?`, `scenario?` | texto |
 
-`scenario` (opcional) é `{ kind: 'email' | 'url' | 'texto' | 'conversa', label?: '…', lines: ['…'] }` e aparece sempre como texto.
+`scenario` (opcional) é `{ kind: 'email' | 'url' | 'text' | 'chat', label?: '…', lines: ['…'] }` e aparece sempre como texto.
 
-Para lógica própria em `resposta`, usa `check`. A resposta chega normalizada (minúsculas, sem acentos, sem espaços a mais), e `normalizar` também é exportado por `templates/resposta.js`.
+Para lógica própria em `answer`, usa `check`. A resposta chega normalizada (minúsculas, sem acentos, sem espaços a mais), e `normalize` também é exportado por `templates/answer.js`.
 
 ## Regras (os testes verificam-nas)
 

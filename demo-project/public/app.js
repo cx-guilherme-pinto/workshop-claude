@@ -1,112 +1,114 @@
-// Galeria da Arena de Seguranca: inicio, categoria, cartao, pontuacao e "Correr testes".
-// Rotas por hash: #/  #/categoria/<id>  #/cartao/<id>  #/pontuacao
-// As paginas de categoria e de pontuacao (pages/*.js) sao feitas pelo enxame na onda 2:
-// importam-se dinamicamente e, enquanto nao existem, aparece um aviso.
-import { el, reanimar, ID_VALIDO } from './dom.js';
-import { NOME_MODELO_CARTAO, decimal } from './formatos.js';
-import { lerProgresso, apagarProgresso, pontosDe } from './progresso.js';
-import { carregarCartao, montarJogo } from './jogo.js';
-import { T } from '/lib/textos.js';
+// The Security Arena gallery: home, category, card, score and "Run tests".
+// Hash routes: #/  #/category/<id>  #/card/<id>  #/score  (the older #/categoria, #/cartao and #/pontuacao still work)
+// The category and score pages (pages/*.js) are built by the swarm in wave 2:
+// they are imported dynamically and, until they exist, a notice shows up.
+import { el, replay, VALID_ID } from './dom.js';
+import { TEMPLATE_NAME, decimal } from './formats.js';
+import { readProgress, deleteProgress, pointsFor } from './progress.js';
+import { loadCard, mountGame } from './play.js';
+import { T } from '/lib/texts.js';
 
 const A = T.app;
-const TITULO = T.nome;
-const main = document.getElementById('conteudo');
+const TITLE = T.name;
+const main = document.getElementById('content');
 
-const estado = {
-  dados: { modo: null, categorias: [], cartoes: [], paginas: {}, assinatura: null },
-  carregado: false,
-  erro: null,
-  rota: null,
-  passo: 0, // muda a cada desenho, para ignorar respostas antigas de import()
-  vista: 'progresso', // cor dos cartoes no inicio: 'progresso' ou 'testes'
-  testes: new Map(), // id -> { estado, passados, total, falhas, ms }
-  aCorrer: false,
-  resumo: null, // ultimo resumo dos testes
-  assinaturaTestada: null,
-  execucao: 0,
-  tiles: new Map(), // id -> <li> no inicio
+const state = {
+  data: { mode: null, categories: [], cards: [], pages: {}, signature: null },
+  loaded: false,
+  error: null,
+  route: null,
+  step: 0, // changes on every draw, to ignore old import() answers
+  view: 'progress', // color of the cards on the home page: 'progress' or 'tests'
+  tests: new Map(), // id -> { status, passed, total, failures, ms }
+  running: false,
+  summary: null, // last summary of the tests
+  testedSignature: null,
+  run: 0,
+  tiles: new Map(), // id -> <li> on the home page
 };
 
-// ---------- dados ----------
+// ---------- data ----------
 
-async function obterCartoes() {
+async function fetchCards() {
   const r = await fetch('/api/cards', { cache: 'no-store' });
-  if (!r.ok) throw new Error(A.apiFalhou(r.status));
+  if (!r.ok) throw new Error(A.apiFailed(r.status));
   const d = await r.json();
   return {
-    modo: d.modo ?? null,
-    categorias: Array.isArray(d.categorias) ? d.categorias : [],
-    cartoes: Array.isArray(d.cartoes) ? d.cartoes.filter((c) => ID_VALIDO.test(String(c.id))) : [],
-    paginas: d.paginas || {},
-    assinatura: d.assinatura ?? null,
+    mode: d.mode ?? null,
+    categories: Array.isArray(d.categories) ? d.categories : [],
+    cards: Array.isArray(d.cards) ? d.cards.filter((c) => VALID_ID.test(String(c.id))) : [],
+    pages: d.pages || {},
+    signature: d.signature ?? null,
   };
 }
 
-// Com plano, mostra os cartoes do plano; sem plano, os do modo participante. Os que existem aparecem sempre.
-function visiveis() {
-  const { modo, cartoes } = estado.dados;
-  return cartoes.filter((c) => c.existe || (modo ? c.no_plano : c.modo === 'participante'));
+// With a plan, it shows the cards of the plan; with no plan, the participant mode ones. The ones that exist always show up.
+function visible() {
+  const { mode, cards } = state.data;
+  return cards.filter((c) => c.exists || (mode ? c.in_plan : c.mode === 'participant'));
 }
 
-function agrupar(lista) {
-  const cats = estado.dados.categorias.map((c) => ({ id: c.id, nome: c.nome, cartoes: lista.filter((x) => x.category === c.id) }));
-  const conhecidas = new Set(cats.map((c) => c.id));
-  const outros = lista.filter((x) => !conhecidas.has(x.category));
-  if (outros.length) cats.push({ id: 'outros', nome: A.outros, cartoes: outros, extra: true });
-  return cats.filter((c) => c.cartoes.length);
+function group(list) {
+  const cats = state.data.categories.map((c) => ({ id: c.id, name: c.name, cards: list.filter((x) => x.category === c.id) }));
+  const known = new Set(cats.map((c) => c.id));
+  const other = list.filter((x) => !known.has(x.category));
+  if (other.length) cats.push({ id: 'other', name: A.other, cards: other, extra: true });
+  return cats.filter((c) => c.cards.length);
 }
 
-function estadoProgresso(c, progresso) {
-  if (!c.existe) return 'por_construir';
-  const p = progresso[c.id];
-  if (!p) return 'por_jogar';
-  return p.certo ? 'certo' : 'errado';
+function progressStatus(c, progress) {
+  if (!c.exists) return 'not_built';
+  const p = progress[c.id];
+  if (!p) return 'not_played';
+  return p.correct ? 'solved' : 'wrong';
 }
 
-const TEXTO_ESTADO = A.estadoCartao;
+const STATUS_TEXT = A.cardStatus;
 
-// ---------- rotas ----------
+// ---------- routes ----------
 
-function rotaAtual() {
+const ROUTE_ALIASES = { categoria: 'category', cartao: 'card', pontuacao: 'score' };
+
+function currentRoute() {
   const h = location.hash;
-  if (!h.startsWith('#/')) return { nome: 'inicio' };
-  const partes = h.slice(2).split('/').filter(Boolean);
-  if (!partes.length) return { nome: 'inicio' };
-  if (partes.length === 1 && partes[0] === 'pontuacao') return { nome: 'pontuacao' };
-  if (partes.length === 2 && partes[0] === 'categoria' && ID_VALIDO.test(partes[1])) return { nome: 'categoria', id: partes[1] };
-  if (partes.length === 2 && partes[0] === 'cartao' && ID_VALIDO.test(partes[1])) return { nome: 'cartao', id: partes[1] };
-  return { nome: 'nao_encontrado' };
+  if (!h.startsWith('#/')) return { name: 'home' };
+  const parts = h.slice(2).split('/').filter(Boolean).map((p, i) => (i === 0 ? ROUTE_ALIASES[p] ?? p : p));
+  if (!parts.length) return { name: 'home' };
+  if (parts.length === 1 && parts[0] === 'score') return { name: 'score' };
+  if (parts.length === 2 && parts[0] === 'category' && VALID_ID.test(parts[1])) return { name: 'category', id: parts[1] };
+  if (parts.length === 2 && parts[0] === 'card' && VALID_ID.test(parts[1])) return { name: 'card', id: parts[1] };
+  return { name: 'not_found' };
 }
 
-function marcarNavegacao(rota) {
-  const atual = rota.nome === 'pontuacao' ? 'pontuacao' : 'inicio';
+function markNav(route) {
+  const current = route.name === 'score' ? 'score' : 'home';
   for (const a of document.querySelectorAll('[data-nav]')) {
-    if (a.dataset.nav === atual) a.setAttribute('aria-current', 'page');
+    if (a.dataset.nav === current) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
 }
 
-function titulo(t) {
-  document.title = t ? `${t} · ${TITULO}` : TITULO;
+function title(t) {
+  document.title = t ? `${t} · ${TITLE}` : TITLE;
 }
 
-async function desenhar({ aoVivo = false } = {}) {
-  const rota = rotaAtual();
-  const mudouRota = !aoVivo;
-  estado.rota = rota;
-  const passo = ++estado.passo;
-  marcarNavegacao(rota);
-  if (!estado.carregado) {
-    main.replaceChildren(vistaSemServidor());
+async function draw({ live = false } = {}) {
+  const route = currentRoute();
+  const routeChanged = !live;
+  state.route = route;
+  const step = ++state.step;
+  markNav(route);
+  if (!state.loaded) {
+    main.replaceChildren(noServerView());
     return;
   }
   const y = window.scrollY;
-  if (rota.nome === 'inicio') vistaInicio();
-  else if (rota.nome === 'categoria') await vistaCategoria(rota.id, passo);
-  else if (rota.nome === 'cartao') await vistaCartao(rota.id, passo);
-  else if (rota.nome === 'pontuacao') await vistaPontuacao(passo);
-  else vistaNaoEncontrado();
-  if (mudouRota) {
+  if (route.name === 'home') homeView();
+  else if (route.name === 'category') await categoryView(route.id, step);
+  else if (route.name === 'card') await cardView(route.id, step);
+  else if (route.name === 'score') await scoreView(step);
+  else notFoundView();
+  if (routeChanged) {
     window.scrollTo(0, 0);
     main.focus({ preventScroll: true });
   } else {
@@ -114,508 +116,508 @@ async function desenhar({ aoVivo = false } = {}) {
   }
 }
 
-const desatualizado = (passo) => passo !== estado.passo;
+const outdated = (step) => step !== state.step;
 
-// ---------- inicio ----------
+// ---------- home ----------
 
-function itemPlacar(rotulo, valor) {
-  return el('div', { class: 'placar-item' }, el('dt', { text: rotulo }), el('dd', { class: 'numero', text: String(valor) }));
+function scoreboardItem(label, value) {
+  return el('div', { class: 'scoreboard-item' }, el('dt', { text: label }), el('dd', { class: 'number', text: String(value) }));
 }
 
-function vistaInicio() {
-  titulo(null);
-  const lista = visiveis();
-  const progresso = lerProgresso();
-  const construidos = lista.filter((c) => c.existe);
-  const resolvidos = construidos.filter((c) => progresso[c.id]?.certo);
-  const pontos = resolvidos.reduce((s, c) => s + pontosDe(c.difficulty), 0);
-  estado.tiles.clear();
+function homeView() {
+  title(null);
+  const list = visible();
+  const progress = readProgress();
+  const built = list.filter((c) => c.exists);
+  const solved = built.filter((c) => progress[c.id]?.correct);
+  const points = solved.reduce((s, c) => s + pointsFor(c.difficulty), 0);
+  state.tiles.clear();
 
-  const abertura = el('section', { class: 'abertura' },
-    el('h1', { class: 'abertura-titulo', text: TITULO }),
-    el('p', { class: 'abertura-texto', text: A.abertura }),
-    el('dl', { class: 'placar' },
-      itemPlacar(A.pontos, pontos),
-      itemPlacar(A.resolvidos, A.xDeY(resolvidos.length, construidos.length)),
-      itemPlacar(A.construidos, A.xDeY(construidos.length, lista.length)),
+  const intro = el('section', { class: 'intro' },
+    el('h1', { class: 'intro-title', text: TITLE }),
+    el('p', { class: 'intro-text', text: A.intro }),
+    el('dl', { class: 'scoreboard' },
+      scoreboardItem(A.points, points),
+      scoreboardItem(A.solved, A.xOfY(solved.length, built.length)),
+      scoreboardItem(A.built, A.xOfY(built.length, list.length)),
     ),
-    el('div', { class: 'abertura-acoes' },
-      el('button', { class: 'botao botao-principal', type: 'button', id: 'correr-testes', on: { click: () => correrTestes() } }, estado.aCorrer ? textoBotaoACorrer() : A.correrTestes),
-      el('a', { class: 'botao', href: '#/pontuacao' }, A.verPontuacao),
+    el('div', { class: 'intro-actions' },
+      el('button', { class: 'button button-primary', type: 'button', id: 'run-tests', on: { click: () => runTests() } }, state.running ? runningButtonText() : A.runTests),
+      el('a', { class: 'button', href: '#/score' }, A.seeScore),
     ),
-    el('div', { class: 'testes-zona', id: 'testes-zona', attrs: { 'aria-live': 'polite' } }, faixaTestes()),
+    el('div', { class: 'tests-area', id: 'tests-area', attrs: { 'aria-live': 'polite' } }, testsBand()),
   );
-  if (estado.aCorrer) abertura.querySelector('#correr-testes').disabled = true;
+  if (state.running) intro.querySelector('#run-tests').disabled = true;
 
-  const grupos = agrupar(lista);
-  const blocos = grupos.map((cat) => {
-    const feitos = cat.cartoes.filter((c) => c.existe).length;
-    const ok = cat.cartoes.filter((c) => progresso[c.id]?.certo).length;
-    return el('section', { class: 'categoria-bloco', attrs: { 'aria-labelledby': `cat-${cat.id}` } },
-      el('header', { class: 'categoria-bloco-cabecalho' },
-        el('h2', { class: 'titulo-secao', id: `cat-${cat.id}`, text: cat.nome }),
-        el('p', { class: 'nota', text: A.notaCategoria(feitos, cat.cartoes.length, ok) }),
-        cat.extra ? null : el('a', { class: 'ligacao', href: `#/categoria/${cat.id}` }, A.abrirCategoria),
+  const groups = group(list);
+  const blocks = groups.map((cat) => {
+    const done = cat.cards.filter((c) => c.exists).length;
+    const ok = cat.cards.filter((c) => progress[c.id]?.correct).length;
+    return el('section', { class: 'category-block', attrs: { 'aria-labelledby': `cat-${cat.id}` } },
+      el('header', { class: 'category-block-header' },
+        el('h2', { class: 'section-title', id: `cat-${cat.id}`, text: cat.name }),
+        el('p', { class: 'note', text: A.categoryNote(done, cat.cards.length, ok) }),
+        cat.extra ? null : el('a', { class: 'link', href: `#/category/${cat.id}` }, A.openCategory),
       ),
-      el('ul', { class: 'tiles', role: 'list' }, ...cat.cartoes.map((c) => tile(c, progresso))),
+      el('ul', { class: 'tiles', role: 'list' }, ...cat.cards.map((c) => tile(c, progress))),
     );
   });
 
-  const corpo = grupos.length
-    ? el('div', { class: 'galeria', 'data-vista': estado.vista }, ...blocos)
-    : el('section', { class: 'vazio' },
-      el('h2', { class: 'titulo-secao', text: A.semCartoes }),
-      el('p', { text: A.semCartoesTexto }));
+  const body = groups.length
+    ? el('div', { class: 'gallery', 'data-view': state.view }, ...blocks)
+    : el('section', { class: 'empty' },
+      el('h2', { class: 'section-title', text: A.noCards }),
+      el('p', { text: A.noCardsText }));
 
-  main.replaceChildren(abertura, corpo);
+  main.replaceChildren(intro, body);
 }
 
-function textoTile(c, est, teste) {
-  if (estado.vista === 'testes' && teste) {
-    if (teste.estado === 'a_correr') return A.aCorrerTestes;
-    if (teste.estado === 'na_fila') return A.naFila;
-    return A.testesPassam(teste.passados, teste.total);
+function tileText(c, st, test) {
+  if (state.view === 'tests' && test) {
+    if (test.status === 'running') return A.runningTests;
+    if (test.status === 'queued') return A.queued;
+    return A.testsPass(test.passed, test.total);
   }
-  return TEXTO_ESTADO[est];
+  return STATUS_TEXT[st];
 }
 
-function textoFalha(id, teste) {
-  const f = estado.vista === 'testes' ? teste?.falhas?.[0] : null;
+function failureText(id, test) {
+  const f = state.view === 'tests' ? test?.failures?.[0] : null;
   if (!f) return '';
-  return semCartao(f) ? A.semCardJs : resumirFalha(f, id);
+  return missingCard(id) ? A.noCardJs : shortFailure(f, id);
 }
 
-function tile(c, progresso) {
-  const est = estadoProgresso(c, progresso);
-  const meta = [c.difficulty ? A.nivel(c.difficulty) : null, NOME_MODELO_CARTAO[c.model] ?? null].filter(Boolean).join(' · ');
-  const teste = estado.testes.get(c.id);
-  const li = el('li', { class: 'tile-item', 'data-cartao': c.id, 'data-estado': est, 'data-teste': teste?.estado });
-  const partes = [
-    el('span', { class: 'tile-titulo', text: c.title }),
+function tile(c, progress) {
+  const st = progressStatus(c, progress);
+  const meta = [c.difficulty ? A.level(c.difficulty) : null, TEMPLATE_NAME[c.template] ?? null].filter(Boolean).join(' · ');
+  const test = state.tests.get(c.id);
+  const li = el('li', { class: 'tile-item', 'data-card': c.id, 'data-status': st, 'data-test': test?.status });
+  const parts = [
+    el('span', { class: 'tile-title', text: c.title }),
     el('span', { class: 'tile-meta', text: meta || c.id }),
-    el('span', { class: 'tile-estado', text: textoTile(c, est, teste) }),
-    el('span', { class: 'tile-falha', text: textoFalha(c.id, teste) }),
+    el('span', { class: 'tile-status', text: tileText(c, st, test) }),
+    el('span', { class: 'tile-failure', text: failureText(c.id, test) }),
   ];
-  li.append(c.existe ? el('a', { class: 'tile', href: `#/cartao/${c.id}` }, ...partes) : el('div', { class: 'tile' }, ...partes));
-  estado.tiles.set(c.id, { li, cartao: c, est });
+  li.append(c.exists ? el('a', { class: 'tile', href: `#/card/${c.id}` }, ...parts) : el('div', { class: 'tile' }, ...parts));
+  state.tiles.set(c.id, { li, card: c, st });
   return li;
 }
 
-function pintarTile(id) {
-  const t = estado.tiles.get(id);
+function paintTile(id) {
+  const t = state.tiles.get(id);
   if (!t || !t.li.isConnected) return;
-  const teste = estado.testes.get(id);
-  const antes = t.li.dataset.teste;
-  if (teste) t.li.dataset.teste = teste.estado;
-  else delete t.li.dataset.teste;
-  if (estado.vista === 'testes' && antes !== t.li.dataset.teste) reanimar(t.li.querySelector('.tile'), 'mudou');
-  t.li.querySelector('.tile-estado').textContent = textoTile(t.cartao, t.est, teste);
-  t.li.querySelector('.tile-falha').textContent = textoFalha(id, teste);
+  const test = state.tests.get(id);
+  const before = t.li.dataset.test;
+  if (test) t.li.dataset.test = test.status;
+  else delete t.li.dataset.test;
+  if (state.view === 'tests' && before !== t.li.dataset.test) replay(t.li.querySelector('.tile'), 'changed');
+  t.li.querySelector('.tile-status').textContent = tileText(t.card, t.st, test);
+  t.li.querySelector('.tile-failure').textContent = failureText(id, test);
 }
 
-function mudarVista(v) {
-  if (estado.vista === v) return;
-  estado.vista = v;
-  const g = main.querySelector('.galeria');
-  if (g) g.dataset.vista = v;
-  for (const id of estado.tiles.keys()) pintarTile(id);
-  const zona = document.getElementById('testes-zona');
-  if (zona) zona.replaceChildren(faixaTestes());
+function setView(v) {
+  if (state.view === v) return;
+  state.view = v;
+  const g = main.querySelector('.gallery');
+  if (g) g.dataset.view = v;
+  for (const id of state.tiles.keys()) paintTile(id);
+  const area = document.getElementById('tests-area');
+  if (area) area.replaceChildren(testsBand());
 }
 
-// ---------- correr testes no browser ----------
+// ---------- running the tests in the browser ----------
 
-// "pw-01: card.js existe e carrega: cards/pw-01/card.js nao existe..." fica "card.js existe e carrega: ...".
-// (Na Arena em ingles: "pw-01: card.js exists and loads: cards/pw-01/card.js does not exist...".)
-function resumirFalha(f, id) {
-  const nome = id && String(f.nome).startsWith(`${id}: `) ? String(f.nome).slice(id.length + 2) : String(f.nome);
-  const msg = String(f.erro || '').replace(/\s+/g, ' ').trim();
-  const curta = msg.length > 140 ? `${msg.slice(0, 139)}…` : msg;
-  return curta ? `${nome}: ${curta}` : nome;
+// "pw-01: card.js exists and loads: cards/pw-01/card.js does not exist..." becomes "card.js exists and loads: ...".
+function shortFailure(f, id) {
+  const name = id && String(f.name).startsWith(`${id}: `) ? String(f.name).slice(id.length + 2) : String(f.name);
+  const msg = String(f.error || '').replace(/\s+/g, ' ').trim();
+  const short = msg.length > 140 ? `${msg.slice(0, 139)}…` : msg;
+  return short ? `${name}: ${short}` : name;
 }
 
-const semCartao = (f) => /existe e carrega|exists and loads/.test(f.nome) && /nao existe|does not exist|Failed to fetch|Cannot find/.test(f.erro || '');
+// A card whose test failed because its card.js does not exist yet (the server says so in /api/cards).
+const missingCard = (id) => !state.data.cards.find((c) => c.id === id)?.exists;
 
-function listaFalhas(falhados) {
-  const faltam = falhados.filter((x) => x.falhas[0] && semCartao(x.falhas[0])).map((x) => x.id);
-  const outros = falhados.filter((x) => !faltam.includes(x.id));
-  const linhas = [];
-  if (faltam.length) {
-    const ids = faltam.slice(0, 8).join(', ') + (faltam.length > 8 ? A.eMais(faltam.length - 8) : '');
-    linhas.push(A.faltamCardJs(faltam.length, ids));
+function failureList(failed) {
+  const missing = failed.filter((x) => x.failures[0] && missingCard(x.id)).map((x) => x.id);
+  const others = failed.filter((x) => !missing.includes(x.id));
+  const lines = [];
+  if (missing.length) {
+    const ids = missing.slice(0, 8).join(', ') + (missing.length > 8 ? A.andMore(missing.length - 8) : '');
+    lines.push(A.missingCardJs(missing.length, ids));
   }
-  for (const x of outros.slice(0, 5)) linhas.push(`${x.id}: ${x.falhas[0] ? resumirFalha(x.falhas[0], x.id) : A.falhou}`);
-  if (outros.length > 5) linhas.push(A.maisComFalhas(outros.length - 5));
-  return linhas;
+  for (const x of others.slice(0, 5)) lines.push(`${x.id}: ${x.failures[0] ? shortFailure(x.failures[0], x.id) : A.failed}`);
+  if (others.length > 5) lines.push(A.moreWithFailures(others.length - 5));
+  return lines;
 }
 
-function duracao(ms) {
+function durationText(ms) {
   return ms < 1000 ? `${Math.max(1, Math.round(ms))} ms` : `${decimal((ms / 1000).toFixed(1))} s`;
 }
 
-function textoBotaoACorrer() {
-  const r = estado.resumo;
-  return r ? A.aCorrerN(r.feitos, r.total) : A.aCorrer;
+function runningButtonText() {
+  const r = state.summary;
+  return r ? A.runningN(r.done, r.total) : A.running;
 }
 
-function faixaTestes() {
-  const r = estado.resumo;
+function testsBand() {
+  const r = state.summary;
   if (!r) return null;
-  const aCorrer = r.estado === 'a_correr';
-  const veredito = aCorrer
-    ? A.vereditoACorrer(r.feitos, r.total)
+  const running = r.status === 'running';
+  const verdict = running
+    ? A.verdictRunning(r.done, r.total)
     : r.total === 0
-      ? A.semTestes
-      : A.passamOsTestes(r.passaram, r.total);
-  const detalhe = aCorrer
-    ? A.detalheACorrer
-    : A.detalheFim(r.testes, duracao(r.ms));
-  const falhas = aCorrer ? [] : listaFalhas(r.falhados);
-  const botoesVista = ['progresso', 'testes'].map((v) =>
-    el('button', { class: 'segmento-vista', type: 'button', attrs: { 'aria-pressed': estado.vista === v ? 'true' : 'false' }, on: { click: () => mudarVista(v) } },
-      v === 'testes' ? A.vistaTestes : A.vistaProgresso));
-  return el('div', { class: 'faixa', 'data-estado': aCorrer ? 'a_correr' : r.passaram === r.total && r.total ? 'passou' : 'falhou' },
-    el('p', { class: 'faixa-veredito numero', text: veredito }),
-    el('div', { class: 'faixa-corpo' },
-      el('p', { class: 'numero', text: detalhe }),
-      falhas.length ? el('ul', { class: 'faixa-lista', role: 'list' }, ...falhas.map((linha) => el('li', { text: linha }))) : null,
-      r.aviso ? el('p', { class: 'nota', text: r.aviso }) : null,
-      el('div', { class: 'segmentos', role: 'group', attrs: { 'aria-label': A.corDosCartoes } },
-        el('span', { class: 'nota', text: A.corDosCartoesRotulo }), ...botoesVista),
+      ? A.noTests
+      : A.cardsPassTests(r.passed, r.total);
+  const detail = running
+    ? A.detailRunning
+    : A.detailDone(r.tests, durationText(r.ms));
+  const failures = running ? [] : failureList(r.failed);
+  const viewButtons = ['progress', 'tests'].map((v) =>
+    el('button', { class: 'segmented-option', type: 'button', attrs: { 'aria-pressed': state.view === v ? 'true' : 'false' }, on: { click: () => setView(v) } },
+      v === 'tests' ? A.viewTests : A.viewProgress));
+  return el('div', { class: 'band', 'data-status': running ? 'running' : r.passed === r.total && r.total ? 'passed' : 'failed' },
+    el('p', { class: 'band-verdict number', text: verdict }),
+    el('div', { class: 'band-body' },
+      el('p', { class: 'number', text: detail }),
+      failures.length ? el('ul', { class: 'band-list', role: 'list' }, ...failures.map((line) => el('li', { text: line }))) : null,
+      r.warning ? el('p', { class: 'note', text: r.warning }) : null,
+      el('div', { class: 'segmented', role: 'group', attrs: { 'aria-label': A.cardColor } },
+        el('span', { class: 'note', text: A.cardColorLabel }), ...viewButtons),
     ),
   );
 }
 
-function atualizarFaixa() {
-  const zona = document.getElementById('testes-zona');
-  if (zona) zona.replaceChildren(faixaTestes());
-  const b = document.getElementById('correr-testes');
+function updateBand() {
+  const area = document.getElementById('tests-area');
+  if (area) area.replaceChildren(testsBand());
+  const b = document.getElementById('run-tests');
   if (b) {
-    b.disabled = estado.aCorrer;
-    b.textContent = estado.aCorrer ? textoBotaoACorrer() : A.correrTestes;
+    b.disabled = state.running;
+    b.textContent = state.running ? runningButtonText() : A.runTests;
   }
 }
 
-function comLimite(p, ms, msg) {
+function withTimeout(p, ms, msg) {
   let t;
   return Promise.race([p, new Promise((_, rej) => (t = setTimeout(() => rej(new Error(msg)), ms)))]).finally(() => clearTimeout(t));
 }
 
-// Corre um card.test.js: o testkit do browser (lib/testkit-browser.js) junta os resultados
-// em globalThis.__arenaResultados e as promessas em __arenaPendentes. Esvaziam-se no proprio
-// array (o testkit guarda a referencia) antes de cada ficheiro.
-async function correrFicheiro(c) {
-  const resultados = (globalThis.__arenaResultados ||= []);
-  const pendentes = (globalThis.__arenaPendentes ||= []);
-  resultados.length = 0;
-  pendentes.length = 0;
-  const antes = new Set(document.body.children);
-  const inicio = performance.now();
+// Runs one card.test.js: the browser testkit (lib/testkit-browser.js) collects the results in
+// globalThis.__arenaResults and the promises in __arenaPending. They are emptied in place
+// (the testkit keeps the reference) before each file.
+async function runFile(c) {
+  const results = (globalThis.__arenaResults ||= []);
+  const pending = (globalThis.__arenaPending ||= []);
+  results.length = 0;
+  pending.length = 0;
+  const before = new Set(document.body.children);
+  const start = performance.now();
   try {
-    await comLimite(import(`/cards/${c.id}/card.test.js?execucao=${++estado.execucao}`), 15000, A.demorouACarregar);
+    await withTimeout(import(`/cards/${c.id}/card.test.js?run=${++state.run}`), 15000, A.slowToLoad);
     let n = -1;
-    while (n !== pendentes.length) {
-      n = pendentes.length;
-      await comLimite(Promise.allSettled([...pendentes]), 15000, A.demorou);
+    while (n !== pending.length) {
+      n = pending.length;
+      await withTimeout(Promise.allSettled([...pending]), 15000, A.slow);
     }
   } catch (e) {
-    resultados.push({ nome: A.carregarTeste, ok: false, erro: String(e?.message || e) });
+    results.push({ name: A.loadTest, ok: false, error: String(e?.message || e) });
   } finally {
-    for (const filho of [...document.body.children]) if (!antes.has(filho)) filho.remove();
+    for (const child of [...document.body.children]) if (!before.has(child)) child.remove();
   }
-  const lista = resultados.slice();
-  const falhas = lista.filter((x) => !x.ok);
+  const list = results.slice();
+  const failures = list.filter((x) => !x.ok);
   return {
-    estado: lista.length && !falhas.length ? 'passou' : 'falhou',
-    passados: lista.length - falhas.length,
-    total: lista.length,
-    falhas,
-    ms: performance.now() - inicio,
+    status: list.length && !failures.length ? 'passed' : 'failed',
+    passed: list.length - failures.length,
+    total: list.length,
+    failures,
+    ms: performance.now() - start,
   };
 }
 
-function podeRecarregarParaTestar() {
+function canReloadToTest() {
   try {
-    sessionStorage.setItem('arena:correr-testes', '1');
+    sessionStorage.setItem('arena:run-tests', '1');
     return true;
   } catch {
     return false;
   }
 }
 
-async function correrTestes() {
-  if (estado.aCorrer) return;
-  if (estado.rota?.nome !== 'inicio') location.hash = '#/';
-  estado.aCorrer = true;
+async function runTests() {
+  if (state.running) return;
+  if (state.route?.name !== 'home') location.hash = '#/';
+  state.running = true;
   try {
-    estado.dados = await obterCartoes();
+    state.data = await fetchCards();
   } catch {
-    /* fica a lista que ja havia */
+    /* keep the list there was */
   }
-  // O browser guarda os modulos ja importados: se algum cartao mudou desde o ultimo teste,
-  // so uma pagina nova testa a versao nova.
-  if (estado.assinaturaTestada && estado.assinaturaTestada !== estado.dados.assinatura && podeRecarregarParaTestar()) {
+  // The browser keeps the modules it already imported: if a card changed since the last test run,
+  // only a fresh page tests the new version.
+  if (state.testedSignature && state.testedSignature !== state.data.signature && canReloadToTest()) {
     location.reload();
     return;
   }
-  const mudou = estado.assinaturaTestada && estado.assinaturaTestada !== estado.dados.assinatura;
-  estado.assinaturaTestada ??= estado.dados.assinatura;
-  const alvo = visiveis().filter((c) => c.teste);
-  estado.testes = new Map(alvo.map((c) => [c.id, { estado: 'na_fila', passados: 0, total: 0, falhas: [] }]));
-  estado.resumo = { estado: 'a_correr', feitos: 0, total: alvo.length, passaram: 0, testes: 0, ms: 0, falhados: [], aviso: mudou ? A.cartoesNovos : null };
-  estado.vista = 'testes';
-  desenhar({ aoVivo: true });
-  const inicio = performance.now();
-  for (const c of alvo) {
-    estado.testes.set(c.id, { estado: 'a_correr', passados: 0, total: 0, falhas: [] });
-    pintarTile(c.id);
-    const r = await correrFicheiro(c);
-    estado.testes.set(c.id, r);
-    estado.resumo.feitos++;
-    estado.resumo.testes += r.total;
-    if (r.estado === 'passou') estado.resumo.passaram++;
-    else estado.resumo.falhados.push({ id: c.id, falhas: r.falhas });
-    estado.resumo.ms = performance.now() - inicio;
-    pintarTile(c.id);
-    atualizarFaixa();
+  const changed = state.testedSignature && state.testedSignature !== state.data.signature;
+  state.testedSignature ??= state.data.signature;
+  const target = visible().filter((c) => c.test);
+  state.tests = new Map(target.map((c) => [c.id, { status: 'queued', passed: 0, total: 0, failures: [] }]));
+  state.summary = { status: 'running', done: 0, total: target.length, passed: 0, tests: 0, ms: 0, failed: [], warning: changed ? A.newCards : null };
+  state.view = 'tests';
+  draw({ live: true });
+  const start = performance.now();
+  for (const c of target) {
+    state.tests.set(c.id, { status: 'running', passed: 0, total: 0, failures: [] });
+    paintTile(c.id);
+    const r = await runFile(c);
+    state.tests.set(c.id, r);
+    state.summary.done++;
+    state.summary.tests += r.total;
+    if (r.status === 'passed') state.summary.passed++;
+    else state.summary.failed.push({ id: c.id, failures: r.failures });
+    state.summary.ms = performance.now() - start;
+    paintTile(c.id);
+    updateBand();
   }
-  estado.resumo.estado = 'fim';
-  estado.aCorrer = false;
-  atualizarFaixa();
+  state.summary.status = 'done';
+  state.running = false;
+  updateBand();
 }
 
-// ---------- paginas da onda 2 ----------
+// ---------- wave 2 pages ----------
 
-const PAGINA = {
-  categoria: { nome: A.paginaCategoria, ficheiro: 'pages/categoria.js', spec: 'specs/pagina-categoria.md' },
-  pontuacao: { nome: A.paginaPontuacao, ficheiro: 'pages/pontuacao.js', spec: 'specs/tabela-pontuacao.md' },
+const PAGE = {
+  category: { name: A.categoryPage, file: 'pages/category.js', spec: 'specs/category-page.md' },
+  score: { name: A.scorePage, file: 'pages/score.js', spec: 'specs/score-table.md' },
 };
 
-async function importarPagina(nome) {
-  const v = estado.dados.paginas?.[nome];
+async function importPage(name) {
+  const v = state.data.pages?.[name];
   if (!v) return null;
   try {
-    return await import(`/pages/${nome}.js?v=${encodeURIComponent(v)}`);
+    return await import(`/pages/${name}.js?v=${encodeURIComponent(v)}`);
   } catch (e) {
-    return { erroImport: e };
+    return { importError: e };
   }
 }
 
-function porConstruir(contentor, nome, erro) {
-  const p = PAGINA[nome];
-  document.title = `${A.porConstruirDoc} · ${TITULO}`;
-  contentor.replaceChildren(
-    el('div', { class: 'por-construir' },
-      el('h1', { class: 'por-construir-titulo', text: A.porConstruirTitulo }),
-      el('p', { class: 'por-construir-onda', text: A.onda2 }),
-      el('p', { class: 'por-construir-texto', text: A.porConstruirTexto(p.nome, p.ficheiro, p.spec) }),
-      erro ? el('p', { class: 'nota', text: A.ficheiroComErro(String(erro?.message || erro).slice(0, 300)) }) : null,
-      el('a', { class: 'botao', href: '#/' }, A.voltar),
+function notBuilt(container, name, error) {
+  const p = PAGE[name];
+  document.title = `${A.notBuiltDoc} · ${TITLE}`;
+  container.replaceChildren(
+    el('div', { class: 'not-built' },
+      el('h1', { class: 'not-built-title', text: A.notBuiltTitle }),
+      el('p', { class: 'not-built-wave', text: A.wave2 }),
+      el('p', { class: 'not-built-text', text: A.notBuiltText(p.name, p.file, p.spec) }),
+      error ? el('p', { class: 'note', text: A.fileWithError(String(error?.message || error).slice(0, 300)) }) : null,
+      el('a', { class: 'button', href: '#/' }, A.back),
     ),
   );
 }
 
-async function vistaCategoria(id, passo) {
-  const grupos = agrupar(visiveis());
-  const cat = grupos.find((c) => c.id === id) || estado.dados.categorias.find((c) => c.id === id);
-  if (!cat) return vistaNaoEncontrado();
-  titulo(cat.nome);
-  const contentor = el('section', { class: 'pagina' });
-  main.replaceChildren(contentor);
-  const mod = await importarPagina('categoria');
-  if (desatualizado(passo)) return;
-  if (typeof mod?.renderCategoria !== 'function') return porConstruir(contentor, 'categoria', mod?.erroImport);
-  const cartoes = (cat.cartoes || []).map((c) => ({
+async function categoryView(id, step) {
+  const groups = group(visible());
+  const cat = groups.find((c) => c.id === id) || state.data.categories.find((c) => c.id === id);
+  if (!cat) return notFoundView();
+  title(cat.name);
+  const container = el('section', { class: 'page' });
+  main.replaceChildren(container);
+  const mod = await importPage('category');
+  if (outdated(step)) return;
+  if (typeof mod?.renderCategory !== 'function') return notBuilt(container, 'category', mod?.importError);
+  const cards = (cat.cards || []).map((c) => ({
     id: c.id,
     title: c.title,
     difficulty: c.difficulty,
-    template: c.model,
-    estado: c.existe ? 'jogavel' : 'por_construir',
+    template: c.template,
+    status: c.exists ? 'playable' : 'not_built',
   }));
   try {
-    mod.renderCategoria(contentor, {
-      categoria: { id: cat.id, nome: cat.nome },
-      cartoes,
-      progresso: lerProgresso(),
-      abrir: (cid) => {
-        if (ID_VALIDO.test(String(cid))) location.hash = `#/cartao/${cid}`;
+    mod.renderCategory(container, {
+      category: { id: cat.id, name: cat.name },
+      cards,
+      progress: readProgress(),
+      open: (cid) => {
+        if (VALID_ID.test(String(cid))) location.hash = `#/card/${cid}`;
       },
     });
   } catch (e) {
-    porConstruir(contentor, 'categoria', e);
+    notBuilt(container, 'category', e);
   }
 }
 
-async function vistaPontuacao(passo) {
-  titulo(A.pontuacao);
-  const lista = visiveis();
-  const contentor = el('section', { class: 'pagina' });
-  main.replaceChildren(contentor);
-  const mod = await importarPagina('pontuacao');
-  if (desatualizado(passo)) return;
-  if (typeof mod?.renderPontuacao !== 'function') return porConstruir(contentor, 'pontuacao', mod?.erroImport);
+async function scoreView(step) {
+  title(A.score);
+  const list = visible();
+  const container = el('section', { class: 'page' });
+  main.replaceChildren(container);
+  const mod = await importPage('score');
+  if (outdated(step)) return;
+  if (typeof mod?.renderScore !== 'function') return notBuilt(container, 'score', mod?.importError);
   try {
-    mod.renderPontuacao(contentor, {
-      categorias: agrupar(lista).map((c) => ({ id: c.id, nome: c.nome })),
-      cartoes: lista.filter((c) => c.existe).map((c) => ({ id: c.id, category: c.category ?? 'outros', difficulty: c.difficulty })),
-      progresso: lerProgresso(),
+    mod.renderScore(container, {
+      categories: group(list).map((c) => ({ id: c.id, name: c.name })),
+      cards: list.filter((c) => c.exists).map((c) => ({ id: c.id, category: c.category ?? 'other', difficulty: c.difficulty })),
+      progress: readProgress(),
     });
   } catch (e) {
-    porConstruir(contentor, 'pontuacao', e);
+    notBuilt(container, 'score', e);
   }
 }
 
-// ---------- jogar um cartao ----------
+// ---------- playing a card ----------
 
-function proximoPorResolver(id) {
-  const lista = visiveis().filter((c) => c.existe);
-  const prog = lerProgresso();
-  const i = lista.findIndex((c) => c.id === id);
-  const depois = [...lista.slice(i + 1), ...lista.slice(0, Math.max(i, 0))];
-  return depois.find((c) => !prog[c.id]?.certo) || null;
+function nextUnsolved(id) {
+  const list = visible().filter((c) => c.exists);
+  const prog = readProgress();
+  const i = list.findIndex((c) => c.id === id);
+  const after = [...list.slice(i + 1), ...list.slice(0, Math.max(i, 0))];
+  return after.find((c) => !prog[c.id]?.correct) || null;
 }
 
-function aviso(tituloTexto, texto) {
-  return el('div', { class: 'aviso' },
-    el('h1', { class: 'titulo-secao', text: tituloTexto }),
-    texto ? el('p', { text: texto }) : null,
-    el('a', { class: 'botao', href: '#/' }, A.voltar));
+function notice(titleText, text) {
+  return el('div', { class: 'notice' },
+    el('h1', { class: 'section-title', text: titleText }),
+    text ? el('p', { text }) : null,
+    el('a', { class: 'button', href: '#/' }, A.back));
 }
 
-async function vistaCartao(id, passo) {
-  const meta = estado.dados.cartoes.find((c) => c.id === id);
-  if (!meta) return vistaNaoEncontrado();
-  const cat = estado.dados.categorias.find((c) => c.id === meta.category);
-  titulo(meta.title);
-  const info = [cat?.nome, meta.difficulty ? A.nivel(meta.difficulty) : null, meta.difficulty ? A.nPontos(pontosDe(meta.difficulty)) : null].filter(Boolean).join(' · ');
-  const area = el('div', { class: 'jogo-area' });
+async function cardView(id, step) {
+  const meta = state.data.cards.find((c) => c.id === id);
+  if (!meta) return notFoundView();
+  const cat = state.data.categories.find((c) => c.id === meta.category);
+  title(meta.title);
+  const info = [cat?.name, meta.difficulty ? A.level(meta.difficulty) : null, meta.difficulty ? A.nPoints(pointsFor(meta.difficulty)) : null].filter(Boolean).join(' · ');
+  const area = el('div', { class: 'play-area' });
   main.replaceChildren(
-    el('section', { class: 'jogo' },
+    el('section', { class: 'play' },
       area,
-      el('div', { class: 'jogo-rodape' }, el('p', { class: 'nota', text: info }), el('a', { class: 'ligacao', href: '#/' }, A.todos))),
+      el('div', { class: 'play-footer' }, el('p', { class: 'note', text: info }), el('a', { class: 'link', href: '#/' }, A.all))),
   );
-  if (!meta.existe) {
-    area.replaceChildren(aviso(A.cartaoPorConstruir, A.cartaoPorConstruirTexto));
+  if (!meta.exists) {
+    area.replaceChildren(notice(A.cardNotBuilt, A.cardNotBuiltText));
     return;
   }
-  let cartao;
+  let card;
   try {
-    cartao = await carregarCartao(id, meta.versao);
+    card = await loadCard(id, meta.version);
   } catch (e) {
-    if (!desatualizado(passo)) area.replaceChildren(aviso(A.cartaoNaoCarregou, String(e?.message || e)));
+    if (!outdated(step)) area.replaceChildren(notice(A.cardDidNotLoad, String(e?.message || e)));
     return;
   }
-  if (desatualizado(passo)) return;
-  titulo(cartao.title);
-  montarJogo(area, cartao, {
-    acoes: ({ certo, repetir }) => {
-      const prox = proximoPorResolver(id);
-      const irProximo = (principal) => (prox
-        ? el('a', { class: principal ? 'botao botao-principal' : 'botao', href: `#/cartao/${prox.id}` }, A.proximo)
-        : el('a', { class: principal ? 'botao botao-principal' : 'botao', href: '#/pontuacao' }, A.verPontuacao));
-      if (certo) return [irProximo(true), el('a', { class: 'botao', href: '#/' }, A.todos)];
-      return [el('button', { class: 'botao botao-principal', type: 'button', on: { click: () => repetir() } }, A.tentarOutraVez), irProximo(false)];
+  if (outdated(step)) return;
+  title(card.title);
+  mountGame(area, card, {
+    actions: ({ correct, retry }) => {
+      const next = nextUnsolved(id);
+      const goNext = (primary) => (next
+        ? el('a', { class: primary ? 'button button-primary' : 'button', href: `#/card/${next.id}` }, A.next)
+        : el('a', { class: primary ? 'button button-primary' : 'button', href: '#/score' }, A.seeScore));
+      if (correct) return [goNext(true), el('a', { class: 'button', href: '#/' }, A.all)];
+      return [el('button', { class: 'button button-primary', type: 'button', on: { click: () => retry() } }, A.tryAgain), goNext(false)];
     },
   });
 }
 
-// ---------- outras vistas ----------
+// ---------- other views ----------
 
-function vistaNaoEncontrado() {
-  titulo(A.naoEncontrado);
-  main.replaceChildren(aviso(A.naoEncontradoTitulo, A.naoEncontradoTexto));
+function notFoundView() {
+  title(A.notFound);
+  main.replaceChildren(notice(A.notFoundTitle, A.notFoundText));
 }
 
-function vistaSemServidor() {
-  titulo(null);
-  return el('section', { class: 'aviso' },
-    el('h1', { class: 'titulo-secao', text: A.semServidor }),
-    el('p', { text: A.semServidorTexto }),
-    estado.erro ? el('p', { class: 'nota', text: String(estado.erro.message || estado.erro) }) : null);
+function noServerView() {
+  title(null);
+  return el('section', { class: 'notice' },
+    el('h1', { class: 'section-title', text: A.noServer }),
+    el('p', { text: A.noServerText }),
+    state.error ? el('p', { class: 'note', text: String(state.error.message || state.error) }) : null);
 }
 
-// ---------- rodape ----------
+// ---------- footer ----------
 
-function ligarRodape() {
-  const b = document.getElementById('apagar-progresso');
+function wireFooter() {
+  const b = document.getElementById('delete-progress');
   if (!b) return;
-  let armado = null;
+  let armed = null;
   b.addEventListener('click', () => {
-    if (!armado) {
-      b.textContent = A.confirmarApagar;
-      armado = setTimeout(() => {
-        armado = null;
-        b.textContent = A.apagarProgresso;
+    if (!armed) {
+      b.textContent = A.confirmDelete;
+      armed = setTimeout(() => {
+        armed = null;
+        b.textContent = A.deleteProgress;
       }, 4000);
       return;
     }
-    clearTimeout(armado);
-    armado = null;
-    apagarProgresso();
-    b.textContent = A.progressoApagado;
-    setTimeout(() => (b.textContent = A.apagarProgresso), 2500);
-    if (estado.rota?.nome !== 'cartao') desenhar({ aoVivo: true });
+    clearTimeout(armed);
+    armed = null;
+    deleteProgress();
+    b.textContent = A.progressDeleted;
+    setTimeout(() => (b.textContent = A.deleteProgress), 2500);
+    if (state.route?.name !== 'card') draw({ live: true });
   });
 }
 
-// ---------- ao vivo: a galeria enche-se enquanto o enxame trabalha ----------
+// ---------- live: the gallery fills up while the swarm works ----------
 
-function assinaturaVisivel(d) {
-  return JSON.stringify([d.modo, d.paginas, d.cartoes.map((c) => [c.id, c.existe, c.versao, c.no_plano])]);
+function visibleSignature(d) {
+  return JSON.stringify([d.mode, d.pages, d.cards.map((c) => [c.id, c.exists, c.version, c.in_plan])]);
 }
 
-let agendado = null;
-async function atualizar() {
+let scheduled = null;
+async function refresh() {
   try {
-    const novo = await obterCartoes();
-    const antes = assinaturaVisivel(estado.dados);
-    estado.dados = novo;
-    const r = estado.rota?.nome;
-    if (assinaturaVisivel(novo) !== antes && !estado.aCorrer && (r === 'inicio' || r === 'categoria' || r === 'pontuacao')) desenhar({ aoVivo: true });
+    const fresh = await fetchCards();
+    const before = visibleSignature(state.data);
+    state.data = fresh;
+    const r = state.route?.name;
+    if (visibleSignature(fresh) !== before && !state.running && (r === 'home' || r === 'category' || r === 'score')) draw({ live: true });
   } catch {
-    /* servidor em baixo: tenta-se no proximo aviso */
+    /* server down: try again on the next notice */
   }
 }
-function agendarAtualizacao() {
-  clearTimeout(agendado);
-  agendado = setTimeout(atualizar, 400);
+function scheduleRefresh() {
+  clearTimeout(scheduled);
+  scheduled = setTimeout(refresh, 400);
 }
 
-function ligarAoVivo() {
+function goLive() {
   if ('EventSource' in window) {
     const es = new EventSource('/api/events');
-    es.addEventListener('estado', agendarAtualizacao);
+    es.addEventListener('snapshot', scheduleRefresh);
   }
-  setInterval(atualizar, 15000);
+  setInterval(refresh, 15000);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') agendarAtualizacao();
+    if (document.visibilityState === 'visible') scheduleRefresh();
   });
 }
 
-// ---------- arranque ----------
+// ---------- start ----------
 
-async function arrancar() {
-  let correrAoAbrir = false;
+async function boot() {
+  let runOnOpen = false;
   try {
-    correrAoAbrir = sessionStorage.getItem('arena:correr-testes') === '1';
-    sessionStorage.removeItem('arena:correr-testes');
+    runOnOpen = sessionStorage.getItem('arena:run-tests') === '1';
+    sessionStorage.removeItem('arena:run-tests');
   } catch {
-    correrAoAbrir = false;
+    runOnOpen = false;
   }
   window.addEventListener('hashchange', () => {
-    if (!location.hash || location.hash.startsWith('#/')) desenhar();
+    if (!location.hash || location.hash.startsWith('#/')) draw();
   });
-  ligarRodape();
+  wireFooter();
   try {
-    estado.dados = await obterCartoes();
-    estado.carregado = true;
+    state.data = await fetchCards();
+    state.loaded = true;
   } catch (e) {
-    estado.erro = e;
+    state.error = e;
   }
-  await desenhar({ aoVivo: true });
-  if (!estado.carregado) return;
-  ligarAoVivo();
-  if (correrAoAbrir && estado.rota?.nome === 'inicio') correrTestes();
+  await draw({ live: true });
+  if (!state.loaded) return;
+  goLive();
+  if (runOnOpen && state.route?.name === 'home') runTests();
 }
 
-arrancar();
+boot();

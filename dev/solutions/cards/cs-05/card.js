@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'cs-05',
   title: 'Corrigir uma dependência vulnerável',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 2,
   concept: 'Uma dependência com uma falha conhecida corrige-se atualizando-a, com testes antes do deploy.',
   prompt: 'O npm audit avisa que uma dependência tem uma falha conhecida. Ordena os passos para a corrigir.',

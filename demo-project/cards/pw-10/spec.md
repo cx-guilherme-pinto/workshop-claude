@@ -2,7 +2,7 @@
 
 - **Categoria:** passwords
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

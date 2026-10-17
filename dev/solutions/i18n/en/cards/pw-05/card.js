@@ -1,6 +1,6 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'pw-05',
   title: 'The three types of factor',
   category: 'passwords',

@@ -1,6 +1,6 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'ph-10',
   title: 'A app pede acesso ao teu email',
   category: 'phishing',

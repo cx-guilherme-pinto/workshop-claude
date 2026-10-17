@@ -1,6 +1,6 @@
-import { resposta } from '../../templates/resposta.js';
+import { answer } from '../../templates/answer.js';
 
-export default resposta({
+export default answer({
   id: 'web-06',
   title: 'De onde podem vir os scripts?',
   category: 'web',

@@ -1,9 +1,9 @@
-import { ordenar } from '../../templates/ordenar.js';
+import { order } from '../../templates/order.js';
 
-export default ordenar({
+export default order({
   id: 'rd-04',
   title: 'O que acontece ao abrir um site HTTPS',
-  category: 'redes',
+  category: 'networks',
   difficulty: 2,
   concept: 'Antes de qualquer dado seguir cifrado, o browser confirma o certificado do servidor.',
   prompt: 'Abres https://loja.example. Ordena os passos, do primeiro ao último.',

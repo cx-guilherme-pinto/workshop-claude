@@ -1,18 +1,18 @@
-import { resposta, normalizar } from '../../templates/resposta.js';
+import { answer, normalize } from '../../templates/answer.js';
 import { sha256Hex } from '../../lib/hash.js';
 
 const FILES = { a: 'Atlas App 2.9.3 (modified)', b: 'Atlas App 2.9.3 (official)', c: 'Atlas App 2.9.2 (official)' };
 const PUBLISHED = '87131d4981f502852ee8408055118dda6716bd9566f320f67ca2483a787985ad';
 
-export default resposta({
+export default answer({
   id: 'cr-03',
   title: 'Which is the real file?',
-  category: 'criptografia',
+  category: 'cryptography',
   difficulty: 2,
   concept: 'A SHA-256 hash changes completely if the file changes, so it is used to check downloads.',
   prompt: 'You downloaded the Atlas Corp installer from three places. Which file (A, B or C) has the SHA-256 published on the official site?',
   scenario: {
-    kind: 'texto',
+    kind: 'text',
     label: 'SHA-256 hashes',
     lines: [
       'Published: 87131d4981f502852ee8408055118dda6716bd9566f320f67ca2483a787985ad',

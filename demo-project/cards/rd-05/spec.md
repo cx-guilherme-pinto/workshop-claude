@@ -1,8 +1,8 @@
 # Cartão rd-05 — O que uma VPN não faz
 
-- **Categoria:** redes
+- **Categoria:** networks
 - **Dificuldade:** 2
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

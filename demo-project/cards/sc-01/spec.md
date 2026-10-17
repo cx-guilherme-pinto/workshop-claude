@@ -1,8 +1,8 @@
 # Cartão sc-01 — A chave no código
 
-- **Categoria:** segredos-cloud
+- **Categoria:** cloud-secrets
 - **Dificuldade:** 1
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 

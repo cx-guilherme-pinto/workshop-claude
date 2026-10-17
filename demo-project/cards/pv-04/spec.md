@@ -1,8 +1,8 @@
 # Cartão pv-04 — Levar os dados contigo
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 2
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

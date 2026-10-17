@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'es-04',
   title: '15 pedidos de aprovação',
-  category: 'engenharia-social',
+  category: 'social-engineering',
   difficulty: 2,
   concept: 'Fadiga de MFA: o atacante já tem a password e envia pedidos até alguém aprovar.',
   prompt: 'O teu telemóvel mostra 15 pedidos seguidos para aprovar um login que não fizeste. O que fazes?',

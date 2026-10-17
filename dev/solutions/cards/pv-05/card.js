@@ -1,13 +1,13 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'pv-05',
   title: 'Dados a mais na newsletter',
-  category: 'privacidade',
+  category: 'privacy',
   difficulty: 1,
   concept: 'Minimização: recolhe só os dados de que precisas para o fim anunciado.',
   prompt: 'Este formulário serve só para receber a newsletter. Que campos pedem dados a mais?',
-  language: 'texto',
+  language: 'text',
   segments: [
     'Email',
     'Nome (opcional)',

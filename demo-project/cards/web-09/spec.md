@@ -2,7 +2,7 @@
 
 - **Categoria:** web
 - **Dificuldade:** 3
-- **Modelo:** `resposta` de `../../templates/resposta.js`
+- **Modelo:** `answer` de `../../templates/answer.js`
 
 ## Conceito
 

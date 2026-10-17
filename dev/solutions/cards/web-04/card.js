@@ -1,6 +1,6 @@
-import { clicaErro } from '../../templates/clica-erro.js';
+import { spotTheFlaw } from '../../templates/spot-the-flaw.js';
 
-export default clicaErro({
+export default spotTheFlaw({
   id: 'web-04',
   title: 'As faturas dos outros',
   category: 'web',

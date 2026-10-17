@@ -1,8 +1,8 @@
 # Cartão es-09 — O fornecedor mudou de banco
 
-- **Categoria:** engenharia-social
+- **Categoria:** social-engineering
 - **Dificuldade:** 2
-- **Modelo:** `clicaErro` de `../../templates/clica-erro.js`
+- **Modelo:** `spotTheFlaw` de `../../templates/spot-the-flaw.js`
 
 ## Conceito
 
@@ -14,7 +14,7 @@ Este email parece vir de um fornecedor habitual. Que linhas são sinais de fraud
 
 ## Conteúdo
 
-Campo `language`: `"texto"`
+Campo `language`: `"text"`
 
 Campo `segments` (índices a partir de 0):
 

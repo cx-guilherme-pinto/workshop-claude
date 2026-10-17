@@ -1,0 +1,99 @@
+{
+  "v": 2,
+  "lib": [
+    {
+      "id": "lib-hash",
+      "title": "Utilitário de criptografia lib/hash.js",
+      "wave": 1,
+      "agent": "worker",
+      "spec": "specs/lib-hash.md",
+      "test": [
+        "node",
+        "--test",
+        "lib/hash.test.js"
+      ],
+      "files": [
+        "lib/hash.js"
+      ],
+      "depends": []
+    }
+  ],
+  "pages": [
+    {
+      "id": "category-page",
+      "title": "Página de categoria",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/category-page.md",
+      "test": [
+        "node",
+        "--test",
+        "pages/category.test.js"
+      ],
+      "files": [
+        "pages/category.js"
+      ],
+      "depends": [
+        "*cards"
+      ]
+    },
+    {
+      "id": "score-table",
+      "title": "Tabela de pontuação",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/score-table.md",
+      "test": [
+        "node",
+        "--test",
+        "pages/score.test.js"
+      ],
+      "files": [
+        "pages/score.js"
+      ],
+      "depends": [
+        "*cards"
+      ]
+    }
+  ],
+  "integration": {
+    "id": "integration",
+    "title": "Integração e suite completa",
+    "wave": 3,
+    "agent": "integrator",
+    "spec": "specs/integration.md",
+    "test": [
+      "node",
+      "tools/check-integration.mjs"
+    ],
+    "files": [
+      "public/",
+      "pages/"
+    ],
+    "depends": [
+      "category-page",
+      "score-table"
+    ]
+  },
+  "review": {
+    "id": "review",
+    "title": "Revisão de segurança e qualidade",
+    "wave": 4,
+    "agent": "reviewer",
+    "spec": "specs/review.md",
+    "prepare": [
+      "node",
+      "tools/review-digest.mjs"
+    ],
+    "test": {
+      "json_file": ".workshop/verdict.json",
+      "field": "verdict"
+    },
+    "files": [
+      ".workshop/verdict.json"
+    ],
+    "depends": [
+      "integration"
+    ]
+  }
+}

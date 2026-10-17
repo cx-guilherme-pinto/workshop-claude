@@ -1,8 +1,8 @@
 # Cartão pv-10 — Quem vê a tua publicação?
 
-- **Categoria:** privacidade
+- **Categoria:** privacy
 - **Dificuldade:** 1
-- **Modelo:** `ordenar` de `../../templates/ordenar.js`
+- **Modelo:** `order` de `../../templates/order.js`
 
 ## Conceito
 

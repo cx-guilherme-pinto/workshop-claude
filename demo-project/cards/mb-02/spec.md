@@ -2,7 +2,7 @@
 
 - **Categoria:** mobile
 - **Dificuldade:** 1
-- **Modelo:** `escolha` de `../../templates/escolha.js`
+- **Modelo:** `choice` de `../../templates/choice.js`
 
 ## Conceito
 

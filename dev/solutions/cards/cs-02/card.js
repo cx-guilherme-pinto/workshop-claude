@@ -1,9 +1,9 @@
-import { escolha } from '../../templates/escolha.js';
+import { choice } from '../../templates/choice.js';
 
-export default escolha({
+export default choice({
   id: 'cs-02',
   title: 'Validar a idade',
-  category: 'codigo-seguro',
+  category: 'secure-code',
   difficulty: 1,
   concept: 'Validar com uma lista do que é permitido é mais seguro do que tentar bloquear o que é perigoso.',
   prompt: 'Um formulário pede a idade. Qual é a melhor validação no servidor?',
