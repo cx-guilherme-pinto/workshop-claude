@@ -229,5 +229,146 @@ grep -q 'ws_warn E-CFG-01' "$ROOT/setup/setup-mac.sh" && ko "E-CFG-01 ainda e um
 # --- alinhamento com acentos
 eq "$(ws_pad 'Memória' 9)|" "Memória  |" ws_pad
 
+# --- chaos G4-auth-tools: limites de tempo, Ctrl-C no login, chaves/gateway/cloud, ~/.claude.json, MCP, gh, uv, CLT
+G4="$WS_TMP/g4"; mkdir -p "$G4/bin" "$G4/cdir" "$G4/home/.local/bin" "$G4/old" "$G4/ghcfg" "$G4/ws" "$G4/badgh" "$G4/h3"
+G4_ENV="ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY GH_HOST"
+# g4 'codigo': corre o codigo num subshell, sem as variaveis da pessoa e com definicoes do Claude Code vazias.
+g4() { ( for v in $G4_ENV; do unset "$v"; done; CLAUDE_DIR="$G4/cdir"; WS_STEP_LOG="$G4/step.log"; eval "$1" ); }
+# ws_timeout: limite (124), codigo de saida, stdin, comando em falta, filhos e um programa que ignora o TERM
+t0=$(date +%s); ws_timeout 1 sleep 30; rc=$?; t1=$(date +%s)
+eq "$rc|$([ $((t1 - t0)) -lt 5 ] && echo rapido)" "124|rapido" "ws_timeout: passa o limite -> 124"
+ws_timeout 5 sh -c 'exit 3'; eq "$?" 3 "ws_timeout: passa o codigo de saida"
+eq "$(printf x | ws_timeout 5 cat)" x "ws_timeout: passa o stdin"
+ws_timeout 5 "$G4/nao-existe" 2>/dev/null; eq "$?" 127 "ws_timeout: comando em falta -> 127"
+t0=$(date +%s); ws_timeout 1 sh -c 'trap "" TERM; /bin/sleep 41 & wait'; rc=$?; t1=$(date +%s); sleep 1
+eq "$rc|$([ $((t1 - t0)) -lt 5 ] && echo rapido)|$(pgrep -f 'sleep 41' >/dev/null && echo ficou)" "124|rapido|" "ws_timeout: TERM ignorado -> KILL ao grupo, sem filhos"
+# Ctrl-C (SIGINT a todo o grupo, como no terminal com curl | bash) durante o login: cancela so o login
+if command -v script >/dev/null 2>&1; then
+  cat > "$G4/login.sh" <<EOF
+WS_SOURCE_ONLY=1; . "$ROOT/setup/setup-mac.sh"
+WS_LOG=/dev/null; WS_HOME="$G4/lh"; WS_TMP="$G4/lt"; mkdir -p "\$WS_HOME" "\$WS_TMP"; WS_CUR=3; SN_3=""
+trap ws_interrupted INT
+ws_run_login sh -c 'kill -INT 0; sleep 5'
+printf 'continua|%s|%s\n' "\$WS_LOGIN_INT" "\$SN_3"
+kill -INT \$\$; sleep 2
+echo nao-chegou
+EOF
+  out=$(script -q /dev/null bash "$G4/login.sh" </dev/null 2>&1 | tr -d '\r')
+  case "$out" in *"continua|1|login_cancelado"*interrompido*) ok ;; *) ko "login: Ctrl-C cancela so o login [$out]" ;; esac
+  case "$out" in *nao-chegou*) ko "login: depois do login o Ctrl-C volta a interromper o setup" ;; *) ok ;; esac
+fi
+# claude falso: auth status, mcp get/add/remove (no formato real) e as respostas do teste final
+cat > "$G4/claude" <<'EOF'
+#!/bin/sh
+d=${0%/*}
+printf '%s\n' "$*" >> "$d/claude.args"
+case "$1 $2" in
+  "auth status") printf '{"loggedIn": true, "authMethod": "%s", "apiKeySource": "%s", "apiProvider": "%s"}\n' "${G4_METHOD:-oauth_token}" "${G4_SOURCE:-}" "${G4_PROVIDER:-firstParty}"; exit 0 ;;
+  "mcp get") [ -f "$d/mcp-$3" ] || { echo "No MCP server named \"$3\"."; exit 1; }; cat "$d/mcp-$3"; exit 0 ;;
+  "mcp remove") rm -f "$d/mcp-$5"; exit 0 ;;
+  "mcp add") n=$5; [ "$4" = user ] || n=$7; u=$(eval "printf %s \"\${$#}\""); printf '%s:\n  Scope: User config\n  Type: http\n  URL: %s\n' "$n" "$u" > "$d/mcp-$n"; exit 0 ;;
+esac
+case "${G4_CLAUDE:-}" in
+  key) printf '%s' '{"type":"result","is_error":true,"api_error_status":401,"result":"Invalid API key · Fix external API key"}'; exit 1 ;;
+  bearer) echo 'Failed to authenticate. API Error: 401 Invalid bearer token' >&2; exit 1 ;;
+  refused) echo 'API Error: Connection error. (ECONNREFUSED)' >&2; exit 1 ;;
+  hang) exec /bin/sleep 42 ;;
+  ok) printf '%s' '{"type":"result","is_error":false,"result":"OK","modelUsage":{}}' ;;
+esac
+EOF
+chmod +x "$G4/claude"
+# passo 12: classificacao das falhas e --strict-mcp-config
+s12() { g4 'WS_CLAUDE="$G4/claude"; WS_CUR=12; SF_12=""; WS_PRICING="$ROOT/pricing.json"; WS_TMO_SMOKE=2; WS_GW_URL=""; WS_GW_DOWN=0; WS_AUTH_SOURCE=""; '"$1"'; ws_s12_install >/dev/null; printf "%s" "$SF_12"'; }
+eq "$(G4_CLAUDE=key s12 'export ANTHROPIC_API_KEY=sk-ant-teste-1234')" "E-AUTH-04|ANTHROPIC_API_KEY" "s12: chave antiga na variavel -> E-AUTH-04 (nao E-AUTH-01)"
+eq "$(G4_CLAUDE=key s12 :)" "E-AUTH-01|" "s12: 401 sem variaveis -> E-AUTH-01"
+eq "$(G4_CLAUDE=bearer s12 'export ANTHROPIC_AUTH_TOKEN=tok-teste-1234')" "E-AUTH-04|ANTHROPIC_AUTH_TOKEN" "s12: ANTHROPIC_AUTH_TOKEN recusado -> E-AUTH-04"
+eq "$(G4_CLAUDE=key s12 'WS_AUTH_SOURCE=apiKeyHelper')" "E-AUTH-04|apiKeyHelper" "s12: apiKeyHelper recusado -> E-AUTH-04"
+eq "$(G4_CLAUDE=refused s12 'WS_GW_URL=http://eu:pw@gw.exemplo:4000/v1')" "E-AUTH-05|http://gw.exemplo:4000/" "s12: gateway recusa -> E-AUTH-05 (URL sem credenciais)"
+eq "$(G4_CLAUDE=refused s12 :)" "E-NET-05|" "s12: sem gateway, recusa -> E-NET-05"
+t0=$(date +%s); eq "$(G4_CLAUDE=hang s12 :)" "E-SMOKE-01|no answer in 2 s" "s12: sem resposta -> limite de tempo"; t1=$(date +%s)
+[ $((t1 - t0)) -lt 8 ] && ok || ko "s12: o limite de tempo nao cortou o claude -p ($((t1 - t0)) s)"
+rm -f "$G4/claude.args"
+eq "$(G4_CLAUDE=ok s12 'WS_GW_DOWN=1; WS_GW_URL=http://gw.exemplo:4000/')|$([ -f "$G4/claude.args" ] && echo chamou)" "E-AUTH-05|http://gw.exemplo:4000/|" "s12: gateway em baixo no passo 0 -> nem chama o claude"
+eq "$(G4_CLAUDE=ok s12 :)" "" "s12: resposta OK"
+grep -- '^-p ' "$G4/claude.args" | grep -q -- '--strict-mcp-config' && ok || ko "s12: o teste corre sem servidores MCP (--strict-mcp-config)"
+# passo 0: chaves, gateway e cloud (na shell e no "env" do settings.json)
+SJ="$G4/cdir/settings.json"; SJS=$(ws_path_show "$SJ")
+eq "$(g4 'ANTHROPIC_AUTH_TOKEN=x ANTHROPIC_API_KEY=y; ws_env_keys')" "ANTHROPIC_AUTH_TOKEN, ANTHROPIC_API_KEY" "ws_env_keys: nomes das variaveis"
+printf '{"env": {"ANTHROPIC_API_KEY": "sk-ant-segredo-9999", "CLAUDE_CODE_USE_VERTEX": "1"}}\n' > "$SJ"
+eq "$(g4 ws_env_keys)" "ANTHROPIC_API_KEY ($SJS)" "ws_env_keys: chave no settings.json (so o nome)"
+eq "$(g4 ws_cloud_where)" "CLAUDE_CODE_USE_VERTEX ($SJS)" "ws_cloud_where: settings.json"
+eq "$(g4 'CLAUDE_CODE_USE_BEDROCK=1; ws_cloud_where')" "CLAUDE_CODE_USE_BEDROCK (shell)" "ws_cloud_where: shell"
+printf '{"env": {"CLAUDE_CODE_USE_BEDROCK": "0"}}\n' > "$SJ"; g4 ws_cloud_where >/dev/null; eq "$?" 1 "ws_cloud_where: 0 nao conta"
+printf '{"env": {"CLAUDE_CODE_USE_BEDROCK": true}}\n' > "$SJ"; eq "$(g4 ws_cloud_where | cut -d' ' -f1)" CLAUDE_CODE_USE_BEDROCK "ws_cloud_where: booleano true"
+printf '{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:9/"}}\n' > "$SJ"
+eq "$(g4 'WS_CUR=0; SW_0=""; ws_gw_detect; printf "%s|%s" "$WS_GW_DOWN" "$SW_0"')" "1|E-CFG-03|ANTHROPIC_BASE_URL ($SJS)
+E-AUTH-05|http://127.0.0.1:9/" "passo 0: gateway do settings.json que nao responde -> WS_GW_DOWN=1 e E-AUTH-05"
+: > "$SJ"
+eq "$(g4 'WS_CUR=0; SW_0=""; ws_gw_detect; printf "%s|%s" "$WS_GW_DOWN" "$SW_0"')" "0|" "passo 0: sem gateway"
+eq "$(grep -c '^  ws_gw_detect$' "$ROOT/setup/setup-mac.sh")" 1 "passo 0: o gateway e testado uma so vez (depois do proxy)"
+# passo 3: Bedrock/Vertex pelo apiProvider -> falha E-CFG-04 sem oferecer o login; a origem da chave no aviso E-AUTH-03
+eq "$(G4_PROVIDER=bedrock G4_METHOD=third_party g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=install; WS_AUTH_OK=0; ws_s3_detect; r=$?; SF_3=""; ws_s3_install; printf "%s|%s|%s" "$r$?" "$SF_3" "$WS_AUTH_OK"')" "11|E-CFG-04|bedrock: managed settings|0" "passo 3: apiProvider bedrock -> E-CFG-04"
+eq "$(G4_METHOD=api_key G4_SOURCE=ANTHROPIC_API_KEY g4 'WS_CLAUDE="$G4/claude"; WS_CUR=3; WS_MODE=check; SW_3=""; ws_s3_detect; printf "%s|%s" "$?" "$SW_3"')" "0|E-AUTH-03|ANTHROPIC_API_KEY" "passo 3: E-AUTH-03 diz a variavel"
+# passo 2: ~/.claude.json invalido para antes de qualquer comando do Claude Code (node e JXA)
+mkdir -p "$G4/cj"
+for engine in node jxa; do
+  if [ "$engine" = node ]; then [ -n "$NODE" ] || continue; E=$NODE; else command -v osascript >/dev/null || continue; E=""; fi
+  for c in 'ok|{"mcpServers":{"x":{}}}|0' 'virgula|{"a":1,}|1' 'vazio||0' 'branco|  |0' 'bom|\357\273\277{"a":1}|0'; do
+    IFS='|' read -r nome txt want <<EOF
+$c
+EOF
+    # shellcheck disable=SC2059
+    printf "$txt" > "$G4/cj/.claude.json"
+    eq "$(g4 'WS_NODE=$E; CLAUDE_CONFIG_DIR="$G4/cj"; WS_CUR=2; SF_2=""; ws_claude_json_ok; printf "%s|%s" "$?" "${SF_2%%|*}"')" "$want|$([ "$want" = 1 ] && echo E-CC-04)" "claude.json $engine: $nome"
+  done
+done
+printf '#!/bin/sh\necho "Claude configuration file at ~/.claude.json is corrupted"\necho "The corrupted file has been backed up to: /u/.claude/backups/.claude.json.corrupted.123"\nexit 1\n' > "$G4/install.sh"
+eq "$(g4 'CLAUDE_CONFIG_DIR="$G4/cdir"; C_CLAUDE_INSTALL_SH_URL="file://$G4/install.sh"; WS_CUR=2; SF_2=""; ws_s2_install >/dev/null; printf "%s" "$SF_2"')" "E-CC-04|/u/.claude/backups/.claude.json.corrupted.123" "passo 2: install.sh guardou o .claude.json corrompido -> E-CC-04 com a copia"
+# passos 7 e 10: o "claude mcp get" sai com 0 para registos antigos; compara-se o destino
+printf 'atlassian:\n  Scope: User config\n  Status: ! Needs authentication\n  Type: sse\n  URL: https://mcp.atlassian.com/v1/sse\n' > "$G4/mcp-atlassian"
+printf 'agent-memory:\n  Scope: User config\n  Status: x Failed to connect\n  Type: stdio\n  Command: /Users/old user/.local/bin/agent-memory\n  Args: mcp\n' > "$G4/mcp-agent-memory"
+printf '#!/bin/sh\ncase "$1" in --version) echo "acli version 9.9.9-stable";; *) exit 0;; esac\n' > "$G4/bin/acli"; chmod +x "$G4/bin/acli"
+mcp() { g4 'WS_CLAUDE="$G4/claude"; WS_TMO_MCP=10; C_ATLASSIAN_MCP_URL=https://mcp.atlassian.com/v2/mcp; WS_HOME="$G4/ws"; KIT_SRC=""; WS_SIM=1; PATH="$G4/bin:$PATH"; '"$1"; }
+eq "$(mcp 'ws_mcp_get atlassian; ws_s7_url_ok; printf "%s|%s" "$?" "$(ws_mcp_field URL)"')" "1|https://mcp.atlassian.com/v1/sse" "s7: atlassian SSE antigo nao conta como feito"
+eq "$(mcp 'WS_CUR=7; WS_MODE=check; ws_s7_detect >/dev/null; printf "%s" "$SF_7"')" "E-MCP-01|atlassian: https://mcp.atlassian.com/v1/sse" "s7 check: registo antigo -> E-MCP-01 com o URL"
+eq "$(mcp 'WS_CUR=7; WS_MODE=install; SN_7=""; SF_7=""; ws_s7_install >/dev/null; printf "%s|%s|" "$?" "$SF_7"; printf "%s" "$SN_7" | grep -c "pointed to https://mcp.atlassian.com/v1/sse"')" "0||1" "s7 install: troca o registo antigo, com uma nota"
+grep -q 'URL: https://mcp.atlassian.com/v2/mcp' "$G4/mcp-atlassian" && ok || ko "s7 install: atlassian aponta para o MCP do workshop"
+eq "$(mcp 'ws_memory_mcp_ok /u/bin/agent-memory; printf "%s" "$?"')" 1 "s10: agent-memory de outro utilizador nao conta como feito"
+eq "$(mcp 'WS_CUR=10; SN_10=""; ws_memory_mcp /u/bin/agent-memory; printf "%s|%s" "$?" "$SN_10"')" "0|The agent-memory MCP pointed to /Users/old user/.local/bin/agent-memory. It now points to the app just installed." "s10 install: refaz o registo antigo, com uma nota"
+printf 'agent-memory:\n  Type: stdio\n  Command: /u/bin/agent-memory\n  Args: mcp\n' > "$G4/mcp-agent-memory"
+eq "$(mcp 'ws_memory_mcp_ok /u/bin/agent-memory; printf "%s" "$?"')" 0 "s10: agent-memory com o programa certo"
+: > "$G4/mcp-memoria"
+eq "$(mcp 'ws_memory_mcp_ok /u/bin/agent-memory; printf "%s" "$?"')" 1 "s10: registo antigo memoria fica por arrumar"
+# passo 6: gh sem resposta (VPN/proxy) -> E-GH-03 em segundos, sem pergunta de login; depois de instalar usa o caminho
+printf '#!/bin/sh\ncase "$1" in --version) echo "gh version 2.102.0 (2026-09-01)"; exit 0;; esac\ncase "$1 $2" in "auth status") [ "${G4_GH:-}" = stall ] && exec /bin/sleep 43; [ "${G4_GH:-}" = ok ] && exit 0; exit 1;; esac\nexit 0\n' > "$G4/gh-ok"
+printf '#!/bin/sh\nkill -9 $$\n' > "$G4/badgh/gh"; chmod +x "$G4/gh-ok" "$G4/badgh/gh"
+printf 'github.acme-corp.com:\n    user: bea\n    oauth_token: gho_x\n' > "$G4/ghcfg/hosts.yml"
+gh6() { g4 'GH_CONFIG_DIR="$G4/ghcfg"; WS_TMO_GH=1; WS_CUR=6; WS_MODE=install; WS_SIM=1; SF_6=""; WS_GH_SEM_REDE=""; '"$1"; }
+t0=$(date +%s); eq "$(G4_GH=stall gh6 'ws_s6_detect "$G4/gh-ok"; printf "%s|%s|%s" "$?" "$SF_6" "$WS_GH_SEM_REDE"')" "1|E-GH-03|github.acme-corp.com|1" "s6: gh auth status sem resposta -> E-GH-03"; t1=$(date +%s)
+[ $((t1 - t0)) -lt 6 ] && ok || ko "s6: o limite do gh auth status nao cortou ($((t1 - t0)) s)"
+eq "$(gh6 'WS_GH_SEM_REDE=1; ws_s6_install; printf "%s|%s" "$?" "$SF_6"')" "1|E-GH-03|github.acme-corp.com" "s6 install: sem rede nao volta a descarregar"
+eq "$(G4_GH=ok gh6 'PATH="$G4/badgh:$PATH"; hash -r; ws_s6_detect "$G4/gh-ok"; printf "%s|%s" "$?" "$WS_GH_VER"')" "0|2.102.0" "s6: detect pelo caminho dado (um gh estragado primeiro no PATH)"
+eq "$(gh6 'ws_s6_detect "$G4/gh-ok"; printf "%s" "$SF_6"')" "E-GH-02|" "s6: sem login (resposta rapida) continua E-GH-02"
+eq "$(g4 'WS_AUTH_OK=1; SF_6="E-GH-03|x"; ws_helper_offer 6; printf "%s|" "$?"; SF_6="E-GH-01|x"; WS_GW_DOWN=1; ws_helper_offer 6; printf "%s" "$?"')" "1|1" "ajudante: nao e oferecido com E-GH-03 nem com o gateway em baixo"
+# passo 5: um uv antigo primeiro no PATH (0.5.29 passava o ">= 0.5") nao serve; usa-se o ~/.local/bin/uv pelo caminho
+printf '#!/bin/sh\necho "uv 0.5.29 (Homebrew 2025-02-10)"\n' > "$G4/old/uv"; printf '#!/bin/sh\necho "uv 0.13.1 (abc 2026-10-01)"\n' > "$G4/home/.local/bin/uv"; chmod +x "$G4/old/uv" "$G4/home/.local/bin/uv"
+eq "$(g4 'HOME="$G4/home"; C_UV_MIN_VERSION=0.6.8; WS_CUR=5; SW_5=""; PATH="$G4/old:$PATH"; hash -r; ws_s5_detect; printf "%s|%s|%s" "$?" "$WS_UV" "${SW_5%%|*}"')" "0|$G4/home/.local/bin/uv|E-UV-02" "s5: uv antigo primeiro no PATH -> usa o ~/.local/bin/uv e avisa"
+eq "$(g4 'HOME="$G4/h3"; C_UV_MIN_VERSION=0.6.8; WS_CUR=5; PATH="$G4/old:$PATH"; hash -r; ws_s5_detect; printf "%s|%s" "$?" "$WS_UV"')" "1|" "s5: so um uv 0.5.29 -> instala o do workshop"
+# ws_path_setup: a mesma ordem que o bloco do perfil (node/bin, bin, .local/bin)
+eq "$(g4 'HOME="$G4/h2"; WS_HOME="$G4/h2/.workshop-claude"; PATH=/usr/bin:/bin; ws_path_setup; printf "%s" "$PATH"')" "$G4/h2/.workshop-claude/node/bin:$G4/h2/.workshop-claude/bin:$G4/h2/.local/bin:/usr/bin:/bin" "ws_path_setup: ordem do perfil"
+# Command Line Tools: o xcode-select a apontar para uma pasta sem git nao conta; sem CLT o uv recebe um install_name_tool vazio
+mkdir -p "$G4/xs-ok" "$G4/xs-gone" "$G4/xs-fail" "$G4/dev/usr/bin"; : > "$G4/dev/usr/bin/git"; chmod +x "$G4/dev/usr/bin/git"
+printf '#!/bin/sh\necho "%s"\n' "$G4/dev" > "$G4/xs-ok/xcode-select"; printf '#!/bin/sh\necho "%s"\n' "$G4/nada" > "$G4/xs-gone/xcode-select"; printf '#!/bin/sh\nexit 2\n' > "$G4/xs-fail/xcode-select"
+chmod +x "$G4/xs-ok/xcode-select" "$G4/xs-gone/xcode-select" "$G4/xs-fail/xcode-select"
+eq "$(for d in xs-ok xs-gone xs-fail; do g4 'PATH="$G4/'"$d"':$PATH"; hash -r; ws_clt_ok; printf "%s" "$?"'; done)" "011" "ws_clt_ok: ok, pasta apagada, sem CLT"
+printf '#!/bin/sh\ncommand -v install_name_tool > "%s/int.txt"\n' "$G4" > "$G4/uvfake"; chmod +x "$G4/uvfake"
+if [ -e /usr/bin/install_name_tool ]; then
+  g4 'WS_UV="$G4/uvfake"; WS_TMP="$G4"; C_PYTHON_VERSION=3.12; PATH="$G4/xs-fail:/usr/bin:/bin"; hash -r; ws_uv_tool_install a.whl c.txt'
+  eq "$(cat "$G4/int.txt")" "$G4/no-clt/install_name_tool" "s10 sem CLT: o uv usa um install_name_tool vazio (sem o dialogo da Apple)"
+  g4 'WS_UV="$G4/uvfake"; WS_TMP="$G4"; C_PYTHON_VERSION=3.12; PATH="$G4/xs-ok:/usr/bin:/bin"; hash -r; ws_uv_tool_install a.whl c.txt'
+  eq "$(cat "$G4/int.txt")" /usr/bin/install_name_tool "s10 com CLT: o install_name_tool normal"
+fi
+grep -nE '^[[:space:]]*(gh|uv|"\$WS_CLAUDE") (auth status|mcp get|mcp list|tool)' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "setup-mac.sh: gh/uv/claude chamados sem limite ou pelo nome" || ok
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]
