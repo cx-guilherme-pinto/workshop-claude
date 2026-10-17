@@ -10,7 +10,7 @@
    - set a **monthly spend limit well above US$ 10** (for example, US$ 25), only as protection against abuse. Never below, because a limit that is hit cuts the session halfway;
    - run the setup and then `--check`;
    - send `~/.workshop-claude/summary.txt` if any step is missing.
-3. **New accounts and rate limits.** New Console organizations may start on the *Evaluation* tier, with lower, unpublished limits. The participant's swarm uses up to 8 agents in parallel (`ARENA_MAX_PARALELO`). If 429 errors show up, Claude Code retries by itself and the swarm just gets slower. We recommend that each person runs the setup and a `/demo-plan` a few days before, so the account builds some usage history.
+3. **New accounts and rate limits.** New Console organizations may start on the *Evaluation* tier, with lower, unpublished limits. The participant's swarm uses up to 8 agents in parallel (`ARENA_MAX_PARALLEL`). If 429 errors show up, Claude Code retries by itself and the swarm just gets slower. We recommend that each person runs the setup and a `/demo-plan` a few days before, so the account builds some usage history.
 4. **Jira.** The Atlassian MCP server uses OAuth and spends the organization's Rovo credits. In each company, the admin can:
    - restrict the allowed domains (Atlassian Administration → Connectors → Atlassian MCP server);
    - turn off write tools.

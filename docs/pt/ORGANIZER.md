@@ -10,7 +10,7 @@
    - defina um **limite de gasto mensal bem acima de US$ 10** (por exemplo, US$ 25), só como proteção contra abusos. Nunca abaixo, porque um limite atingido corta a sessão a meio;
    - corra o setup e depois `--check`;
    - envie o `~/.workshop-claude/summary.txt` se faltar algum passo.
-3. **Contas novas e limites de taxa.** As organizações Console novas podem começar no tier *Evaluation*, com limites mais baixos e não publicados. O swarm do participante usa até 8 agentes em paralelo (`ARENA_MAX_PARALELO`). Se aparecerem erros 429, o Claude Code repete sozinho e o swarm fica só mais lento. Recomenda-se que cada pessoa faça o setup e um `/demo-plan` uns dias antes, para a conta ganhar histórico de uso.
+3. **Contas novas e limites de taxa.** As organizações Console novas podem começar no tier *Evaluation*, com limites mais baixos e não publicados. O swarm do participante usa até 8 agentes em paralelo (`ARENA_MAX_PARALLEL`; o nome antigo, `ARENA_MAX_PARALELO`, continua a funcionar). Se aparecerem erros 429, o Claude Code repete sozinho e o swarm fica só mais lento. Recomenda-se que cada pessoa faça o setup e um `/demo-plan` uns dias antes, para a conta ganhar histórico de uso.
 4. **Jira.** O servidor MCP da Atlassian usa OAuth e gasta créditos Rovo da organização. Em cada empresa, o administrador pode:
    - limitar os domínios permitidos (Atlassian Administration → Connectors → Atlassian MCP server);
    - desligar ferramentas de escrita.
