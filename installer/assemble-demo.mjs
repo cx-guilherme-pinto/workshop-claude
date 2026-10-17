@@ -167,7 +167,9 @@ export function montar(o) {
   mkdirSync(o.dest, { recursive: true });
   copiarArena(o.dest, l);
   const motor = join(o.dest, 'tools', 'workshop');
-  for (const d of ENGINE) copiar(join(KIT, d), join(motor, d));
+  // Without the kit's own tests (hooks/test/, orchestrator/test/): "node --test" and tools/check-integration.mjs in
+  // the Arena would run them too, and their names are the kit's (Portuguese), not the Arena's language.
+  for (const d of ENGINE) copiar(join(KIT, d), join(motor, d), { sem: [resolve(KIT, d, 'test')] });
   cpSync(join(KIT, 'pricing.json'), join(motor, 'pricing.json'));
   writeFileSync(join(motor, LANGUAGE_FILE), JSON.stringify({ language: l }) + '\n');
   const skills = join(o.dest, '.claude', 'skills');

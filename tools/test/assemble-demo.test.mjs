@@ -78,6 +78,9 @@ test('Arena em pt: igual a demo-project/ (sem i18n/), com a lingua gravada', () 
     assert.deepEqual(lerJson(join(dest, 'tools', 'workshop', 'language.json')), { language: 'pt' });
     assert.ok(existsSync(join(dest, 'tools', 'workshop', 'orchestrator', 'next-wave.mjs')));
     assert.ok(!existsSync(join(dest, 'tools', 'workshop', 'orquestrador')));
+    // The kit's own tests stay out ("node --test" in the Arena runs only the Arena's tests).
+    for (const d of ['hooks', 'orchestrator']) assert.ok(!existsSync(join(dest, 'tools', 'workshop', d, 'test')), `tools/workshop/${d}/test`);
+    assert.ok(existsSync(join(dest, 'tools', 'workshop', 'hooks', 'lib', 'cost.mjs')));
     assert.ok(!existsSync(join(dest, 'i18n')), 'i18n/ nao entra na Arena');
     for (const f of ['TASKS.md', 'README.md', 'specs/cards.json', 'cards/pw-01/spec.md', 'cards/pw-01/card.test.js', nome('textos'), 'public/index.html', nome('paginaCategoria')]) {
       assert.equal(ler(join(dest, f)), ler(join(DEMO, f)), `${f} mudou na Arena em pt`);
