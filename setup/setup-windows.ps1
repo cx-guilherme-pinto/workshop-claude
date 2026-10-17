@@ -8,8 +8,11 @@
   Or directly:                         powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows.ps1
   After the first time:                powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check
 
-  The setup speaks English (D-20). The machine language (WORKSHOP_LANG, Get-UICulture, Get-Culture) only
-  configures Claude's answers (Claude Code "language" setting) and the language of the workshop texts (pt or en).
+  The setup speaks English (D-20). The machine language (Get-UICulture, Get-Culture) only configures Claude's
+  answers (Claude Code "language" setting) and the language of the workshop texts (pt or en). The language chosen
+  at the first install is kept on later runs. To choose it, set WORKSHOP_LANG (pt-BR, pt-PT, en, hi or he) in the
+  same window before the one-liner:   $env:WORKSHOP_LANG='pt-BR'; irm <url>/bootstrap-windows.ps1 | iex
+  A value the setup doesn't know is ignored, with a note.
   This file is ASCII only (PowerShell 5.1 reads UTF-8 without BOM as ANSI). All texts come from
   setup/messages.en.json (the same catalog as docs/TROUBLESHOOTING.md), read as UTF-8.
 
@@ -492,10 +495,16 @@ function Move-WsPathFront {
 
 function ConvertTo-WsLangTag {
   # Lingua da maquina (D-20): texto -> etiqueta como "pt-PT", "he" ou "en". Mesmas regras que
-  # installer/lib/linguas.mjs (casos partilhados em tools/test/lingua-cases.json). Vazio sem informacao.
+  # installer/lib/languages.mjs (casos partilhados em tools/test/language-cases.json). Vazio sem informacao.
   param([string]$Text)
   $t = (([string]$Text).Trim() -split '[.@]')[0].Replace('_', '-')
   if ($t -eq '' -or $t -match '^(?i:c|posix)$') { return '' }
+  # So uma etiqueta BCP 47 (como eEtiqueta e ws_lang_tag): 2-3 letras ASCII e subetiquetas de ate 8 letras ou
+  # algarismos. "brasil", "Portugues" com acento, "pt-*", "en,pt", "pt BR" e "UTF-8" nao dao informacao.
+  # [0-9] e nao \d (no .NET o \d aceita algarismos Unicode) e -cnotmatch com as duas caixas: sem distinguir
+  # maiusculas, o .NET usa a cultura atual e numa maquina turca o [a-z] tambem aceitava o I com ponto.
+  # \z e nao $: no .NET o $ tambem aceita um \n no fim ("pt`n.UTF-8" passava como "pt`n").
+  if ($t -cnotmatch '^[A-Za-z]{2,3}(-[A-Za-z0-9]{0,8})*\z' -or $t -match '^utf(-|$)') { return '' }
   $parts = @($t.Split('-') | Where-Object { $_ -ne '' })
   $base = $parts[0].ToLowerInvariant()
   if ($base -eq 'iw') { $base = 'he' }
@@ -511,7 +520,9 @@ function ConvertTo-WsLangTag {
 
 function Select-WsLang {
   # WORKSHOP_LANG, lingua de apresentacao (Get-UICulture) e formato regional (Get-Culture) -> etiqueta; 'en' se nada servir.
+  # Um WORKSHOP_LANG que nao seja pt, en, hi ou he nao conta (Test-WsLangOk): fica a lingua do sistema.
   param([string]$Override, [string]$UiCulture, [string]$Culture)
+  if (-not (Test-WsLangOk $Override)) { $Override = '' }
   foreach ($c in @($Override, $UiCulture, $Culture)) {
     $t = ConvertTo-WsLangTag $c
     if ($t) { return $t }
@@ -524,6 +535,13 @@ function Get-WsLangKit {
   param([string]$Tag)
   if ($Tag -match '^pt(-|$)') { return 'pt' }
   return 'en'
+}
+
+function Test-WsLangOk {
+  # WORKSHOP_LANG (e a lingua guardada na instalacao) so contam se forem uma das linguas do workshop: uma
+  # gralha como "br", "brasil" ou "pt-*" nao pode ganhar a lingua da maquina (o kit ficava em ingles).
+  param([string]$Text)
+  return ((ConvertTo-WsLangTag $Text) -cmatch '^(pt|en|hi|he)(-|$)')
 }
 
 function Get-WsInstallUserArgs {
@@ -1601,6 +1619,13 @@ function Invoke-WsWinget {
 
 # =============================================================== PASSO 0 - ambiente
 
+function Add-WsStep0LangNotes {
+  # Lingua: a escolhida, um WORKSHOP_LANG ignorado (gralha) e a lingua guardada quando o sistema diz outra.
+  Add-WsNote (M 's0_lingua' @{ LINGUA = $script:Lang })
+  if ($script:LangIgnored) { Add-WsNote (M 's0_lingua_ignorada' @{ VALOR = $script:LangIgnored; LINGUA = $script:Lang }) }
+  if ($script:LangSaved -and $script:LangSaved -ne $script:LangMachine) { Add-WsNote (M 's0_lingua_guardada' @{ LINGUA = $script:LangSaved; MAQUINA = $script:LangMachine }) }
+}
+
 function Test-WsStep0 {
   $v = [Environment]::OSVersion.Version
   $script:OsBuild = $v.Build
@@ -1614,7 +1639,7 @@ function Test-WsStep0 {
   $script:Arch = $arch
   $script:OsText = ('Windows {0}.{1}.{2} {3} - PowerShell {4}' -f $v.Major, $v.Minor, $v.Build, $arch, $PSVersionTable.PSVersion)
   Add-WsNote (M 's0_so' @{ SO = $script:OsText })
-  Add-WsNote (M 's0_lingua' @{ LINGUA = $script:Lang })
+  Add-WsStep0LangNotes
   if ($v.Major -lt 10 -or $v.Build -lt 18362) { Set-WsWarn 'E-SO-01' ('{0}.{1}.{2}' -f $v.Major, $v.Minor, $v.Build) }
   if ($arch -eq 'arm64') { Set-WsWarn 'E-SO-02' 'ARM64' }
 
@@ -2785,7 +2810,7 @@ function Invoke-WsInstallUser {
 
 function Read-WsInstallUserOutput {
   param([string]$Text)
-  $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false; $err = ''; $det = ''
+  $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false; $err = ''; $det = ''; $de = ''; $para = ''
   foreach ($kv in (ConvertFrom-WsTsv $Text)) {
     switch ($kv[0]) {
       'skills' { $skills = $kv[1] }
@@ -2797,7 +2822,18 @@ function Read-WsInstallUserOutput {
       'aviso' { if ($kv[1] -eq 'E-CFG-06') { Add-WsNote (M 's8_statusline_mantida') }; Set-WsWarn $kv[1] 'statusLine' }
       'erro' { $err = $kv[1] }
       'erro_detalhe' { $det = $kv[1] }
-      'falta' { Write-WsLog ('missing: ' + $kv[1]) }
+      'falta' {
+        Write-WsLog ('missing: ' + $kv[1])
+        # "lingua do kit (pt -> en)" ou "language do Claude (European Portuguese -> Brazilian Portuguese)";
+        # a segunda vem depois e fica (a mais especifica).
+        $mm = [regex]::Match([string]$kv[1], '^(lingua do kit|language do Claude) \((.+) -> (.+)\)$')
+        if ($mm.Success) {
+          $de = $mm.Groups[2].Value; $para = $mm.Groups[3].Value
+          if ($mm.Groups[1].Value -eq 'lingua do kit') {
+            if (($de -eq 'pt' -or $de -eq 'en') -and ($para -eq 'pt' -or $para -eq 'en')) { $de = M ('lingua_' + $de); $para = M ('lingua_' + $para) } else { $de = '' }
+          }
+        }
+      }
       # skills/agentes do kit que a pessoa tinha alterado: a copia dela ficou no backup
       'editado' { Add-WsNote (M 's8_editado' @{ NOME = (Split-Path ($kv[1] -replace '/', '\') -Leaf); PASTA = (Format-WsShowPath $kv[1]) }) }
       'anteriores' { Add-WsNote (M 's8_anteriores' @{ PASTA = (Format-WsShowPath $kv[1]) }) }
@@ -2812,6 +2848,8 @@ function Read-WsInstallUserOutput {
     return
   }
   Set-WsDetail (M 's8_ja' @{ SKILLS = $skills; AGENTES = $agentes })
+  # Em -Check/-Doctor, a lingua instalada diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio: diz-se qual e.
+  if ($de -and $script:Mode -ne 'install') { Add-WsNote (M 's8_lingua_muda' @{ DE = $de; PARA = $para }) }
   if (-not $temLingua) { return }
   if (-not $kit) { $kit = $script:LangKit }
   $kitName = M ('lingua_' + $kit)
@@ -2829,6 +2867,7 @@ function Test-WsStep8 {
 }
 
 function Install-WsStep8 {
+  $script:T['8'].Notas = @()   # as notas do verificar (lingua antes da instalacao) nao valem: o instalar volta a escreve-las (como o ws_s8_install)
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   # O detalhe e as notas sao os desta instalacao (o Test do passo ja os tinha escrito uma vez).
   $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @()
@@ -2936,8 +2975,29 @@ function Test-WsStep9 {
     if ((Get-WsProjState $sb '.sandbox-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $sb; return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
+  Add-WsStep9LangNote
   if ($script:Mode -ne 'install') { return (Test-WsAppTests) }
   return $true
+}
+
+function Add-WsStep9LangNote {
+  # Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
+  # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
+  foreach ($p in @(@('demo-project', '.arena-kit.json'), @($script:PracticeDir, '.sandbox-kit.json'))) {
+    $f = Join-Path (Join-Path $script:Proj $p[0]) $p[1]
+    if (-not (Test-Path -LiteralPath $f)) { continue }
+    $l = ''
+    try {
+      $raw = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)
+      if ($raw.Trim()) {
+        $j = $raw | ConvertFrom-Json
+        $l = [string]$j.language
+        if (-not $l) { $l = [string]$j.lingua }
+      }
+    } catch { $l = '' }
+    if (($l -cne 'pt' -and $l -cne 'en') -or $l -ceq $script:LangKit) { continue }
+    Add-WsNote (M 's9_lingua_diferente' @{ CAMINHO = ($script:ProjShow + '\' + $p[0]); LINGUA = (M ('lingua_' + $l)); KIT = (M ('lingua_' + $script:LangKit)) })
+  }
 }
 
 function Test-WsAppTests {
@@ -2998,6 +3058,7 @@ function Install-WsStep9 {
     if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' 'HEAD' @('--language', $script:LangKit))) { return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
+  Add-WsStep9LangNote
   return (Test-WsAppTests)
 }
 
@@ -3668,14 +3729,52 @@ function Initialize-WsFill {
   $script:Fill = $f
 }
 
+function Get-WsLangSaved {
+  # Etiqueta guardada na instalacao (kit\language.json "machine"; kit\lingua.json "maquina" nas instalacoes
+  # antigas). So conta se for uma lingua do workshop: um valor guardado pelo erro antigo (ex.: "br") e ignorado.
+  # ReadAllText em UTF-8 e nao Get-Content: no 5.1 o Get-Content sem -Encoding le o ficheiro como ANSI.
+  param([string]$KitDir)
+  foreach ($pair in @(@('language.json', 'machine'), @('lingua.json', 'maquina'))) {
+    $f = Join-Path $KitDir $pair[0]
+    if (-not (Test-Path -LiteralPath $f)) { continue }
+    $v = ''
+    try {
+      $raw = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)
+      if ($raw.Trim()) { $v = [string](($raw | ConvertFrom-Json).($pair[1])) }
+    } catch { $v = '' }
+    if (Test-WsLangOk $v) { return (ConvertTo-WsLangTag $v) }
+  }
+  return ''
+}
+
 function Initialize-WsLang {
   # Lingua da maquina: so configura a "language" do Claude Code e a lingua do kit; o setup fala sempre ingles.
+  # Ordem: WORKSHOP_LANG (se for pt, en, hi ou he), a lingua guardada na instalacao, a lingua do sistema.
+  # A lingua guardada vem antes da do sistema para uma janela nova ou o -Check nao trocarem a lingua escolhida na
+  # instalacao pela do sistema; so o WORKSHOP_LANG a muda.
+  # LangIgnored: WORKSHOP_LANG nao reconhecido (nota do passo 0); LangMachine: a lingua do sistema.
   $ui = ''; $cu = ''
   try { $ui = [string](Get-UICulture).Name } catch { $ui = '' }
   try { $cu = [string](Get-Culture).Name } catch { $cu = '' }
-  $script:Lang = Select-WsLang $env:WORKSHOP_LANG $ui $cu
+  $w = [string]$env:WORKSHOP_LANG
+  $script:LangIgnored = ''; $script:LangSaved = ''
+  if (-not (Test-WsLangOk $w)) {
+    # So espacos: como sem WORKSHOP_LANG (sem nota). Outro texto: a nota do passo 0 mostra-o (curto e sem controlos).
+    if ($w.Trim()) {
+      $v = $w
+      if ($v.Length -gt 40) { $v = $v.Substring(0, 40) }
+      $script:LangIgnored = ($v -replace '[\x00-\x1F\x7F]', '')
+    }
+    $w = ''
+  }
+  $script:LangMachine = Select-WsLang '' $ui $cu
+  $saved = ''
+  if (-not $w) { $saved = Get-WsLangSaved (Join-Path $script:WsHome 'kit') }
+  if ($w) { $script:Lang = ConvertTo-WsLangTag $w }
+  elseif ($saved) { $script:Lang = $saved; $script:LangSaved = $saved }
+  else { $script:Lang = $script:LangMachine }
   $script:LangKit = Get-WsLangKit $script:Lang
-  Write-WsLog ('language: WORKSHOP_LANG={0} UICulture={1} Culture={2} -> {3} (kit {4})' -f $env:WORKSHOP_LANG, $ui, $cu, $script:Lang, $script:LangKit)
+  Write-WsLog ('language: {0} (kit {1}) saved={2} machine={3} UICulture={4} Culture={5} ignored={6}' -f $script:Lang, $script:LangKit, $script:LangSaved, $script:LangMachine, $ui, $cu, $script:LangIgnored)
 }
 
 function Save-WsSelf {

@@ -1,5 +1,5 @@
 {
-  "nota": "Casos partilhados pelos testes da lingua da maquina (Node, bash e PowerShell). D-20. 'etiquetas': normalizacao e mapeamento (o Node tambem verifica 'claude', o valor da definicao language). 'mac': WORKSHOP_LANG, defaults read -g AppleLanguages, LC_ALL, LC_MESSAGES, LANG (WORKSHOP_LANG so conta se for pt, en, hi ou he). 'invalidas': textos que nao sao etiquetas de lingua (sem informacao: etiqueta vazia, kit en). 'windows': WORKSHOP_LANG, Get-UICulture, Get-Culture.",
+  "nota": "Casos partilhados pelos testes da lingua da maquina (Node, bash e PowerShell). D-20. 'etiquetas': normalizacao e mapeamento (o Node tambem verifica 'claude', o valor da definicao language). 'mac': WORKSHOP_LANG, defaults read -g AppleLanguages, LC_ALL, LC_MESSAGES, LANG (WORKSHOP_LANG so conta se for pt, en, hi ou he). 'invalidas': textos que nao sao etiquetas de lingua (sem informacao: etiqueta vazia, kit en). 'windows': WORKSHOP_LANG, Get-UICulture, Get-Culture (WORKSHOP_LANG so conta se for pt, en, hi ou he).",
   "etiquetas": [
     { "in": "pt-PT", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
     { "in": "pt_PT.UTF-8", "tag": "pt-PT", "kit": "pt", "claude": "European Portuguese" },
@@ -57,6 +57,11 @@
     { "nome": "hindi", "override": "", "ui": "hi-IN", "cultura": "en-IN", "tag": "hi-IN" },
     { "nome": "WORKSHOP_LANG sobrepoe-se", "override": "en", "ui": "pt-BR", "cultura": "pt-BR", "tag": "en" },
     { "nome": "sem UICulture: Culture", "override": "", "ui": "", "cultura": "pt-BR", "tag": "pt-BR" },
-    { "nome": "cultura invariante: ingles", "override": "", "ui": "", "cultura": "", "tag": "en" }
+    { "nome": "cultura invariante: ingles", "override": "", "ui": "", "cultura": "", "tag": "en" },
+    { "nome": "WORKSHOP_LANG desconhecido (br) nao conta", "override": "br", "ui": "pt-BR", "cultura": "pt-BR", "tag": "pt-BR" },
+    { "nome": "WORKSHOP_LANG com glob (pt-*) nao conta", "override": "pt-*", "ui": "pt-BR", "cultura": "en-US", "tag": "pt-BR" },
+    { "nome": "WORKSHOP_LANG fora das linguas do workshop (es) nao conta", "override": "es", "ui": "en-US", "cultura": "en-US", "tag": "en-US" },
+    { "nome": "WORKSHOP_LANG=iw conta (hebraico)", "override": "iw_IL", "ui": "pt-BR", "cultura": "pt-BR", "tag": "he-IL" },
+    { "nome": "WORKSHOP_LANG com locale (pt_PT.UTF-8) conta", "override": "pt_PT.UTF-8", "ui": "en-US", "cultura": "en-US", "tag": "pt-PT" }
   ]
 }
