@@ -31,6 +31,9 @@ umask 022
 
 WS_TAB=$(printf '\t')
 WS_CR=$(printf '\r')
+# Limites de tempo (segundos, ws_timeout) dos comandos que esperam pela rede e podem ficar presos sem VPN ou com
+# um proxy parado. O "auth status" tem mais tempo porque pode esperar pelo dialogo do Keychain.
+WS_TMO_GH=25 WS_TMO_MCP=60 WS_TMO_AUTH=120 WS_TMO_SMOKE=90 WS_TMO_HELPER=90 WS_TMO_DOCTOR=180
 WS_SCHEMA_HELPER='{"type":"object","properties":{"causa":{"type":"string"},"comandos":{"type":"array","items":{"type":"string"}}},"required":["causa","comandos"]}'
 WS_PUBLIC_CAS='Google Trust Services|Let.s Encrypt|ISRG|DigiCert|Sectigo|COMODO|USERTrust|GlobalSign|Amazon|Starfield|Go Daddy|GoDaddy|Entrust|Microsoft|Cloudflare|Baltimore|IdenTrust|SSL.com|Certainly|ZeroSSL|Buypass|HARICA|Actalis|QuoVadis|Certum|Telia|SwissSign|Trustwave|Apple'
 
@@ -378,6 +381,40 @@ ws_run() {
   return $rc
 }
 
+# Corre um comando com limite de tempo (o macOS nao tem timeout(1)). Devolve 124 se passar o limite.
+# O comando fica no seu proprio grupo de processos: no fim do tempo leva TERM e depois KILL, com os filhos
+# (o gh e o acli sao programas Go e ignoram o SIGALRM). Um Ctrl-C (INT/TERM/HUP) tambem termina o grupo e
+# chega a seguir ao setup (a trap ws_interrupted corre como antes). O stdin passa para o comando.
+# As variaveis PERL5* da pessoa ficam vazias so para este perl. Sem perl, o comando corre sem limite.
+ws_timeout() { # segundos comando [args...]
+  local s=$1; shift
+  [ -x /usr/bin/perl ] || { "$@"; return; }
+  PERL5OPT='' PERL5LIB='' PERLLIB='' /usr/bin/perl -e '
+    my $t = shift; my $p = fork; defined $p or exit 125;
+    if (!$p) { setpgrp(0, 0); exec { $ARGV[0] } @ARGV; exit 127 }
+    setpgrp($p, $p);
+    my $stop = sub { kill "TERM", -$p; select(undef, undef, undef, 0.5); kill "KILL", -$p; waitpid($p, 0) };
+    $SIG{ALRM} = sub { $stop->(); exit 124 };
+    $SIG{$_} = sub { my $g = shift; $stop->(); $SIG{$g} = "DEFAULT"; kill $g, $$ } for qw(INT TERM HUP);
+    alarm $t; waitpid($p, 0); exit($? & 127 ? 128 + ($? & 127) : $? >> 8)' "$s" "$@"
+}
+
+# Corre um login interativo no terminal (claude, gh, acli). Um Ctrl-C cancela so o login e o setup continua:
+# com "curl | bash" o Ctrl-C chega tambem ao bash do setup, que sem isto saia logo, sem os outros passos nem o resumo.
+# A trap tem de ser um comando (nao ''): assim o login recebe o SIGINT normal e termina.
+ws_run_login() {
+  ws_tty_drain  # teclas escritas antes (G1): nao respondem ao login
+  WS_LOGIN_INT=0
+  trap 'WS_LOGIN_INT=1' INT
+  "$@" </dev/tty >/dev/tty 2>&1
+  trap ws_interrupted INT
+  if [ "$WS_LOGIN_INT" = 1 ]; then
+    { printf '\n' > /dev/tty; } 2>/dev/null
+    ws_log "login cancelled (Ctrl-C)"; ws_note "$(ws_m login_cancelado)"
+  fi
+  return 0
+}
+
 ws_flush_step_log() {
   [ -s "$WS_STEP_LOG" ] || return 0
   { printf -- '--- command output (step %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- end ---\n'; } | ws_redact >> "$WS_LOG" 2>/dev/null || true
@@ -416,8 +453,8 @@ ws_is_html() {
 # Enquanto um download corre, mostra de 30 em 30 s quanto ja chegou (nunca mais de um minuto sem nada no ecra).
 ws_heartbeat() { # ficheiros ou pastas a medir
   local mb
-  while sleep "${WS_HB_EVERY:-30}" </dev/null >/dev/null 2>&1; do
-    mb=$(du -skc "$@" 2>/dev/null </dev/null | tail -n 1 | LC_ALL=C awk '{ m = $1 / 1024; if (m < 10) printf "%.1f", m; else printf "%d", m }')
+  while sleep "${WS_HB_EVERY:-30}" >/dev/null 2>&1; do
+    mb=$(du -skc "$@" 2>/dev/null | tail -n 1 | LC_ALL=C awk '{ m = $1 / 1024; if (m < 10) printf "%.1f", m; else printf "%d", m }')
     printf '  %s\n' "$(ws_msg a_descarregar_mb MB="${mb:-0}")"
   done
 }
@@ -668,7 +705,10 @@ ws_path_front() {
 }
 ws_path_setup() {
   local d
-  for d in "$WS_HOME/node/bin" "$WS_HOME/bin" "$HOME/.local/bin"; do
+  # A mesma ordem que o bloco do perfil (fica node/bin, depois bin, depois .local/bin a frente): um gh, git ou
+  # acli antigo em ~/.local/bin nao passa a frente dos do setup, e cada pasta vai para a frente mesmo que ja
+  # esteja no PATH (um claude antigo do npm a frente do ~/.local/bin).
+  for d in "$HOME/.local/bin" "$WS_HOME/bin" "$WS_HOME/node/bin"; do
     ws_path_front "$d"
   done
   export PATH
@@ -919,8 +959,11 @@ ws_kit_ensure() {
 }
 
 xcode_ok() {
-  case "$(command -v git 2>/dev/null)" in /usr/bin/git) xcode-select -p >/dev/null 2>&1 ;; '') return 1 ;; *) return 0 ;; esac
+  case "$(command -v git 2>/dev/null)" in /usr/bin/git) ws_clt_ok ;; '') return 1 ;; *) return 0 ;; esac
 }
+# Command Line Tools (ou Xcode) instaladas a serio? O "xcode-select -p" pode apontar para uma pasta que ja nao existe
+# (ferramentas apagadas): nesse caso o /usr/bin/git e os outros "shims" da Apple abrem o dialogo de instalacao.
+ws_clt_ok() { local d; d=$(xcode-select -p 2>/dev/null </dev/null) || return 1; [ -n "$d" ] && [ -x "$d/usr/bin/git" ]; }
 
 # ================================================================= PASSO 0 - ambiente
 # Lingua: a escolhida, um WORKSHOP_LANG ignorado (gralha) e a lingua guardada quando o sistema diz outra.
@@ -947,9 +990,8 @@ ws_s0_detect() {
     # Comum em portateis da empresa: so uma nota (a ajuda E-CFG-01 fica no TROUBLESHOOTING, se um passo for bloqueado).
     [ -e "$f" ] && { ws_note "$(ws_msg s0_gerido CAMINHO="$f")"; ws_log "managed settings: $f"; }
   done
-  [ -n "${ANTHROPIC_API_KEY:-}" ] && ws_warn E-CFG-02 "ANTHROPIC_API_KEY"
-  [ -n "${ANTHROPIC_BASE_URL:-}" ] && ws_warn E-CFG-03 "ANTHROPIC_BASE_URL"
-  { [ -n "${CLAUDE_CODE_USE_BEDROCK:-}" ] || [ -n "${CLAUDE_CODE_USE_VERTEX:-}" ]; } && ws_warn E-CFG-04 "CLAUDE_CODE_USE_BEDROCK/VERTEX"
+  local keys; keys=$(ws_env_keys) && ws_warn E-CFG-02 "$keys"
+  local cloud; cloud=$(ws_cloud_where) && ws_warn E-CFG-04 "$cloud"
   local b; for b in $(ws_uv_python_blockers); do ws_warn E-CFG-07 "$b=${!b}"; done
 
   local kb; kb=$(df -k "$HOME" 2>/dev/null | awk 'NR==2{print $4}')
@@ -962,10 +1004,83 @@ ws_s0_detect() {
   ws_check_network
   # O Claude Code usa o proxy do settings.json mesmo que o terminal ja nao tenha nenhum (o passo 8 tira o que o setup gravou).
   ws_settings_proxy_dead && ws_note "$(ws_msg s0_proxy_settings PROXY="$WS_SP_SHOW")"
+  ws_gw_detect
   ws_detail "$WS_OS · ${WS_LANG:-en} · $(ws_msg s0_rede_ok OK="$WS_NET_OK" TOTAL="$WS_NET_TOTAL")"
   return 0
 }
 ws_s0_install() { ws_s0_detect; }
+
+# shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
+ws_path_show() { case "$1" in "$HOME"/*) printf '~/%s' "${1#"$HOME"/}" ;; *) printf '%s' "$1" ;; esac; }
+ws_truthy() { case "$1" in 1|[Tt]rue|TRUE|[Yy]es|YES|[Oo]n|ON) return 0 ;; esac; return 1; }
+
+# Valor de uma variavel no bloco "env" das definicoes do Claude Code (as do utilizador e as geridas pela empresa,
+# que e como as empresas ligam o Bedrock ou um gateway). -> "valor<TAB>ficheiro"; rc 1 se nao houver.
+# O plutil le JSON e plist (sem node nem python). O valor pode ser uma chave: nunca se mostra nem vai para o log.
+ws_settings_env() { # VARIAVEL
+  local f v
+  for f in "${CLAUDE_DIR:-$HOME/.claude}/settings.json" "/Library/Application Support/ClaudeCode/managed-settings.json" \
+           "/Library/Application Support/ClaudeCode/managed-settings.d"/*.json "/Library/Managed Preferences/com.anthropic.claudecode.plist"; do
+    [ -f "$f" ] || continue
+    v=$(plutil -extract "env.$1" raw -o - "$f" 2>/dev/null </dev/null) || continue
+    [ -n "$v" ] && { printf '%s\t%s\n' "$v" "$f"; return 0; }
+  done
+  return 1
+}
+
+# Chaves da API que passam a frente do login (na shell ou no "env" das definicoes). -> nomes, nunca os valores.
+ws_env_keys() {
+  local v out="" r
+  for v in ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY; do
+    if [ -n "${!v:-}" ]; then out="$out, $v"
+    elif r=$(ws_settings_env "$v"); then out="$out, $v ($(ws_path_show "${r#*"$WS_TAB"}"))"; fi
+  done
+  [ -n "$out" ] && printf '%s' "${out#, }"
+}
+
+# Claude Code configurado para uma cloud (Bedrock, Vertex, Foundry): o login do Console e ignorado e, sem as
+# credenciais da cloud, os pedidos nunca acabam. -> "VARIAVEL (shell|ficheiro)"; rc 1 se nao houver.
+ws_cloud_where() {
+  local v r
+  for v in CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY; do
+    ws_truthy "${!v:-}" && { printf '%s (shell)' "$v"; return 0; }
+  done
+  for v in CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY; do
+    r=$(ws_settings_env "$v") && ws_truthy "${r%%"$WS_TAB"*}" && { printf '%s (%s)' "$v" "$(ws_path_show "${r#*"$WS_TAB"}")"; return 0; }
+  done
+  return 1
+}
+
+# Gateway da empresa (ANTHROPIC_BASE_URL, na shell ou nas definicoes): aviso e, se nao responder, WS_GW_DOWN=1.
+# Nesse caso o teste final e o ajudante nao chamam o Claude (esperariam minutos pelas novas tentativas e o erro
+# apontaria para o api.anthropic.com, que pode estar bem).
+ws_gw_detect() {
+  local r src=""
+  WS_GW_URL=${ANTHROPIC_BASE_URL:-}; WS_GW_DOWN=0
+  if [ -z "$WS_GW_URL" ] && r=$(ws_settings_env ANTHROPIC_BASE_URL); then
+    WS_GW_URL=${r%%"$WS_TAB"*}; src=" ($(ws_path_show "${r#*"$WS_TAB"}"))"
+  fi
+  [ -n "$WS_GW_URL" ] || return 0
+  ws_warn E-CFG-03 "ANTHROPIC_BASE_URL$src"
+  ws_probe_gateway "$WS_GW_URL" || { WS_GW_DOWN=1; ws_warn E-AUTH-05 "$(ws_gw_show)"; }
+}
+# 1 = o gateway nao responde. Qualquer resposta HTTP conta como vivo (mesmo 401 ou 404); so a falta de ligacao
+# (DNS, recusada, sem resposta) ou um 502/503/504 de um proxy pelo meio conta como em baixo.
+ws_probe_gateway() { # url
+  local code rc
+  code=$(curl -sS -o /dev/null --connect-timeout 5 -m 10 -A "$WS_UA" -w '%{http_code}' "$1" 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  ws_log "gateway: curl $rc HTTP $code"
+  case "$rc" in 5|6|7|28) return 1 ;; esac
+  case "$code" in 502|503|504) return 1 ;; esac
+  return 0
+}
+# URL do gateway para mostrar: so esquema://host:porta/ (sem caminho, utilizador nem password).
+ws_gw_show() {
+  local u=${WS_GW_URL:-} rest
+  [ -n "$u" ] || return 0
+  u=$(ws_url_base "$u")
+  case "$u" in *://*) rest=${u#*://}; printf '%s://%s' "${u%%://*}" "${rest#*@}" ;; *) printf '%s' "${u#*@}" ;; esac
+}
 
 # Proxy da sessao. O curl usa HTTPS_PROXY/https_proxy e, sem eles, ALL_PROXY/all_proxy (HTTP_PROXY nao conta para
 # https). WS_PROXY_ENV e o proxy em uso, para mostrar; WS_PROXY e o que vai para o settings.json do Claude Code: so
@@ -1156,7 +1271,7 @@ ws_s1_detect() {
   local g v
   g=$(command -v git 2>/dev/null)
   if [ "$g" = /usr/bin/git ] || [ -z "$g" ]; then
-    if xcode-select -p >/dev/null 2>&1; then :
+    if ws_clt_ok; then :
     elif ws_git_portatil_ok; then g="$WS_HOME/bin/git"
     else return 1
     fi
@@ -1191,8 +1306,20 @@ ws_s1_install() {
 }
 
 # ================================================================= PASSO 2 - Claude Code
+# ~/.claude.json invalido (ex.: uma virgula a mais de uma edicao a mao): o instalador oficial e o "claude auth status"
+# trocam-no por um ficheiro novo, e os servidores MCP da pessoa so ficam numa copia em ~/.claude/backups.
+# Por isso verifica-se antes de qualquer comando do Claude Code (os passos 3, 7 e 12 dependem deste).
+# O JSON.parse e o mesmo do Claude Code (node ou JXA). Sem node nem osascript, o teste passa (nao bloqueia).
+ws_claude_json_ok() {
+  local f="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" r
+  [ -s "$f" ] || return 0
+  r=$(ws_js 'var t=readText(A[0]); if(!t||!t.replace(/^\uFEFF/,"").trim()) return "ok"; try{JSON.parse(t.replace(/^\uFEFF/,"")); return "ok";}catch(e){return "bad "+e.message;}' "$f" 2>/dev/null)
+  case "$r" in bad*) ws_log "$f: $r"; ws_fail E-CC-04 "$(ws_path_show "$f")"; return 1 ;; esac
+  return 0
+}
 ws_s2_detect() {
   local c v
+  ws_claude_json_ok || return 1
   c=$(ws_claude) || c=""
   [ -n "$c" ] || return 1
   v=$("$c" --version 2>>"$WS_STEP_LOG" </dev/null) || return 1
@@ -1206,6 +1333,7 @@ ws_s2_detect() {
 }
 ws_s2_install() {
   local f="$WS_TMP/claude-install.sh" v
+  ws_claude_json_ok || return 1
   ws_say "  $(ws_m a_instalar)"
   if ! ws_dl "$C_CLAUDE_INSTALL_SH_URL" "$f"; then ws_dl_fail "$C_CLAUDE_INSTALL_SH_URL"; return 1; fi
   # O install.sh chama o curl sem limites: com o curlrc do setup (ws_curl_home) uma transferencia parada falha em vez
@@ -1214,7 +1342,12 @@ ws_s2_install() {
   ws_hb_start "$HOME/.claude/downloads" "$HOME/.local/share/claude/versions"
   CURL_HOME="$ch" ws_run bash "$f" "$C_CLAUDE_CODE_VERSION"; rc=$?
   ws_hb_stop
-  [ "$rc" = 0 ] || { ws_fail "$(ws_installer_net_code "$n0" || echo E-CC-01)" "install.sh"; return 1; }
+  if [ "$rc" != 0 ]; then
+    # Rede de seguranca: o Claude Code achou o ~/.claude.json corrompido, guardou-o e escreveu um novo.
+    v=$(sed -n 's/.*[Bb]acked up to: *//p' "$WS_STEP_LOG" | head -n 1)
+    if [ -n "$v" ]; then ws_fail E-CC-04 "$(ws_path_show "$v")"; else ws_fail "$(ws_installer_net_code "$n0" || echo E-CC-01)" "install.sh"; fi
+    return 1
+  fi
   ws_path_setup
   WS_CLAUDE="$HOME/.local/bin/claude"
   [ -x "$WS_CLAUDE" ] || { ws_fail E-CC-01 "$WS_CLAUDE"; return 1; }
@@ -1229,14 +1362,18 @@ ws_s2_install() {
 }
 
 # ================================================================= PASSO 3 - login
-ws_auth_read() { # define WS_AUTH_LOGGED WS_AUTH_METHOD WS_AUTH_SOURCE WS_AUTH_SUB WS_AUTH_ORG
-  local j flat
-  j=$("$WS_CLAUDE" auth status 2>>"$WS_STEP_LOG" </dev/null)
+ws_auth_read() { # define WS_AUTH_LOGGED WS_AUTH_METHOD WS_AUTH_SOURCE WS_AUTH_SUB WS_AUTH_ORG WS_AUTH_PROVIDER
+  local j flat rc
+  # Limite largo: o "auth status" pode esperar pelo dialogo do Keychain.
+  j=$(ws_timeout "$WS_TMO_AUTH" "$WS_CLAUDE" auth status 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  [ "$rc" = 124 ] && ws_log "claude auth status: no answer in $WS_TMO_AUTH s"
   flat=$(printf '%s' "$j" | tr -d '\n')
   ws_jf() { printf '%s' "$flat" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\{0,1\}\([^\",}]*\)\"\{0,1\}.*/\1/p" | head -n 1; }
   WS_AUTH_LOGGED=$(ws_jf loggedIn); WS_AUTH_METHOD=$(ws_jf authMethod); WS_AUTH_SOURCE=$(ws_jf apiKeySource)
-  WS_AUTH_SUB=$(ws_jf subscriptionType); WS_AUTH_ORG=$(ws_jf orgName)
-  ws_log "auth: loggedIn=$WS_AUTH_LOGGED authMethod=$WS_AUTH_METHOD apiKeySource=$WS_AUTH_SOURCE subscriptionType=$WS_AUTH_SUB"
+  WS_AUTH_SUB=$(ws_jf subscriptionType); WS_AUTH_ORG=$(ws_jf orgName); WS_AUTH_PROVIDER=$(ws_jf apiProvider)
+  # Versoes sem "apiProvider": o metodo "third_party" e uma cloud (Bedrock, Vertex ou Foundry).
+  [ -z "$WS_AUTH_PROVIDER" ] && [ "$WS_AUTH_METHOD" = third_party ] && WS_AUTH_PROVIDER=third_party
+  ws_log "auth: loggedIn=$WS_AUTH_LOGGED authMethod=$WS_AUTH_METHOD apiKeySource=$WS_AUTH_SOURCE subscriptionType=$WS_AUTH_SUB apiProvider=$WS_AUTH_PROVIDER"
 }
 
 ws_auth_classify() { # -> console | assinatura | outro | nenhum
@@ -1249,17 +1386,27 @@ ws_auth_classify() { # -> console | assinatura | outro | nenhum
 ws_s3_detect() {
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
   ws_auth_read
+  # Bedrock, Vertex ou Foundry (na shell ou no "env" das definicoes): o login do Console e ignorado e, sem as
+  # credenciais da cloud, o "claude -p" nunca acaba. O passo falha (o teste final fica por correr) com a origem.
+  WS_AUTH_CLOUD=""
+  case "${WS_AUTH_PROVIDER:-firstParty}" in
+    firstParty) ;;
+    *) WS_AUTH_CLOUD="$WS_AUTH_PROVIDER: $(ws_cloud_where || printf 'managed settings')"
+       ws_detail "$(ws_msg s3_outro METODO="$WS_AUTH_PROVIDER")"; ws_fail E-CFG-04 "$WS_AUTH_CLOUD"; return 1 ;;
+  esac
   case "$(ws_auth_classify)" in
     console) ws_detail "$(ws_msg s3_console EMAIL="${WS_AUTH_ORG:-Console}")"; WS_AUTH_OK=1; return 0 ;;
     assinatura)
       if [ "$WS_MODE" = install ] && [ -z "${WS_AUTH_ASKED:-}" ]; then return 1; fi
       ws_detail "$(ws_msg s3_outro METODO="claude.ai ($WS_AUTH_SUB)")"; ws_warn E-AUTH-02 "$WS_AUTH_SUB"; WS_AUTH_OK=1; return 0 ;;
-    outro) ws_detail "$(ws_msg s3_outro METODO="${WS_AUTH_METHOD:-?}")"; ws_warn E-AUTH-03 "$WS_AUTH_METHOD"; WS_AUTH_OK=1; return 0 ;;
+    outro) ws_detail "$(ws_msg s3_outro METODO="${WS_AUTH_METHOD:-?}")"; ws_warn E-AUTH-03 "${WS_AUTH_SOURCE:-$WS_AUTH_METHOD}"; WS_AUTH_OK=1; return 0 ;;
     *) ws_fail E-AUTH-01 ""; return 1 ;;
   esac
 }
 ws_s3_install() {
   local kind; kind=$(ws_auth_classify)
+  # Com uma cloud configurada, o login do Console seria ignorado: nao o oferecer.
+  [ -n "${WS_AUTH_CLOUD:-}" ] && { ws_fail E-CFG-04 "$WS_AUTH_CLOUD"; return 1; }
   WS_AUTH_ASKED=1
   if [ "$kind" = assinatura ]; then
     if [ "$WS_SIM" = 1 ] || ! ws_ask "$(ws_m s3_pergunta_trocar)" n nunca-sim; then
@@ -1274,8 +1421,7 @@ ws_s3_install() {
   fi
   ws_has_tty || { ws_note "$(ws_m s3_sem_tty)"; ws_fail E-AUTH-01 ""; return 1; }
   ws_log "\$ claude auth login --console (interativo)"
-  ws_tty_drain
-  "$WS_CLAUDE" auth login --console </dev/tty >/dev/tty 2>&1 || true
+  ws_run_login "$WS_CLAUDE" auth login --console
   ws_s3_detect
 }
 
@@ -1391,11 +1537,24 @@ ws_s4_install() {
 }
 
 # ================================================================= PASSO 5 - uv
+# O uv usa-se sempre pelo caminho (WS_UV): primeiro o do workshop (~/.local/bin/uv), depois o do PATH.
+# Um uv antigo primeiro no PATH (Homebrew, pipx) nao serve: o passo 10 precisa de "uv tool install --managed-python"
+# (UV_MIN_VERSION no repos.conf). Se so houver um antigo, o passo instala o do workshop.
 ws_s5_detect() {
-  local v
-  v=$(uv --version 2>/dev/null </dev/null) || return 1
-  WS_UV=$(command -v uv); WS_UV_VER=$(ws_ver_of "$v")
-  ws_ver_ge "$WS_UV_VER" 0.5 || return 1
+  local c v first min=${C_UV_MIN_VERSION:-0.6.8}
+  WS_UV=""
+  for c in "$HOME/.local/bin/uv" "$(command -v uv 2>/dev/null)"; do
+    [ -n "$c" ] && [ -x "$c" ] && [ -z "$WS_UV" ] || continue
+    v=$("$c" --version 2>/dev/null </dev/null) || continue
+    if ! ws_ver_ge "$(ws_ver_of "$v")" "$min"; then ws_log "uv too old: $c ($v < $min)"; continue; fi
+    WS_UV=$c; WS_UV_VER=$(ws_ver_of "$v")
+  done
+  [ -n "$WS_UV" ] || return 1
+  first=$(command -v uv 2>/dev/null)
+  if [ -n "$first" ] && [ "$first" != "$WS_UV" ]; then
+    v=$("$first" --version 2>/dev/null </dev/null)
+    ws_ver_ge "$(ws_ver_of "$v")" "$min" || ws_warn E-UV-02 "$first: ${v:-?}"
+  fi
   ws_detail "$(ws_msg s5_ja VERSAO="$WS_UV_VER")"
 }
 ws_s5_install() {
@@ -1414,41 +1573,57 @@ ws_s5_install() {
 }
 
 # ================================================================= PASSO 6 - gh
-ws_s6_detect() {
-  local v
-  v=$(gh --version 2>/dev/null </dev/null | head -n 1) || return 1
+# Servidores com login no gh (hosts.yml), para dizer qual nao respondeu.
+ws_gh_hosts() {
+  local d=${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh} h
+  h=$(sed -n 's/^\([A-Za-z0-9][A-Za-z0-9.:-]*\):.*/\1/p' "$d/hosts.yml" 2>/dev/null | tr '\n' ' ')
+  h=$(ws_trim "${GH_HOST:+$GH_HOST }$h")
+  printf '%s' "${h:-github.com}"
+}
+ws_s6_detect() { # [caminho do gh] (depois de instalar: o que o setup acabou de por, nao o primeiro do PATH)
+  local g=${1:-gh} v rc
+  v=$(ws_timeout 15 "$g" --version 2>/dev/null </dev/null | head -n 1)
   [ -n "$v" ] || return 1
   WS_GH_VER=$(ws_ver_of "$v")
   ws_detail "$(ws_msg s6_ja VERSAO="$WS_GH_VER")"
   # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh).
-  if ! gh auth status >/dev/null 2>&1 </dev/null; then
-    if [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_GH_ASKED:-}" ] && ws_has_tty; then
-      WS_GH_ASKED=1
-      if ws_ask "$(ws_m s6_pergunta_login)" s; then
-        ws_log "\$ gh auth login --hostname github.com --git-protocol https --web (interativo)"
-        ws_tty_drain
-        gh auth login --hostname github.com --git-protocol https --web </dev/tty >/dev/tty 2>&1 || true
-      fi
-    fi
-    if ! gh auth status >/dev/null 2>&1 </dev/null; then
-      WS_GH_SEM_LOGIN=1
-      ws_detail ""
-      ws_fail E-GH-02 ""
-      return 1
+  # O "gh auth status" fala com cada servidor do hosts.yml: sem VPN ou com um proxy parado nunca acabaria.
+  ws_timeout "$WS_TMO_GH" "$g" auth status >/dev/null 2>&1 </dev/null; rc=$?
+  if [ "$rc" != 0 ] && [ "$rc" != 124 ] && [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_GH_ASKED:-}" ] && ws_has_tty; then
+    WS_GH_ASKED=1
+    if ws_ask "$(ws_m s6_pergunta_login)" s; then
+      ws_log "\$ gh auth login --hostname github.com --git-protocol https --web (interativo)"
+      ws_run_login "$g" auth login --hostname github.com --git-protocol https --web
+      ws_timeout "$WS_TMO_GH" "$g" auth status >/dev/null 2>&1 </dev/null; rc=$?
     fi
   fi
-  WS_GH_SEM_LOGIN=0
+  if [ "$rc" = 124 ]; then
+    # Sem resposta: o problema e a rede (VPN, proxy), nao o login. Nao perguntar nem voltar a instalar.
+    ws_log "gh auth status: no answer in $WS_TMO_GH s"
+    WS_GH_SEM_LOGIN=1; WS_GH_SEM_REDE=1
+    ws_detail ""
+    ws_fail E-GH-03 "$(ws_gh_hosts)"
+    return 1
+  elif [ "$rc" != 0 ]; then
+    WS_GH_SEM_LOGIN=1
+    ws_detail ""
+    ws_fail E-GH-02 ""
+    return 1
+  fi
+  WS_GH_SEM_LOGIN=0; WS_GH_SEM_REDE=0
   # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
-  [ "$WS_MODE" = install ] && gh auth setup-git >>"$WS_STEP_LOG" 2>&1 </dev/null
+  [ "$WS_MODE" = install ] && ws_timeout "$WS_TMO_GH" "$g" auth setup-git >>"$WS_STEP_LOG" 2>&1 </dev/null
   return 0
 }
 ws_s6_install() {
+  # O GitHub nao respondeu (VPN, proxy): descarregar outra vez nao ajuda.
+  if [ "${WS_GH_SEM_REDE:-}" = 1 ]; then ws_fail E-GH-03 "$(ws_gh_hosts)"; return 1; fi
   # Ja instalado, so falta o login: nao voltar a descarregar.
   if [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && command -v gh >/dev/null 2>&1; then ws_fail E-GH-02 ""; return 1; fi
   local brew; brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
     ws_say "  $(ws_m a_instalar) (brew install gh)"
-    HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect; return $?; }
+    HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect "$("$brew" --prefix 2>/dev/null)/bin/gh"; return $?; }
     ws_say "  $(ws_m brew_falhou)"
   fi
   local a=arm64 file sums url d="$WS_TMP/gh" want got
@@ -1468,20 +1643,28 @@ ws_s6_install() {
   chmod +x "$WS_HOME/bin/gh"
   ws_path_setup
   ws_profile_update
-  ws_s6_detect && return 0
+  # Pelo caminho: um gh estragado mais a frente no PATH nao faz o passo culpar o download.
+  ws_s6_detect "$WS_HOME/bin/gh" && return 0
   [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && return 1
-  ws_fail E-GH-01 "gh --version"; return 1
+  ws_fail E-GH-01 "$WS_HOME/bin/gh --version"; return 1
 }
 
 # ================================================================= PASSO 7 - Jira: MCP Atlassian + Atlassian CLI (reserva)
 ws_acli() { command -v acli 2>/dev/null || { [ -x "$WS_HOME/bin/acli" ] && printf '%s' "$WS_HOME/bin/acli"; }; }
 # Ha dois logins no acli: o global (acli auth login, Jira + Confluence) e o so do Jira (acli jira auth login).
-ws_acli_login_ok() { "$1" auth status >/dev/null 2>&1 </dev/null || "$1" jira auth status >/dev/null 2>&1 </dev/null; }
+# Com limite de tempo (sem VPN ou com um proxy parado, o acli espera pela rede); sem resposta, nao tenta o segundo.
+ws_acli_login_ok() {
+  local rc
+  ws_timeout "$WS_TMO_GH" "$1" auth status >/dev/null 2>&1 </dev/null; rc=$?
+  [ "$rc" = 0 ] && return 0
+  [ "$rc" = 124 ] && { ws_log "acli auth status: no answer in $WS_TMO_GH s"; return 1; }
+  ws_timeout "$WS_TMO_GH" "$1" jira auth status >/dev/null 2>&1 </dev/null
+}
 # O acli e a reserva do MCP: faltar ou nao ter login nunca bloqueia o passo (aviso ou nota).
 ws_s7_acli() { # $1=1 depois de tentar instalar
   local a v
   a=$(ws_acli)
-  if [ -z "$a" ] || ! v=$("$a" --version 2>/dev/null </dev/null); then
+  if [ -z "$a" ] || ! v=$(ws_timeout 15 "$a" --version 2>/dev/null </dev/null); then
     [ "$WS_MODE" = install ] && [ "${1:-}" != 1 ] && return 1
     ws_warn E-ACLI-01 "${WS_ACLI_ERR:-}"; return 0
   fi
@@ -1491,16 +1674,35 @@ ws_s7_acli() { # $1=1 depois de tentar instalar
     WS_ACLI_ASKED=1
     if ws_ask "$(ws_m s7_pergunta_acli)" s; then
       ws_log "\$ acli auth login (interativo)"
-      ws_tty_drain
-      "$a" auth login </dev/tty >/dev/tty 2>&1 || true
+      ws_run_login "$a" auth login
     fi
   fi
   ws_acli_login_ok "$a" || ws_note "$(ws_m s7_acli_login)"
   return 0
 }
+# "claude mcp get" com limite de tempo (liga-se ao servidor para ver o estado). A saida fica em WS_MCP_OUT.
+# O codigo de saida so diz que o registo existe, mesmo que aponte para um programa ou URL que ja nao serve:
+# o destino le-se com ws_mcp_field (linhas "  Command: ..." e "  URL: ...").
+ws_mcp_get() { # nome
+  local rc
+  WS_MCP_OUT=$(ws_timeout "$WS_TMO_MCP" "$WS_CLAUDE" mcp get "$1" 2>&1 </dev/null); rc=$?
+  printf '%s\n' "$WS_MCP_OUT" >> "$WS_STEP_LOG"
+  [ "$rc" = 124 ] && ws_log "claude mcp get $1: no answer in $WS_TMO_MCP s"
+  return "$rc"
+}
+ws_mcp_field() { printf '%s\n' "$WS_MCP_OUT" | sed -n "s/^[[:space:]]*$1:[[:space:]]*//p" | head -n 1; }
+# O registo atlassian (lido por ws_mcp_get) aponta para o MCP do workshop? Um antigo (o SSE .../v1/sse, ou um
+# servidor local como o mcp-remote) nao serve. Se a saida nao tiver nenhum destes campos, nao da para comparar: aceita.
+ws_s7_url_ok() {
+  local u; u=$(ws_mcp_field URL)
+  [ "$u" = "$C_ATLASSIAN_MCP_URL" ] && return 0
+  [ -n "$u" ] && return 1
+  [ -z "$(ws_mcp_field Command)" ]
+}
 ws_s7_detect() {
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
-  "$WS_CLAUDE" mcp get atlassian >>"$WS_STEP_LOG" 2>&1 </dev/null || { ws_fail E-MCP-01 ""; return 1; }
+  ws_mcp_get atlassian || { ws_fail E-MCP-01 ""; return 1; }
+  ws_s7_url_ok || { ws_fail E-MCP-01 "atlassian: $(ws_mcp_field URL)$(ws_mcp_field Command)"; return 1; }
   ws_detail "$(ws_m s7_ja)"
   ws_note "$(ws_m s7_oauth)"
   WS_TODO_MCP=1
@@ -1525,12 +1727,19 @@ ws_s7_acli_install() { # falhar aqui so deixa um aviso (WS_ACLI_ERR)
 }
 ws_s7_install() {
   ws_set SN 7 ""   # o detect volta a escrever as notas
-  if ! "$WS_CLAUDE" mcp get atlassian >/dev/null 2>&1 </dev/null; then
+  local old
+  # Um registo atlassian antigo (ex.: o SSE .../v1/sse) e trocado pelo do workshop, com uma nota a dizer qual era.
+  if ws_mcp_get atlassian && ! ws_s7_url_ok; then
+    old="$(ws_mcp_field URL)$(ws_mcp_field Command)"
+    ws_run "$WS_CLAUDE" mcp remove --scope user atlassian || ws_run "$WS_CLAUDE" mcp remove atlassian ||
+      { ws_fail E-MCP-01 "claude mcp remove atlassian"; return 1; }
+    ws_note "$(ws_msg s7_substituido ANTIGO="${old:-?}")"
+  fi
+  if ! ws_mcp_get atlassian; then
     ws_run "$WS_CLAUDE" mcp add --transport http --scope user atlassian "$C_ATLASSIAN_MCP_URL" || { ws_fail E-MCP-01 ""; return 1; }
     ws_registar mcp atlassian
-    local lst; lst=$("$WS_CLAUDE" mcp list 2>&1 </dev/null)
-    printf '%s\n' "$lst" >> "$WS_STEP_LOG"
-    printf '%s\n' "$lst" | grep -q '^atlassian' || { ws_fail E-MCP-01 "claude mcp list"; return 1; }
+    # "mcp get" e nao "mcp list": o list verifica todos os servidores da pessoa (lento se algum nao responder).
+    ws_mcp_get atlassian || { ws_fail E-MCP-01 "claude mcp get atlassian"; return 1; }
   fi
   [ -n "$(ws_acli)" ] || ws_s7_acli_install
   ws_s7_detect 1
@@ -1692,7 +1901,7 @@ WS_APP_BUNDLE='Agent Memory.app'
 WS_APP_BUNDLE_OLD='Memória.app'
 WS_APP_EXE=agent-memory-app
 WS_MCP_NAME=agent-memory
-ws_uv_bin_dir() { uv tool dir --bin 2>/dev/null </dev/null || printf '%s' "$HOME/.local/bin"; }
+ws_uv_bin_dir() { "${WS_UV:-uv}" tool dir --bin 2>/dev/null </dev/null || printf '%s' "$HOME/.local/bin"; }
 ws_memory_bin() {
   local d b; d=$(ws_uv_bin_dir)
   for b in "$d/agent-memory" "$d/memoria"; do [ -x "$b" ] && { printf '%s' "$b"; return 0; }; done
@@ -1717,12 +1926,23 @@ ws_memory_wheel() {
 ws_s10_detect() {
   local b ver=${C_MEMORY_APP_VERSION#v}
   b=$(ws_memory_bin) || { ws_fail E-MEM-01 ""; return 1; }
-  uv tool list 2>/dev/null </dev/null | grep -Eq "^(agent-memory|agent_memory|memoria) v?$ver( |$)" || { ws_fail E-MEM-03 "version $ver"; return 1; }
+  "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq "^(agent-memory|agent_memory|memoria) v?$ver( |$)" || { ws_fail E-MEM-03 "version $ver"; return 1; }
   [ -x "$HOME/Applications/$WS_APP_BUNDLE/Contents/MacOS/$WS_APP_EXE" ] || { ws_fail E-MEM-03 "shortcut"; return 1; }
   [ -f "$(ws_memory_home)/config.json" ] || { ws_fail E-MEM-03 "config.json"; return 1; }
-  if [ -n "${WS_CLAUDE:-}" ]; then "$WS_CLAUDE" mcp get "$WS_MCP_NAME" >/dev/null 2>&1 </dev/null || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
+  if [ -n "${WS_CLAUDE:-}" ]; then ws_memory_mcp_ok "$b" || { ws_fail E-MEM-03 "mcp"; return 1; }; fi
   ws_memory_selftest "$b" "$ver"
   return 0
+}
+# O registo MCP "agent-memory" aponta para este programa? (o "claude mcp get" sai com 0 para qualquer registo, mesmo
+# um que aponte para um programa que ja nao existe, ex.: de outro utilizador num Mac migrado). Um registo antigo
+# "memoria" tambem fica por arrumar. Sem a linha "Command:" na saida (outro formato), basta o caminho aparecer.
+ws_memory_mcp_ok() { # bin
+  local c
+  ws_mcp_get "$WS_MCP_NAME" || return 1
+  c=$(ws_mcp_field Command)
+  if [ -n "$c" ]; then [ "$c" = "$1" ] || return 1
+  else case "$WS_MCP_OUT" in *"$1"*) ;; *) return 1 ;; esac; fi
+  ! ws_mcp_get memoria
 }
 # Corre "agent-memory selftest" e mostra o Python gerido pelo uv ("Agent Memory 0.5.0 · Python 3.12.13 · Darwin arm64").
 # O texto do selftest segue a lingua da app (pt, en, hi, he): pede-se em ingles (AGENT_MEMORY_LANG=en e, para
@@ -1758,16 +1978,11 @@ ws_s10_install() {
     esac
   done
   ws_say "  $(ws_m a_instalar)"
-  # O uv traz o seu proprio Python (--managed-python): nao depende de nenhum Python do sistema.
-  # As variaveis que o proibiriam sao retiradas so deste comando (env -u), nunca globalmente.
-  ws_run env -u UV_PYTHON_DOWNLOADS -u UV_NO_MANAGED_PYTHON -u UV_PYTHON_PREFERENCE -u UV_PYTHON \
-    uv tool install --managed-python --python "$C_PYTHON_VERSION" "$d/$whl" --constraints "$d/constraints.txt" --force ||
-    { ws_fail E-MEM-03 "uv tool install"; return 1; }
+  ws_uv_tool_install "$d/$whl" "$d/constraints.txt" || { ws_fail E-MEM-03 "uv tool install"; return 1; }
   # A distribuicao mudou de nome? Tirar a antiga do uv (so o programa: os dados ficam).
-  if [ "$dist" != memoria ] && uv tool list 2>/dev/null </dev/null | grep -Eq '^memoria v?[0-9]'; then
-    uv tool uninstall memoria >>"$WS_LOG" 2>&1 </dev/null || true
-    ws_run env -u UV_PYTHON_DOWNLOADS -u UV_NO_MANAGED_PYTHON -u UV_PYTHON_PREFERENCE -u UV_PYTHON \
-      uv tool install --managed-python --python "$C_PYTHON_VERSION" "$d/$whl" --constraints "$d/constraints.txt" --force >/dev/null 2>&1 || true
+  if [ "$dist" != memoria ] && "${WS_UV:-uv}" tool list 2>/dev/null </dev/null | grep -Eq '^memoria v?[0-9]'; then
+    "${WS_UV:-uv}" tool uninstall memoria >>"$WS_LOG" 2>&1 </dev/null || true
+    ws_uv_tool_install "$d/$whl" "$d/constraints.txt" >/dev/null 2>&1 || true
   fi
   ws_registar app "$dist"
   b=$(ws_memory_bin) || { ws_fail E-MEM-03 "agent-memory"; return 1; }
@@ -1777,16 +1992,36 @@ ws_s10_install() {
   ws_memory_selftest "$b" "$ver"
   ws_note "$(ws_m s10_update)"
 }
-# Regista o servidor MCP da app como "agent-memory" (comando "<bin> mcp"). Um registo antigo "memoria" sai, e um
-# "agent-memory" que aponte para outro programa (ex.: o "memoria" de uma versao antiga) e refeito.
-ws_memory_mcp() {
-  local b=$1 cur
-  [ -n "${WS_CLAUDE:-}" ] || return 0
-  if "$WS_CLAUDE" mcp get memoria >/dev/null 2>&1 </dev/null; then
-    "$WS_CLAUDE" mcp remove --scope user memoria >>"$WS_LOG" 2>&1 </dev/null || true
+# "uv tool install" do wheel, com o uv do passo 5 e o Python gerido pelo uv (--managed-python): nao depende de
+# nenhum Python do sistema. As variaveis que o proibiriam sao retiradas so deste comando (env -u), nunca globalmente.
+# Sem as Command Line Tools, o /usr/bin/install_name_tool (que o uv corre depois de descarregar o Python) e um "shim"
+# da Apple que abre o dialogo "instalar ferramentas de programador": so neste comando, um install_name_tool vazio
+# fica primeiro no PATH (o acerto da libpython so serve para compilar extensoes em C).
+ws_uv_tool_install() { # wheel constraints
+  local pre=""
+  if [ "$(command -v install_name_tool 2>/dev/null)" = /usr/bin/install_name_tool ] && ! ws_clt_ok; then
+    pre="$WS_TMP/no-clt"
+    { mkdir -p "$pre" && printf '#!/bin/sh\nexit 0\n' > "$pre/install_name_tool" && chmod +x "$pre/install_name_tool"; } || pre=""
+    [ -n "$pre" ] && ws_log "no Command Line Tools: empty install_name_tool for uv"
   fi
-  cur=$("$WS_CLAUDE" mcp get "$WS_MCP_NAME" 2>/dev/null </dev/null) && case "$cur" in *"$b"*) return 0 ;; esac
-  [ -n "$cur" ] && { "$WS_CLAUDE" mcp remove --scope user "$WS_MCP_NAME" >>"$WS_LOG" 2>&1 </dev/null || true; }
+  ws_run env -u UV_PYTHON_DOWNLOADS -u UV_NO_MANAGED_PYTHON -u UV_PYTHON_PREFERENCE -u UV_PYTHON ${pre:+"PATH=$pre:$PATH"} \
+    "${WS_UV:-uv}" tool install --managed-python --python "$C_PYTHON_VERSION" "$1" --constraints "$2" --force
+}
+# Regista o servidor MCP da app como "agent-memory" (comando "<bin> mcp"). Um registo antigo "memoria" sai, e um
+# "agent-memory" que aponte para outro programa (ex.: o "memoria" de uma versao antiga) e refeito, com uma nota.
+ws_memory_mcp() {
+  local b=$1 c
+  [ -n "${WS_CLAUDE:-}" ] || return 0
+  if ws_mcp_get memoria; then
+    ws_timeout "$WS_TMO_MCP" "$WS_CLAUDE" mcp remove --scope user memoria >>"$WS_LOG" 2>&1 </dev/null || true
+  fi
+  if ws_mcp_get "$WS_MCP_NAME"; then
+    c=$(ws_mcp_field Command)
+    if [ -n "$c" ]; then [ "$c" = "$b" ] && return 0
+    else case "$WS_MCP_OUT" in *"$b"*) return 0 ;; esac; fi
+    ws_timeout "$WS_TMO_MCP" "$WS_CLAUDE" mcp remove --scope user "$WS_MCP_NAME" >>"$WS_LOG" 2>&1 </dev/null || true
+    [ -n "$c" ] && ws_note "$(ws_msg s10_mcp_substituido ANTIGO="$c")"
+  fi
   ws_run "$WS_CLAUDE" mcp add --scope user "$WS_MCP_NAME" -- "$b" mcp || return 1
   ws_registar mcp "$WS_MCP_NAME"
 }
@@ -1795,7 +2030,7 @@ ws_memory_config() {
   local home cfg uvp
   home=$(ws_memory_home); cfg="$home/config.json"
   mkdir -p "$home"
-  uvp=$(command -v uv 2>/dev/null)
+  uvp=${WS_UV:-$(command -v uv 2>/dev/null)}
   if [ -n "${WS_NODE:-}" ]; then
     "$WS_NODE" -e '
       const fs = require("fs"); const [f, repo, pat, py, uv] = process.argv.slice(1);
@@ -1880,12 +2115,18 @@ ws_s12_detect() {
   ws_s12_install
 }
 ws_s12_install() {
-  local out="$WS_TMP/smoke.json" err="$WS_TMP/smoke.err" t0 t1
+  local out="$WS_TMP/smoke.json" err="$WS_TMP/smoke.err" t0 t1 gw keys
   [ -n "${WS_CLAUDE:-}" ] || WS_CLAUDE=$(ws_claude)
   # Um proxy morto no settings.json faz o claude -p tentar em silencio durante 3 minutos: falha ja, com a causa.
   if ws_settings_proxy_dead; then ws_fail E-NET-08 "$WS_SP_SHOW"; return 1; fi
+  gw=$(ws_gw_show)
+  # O gateway da empresa nao respondeu no passo 0: o Claude ficaria minutos a tentar outra vez.
+  if [ "${WS_GW_DOWN:-0}" = 1 ]; then ws_fail E-AUTH-05 "$gw"; return 1; fi
+  ws_say "  $(ws_msg s12_a_testar SEG="$WS_TMO_SMOKE")"
   t0=$(date +%s)
-  ( cd "$WS_TMP" && "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" > "$out" 2> "$err" </dev/null )
+  # Com limite de tempo (sem resposta, o Claude Code tenta outra vez durante minutos) e sem servidores MCP
+  # (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo.
+  ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model claude-haiku-5-5 --output-format json --tools "" --strict-mcp-config > "$out" 2> "$err" </dev/null )
   local rc=$?; t1=$(date +%s)
   { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG"
   ws_parse_result "$out"
@@ -1895,14 +2136,24 @@ ws_s12_install() {
     [ "$WSR_USD_TEXTO" = "US\$ ?" ] && ws_note "$(ws_m s12_custo_desconhecido)"
     return 0
   fi
+  if [ "$rc" = 124 ]; then
+    if [ -n "$gw" ]; then ws_fail E-AUTH-05 "$gw"; else ws_fail E-SMOKE-01 "no answer in $WS_TMO_SMOKE s"; fi
+    return 1
+  fi
   local all; all="$(cat "$err") $WSR_RESPOSTA"
   case "$all" in
     *[Cc]redit\ balance*|*billing*) ws_fail E-SMOKE-02 "" ;;
     *429*|*rate_limit*|*[Rr]ate\ limit*) ws_fail E-SMOKE-03 "" ;;
     *not_found_error*|*model:*|*[Ii]nvalid\ model*) ws_fail E-SMOKE-04 "claude-haiku-5-5" ;;
     *certificate*|*CERT_*|*SELF_SIGNED*) ws_fail E-NET-04 "" ;;
-    *ENOTFOUND*|*ECONNREFUSED*|*ETIMEDOUT*|*ECONNRESET*|*fetch\ failed*|*[Uu]nable\ to\ connect*) ws_fail E-NET-05 "" ;;
-    *[Nn]ot\ logged\ in*|*/login*|*authentication_error*|*[Ii]nvalid\ API\ key*) ws_fail E-AUTH-01 "" ;;
+    *ENOTFOUND*|*ECONNREFUSED*|*ETIMEDOUT*|*ECONNRESET*|*fetch\ failed*|*[Uu]nable\ to\ connect*)
+      # Com ANTHROPIC_BASE_URL o Claude nem fala com o api.anthropic.com: o que falha e o gateway.
+      if [ -n "$gw" ]; then ws_fail E-AUTH-05 "$gw"; else ws_fail E-NET-05 ""; fi ;;
+    *[Nn]ot\ logged\ in*|*/login*|*authentication_error*|*[Ii]nvalid\ API\ key*|*[Ii]nvalid\ auth\ token*|*[Ii]nvalid\ bearer*|*[Ff]ailed\ to\ authenticate*)
+      # Uma chave nas variaveis (ou um apiKeyHelper) passa a frente do login: voltar a fazer login nao resolve.
+      keys=$(ws_env_keys)
+      case "${WS_AUTH_SOURCE:-}" in ''|none|"/login managed key") ;; *) [ -n "$keys" ] || keys=$WS_AUTH_SOURCE ;; esac
+      if [ -n "$keys" ]; then ws_fail E-AUTH-04 "$keys"; else ws_fail E-AUTH-01 ""; fi ;;
     *) ws_fail E-SMOKE-01 "codigo $rc" ;;
   esac
   return 1
@@ -1914,12 +2165,15 @@ ws_versions_line() {
     "$( [ -n "${WS_NODE:-}" ] && "$WS_NODE" -v 2>/dev/null </dev/null || echo '?')" "${WS_UV_VER:-?}" "${WS_GH_VER:-?}" "$C_WORKSHOP_VERSION"
 }
 
-ws_helper_call() { # ficheiro-prompt ficheiro-saida [schema]
+ws_helper_call() { # ficheiro-prompt ficheiro-saida [schema] [segundos]
   [ -n "${WS_CLAUDE:-}" ] || return 1
+  [ "${WS_GW_DOWN:-0}" = 1 ] && return 1
+  local s=${4:-$WS_TMO_HELPER}
+  # Com limite de tempo e sem servidores MCP (--strict-mcp-config), como o teste final.
   if [ -n "${3:-}" ]; then
-    ( cd "$WS_TMP" && "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --disallowedTools "mcp__*" --output-format json --json-schema "$3" < "$1" > "$2" 2>>"$WS_LOG" )
+    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --strict-mcp-config --disallowedTools "mcp__*" --output-format json --json-schema "$3" < "$1" > "$2" 2>>"$WS_LOG" )
   else
-    ( cd "$WS_TMP" && "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --disallowedTools "mcp__*" --output-format json < "$1" > "$2" 2>>"$WS_LOG" )
+    ( cd "$WS_TMP" && ws_timeout "$s" "$WS_CLAUDE" -p --model claude-haiku-5-5 --tools "" --strict-mcp-config --disallowedTools "mcp__*" --output-format json < "$1" > "$2" 2>>"$WS_LOG" )
   fi
 }
 
@@ -1928,8 +2182,10 @@ ws_helper_offer() {
   local n=$1 f code
   f="SF_$n"; code=${!f%%|*}
   [ "${WS_AUTH_OK:-0}" = 1 ] || return 1
-  # E-GH-02 (falta o login no GitHub): o setup ja mostra o comando; a analise so custaria dinheiro.
-  case "$code" in E-NET-*|E-AUTH-*|E-GH-02) return 1 ;; esac
+  [ "${WS_GW_DOWN:-0}" = 1 ] && return 1
+  # Sem rede ou sem login o Claude tambem nao responde; o GitHub sem resposta (E-GH-03) ja tem a causa certa e,
+  # sem login no GitHub (E-GH-02), o setup ja mostra o comando: a analise so custaria dinheiro.
+  case "$code" in E-NET-*|E-AUTH-*|E-GH-02|E-GH-03) return 1 ;; esac
   ws_say ""
   ws_ask "$(ws_m helper_pergunta)" s || return 1
   ws_say "  $(ws_m helper_a_pedir)"
@@ -1974,7 +2230,7 @@ ws_doctor() {
   ws_say ""; ws_say "$(ws_bold "$(ws_m doctor_titulo)")"
   for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do case "$(ws_st "$n")" in falta|falhou|naoexec|aviso) any=1 ;; esac; done
   if [ "$any" = 0 ]; then ws_say "  $(ws_m doctor_sem_falhas)"; return 0; fi
-  if [ "${WS_AUTH_OK:-0}" != 1 ] || [ "${WS_NET_API_OK:-1}" = 0 ]; then ws_say "  $(ws_m doctor_sem_claude)"; return 0; fi
+  if [ "${WS_AUTH_OK:-0}" != 1 ] || [ "${WS_NET_API_OK:-1}" = 0 ] || [ "${WS_GW_DOWN:-0}" = 1 ]; then ws_say "  $(ws_m doctor_sem_claude)"; return 0; fi
   {
     printf 'You are a support assistant for the setup of a Claude Code workshop (macOS). Answer in plain English, short sentences, for someone with no experience.\n'
     printf 'Make a full diagnosis: what is wrong, why, and the exact steps (with commands) in order. Never suggest sudo or showing API keys.\n\n%s\n\n' "$(ws_versions_line)"
@@ -1984,7 +2240,7 @@ ws_doctor() {
     done
     printf '\nLog excerpt:\n'; tail -n 120 "$WS_LOG" | ws_redact
   } > "$p"
-  if ws_helper_call "$p" "$o" ""; then
+  if ws_helper_call "$p" "$o" "" "$WS_TMO_DOCTOR"; then
     ws_parse_result "$o"
     local res; res=$(ws_js 'try{return String(JSON.parse(readText(A[0])).result||"");}catch(e){return "";}' "$o")
     [ -n "$res" ] && ws_say "$res" || ws_say "  $(ws_m helper_falhou)"
@@ -2033,6 +2289,7 @@ ws_uninstall() {
   local man="$WS_HOME/manifest.json" t n c v a k
   if [ ! -f "$man" ]; then ws_say "$(ws_msg desinst_sem_manifest MANIFEST="$man")"; return 0; fi
   ws_s4_detect >/dev/null 2>&1 || true
+  ws_s5_detect >/dev/null 2>&1 || true   # WS_UV: o uv do workshop, mesmo com um antigo primeiro no PATH
   if [ -z "${WS_NODE:-}" ]; then WS_NODE=$(sed -n 's/.*"node": *"\([^"]*\)".*/\1/p' "$man" | head -n 1); fi
   [ -x "${WS_NODE:-}" ] || { ws_print_code E-NODE-01 "" "  "; return 1; }
   ws_kit_ensure || KIT_SRC=""
@@ -2043,7 +2300,7 @@ ws_uninstall() {
   while IFS="$WS_TAB" read -r t n c v a; do
     case "$t" in
       mcp) [ -n "$WS_CLAUDE" ] && "$WS_CLAUDE" mcp remove --scope user "$n" >>"$WS_LOG" 2>&1 </dev/null && ws_say "  $(ws_msg desinst_mcp NOME="$n")" ;;
-      app) uv tool uninstall "${n:-memoria}" >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_msg desinst_memorias CAMINHO="$(ws_memory_home_show)")"; } ;;
+      app) "${WS_UV:-uv}" tool uninstall "${n:-memoria}" >>"$WS_LOG" 2>&1 </dev/null && { ws_say "  $(ws_m desinst_app)"; ws_say "  $(ws_msg desinst_memorias CAMINHO="$(ws_memory_home_show)")"; } ;;
       atalho) [ -n "$c" ] && rm -rf "$c" && ws_say "  $(ws_msg desinst_atalho CAMINHO="$c")" ;;
       perfil) ws_profile_remove "$c" "$v" ;;
     esac
@@ -2125,7 +2382,9 @@ ws_lock() {
 
 ws_cleanup() { [ -n "${WS_HB:-}" ] && kill "$WS_HB" 2>/dev/null; rm -rf "$WS_HOME/.lock" "${WS_TMP:-/nonexistent}" 2>/dev/null; }
 ws_interrupted() {
-  printf '\n%s\n' "$(ws_m interrompido)" >&2
+  trap '' INT TERM HUP   # uma so vez (o Ctrl-C e o fecho do terminal podem chegar juntos)
+  # Para o terminal: o sinal pode chegar a meio de uma funcao com a saida redirecionada (ex.: ws_timeout ... >/dev/null).
+  { printf '\n%s\n' "$(ws_m interrompido)" > /dev/tty; } 2>/dev/null || printf '\n%s\n' "$(ws_m interrompido)" >&2
   ws_log "interrupted"
   ws_cleanup; exit 130
 }

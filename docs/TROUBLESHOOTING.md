@@ -36,9 +36,9 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-SO-07` | A company policy blocks PowerShell scripts | [Windows](#windows-e-so-07) |
 | `E-SO-08` | PowerShell ISE can't run the setup | [Windows](#windows-e-so-08) |
 | `E-CFG-01` | There are company-managed settings (managed-settings) | [macOS](#mac-e-cfg-01) · [Windows](#windows-e-cfg-01) |
-| `E-CFG-02` | The ANTHROPIC_API_KEY variable is set | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
+| `E-CFG-02` | An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set | [macOS](#mac-e-cfg-02) · [Windows](#windows-e-cfg-02) |
 | `E-CFG-03` | The ANTHROPIC_BASE_URL variable is set | [macOS](#mac-e-cfg-03) · [Windows](#windows-e-cfg-03) |
-| `E-CFG-04` | Claude Code is set up for Bedrock or Vertex | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
+| `E-CFG-04` | Claude Code is set up for Bedrock, Vertex or Foundry | [macOS](#mac-e-cfg-04) · [Windows](#windows-e-cfg-04) |
 | `E-CFG-05` | The Claude Code settings.json file has an error | [macOS](#mac-e-cfg-05) · [Windows](#windows-e-cfg-05) |
 | `E-CFG-06` | You already had a statusline | [macOS](#mac-e-cfg-06) · [Windows](#windows-e-cfg-06) |
 | `E-CFG-07` | uv is not allowed to use managed Python | [macOS](#mac-e-cfg-07) · [Windows](#windows-e-cfg-07) |
@@ -51,14 +51,19 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-CC-01` | The Claude Code installer failed | [macOS](#mac-e-cc-01) · [Windows](#windows-e-cc-01) |
 | `E-CC-02` | The claude command is not in the PATH | [macOS](#mac-e-cc-02) · [Windows](#windows-e-cc-02) |
 | `E-CC-03` | The Claude Code version is old | [macOS](#mac-e-cc-03) · [Windows](#windows-e-cc-03) |
+| `E-CC-04` | Your ~/.claude.json file has an error | [macOS](#mac-e-cc-04) · [Windows](#windows-e-cc-04) |
 | `E-AUTH-01` | Claude Code is not logged in | [macOS](#mac-e-auth-01) · [Windows](#windows-e-auth-01) |
 | `E-AUTH-02` | The login is a claude.ai subscription, not the Console | [macOS](#mac-e-auth-02) · [Windows](#windows-e-auth-02) |
 | `E-AUTH-03` | Claude Code uses another authentication method | [macOS](#mac-e-auth-03) · [Windows](#windows-e-auth-03) |
+| `E-AUTH-04` | A Claude key in your environment was rejected | [macOS](#mac-e-auth-04) · [Windows](#windows-e-auth-04) |
+| `E-AUTH-05` | The company gateway in ANTHROPIC_BASE_URL is not answering | [macOS](#mac-e-auth-05) · [Windows](#windows-e-auth-05) |
 | `E-NODE-01` | I couldn't install Node.js | [macOS](#mac-e-node-01) · [Windows](#windows-e-node-01) |
 | `E-NODE-02` | An old or broken Node comes first in the PATH | [macOS](#mac-e-node-02) · [Windows](#windows-e-node-02) |
 | `E-UV-01` | I couldn't install uv | [macOS](#mac-e-uv-01) · [Windows](#windows-e-uv-01) |
+| `E-UV-02` | An older uv comes first in the PATH | [macOS](#mac-e-uv-02) · [Windows](#windows-e-uv-02) |
 | `E-GH-01` | I couldn't install GitHub CLI (gh) | [macOS](#mac-e-gh-01) · [Windows](#windows-e-gh-01) |
 | `E-GH-02` | GitHub login missing (required) | [macOS](#mac-e-gh-02) · [Windows](#windows-e-gh-02) |
+| `E-GH-03` | GitHub did not answer | [macOS](#mac-e-gh-03) · [Windows](#windows-e-gh-03) |
 | `E-MCP-01` | I couldn't add the Atlassian MCP | [macOS](#mac-e-mcp-01) · [Windows](#windows-e-mcp-01) |
 | `E-MCP-02` | Atlassian login missing (OAuth) | [macOS](#mac-e-mcp-02) · [Windows](#windows-e-mcp-02) |
 | `E-ACLI-01` | I couldn't install the Atlassian CLI (Jira backup) | [macOS](#mac-e-acli-01) · [Windows](#windows-e-acli-01) |
@@ -276,17 +281,17 @@ cat '/Library/Application Support/ClaudeCode/managed-settings.json'
 
 <a id="mac-e-cfg-02"></a>
 
-### E-CFG-02 · The ANTHROPIC_API_KEY variable is set
+### E-CFG-02 · An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set
 
 - **Why:** With this variable, Claude Code uses that key instead of your login. The cost goes to the account that owns the key.
 - **What to do:**
-  - If the key is yours and from the Console, you can continue.
-  - If not, remove the variable from your terminal profile and open a new terminal.
+  - If the key is yours and from the Console, you can continue: the final test (step 12) checks that it works.
+  - If not, remove the variable from your terminal profile (the command below shows where it is) and open a new terminal.
 
 Command (macOS):
 
 ```
-grep -n ANTHROPIC_API_KEY ~/.zshrc ~/.zprofile ~/.bash_profile 2>/dev/null
+grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.bashrc ~/.profile ~/.claude/settings.json 2>/dev/null
 ```
 
 <a id="mac-e-cfg-03"></a>
@@ -296,27 +301,31 @@ grep -n ANTHROPIC_API_KEY ~/.zshrc ~/.zprofile ~/.bash_profile 2>/dev/null
 - **Why:** With this variable, Claude Code talks to another server instead of the Anthropic API (for example, a company gateway). Prices and models may be different.
 - **What to do:**
   - If IT asked you to use that gateway, you can continue.
-  - If not, remove the variable and open a new terminal.
+  - If not, remove the variable (from your terminal profile or from the "env" block of ~/.claude/settings.json) and open a new terminal.
 
-Command (macOS):
+Commands (macOS):
 
 ```
+grep -n ANTHROPIC_BASE_URL ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null
 unset ANTHROPIC_BASE_URL
 ```
 
 <a id="mac-e-cfg-04"></a>
 
-### E-CFG-04 · Claude Code is set up for Bedrock or Vertex
+### E-CFG-04 · Claude Code is set up for Bedrock, Vertex or Foundry
 
-- **Why:** CLAUDE_CODE_USE_BEDROCK or CLAUDE_CODE_USE_VERTEX is set. Claude Code uses the company cloud, and the Console login is ignored.
+- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.
 - **What to do:**
-  - For the workshop, remove the variable and open a new terminal.
-  - If your company requires Bedrock or Vertex, check with the organizer that the workshop models are available.
+  - If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.
+  - If it shows ~/.claude/settings.json: delete the variable from the "env" block (and AWS_PROFILE or AWS_REGION, if they are only for this).
+  - If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.
+  - If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available.
 
-Command (macOS):
+Commands (macOS):
 
 ```
-unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX
+grep -n CLAUDE_CODE_USE_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null
+unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY
 ```
 
 <a id="mac-e-cfg-05"></a>
@@ -464,6 +473,22 @@ which -a claude
 npm uninstall -g @anthropic-ai/claude-code
 ```
 
+<a id="mac-e-cc-04"></a>
+
+### E-CC-04 · Your ~/.claude.json file has an error
+
+- **Why:** ~/.claude.json (Claude Code's own settings, with your MCP servers) is not valid JSON, often because of a comma or quote left over from a hand edit. Claude Code would replace it with an empty file, so the setup stops here and does not touch it.
+- **What to do:**
+  - Fix the file shown above, or ask the organizer. The command below shows the error and where it is (open a new terminal first, so that node is found).
+  - If the path shown is in ~/.claude/backups, Claude Code already replaced ~/.claude.json: your MCP servers are in that copy. Fix it and copy back what you need (for example mcpServers).
+  - Then run the setup again.
+
+Command (macOS):
+
+```
+node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude.json', 'utf8'))"
+```
+
 <a id="mac-e-auth-01"></a>
 
 ### E-AUTH-01 · Claude Code is not logged in
@@ -484,7 +509,7 @@ claude auth login --console
 
 ### E-AUTH-02 · The login is a claude.ai subscription, not the Console
 
-- **Why:** You are logged in with a claude.ai subscription (Pro or Max). It works, but the workshop was prepared for the Console and measures cost at API prices.
+- **Why:** You are logged in with a claude.ai subscription (Pro, Max, Team or Enterprise). It works, but the workshop was prepared for the Console and measures cost at API prices.
 - **What to do:**
   - You can continue with the subscription: the limits are the ones of your plan.
   - To use the Console, run the command below.
@@ -509,6 +534,39 @@ Commands (macOS):
 ```
 claude auth status --text
 claude auth login --console
+```
+
+<a id="mac-e-auth-04"></a>
+
+### E-AUTH-04 · A Claude key in your environment was rejected
+
+- **Why:** Claude Code uses the key in an environment variable (or an apiKeyHelper) instead of your Console login, and the API refused it (401: invalid, expired or revoked). Logging in again does not help while that key is set.
+- **What to do:**
+  - Remove the variable shown above from your terminal profile (the first command shows the file and the line) or from the "env" block of ~/.claude/settings.json.
+  - In this terminal, run the second command, then run the setup again.
+  - If IT gave you this key for a company gateway, ask them for a new one instead.
+
+Commands (macOS):
+
+```
+grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.bashrc ~/.profile ~/.claude/settings.json 2>/dev/null
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+```
+
+<a id="mac-e-auth-05"></a>
+
+### E-AUTH-05 · The company gateway in ANTHROPIC_BASE_URL is not answering
+
+- **Why:** ANTHROPIC_BASE_URL sends Claude Code to a company gateway (shown above) instead of api.anthropic.com, and that gateway can't be reached: VPN off, gateway down or local proxy not running. api.anthropic.com itself may be fine.
+- **What to do:**
+  - If you use the company gateway, connect to the VPN (or start the local proxy) and run the setup again.
+  - For the workshop your Console account is enough: remove ANTHROPIC_BASE_URL (and ANTHROPIC_AUTH_TOKEN, if it is only for the gateway) from your terminal profile or from ~/.claude/settings.json, run the second command and run the setup again.
+
+Commands (macOS):
+
+```
+grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null
+unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN
 ```
 
 <a id="mac-e-node-01"></a>
@@ -559,6 +617,22 @@ Command (macOS):
 curl -LsSf https://astral.sh/uv/0.13.1/install.sh | sh
 ```
 
+<a id="mac-e-uv-02"></a>
+
+### E-UV-02 · An older uv comes first in the PATH
+
+- **Why:** The workshop needs uv 0.6.8 or newer and uses its own copy in ~/.local/bin. An older uv (for example from Homebrew or pipx) comes first in this terminal's PATH, so the uv commands you type yourself use the old one.
+- **What to do:**
+  - You can continue: the setup and the Agent Memory app use ~/.local/bin/uv.
+  - To avoid surprises, upgrade or remove the old uv (shown above), then open a new terminal.
+
+Commands (macOS):
+
+```
+which -a uv
+brew upgrade uv
+```
+
 <a id="mac-e-gh-01"></a>
 
 ### E-GH-01 · I couldn't install GitHub CLI (gh)
@@ -588,6 +662,22 @@ Command (macOS):
 
 ```
 gh auth login --hostname github.com --git-protocol https --web
+```
+
+<a id="mac-e-gh-03"></a>
+
+### E-GH-03 · GitHub did not answer
+
+- **Why:** gh tried to check your login, but the GitHub server (shown above) did not answer in time. This usually means the company VPN is off or a proxy is blocking the connection; it is not a login problem.
+- **What to do:**
+  - Turn on the company VPN (or check the proxy), then run the setup again.
+  - If you no longer use a server shown above, remove it from gh: gh auth logout --hostname followed by the server name.
+  - The other steps were not affected. gh is only needed in Project 2 (real task).
+
+Command (macOS):
+
+```
+gh auth status
 ```
 
 <a id="mac-e-mcp-01"></a>
@@ -1130,17 +1220,18 @@ Get-Content "$env:ProgramFiles\ClaudeCode\managed-settings.json"
 
 <a id="windows-e-cfg-02"></a>
 
-### E-CFG-02 · The ANTHROPIC_API_KEY variable is set
+### E-CFG-02 · An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set
 
 - **Why:** With this variable, Claude Code uses that key instead of your login. The cost goes to the account that owns the key.
 - **What to do:**
-  - If the key is yours and from the Console, you can continue.
-  - If not, remove the variable from your terminal profile and open a new terminal.
+  - If the key is yours and from the Console, you can continue: the final test (step 12) checks that it works.
+  - If not, remove the variable from your terminal profile (the command below shows where it is) and open a new terminal.
 
-Command (Windows):
+Commands (Windows):
 
 ```
 [Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')
+[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')
 ```
 
 <a id="windows-e-cfg-03"></a>
@@ -1150,7 +1241,7 @@ Command (Windows):
 - **Why:** With this variable, Claude Code talks to another server instead of the Anthropic API (for example, a company gateway). Prices and models may be different.
 - **What to do:**
   - If IT asked you to use that gateway, you can continue.
-  - If not, remove the variable and open a new terminal.
+  - If not, remove the variable (from your terminal profile or from the "env" block of ~/.claude/settings.json) and open a new terminal.
 
 Command (Windows):
 
@@ -1160,17 +1251,21 @@ Command (Windows):
 
 <a id="windows-e-cfg-04"></a>
 
-### E-CFG-04 · Claude Code is set up for Bedrock or Vertex
+### E-CFG-04 · Claude Code is set up for Bedrock, Vertex or Foundry
 
-- **Why:** CLAUDE_CODE_USE_BEDROCK or CLAUDE_CODE_USE_VERTEX is set. Claude Code uses the company cloud, and the Console login is ignored.
+- **Why:** CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the "env" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.
 - **What to do:**
-  - For the workshop, remove the variable and open a new terminal.
-  - If your company requires Bedrock or Vertex, check with the organizer that the workshop models are available.
+  - If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.
+  - If it shows ~/.claude/settings.json: delete the variable from the "env" block (and AWS_PROFILE or AWS_REGION, if they are only for this).
+  - If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.
+  - If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available.
 
-Command (Windows):
+Commands (Windows):
 
 ```
 [Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')
+[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_VERTEX', $null, 'User')
+Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern CLAUDE_CODE_USE_
 ```
 
 <a id="windows-e-cfg-05"></a>
@@ -1332,6 +1427,22 @@ Get-Command claude -All
 npm uninstall -g @anthropic-ai/claude-code
 ```
 
+<a id="windows-e-cc-04"></a>
+
+### E-CC-04 · Your ~/.claude.json file has an error
+
+- **Why:** ~/.claude.json (Claude Code's own settings, with your MCP servers) is not valid JSON, often because of a comma or quote left over from a hand edit. Claude Code would replace it with an empty file, so the setup stops here and does not touch it.
+- **What to do:**
+  - Fix the file shown above, or ask the organizer. The command below shows the error and where it is (open a new terminal first, so that node is found).
+  - If the path shown is in ~/.claude/backups, Claude Code already replaced ~/.claude.json: your MCP servers are in that copy. Fix it and copy back what you need (for example mcpServers).
+  - Then run the setup again.
+
+Command (Windows):
+
+```
+node -e "JSON.parse(require('fs').readFileSync(process.env.USERPROFILE + '/.claude.json', 'utf8'))"
+```
+
 <a id="windows-e-auth-01"></a>
 
 ### E-AUTH-01 · Claude Code is not logged in
@@ -1352,7 +1463,7 @@ claude auth login --console
 
 ### E-AUTH-02 · The login is a claude.ai subscription, not the Console
 
-- **Why:** You are logged in with a claude.ai subscription (Pro or Max). It works, but the workshop was prepared for the Console and measures cost at API prices.
+- **Why:** You are logged in with a claude.ai subscription (Pro, Max, Team or Enterprise). It works, but the workshop was prepared for the Console and measures cost at API prices.
 - **What to do:**
   - You can continue with the subscription: the limits are the ones of your plan.
   - To use the Console, run the command below.
@@ -1377,6 +1488,40 @@ Commands (Windows):
 ```
 claude auth status --text
 claude auth login --console
+```
+
+<a id="windows-e-auth-04"></a>
+
+### E-AUTH-04 · A Claude key in your environment was rejected
+
+- **Why:** Claude Code uses the key in an environment variable (or an apiKeyHelper) instead of your Console login, and the API refused it (401: invalid, expired or revoked). Logging in again does not help while that key is set.
+- **What to do:**
+  - Remove the variable shown above from your terminal profile (the first command shows the file and the line) or from the "env" block of ~/.claude/settings.json.
+  - In this terminal, run the second command, then run the setup again.
+  - If IT gave you this key for a company gateway, ask them for a new one instead.
+
+Commands (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')
+[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')
+Remove-Item Env:ANTHROPIC_API_KEY, Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue
+```
+
+<a id="windows-e-auth-05"></a>
+
+### E-AUTH-05 · The company gateway in ANTHROPIC_BASE_URL is not answering
+
+- **Why:** ANTHROPIC_BASE_URL sends Claude Code to a company gateway (shown above) instead of api.anthropic.com, and that gateway can't be reached: VPN off, gateway down or local proxy not running. api.anthropic.com itself may be fine.
+- **What to do:**
+  - If you use the company gateway, connect to the VPN (or start the local proxy) and run the setup again.
+  - For the workshop your Console account is enough: remove ANTHROPIC_BASE_URL (and ANTHROPIC_AUTH_TOKEN, if it is only for the gateway) from your terminal profile or from ~/.claude/settings.json, run the second command and run the setup again.
+
+Commands (Windows):
+
+```
+[Environment]::SetEnvironmentVariable('ANTHROPIC_BASE_URL', $null, 'User')
+[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')
 ```
 
 <a id="windows-e-node-01"></a>
@@ -1426,6 +1571,21 @@ Command (Windows):
 powershell -ExecutionPolicy Bypass -c "irm https://astral.sh/uv/0.13.1/install.ps1 | iex"
 ```
 
+<a id="windows-e-uv-02"></a>
+
+### E-UV-02 · An older uv comes first in the PATH
+
+- **Why:** The workshop needs uv 0.6.8 or newer and uses its own copy in ~/.local/bin. An older uv (for example from Homebrew or pipx) comes first in this terminal's PATH, so the uv commands you type yourself use the old one.
+- **What to do:**
+  - You can continue: the setup and the Agent Memory app use ~/.local/bin/uv.
+  - To avoid surprises, upgrade or remove the old uv (shown above), then open a new terminal.
+
+Command (Windows):
+
+```
+Get-Command uv -All
+```
+
 <a id="windows-e-gh-01"></a>
 
 ### E-GH-01 · I couldn't install GitHub CLI (gh)
@@ -1455,6 +1615,22 @@ Command (Windows):
 
 ```
 gh auth login --hostname github.com --git-protocol https --web
+```
+
+<a id="windows-e-gh-03"></a>
+
+### E-GH-03 · GitHub did not answer
+
+- **Why:** gh tried to check your login, but the GitHub server (shown above) did not answer in time. This usually means the company VPN is off or a proxy is blocking the connection; it is not a login problem.
+- **What to do:**
+  - Turn on the company VPN (or check the proxy), then run the setup again.
+  - If you no longer use a server shown above, remove it from gh: gh auth logout --hostname followed by the server name.
+  - The other steps were not affected. gh is only needed in Project 2 (real task).
+
+Command (Windows):
+
+```
+gh auth status
 ```
 
 <a id="windows-e-mcp-01"></a>

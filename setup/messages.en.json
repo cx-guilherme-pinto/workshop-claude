@@ -122,6 +122,7 @@
     "s7_ja_acli": "atlassian (user scope) · Atlassian CLI {VERSAO} (backup)",
     "s7_pergunta_acli": "Log in to the Atlassian CLI now? It is the Jira backup for when the MCP fails. (opens the browser; answer n if you don't use Jira)",
     "s7_acli_login": "Jira backup: if the MCP fails, run acli auth login in a terminal (opens the browser).",
+    "s7_substituido": "The atlassian MCP pointed to {ANTIGO}. I replaced it with the workshop one.",
     "s8_ja": "{SKILLS} skills, {AGENTES} agents, hooks and statusline",
     "s8_statusline_mantida": "You already had a statusline. I kept yours. To use the workshop one, run the setup with {FLAG_STATUSLINE}.",
     "s8_lingua_nossa": "Claude answers in {NOME} (Claude Code \"language\" setting). Workshop texts: {KIT}.",
@@ -135,12 +136,15 @@
     "s10_ja": "agent-memory {VERSAO}",
     "s10_ok": "Agent Memory app {VERSAO} (Python {PY} managed by uv, FTS5 ok)",
     "s10_update": "To update the app later: agent-memory update. On Windows, close Claude Code first; the update finishes in a new PowerShell window.",
+    "s10_mcp_substituido": "The agent-memory MCP pointed to {ANTIGO}. It now points to the app just installed.",
     "s11_ja": "Claude Desktop at {CAMINHO}",
     "s11_aviso": "Claude Desktop only signs in with a claude.ai account, and the Code tab needs a subscription. All the workshop hands-on work runs in Claude Code (terminal).",
     "s12_prompt": "Reply in English with only the word OK",
+    "s12_a_testar": "Asking Claude for a short reply (up to {SEG} s)…",
     "s12_ok": "Reply \"{RESPOSTA}\" in {SEG} s · cost {USD}",
     "s12_custo_desconhecido": "model has no price in pricing.json",
     "interrompido": "Interrupted. Run the same command again: steps already done are skipped.",
+    "login_cancelado": "Login cancelled (Ctrl-C). The setup carries on; you can log in later.",
     "s1_portatil": "git {VERSAO} (the workshop's portable git, without the Apple tools)",
     "lingua_pt": "Portuguese",
     "lingua_en": "English"
@@ -419,18 +423,19 @@
       ]
     },
     "E-CFG-02": {
-      "titulo": "The ANTHROPIC_API_KEY variable is set",
+      "titulo": "An ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN variable is set",
       "so": "todos",
       "causa": "With this variable, Claude Code uses that key instead of your login. The cost goes to the account that owns the key.",
       "fazer": [
-        "If the key is yours and from the Console, you can continue.",
-        "If not, remove the variable from your terminal profile and open a new terminal."
+        "If the key is yours and from the Console, you can continue: the final test (step 12) checks that it works.",
+        "If not, remove the variable from your terminal profile (the command below shows where it is) and open a new terminal."
       ],
       "mac": [
-        "grep -n ANTHROPIC_API_KEY ~/.zshrc ~/.zprofile ~/.bash_profile 2>/dev/null"
+        "grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.bashrc ~/.profile ~/.claude/settings.json 2>/dev/null"
       ],
       "windows": [
-        "[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')"
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')",
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')"
       ]
     },
     "E-CFG-03": {
@@ -439,9 +444,10 @@
       "causa": "With this variable, Claude Code talks to another server instead of the Anthropic API (for example, a company gateway). Prices and models may be different.",
       "fazer": [
         "If IT asked you to use that gateway, you can continue.",
-        "If not, remove the variable and open a new terminal."
+        "If not, remove the variable (from your terminal profile or from the \"env\" block of ~/.claude/settings.json) and open a new terminal."
       ],
       "mac": [
+        "grep -n ANTHROPIC_BASE_URL ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null",
         "unset ANTHROPIC_BASE_URL"
       ],
       "windows": [
@@ -449,18 +455,23 @@
       ]
     },
     "E-CFG-04": {
-      "titulo": "Claude Code is set up for Bedrock or Vertex",
+      "titulo": "Claude Code is set up for Bedrock, Vertex or Foundry",
       "so": "todos",
-      "causa": "CLAUDE_CODE_USE_BEDROCK or CLAUDE_CODE_USE_VERTEX is set. Claude Code uses the company cloud, and the Console login is ignored.",
+      "causa": "CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or CLAUDE_CODE_USE_FOUNDRY is set, in the terminal or in the \"env\" block of a Claude Code settings file (shown above). Claude Code then uses the company cloud and ignores the Console login, and without that cloud's credentials its requests never finish.",
       "fazer": [
-        "For the workshop, remove the variable and open a new terminal.",
-        "If your company requires Bedrock or Vertex, check with the organizer that the workshop models are available."
+        "If it says (shell): delete the line from ~/.zshrc, ~/.zprofile or ~/.bash_profile (the first command shows it) and open a new terminal.",
+        "If it shows ~/.claude/settings.json: delete the variable from the \"env\" block (and AWS_PROFILE or AWS_REGION, if they are only for this).",
+        "If it shows /Library/... or managed settings: your company set it. Talk to the organizer: the workshop uses the Console.",
+        "If your company requires Bedrock, Vertex or Foundry, check with the organizer that the workshop models are available."
       ],
       "mac": [
-        "unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX"
+        "grep -n CLAUDE_CODE_USE_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null",
+        "unset CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY"
       ],
       "windows": [
-        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')"
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_BEDROCK', $null, 'User')",
+        "[Environment]::SetEnvironmentVariable('CLAUDE_CODE_USE_VERTEX', $null, 'User')",
+        "Select-String -Path \"$env:USERPROFILE\\.claude\\settings.json\" -Pattern CLAUDE_CODE_USE_"
       ]
     },
     "E-CFG-05": {
@@ -635,6 +646,22 @@
         "npm uninstall -g @anthropic-ai/claude-code"
       ]
     },
+    "E-CC-04": {
+      "titulo": "Your ~/.claude.json file has an error",
+      "so": "todos",
+      "causa": "~/.claude.json (Claude Code's own settings, with your MCP servers) is not valid JSON, often because of a comma or quote left over from a hand edit. Claude Code would replace it with an empty file, so the setup stops here and does not touch it.",
+      "fazer": [
+        "Fix the file shown above, or ask the organizer. The command below shows the error and where it is (open a new terminal first, so that node is found).",
+        "If the path shown is in ~/.claude/backups, Claude Code already replaced ~/.claude.json: your MCP servers are in that copy. Fix it and copy back what you need (for example mcpServers).",
+        "Then run the setup again."
+      ],
+      "mac": [
+        "node -e \"JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude.json', 'utf8'))\""
+      ],
+      "windows": [
+        "node -e \"JSON.parse(require('fs').readFileSync(process.env.USERPROFILE + '/.claude.json', 'utf8'))\""
+      ]
+    },
     "E-AUTH-01": {
       "titulo": "Claude Code is not logged in",
       "so": "todos",
@@ -654,7 +681,7 @@
     "E-AUTH-02": {
       "titulo": "The login is a claude.ai subscription, not the Console",
       "so": "todos",
-      "causa": "You are logged in with a claude.ai subscription (Pro or Max). It works, but the workshop was prepared for the Console and measures cost at API prices.",
+      "causa": "You are logged in with a claude.ai subscription (Pro, Max, Team or Enterprise). It works, but the workshop was prepared for the Console and measures cost at API prices.",
       "fazer": [
         "You can continue with the subscription: the limits are the ones of your plan.",
         "To use the Console, run the command below."
@@ -681,6 +708,42 @@
       "windows": [
         "claude auth status --text",
         "claude auth login --console"
+      ]
+    },
+    "E-AUTH-04": {
+      "titulo": "A Claude key in your environment was rejected",
+      "so": "todos",
+      "causa": "Claude Code uses the key in an environment variable (or an apiKeyHelper) instead of your Console login, and the API refused it (401: invalid, expired or revoked). Logging in again does not help while that key is set.",
+      "fazer": [
+        "Remove the variable shown above from your terminal profile (the first command shows the file and the line) or from the \"env\" block of ~/.claude/settings.json.",
+        "In this terminal, run the second command, then run the setup again.",
+        "If IT gave you this key for a company gateway, ask them for a new one instead."
+      ],
+      "mac": [
+        "grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.bashrc ~/.profile ~/.claude/settings.json 2>/dev/null",
+        "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', $null, 'User')",
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')",
+        "Remove-Item Env:ANTHROPIC_API_KEY, Env:ANTHROPIC_AUTH_TOKEN -ErrorAction SilentlyContinue"
+      ]
+    },
+    "E-AUTH-05": {
+      "titulo": "The company gateway in ANTHROPIC_BASE_URL is not answering",
+      "so": "todos",
+      "causa": "ANTHROPIC_BASE_URL sends Claude Code to a company gateway (shown above) instead of api.anthropic.com, and that gateway can't be reached: VPN off, gateway down or local proxy not running. api.anthropic.com itself may be fine.",
+      "fazer": [
+        "If you use the company gateway, connect to the VPN (or start the local proxy) and run the setup again.",
+        "For the workshop your Console account is enough: remove ANTHROPIC_BASE_URL (and ANTHROPIC_AUTH_TOKEN, if it is only for the gateway) from your terminal profile or from ~/.claude/settings.json, run the second command and run the setup again."
+      ],
+      "mac": [
+        "grep -n ANTHROPIC_ ~/.zshrc ~/.zprofile ~/.zshenv ~/.bash_profile ~/.claude/settings.json 2>/dev/null",
+        "unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN"
+      ],
+      "windows": [
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_BASE_URL', $null, 'User')",
+        "[Environment]::SetEnvironmentVariable('ANTHROPIC_AUTH_TOKEN', $null, 'User')"
       ]
     },
     "E-NODE-01": {
@@ -732,6 +795,22 @@
         "powershell -ExecutionPolicy Bypass -c \"irm {UV_INSTALL_PS1_URL_V} | iex\""
       ]
     },
+    "E-UV-02": {
+      "titulo": "An older uv comes first in the PATH",
+      "so": "todos",
+      "causa": "The workshop needs uv {UV_MIN_VERSION} or newer and uses its own copy in ~/.local/bin. An older uv (for example from Homebrew or pipx) comes first in this terminal's PATH, so the uv commands you type yourself use the old one.",
+      "fazer": [
+        "You can continue: the setup and the Agent Memory app use ~/.local/bin/uv.",
+        "To avoid surprises, upgrade or remove the old uv (shown above), then open a new terminal."
+      ],
+      "mac": [
+        "which -a uv",
+        "brew upgrade uv"
+      ],
+      "windows": [
+        "Get-Command uv -All"
+      ]
+    },
     "E-GH-01": {
       "titulo": "I couldn't install GitHub CLI (gh)",
       "so": "todos",
@@ -761,6 +840,22 @@
       ],
       "windows": [
         "gh auth login --hostname github.com --git-protocol https --web"
+      ]
+    },
+    "E-GH-03": {
+      "titulo": "GitHub did not answer",
+      "so": "todos",
+      "causa": "gh tried to check your login, but the GitHub server (shown above) did not answer in time. This usually means the company VPN is off or a proxy is blocking the connection; it is not a login problem.",
+      "fazer": [
+        "Turn on the company VPN (or check the proxy), then run the setup again.",
+        "If you no longer use a server shown above, remove it from gh: gh auth logout --hostname followed by the server name.",
+        "The other steps were not affected. gh is only needed in Project 2 (real task)."
+      ],
+      "mac": [
+        "gh auth status"
+      ],
+      "windows": [
+        "gh auth status"
       ]
     },
     "E-MCP-01": {
