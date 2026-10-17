@@ -29,7 +29,7 @@ Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
    > Read .workshop/memoria-resumo.md. Project: arena-de-seguranca. Language: <the participant's language>. Extract and save the memories of this workshop session.
    Then show the list it returns: type and title of each saved memory. If it says the memory app is not installed, say so in one line and continue.
 5. Without `--auto`, end with:
-   - "Open the **Memória** app to see your first graph."
+   - "Open the **Agent Memory** app to see your first graph."
    - "To play: `node server.js` and open http://localhost:3000."
 
 With `--auto`, end only with `CUSTO OK`.

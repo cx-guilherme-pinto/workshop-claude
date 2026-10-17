@@ -315,6 +315,18 @@ Detalhe completo em `benchmark/REPORT.md` e `benchmark/results.csv`. O custo é 
   - números alinhados com o benchmark (swarm de 2 a 3 min, até 8 agentes em paralelo, o rodapé do custo diz que é o Projeto 1) e com o código (caminho do hook, formato da statusline, `allowed-tools` do `/demo-plan`, mensagem final do `--check`);
   - texto: "Faz agora" (forma "tu"), "para" sem acento, "subscrição", um terceiro terminal para as funcionalidades (o segundo tem o servidor), legendas "Cada quadrado é uma tarefa" nas ondas.
 
+## D-24 · Teste completo isolado: 100 tarefas, permissões, /btw, terminal e Agent Memory (17 out. 2026)
+
+Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit, interativo e gravado) mostrou problemas que o benchmark (`claude -p`, Claude Code 2.1.285 da máquina do organizador) não via. Decidido com o organizador:
+- **Arena com 100 tarefas também no modo participante.** Com 15, o jogo final parecia pequeno ao lado do vídeo de 100. Os dois modos constroem as mesmas 105 tarefas; muda só o paralelismo (8 no participante, 16 no apresentador). Medido numa execução interativa: 105/105 verdes, 1 repetição, swarm em 6 min 33 s, sessão completa em cerca de 9 min, **US$ 3,39** (sessão principal US$ 2,68; 102 agentes Haiku US$ 0,18). O perfil por lote da sessão principal (`orquestrador_participante` em `orquestrador/perfis.json`) foi recalibrado com essa execução: a estimativa passa de US$ 1,83 para US$ 3,66.
+- **Pedidos de permissão na Arena (cerca de 12 por execução, agora 0):** os agentes demo e de produção que correm comandos passam a ler e escrever ficheiros só com Read/Write/Edit e a correr cada comando sozinho (sem `cd`, `;`, `|`, heredocs nem `${…}`), porque o Claude Code 2.1.292 pede aprovação para esses comandos mesmo com a lista de permissões; e `mcp__memoria__memoria_adicionar` entrou na lista da Arena. O benchmark avisa quando a versão do Claude Code não é a do `repos.conf` (`CLAUDE_BIN` escolhe outra).
+- **Diálogo de confiança:** com permissões pré-aprovadas, abre com "No, exit" selecionado. O slide, as notas e o FAQ dizem para escolher "Yes, I trust this folder".
+- **/btw:** enquanto o painel da resposta está aberto, os resultados dos agentes ficam à espera e o swarm não avança. O slide, as skills e o FAQ dizem para fechar com Esc.
+- **`curl | bash` suspenso ("zsh: suspended (tty input) bash"):** o passo 4 abria `"$SHELL" -lic 'node -v'`; um zsh interativo fica com o terminal e o setup é suspenso na pergunta seguinte. Passa a `+m` (sem controlo de tarefas). O teste `setup/test/test-mac.sh` impede um shell interativo sem `+m`, e antes de cada pergunta o setup avisa "escreve fg e Enter" se não estiver em primeiro plano.
+- **Definições geridas pela empresa (`managed-settings`):** são normais nos portáteis da empresa; deixam de ser um aviso e passam a uma nota (a ajuda E-CFG-01 continua no TROUBLESHOOTING).
+- **A app chama-se Agent Memory** em todas as línguas (janela, atalhos, setup, slides e docs). O comando `memoria`, o servidor MCP `memoria` e `~/.memoria` mantêm o nome; o setup e os instaladores da app removem o atalho antigo "Memória". Os ficheiros da versão portátil (`Memoria.app`, `Memoria.exe`) ficam para depois.
+- **Testes isolados no macOS:** o Claude Code chama `security` pelo PATH para guardar credenciais; num HOME de testes sem keychain isso abria o diálogo "Keychain Not Found" no ecrã do organizador. Os testes usam um substituto de `security` (só no PATH dos testes).
+
 ## D-12 · Testes sem estragar a configuração de quem constrói o kit
 
 - O organizador usa claude.ai Max e tem statusline e plugins próprios. Os spikes correm com `--setting-sources project,local --strict-mcp-config`.

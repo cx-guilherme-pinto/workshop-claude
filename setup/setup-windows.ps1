@@ -870,9 +870,10 @@ function Test-WsStep0 {
   if ($arch -eq 'arm64') { Set-WsWarn 'E-SO-02' 'ARM64' }
 
   foreach ($f in @((Join-Path $env:ProgramFiles 'ClaudeCode\managed-settings.json'), (Join-Path $env:ProgramData 'ClaudeCode\managed-settings.json'))) {
-    if ($f -and (Test-Path -LiteralPath $f)) { Set-WsWarn 'E-CFG-01' $f }
+    # Common on company laptops: only a note (the E-CFG-01 help stays in TROUBLESHOOTING, if a step is blocked).
+    if ($f -and (Test-Path -LiteralPath $f)) { Add-WsNote (M 's0_gerido' @{ CAMINHO = $f }) }
   }
-  if (Test-Path 'HKLM:\SOFTWARE\Policies\ClaudeCode') { Set-WsWarn 'E-CFG-01' 'HKLM:\SOFTWARE\Policies\ClaudeCode' }
+  if (Test-Path 'HKLM:\SOFTWARE\Policies\ClaudeCode') { Add-WsNote (M 's0_gerido' @{ CAMINHO = 'HKLM:\SOFTWARE\Policies\ClaudeCode' }) }
   $uvEnv = @{}
   foreach ($k in @('UV_PYTHON_DOWNLOADS', 'UV_NO_MANAGED_PYTHON', 'UV_PYTHON_PREFERENCE')) {
     $v = [Environment]::GetEnvironmentVariable($k)
@@ -1524,6 +1525,11 @@ function Get-WsUvBin {
 }
 
 function Get-WsShortcutPath {
+  return (Join-Path ([Environment]::GetFolderPath('Programs')) 'Agent Memory.lnk')
+}
+
+function Get-WsOldShortcutPath {
+  # Nome do atalho ate a v1.0.0-rc.1 ("Memoria" com acento, montado em ASCII).
   $name = 'Mem' + [char]0x00F3 + 'ria.lnk'
   return (Join-Path ([Environment]::GetFolderPath('Programs')) $name)
 }
@@ -1607,12 +1613,14 @@ function Install-WsStep10 {
   Add-WsUserPath $bin
   Write-WsMemoriaConfig
   try {
+    $old = Get-WsOldShortcutPath
+    if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue }
     $lnk = Get-WsShortcutPath
     $sh = New-Object -ComObject WScript.Shell
     $s = $sh.CreateShortcut($lnk)
     $s.TargetPath = $gui
     $s.WorkingDirectory = $HOME
-    $s.Description = 'Mem' + [char]0x00F3 + 'ria (workshop Claude)'
+    $s.Description = 'Agent Memory (Claude workshop)'
     $s.Save()
     Register-WsExtra 'atalho' 'memoria' $lnk '' ''
   } catch { Set-WsFail 'E-MEM-03' ('atalho: ' + $_.Exception.Message); return $false }

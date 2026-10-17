@@ -10,7 +10,7 @@ Short answers to the most likely questions at the workshop. For install errors w
 The script installs everything in your profile and does not need admin rights. Run `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): it tells you which folder has no permission and the command to fix it. On a company laptop, a folder blocked by policy (AppLocker, antivirus) is a case for your IT team.
 
 **How do I know everything is ready?**
-Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/summary.txt`, and you can show it to whoever helps you.
+Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Check complete: everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/summary.txt`, and you can show it to whoever helps you.
 
 **Can I run the script twice?**
 Yes. It detects what is already done and skips those steps (⏭️). If it failed halfway, running it again continues from there.
@@ -61,7 +61,7 @@ With a Console account, the default model is Opus. The demo project pins Sonnet 
 Press **Esc** in Claude Code. The running agents finish and no more are launched. The state is saved in `.workshop/`, so running `/demo-swarm` (or `/task-swarm`) again resumes where it stopped.
 
 **Can I ask a question without interrupting?**
-Yes: `/btw <question>`. The answer does not go into the main conversation.
+Yes: `/btw <question>`. The answer does not go into the main conversation. It opens in a panel: close it with Esc, because while it is open the agents' results wait and the swarm stands still.
 
 **Where can I see the agents working?**
 - In the browser: `node server.js` in the Arena folder, then `http://localhost:3000/status`.

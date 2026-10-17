@@ -10,7 +10,7 @@ Respostas curtas às perguntas mais prováveis no workshop. Para erros de instal
 O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doctor` (Mac: `bash setup-mac.sh --doctor`; Windows: `-Doctor`): ele diz qual pasta não tem permissão e o comando para corrigir. Num portátil da empresa, uma pasta bloqueada por política (AppLocker, antivírus) é um caso para a tua equipa de TI.
 
 **Como sei se está tudo pronto?**
-Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/summary.txt`, e podes mostrá-lo a quem te ajudar.
+Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Check complete: everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/summary.txt`, e podes mostrá-lo a quem te ajudar.
 
 **Posso correr o script duas vezes?**
 Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
@@ -61,7 +61,7 @@ Com conta Console, o modelo por defeito é o Opus. O projeto demo fixa Sonnet na
 Carrega em **Esc** no Claude Code. Os agentes em curso terminam e não são lançados mais. O estado fica guardado em `.workshop/`, por isso voltar a correr `/demo-swarm` (ou `/task-swarm`) retoma onde parou.
 
 **Posso fazer uma pergunta sem interromper?**
-Sim: `/btw <pergunta>`. A resposta não entra na conversa principal.
+Sim: `/btw <pergunta>`. A resposta não entra na conversa principal. Abre num painel: fecha-o com Esc, porque enquanto está aberto os resultados dos agentes ficam à espera e o swarm não avança.
 
 **Onde vejo os agentes a trabalhar?**
 - No browser: `node server.js` na pasta da Arena e depois `http://localhost:3000/status`.

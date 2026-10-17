@@ -22,7 +22,7 @@ const TEXTOS = {
     decimal: ',',
     porMedir: 'por medir', porGravar: 'por gravar', pesoOrq: 'a maior parte',
     ondas: [
-      ['Wave 1', 'lib-hash e 15 tarefas'],
+      ['Wave 1', 'lib-hash e 100 tarefas'],
       ['Wave 2', 'categorias e pontuação'],
       ['Wave 3', 'integração e suite de testes'],
       ['Wave 4', 'revisão e veredito'],
@@ -49,7 +49,7 @@ const TEXTOS = {
     decimal: '.',
     porMedir: 'to be measured', porGravar: 'to be recorded', pesoOrq: 'most',
     ondas: [
-      ['Wave 1', 'lib-hash and 15 tasks'],
+      ['Wave 1', 'lib-hash and 100 tasks'],
       ['Wave 2', 'categories and scoring'],
       ['Wave 3', 'integration and test suite'],
       ['Wave 4', 'review and verdict'],
