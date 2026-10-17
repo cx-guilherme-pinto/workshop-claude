@@ -366,11 +366,18 @@ Describe 'script da release (injetado)' {
   It 'descodifica o repos.conf, o pricing e as mensagens injetados em base64' {
     $dist = Get-ChildItem -Path (Join-Path $script:Root 'dist') -Filter 'setup-windows.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $dist) { Set-ItResult -Skipped -Because 'sem dist/ (corre tools/build-release.sh)'; return }
-    $r = & {
-      $env:WS_NO_MAIN = '1'
-      . $dist.FullName
-      [void](Initialize-WsConfig)
-      @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ((Get-WsPricingModelMap $script:Pricing).PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
+    # O script da release poe os valores dele no script: scope (Msgs, C, Pricing...): os testes seguintes usam os do repo.
+    $saved = @{}
+    foreach ($n in @('Msgs', 'C', 'Pricing', 'InjKitSha', 'Dev', 'DevRoot', 'KitSrc')) { $saved[$n] = Get-Variable -Name $n -Scope Script -ValueOnly -ErrorAction SilentlyContinue }
+    try {
+      $r = & {
+        $env:WS_NO_MAIN = '1'
+        . $dist.FullName
+        [void](Initialize-WsConfig)
+        @{ V = $script:C.WORKSHOP_VERSION; P = $script:Msgs.ui.final_pronto; H = ((Get-WsPricingModelMap $script:Pricing).PSObject.Properties.Name -contains 'claude-haiku-5-5'); S = $script:InjKitSha }
+      }
+    } finally {
+      foreach ($n in $saved.Keys) { Set-Variable -Name $n -Scope Script -Value $saved[$n] }
     }
     $r.V | Should -Match '^v'
     $r.P | Should -BeExactly 'Everything is ready for the workshop.'
@@ -876,8 +883,9 @@ Describe 'chaos G1-tty' {
     }
     It 'deita fora as teclas a mais antes de cada login interativo e de cada comando do ajudante' {
       $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
-      foreach ($l in @('& $script:ClaudeExe auth login --console', '& $exe auth login --hostname github.com', '& $exe auth login | Out-Default', 'try { $out = Invoke-Expression $cmd')) {
-        $text | Should -Match ('Clear-WsTypeAhead\r?\n\s*' + [regex]::Escape($l)) -Because $l
+      # Os logins correm pelo Invoke-WsLogin (G4); um comentario pode ficar entre as duas linhas.
+      foreach ($l in @("Invoke-WsLogin `$script:ClaudeExe @('auth', 'login', '--console')", "Invoke-WsLogin `$exe @('auth', 'login', '--hostname', 'github.com'", "Invoke-WsLogin `$exe @('auth', 'login')", 'try { $out = Invoke-Expression $cmd')) {
+        $text | Should -Match ('Clear-WsTypeAhead\r?\n(\s*#[^\r\n]*\r?\n)*\s*' + [regex]::Escape($l)) -Because $l
       }
     }
     It 'sem consola o passo 3 diz onde fazer o login (E-AUTH-01 com a nota s3_sem_tty)' {
@@ -2704,7 +2712,11 @@ Describe 'chaos G6-lifecycle' {
     Mock Get-WsMemoryHome { return (Join-Path $TestDrive 'mh10') }
     Mock Get-WsShortcutPath { return (Join-Path $TestDrive 'pr10/Agent Memory.lnk') }
     Mock Invoke-WsProcess {
-      if ((@($Arguments) -join ' ') -eq 'tool list') { return @{ ExitCode = 0; StdOut = 'agent-memory v0.5.0' } }
+      $a = @($Arguments) -join ' '
+      if ($a -eq 'tool list') { return @{ ExitCode = 0; StdOut = 'agent-memory v0.5.0' } }
+      # o "claude mcp get" diz para que programa aponta o registo (Test-WsMemoryMcpOk); o "memoria" antigo ja nao existe
+      if ($a -eq 'mcp get memoria') { return @{ ExitCode = 1; StdOut = '' } }
+      if ($a -like 'mcp get*') { return @{ ExitCode = 0; StdOut = "agent-memory:`n  Type: stdio`n  Command: C:\u\.local\bin\agent-memory.exe`n  Args: mcp" } }
       return @{ ExitCode = 0; StdOut = '' }
     }
     $script:Fixed = @()

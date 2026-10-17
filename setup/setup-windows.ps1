@@ -1525,6 +1525,7 @@ function Initialize-WsKit {
       Set-WsWarn 'E-KIT-02' $name
     } else {
       try {
+        $sum = Get-WsSha256 $zip
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($zip, (Join-Path $tmpd 'x'))
         $inner = Join-Path $tmpd ('x\workshop-kit-' + $script:C.WORKSHOP_VERSION)
