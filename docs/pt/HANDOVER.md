@@ -39,15 +39,16 @@ O kit e a app foram construídos noutra máquina, contra um Gitea privado (`repo
    - publica a app e depois o kit (as versões do `repos.conf`);
    - corre a fase 5 do teste.
    Pede o "sim" antes de cada passo.
-3. **Teste completo com contas reais:** `bash tools/test-machine.sh --install --jira <issue de teste> --confluence <id> --github-host <host> --github-repo <org>/workshop-claude`. Junta `--arena` (cerca de US$ 1) e `--write` (1 comentário de teste) quando quiseres. O organizador traz o `report.md`.
+3. **Teste completo com contas reais:** `bash tools/test-machine.sh --install --jira <issue de teste> --confluence <id> --github-host <host> --github-repo <org>/workshop-claude`. Junta `--arena` (cerca de US$ 4,5) e `--write` (1 comentário de teste) quando quiseres. O organizador traz o `report.md`.
 4. **Decisões que o relatório pode pedir:**
    - **Repositório privado ou interno.** Os participantes podem não conseguir fazer o `curl … | bash` sem login. A fase 5 testa sem login e com token. Se nenhum funcionar, a distribuição do setup tem de mudar. Por exemplo: o setup num sítio público, ou o `gh release download` depois de um `gh auth login`, mas o setup é que instala o `gh`, por isso é preciso desenhar a ordem.
    - **GitHub Enterprise Server.** O passo 6 do setup faz `gh auth login --hostname github.com`. Se a empresa usa outro servidor, falta uma chave no `repos.conf` (por exemplo, `GITHUB_HOST`) que o setup use no login e no `gh auth setup-git`. Hoje não existe.
    - **Jira.** Um administrador tem de autorizar o MCP da Atlassian (domínios e créditos Rovo) e a app ACLI no site (OAuth, uma vez). Ver `docs/pt/ORGANIZER.md` e `E-ACLI-02`.
 5. **Windows real:** os testes W1 a W19 de `docs/pt/MANUAL-TESTS.md`, em Windows 10 e 11, numa conta sem admin.
-6. **Uma sessão interativa cronometrada** do Projeto 1 numa conta Console nova (tier Evaluation; pode haver 429).
-7. **Logins interativos:** M5 a M7 (Claude Console, GitHub e `acli`).
-8. **Voltar a gravar os media em inglês** com os nomes novos (`tools/record`): o vídeo do swarm e o poster, e a captura da pesquisa na memória, em `slides/media/`. A apresentação em inglês ainda usa as gravações em português, feitas antes da D-25.
+6. **Medição do custo do dia completo da release candidate** (só com o sim do organizador: cerca de US$ 5 por execução): `BENCH_LINGUA=pt benchmark/run-benchmark.sh` e `BENCH_LINGUA=en benchmark/run-benchmark.sh` (Projeto 1 + Projeto 2; primeiro `--dry-run`, que é grátis). Depois, `node benchmark/calibrar.mjs` recalibra a estimativa do plano (US$ 3,98 contra US$ 4,33 medidos na D-28) e o `slides/dados.json` recebe a `ESTIMATIVA` nova.
+7. **Uma sessão interativa cronometrada** do Projeto 1 numa conta Console nova (tier Evaluation; pode haver 429).
+8. **Logins interativos:** M5 a M7 (Claude Console, GitHub e `acli`).
+9. **Voltar a gravar os media em inglês** com os nomes novos (`tools/record`): o vídeo do swarm e o poster, e a captura da pesquisa na memória, em `slides/media/`. A apresentação em inglês ainda usa as gravações em português, feitas antes da D-25.
 
 ## Riscos conhecidos
 

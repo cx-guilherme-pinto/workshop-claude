@@ -70,7 +70,7 @@ Para repetir só uma parte, usa `--only` com os números das fases, por exemplo 
 | 2. Setup | `--install` corre o setup a sério; depois corre sempre o `--check`. Usa o script da release, se a fase 5 o descarregou | só com `--install` (no teu perfil, como um participante) | — | 3 a 15 min |
 | 3. Contas | Login e um pedido de teste ao Claude; `gh` no servidor da empresa e a permissão no repositório; o MCP do Jira a responder; `acli` com login a ler a issue e a página (mede o tamanho em `storage` e `view`); app Agent Memory e o MCP dela | não | ~US$ 0,01 | 1 min |
 | 4. Projeto 2 | `/task-intake <issue>` numa cópia do projeto de treino, primeiro pelo MCP e depois com o MCP desligado, para obrigar a usar o `acli`. Confirma o `.workshop/task.json` (`source`, `id`, `epic`, `via`) e a secção do Confluence | só na pasta do teste | ~US$ 0,15 a 0,30 | 2 a 4 min |
-| 6. Arena | Só com `--arena`: a sessão completa do participante (`/demo-plan` → `/demo-swarm` → `/demo-review` → `/demo-cost`) | só na pasta do teste | ~US$ 1 | ~5 min |
+| 6. Arena | Só com `--arena`: a sessão completa do participante (o cartão próprio, `/demo-plan` → `/demo-swarm` → `--retry` dos 4 cartões partidos → `/demo-review` → `/demo-cost`) | só na pasta do teste | ~US$ 4,5 | ~15 min |
 | 7. Escrita | Só com `--write`: publica 1 comentário de teste na issue com o `acli`, depois do teu "sim" | **sim**, 1 comentário | — | segundos |
 
 A ordem real é 1, 5, 2, 3, 4, 6, 7, porque a fase 5 descarrega o setup que a fase 2 usa.

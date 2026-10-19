@@ -23,7 +23,7 @@ The Agent Memory app (called Memória until v0.4) lives in another repository (`
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents, in English, that answer in the user's language (D-20) |
 | `demo-project/` | The Arena (100 cards; `i18n/en/` overlays the pt source). Reference solutions in `dev/solutions/` (not shipped in the kit) |
 | `practice-project/` | The practice project for Project 2 (issues in local JSON; `i18n/en/` is the whole English project). Installed as `~/workshop-claude/practice-project` |
-| `benchmark/` | `run-benchmark.sh`, `run-projeto2.sh`, `collect`/`report`/`calibrar` and `REPORT.md` |
+| `benchmark/` | `run-benchmark.sh` (the full day, P1 + P2; `--dry-run`), `run-projeto2.sh` (P2 only), `person.mjs` (fixes the broken cards' specs), `collect`/`report`/`calibrar` and `REPORT.md` |
 | `slides/` | `build.mjs` + `content.mjs` → `workshop.pptx` and `workshop.en.pptx` (`--lingua en`) |
 | `docs/`, `README.md` | English is the primary version: `README.md` and `docs/` (INSTALL, PUBLISHING, TROUBLESHOOTING, FAQ, ORGANIZER, REPORT, MANUAL-TESTS, HANDOVER, TEST-MACHINE). Portuguese is secondary: `README.pt.md` and `docs/pt/`, with the same file names. Also `README.hi.md`, `README.he.md`, `docs/hi/INSTALL.md` and `docs/he/INSTALL.md` |
 | `tools/` | `render.mjs` (templates in `tools/templates/<lang>/`), `check-repo.mjs`, `switch-repos.sh`, `build-release.sh`, `publish-release.sh`, `test-all.sh`, `test-machine.sh`, `pack-for-transfer.sh` and `publish-to-github.sh` |
@@ -60,7 +60,7 @@ bash setup/test/test-mac.sh       # Mac setup functions (bash 3.2)
 
 **Whole machine with real accounts** (Jira, Confluence, corporate GitHub): `bash tools/test-machine.sh --help` (guide in `docs/TEST-MACHINE.md`).
 
-**Benchmark:** `benchmark/run-benchmark.sh --n 1 --sem-isolamento` (`BENCH_LINGUA=en` for the Arena in English) costs about US$ 1 per run. Check with the organizer before running more than one.
+**Benchmark:** `BENCH_LINGUA=pt benchmark/run-benchmark.sh` (or `BENCH_LINGUA=en`) measures a participant's full day: Project 1 (own card, swarm, the 4 broken cards fixed by the benchmark's "person" and `--retry`, review, cost and memory) and Project 2 (`/task-*` on EX-1), about US$ 5 and 25 min per run, one row in `benchmark/results.csv`. `--scope p1|p2` measures one project, `--crypto haiku` the cheaper plan, `--dry-run` prints every `claude -p` call without calling Claude (free). `node benchmark/calibrar.mjs` recalibrates `orchestrator/profiles.json` from the runs of the current kit version. Check with the organizer before any run that is not a `--dry-run`.
 
 ## Publishing
 
