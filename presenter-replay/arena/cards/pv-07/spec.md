@@ -6,11 +6,11 @@
 
 ## Conceito
 
-A impressão digital do browser junta detalhes técnicos que te identificam sem cookies.
+Um site pode reconhecer-te sem cookies, através de detalhes que não mudam quando os apagas.
 
 ## Enunciado (campo `prompt`)
 
-Apagaste todos os cookies, mas um site continua a reconhecer-te. Como é possível?
+Em casa, apagaste todos os cookies e abriste o site noutro browser, no mesmo portátil. O site continua a reconhecer-te. Qual é a explicação mais provável?
 
 ## Conteúdo
 
@@ -18,16 +18,16 @@ Campo `options` (mantém os ids):
 
 | id | text |
 | --- | --- |
-| a | Impressão digital do browser: ecrã, fontes, versão e outros detalhes |
-| b | O site leu o teu email |
-| c | O Wi-Fi contou ao site |
+| a | Impressão digital do browser: versão, extensões, definições e outros detalhes do browser |
+| b | O endereço IP público da tua ligação de casa |
+| c | O site leu o histórico do teu browser |
 | d | Foi coincidência |
 
-Campo `answer`: `"a"`
+Campo `answer`: `"b"`
 
 ## Explicação (campo `explanation`)
 
-A combinação de pequenos detalhes do browser é quase única. Usa um browser com proteção contra fingerprinting e poucas extensões.
+Apagar os cookies só limpa o que o browser guardou. O que o site vê de fora depende do browser que usas e da rede de onde te ligas. Para visitas que não queres ligadas entre si, usa uma VPN ou o Tor.
 
 ## Feito quando
 

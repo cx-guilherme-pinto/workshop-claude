@@ -191,6 +191,11 @@ export async function avaliar(projeto, plano, tarefa, { soAgente = null, l = lin
   const inicioTeste = Date.now();
   let ok = false;
   let teste = {};
+  // A card broken on purpose (the plan flags it: "spec_gap", from specs/cards.json "spec_gaps"): its spec does not
+  // decide the answer and agents do not change specs, so another attempt would only guess again. Its first failed
+  // attempt fails for good (motivo "spec"); a person decides the answer in the spec and runs --retry, whose attempt
+  // is graded the same way. Plans without the flag fall back to the test message (SPEC_GAP).
+  let specGap = false;
   if (Array.isArray(tarefa.teste)) {
     // A card's test takes well under a second: 30 s is plenty and keeps a card that never ends from
     // holding the whole wave for 2 minutes.
@@ -202,6 +207,7 @@ export async function avaliar(projeto, plano, tarefa, { soAgente = null, l = lin
     if (vazio) s.excerto = [T.nenhumTeste(vazio), s.excerto].filter(Boolean).join('\n');
     if (r.esgotado) s.excerto = [T.esgotado(timeoutS), s.excerto].filter(Boolean).join('\n');
     teste = { comando: tarefa.teste.join(' '), codigo: r.code, ...(r.esgotado ? { esgotado: true } : {}), ...s };
+    specGap = !ok && (tarefa.spec_gap === true || SPEC_GAP.test(r.out || ''));
   } else if (tarefa.teste && tarefa.teste.ficheiro_json) {
     const { ficheiro, valor } = lerCampoJson(projeto, tarefa.teste.ficheiro_json, tarefa.teste.campo);
     ok = valor !== undefined && valor !== null && valor !== '';
@@ -216,12 +222,17 @@ export async function avaliar(projeto, plano, tarefa, { soAgente = null, l = lin
   const atual = lerEstado(c, tarefa.id);
   if (atual.estado !== st.estado || atual.agente !== st.agente || atual.tentativa !== st.tentativa || atual.lote !== st.lote) return atual;
   const max = plano.config?.max_tentativas ?? 3;
-  st.estado = ok ? 'verde' : (st.tentativa || 0) >= max ? 'falhou' : 'vermelho';
+  st.estado = ok ? 'verde' : specGap || (st.tentativa || 0) >= max ? 'falhou' : 'vermelho';
+  if (specGap) st.motivo = 'spec';
+  else delete st.motivo;
   st.fim = new Date().toISOString();
   st.teste = teste;
   gravarEstado(c, st);
   return st;
 }
+
+// The messages of a broken card's test (tools/gen.mjs, pt and en; the older ones too), for plans without the flag.
+const SPEC_GAP = /spec\.md does not say |spec\.md não diz |is missing a detail the test checks|um detalhe que o teste verifica/;
 
 export async function avaliarVarias(projeto, plano, tarefas, paralelo = 4) {
   const fila = [...tarefas];

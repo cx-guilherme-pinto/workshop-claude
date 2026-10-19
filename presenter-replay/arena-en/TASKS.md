@@ -72,7 +72,7 @@ Each task is done by one agent. **This file is generated** by `node tools/gen.mj
 | rd-06 | spot-the-flaw | Too many ports open on the firewall | A web server should only expose the ports it needs to the internet. | — |
 | rd-07 | answer | DNS that nobody can read | Traditional DNS travels unencrypted; DoH hides the names you look up. | — |
 | rd-08 | choice | Where to connect the cheap cameras | Putting untrusted devices on their own network limits the damage if they are attacked. | — |
-| rd-09 | spot-the-flaw | The badly configured router | WEP and WPS are well-known weak points in home Wi-Fi. | — |
+| rd-09 | spot-the-flaw | The badly configured router | A home router has several doors: the Wi-Fi itself, the admin page and the devices connected to it. | — |
 | rd-10 | choice | Certificate warning | A certificate warning can be a sign that someone is intercepting the connection. | — |
 
 ## Privacy
@@ -85,7 +85,7 @@ Each task is done by one agent. **This file is generated** by `node tools/gen.mj
 | pv-04 | answer | Taking your data with you | The GDPR gives you the right to receive your data in a format another service can read. | — |
 | pv-05 | spot-the-flaw | Too much data for a newsletter | Data minimization: collect only the data you need for the stated purpose. | — |
 | pv-06 | order | Asking a company for your data | The right of access lets you find out what data a company holds about you. | — |
-| pv-07 | choice | No cookies and they still recognize you | Browser fingerprinting combines technical details that identify you without cookies. | — |
+| pv-07 | choice | No cookies and they still recognize you | A site can recognize you without cookies, through details that do not change when you delete them. | — |
 | pv-08 | choice | The boarding pass photo | The barcode on a boarding pass contains your name and booking reference. | — |
 | pv-09 | spot-the-flaw | Personal data in the URL | Personal data in a URL ends up in the history and in the logs of every server the request passes through. | — |
 | pv-10 | order | Who sees your post? | Each sharing level widens who sees what you post; the most restricted is the most private. | — |
@@ -115,7 +115,7 @@ Each task is done by one agent. **This file is generated** by `node tools/gen.mj
 | cr-04 | answer | Repeated hashes in the breach | Without a salt, identical passwords give identical hashes and stand out in a breach. | lib-hash |
 | cr-05 | choice | Hash or encryption? | Encryption can be reversed with the key; a hash is one-way. | — |
 | cr-06 | answer | One letter changes everything | Avalanche effect: changing a single character in the input changes the whole hash. | lib-hash |
-| cr-07 | order | From the weakest key to the strongest | Each extra bit in a key doubles the number of keys an attacker has to try. | — |
+| cr-07 | order | Which generated password lasts longest? | The strength of a randomly generated password is the number of possibilities of its generator. | — |
 | cr-08 | order | Storing passwords: from worst to best | Passwords are stored with a slow, salted hash, designed on purpose to be costly to test. | — |
 | cr-09 | answer | The S in HTTPS | HTTPS is HTTP inside TLS; the old SSL is no longer secure. | — |
 | cr-10 | choice | Truly random numbers | Security tokens need a cryptographic random generator, not Math.random(). | — |
@@ -131,7 +131,7 @@ Each task is done by one agent. **This file is generated** by `node tools/gen.mj
 | sc-05 | choice | The public bucket | A bucket with public read access can be reached by anyone on the internet. | — |
 | sc-06 | order | The life of a secret | A secret has a life cycle: it is created in a vault, rotated regularly and revoked at the end. | — |
 | sc-07 | spot-the-flaw | The secret in the CI log | Everything a pipeline prints ends up in the logs, which many people can read. | — |
-| sc-08 | answer | The cloud root account | The main cloud account controls everything and needs the strongest protection. | — |
+| sc-08 | answer | The production secret | Authorization: being signed in does not mean you may read every secret. | — |
 | sc-09 | spot-the-flaw | The secret in the image | A secret written in the Dockerfile is baked into the image, within reach of anyone who downloads it. | — |
 | sc-10 | choice | How the app reaches the database | Temporary credentials, given by the cloud to a service, avoid fixed keys that can leak. | — |
 

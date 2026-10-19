@@ -1,19 +1,9 @@
 // GERADO por tools/gen.mjs a partir de specs/cards.json. Não editar à mão.
 // Cartão es-06: As fases de um ataque de engenharia social
-import { test, assert, readSource, newContainer, environment } from '../../lib/testkit.js';
+import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
 import { cardProblems } from '../../lib/security.js';
 
 const SPEC = {"id":"es-06","category":"social-engineering","template":"order","answer":["a","d","b","c"],"wrong":[["a","b","c","d"],["c","b","d","a"],["d","a","b","c"]],"depends":[]};
-
-const GAPS = [{"field":"answer","value":"[\"a\",\"d\",\"b\",\"c\"]","message":"falta em cards/es-06/spec.md um detalhe que o teste verifica: a ordem certa. Uma pessoa acrescenta à spec esta linha: Campo `answer` (ordem certa): `[\"a\",\"d\",\"b\",\"c\"]` — e depois corre /demo-swarm --retry es-06 (os agentes não mudam specs)."}];
-const flat = (s) => String(s).replace(/[\s`]/g, '').replace(/'/g, '"').toLowerCase();
-
-if (environment === 'node') {
-  test('es-06: a spec.md tem todos os detalhes que o teste verifica', async () => {
-    const lines = (await readSource('./spec.md', import.meta.url)).split('\n').map(flat);
-    for (const g of GAPS) assert.ok(lines.some((l) => l.includes(g.field) && l.includes(flat(g.value))), g.message);
-  });
-}
 
 let card = null;
 let loadError = null;

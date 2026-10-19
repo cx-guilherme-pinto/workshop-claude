@@ -6,11 +6,11 @@
 
 ## Concept
 
-WEP and WPS are well-known weak points in home Wi-Fi.
+A home router has several doors: the Wi-Fi itself, the admin page and the devices connected to it.
 
 ## Prompt (field `prompt`)
 
-These are the router settings. Which lines weaken the network?
+These are the settings of the Smiths' router. Which lines let a neighbor who does not know the Wi-Fi password get onto the network?
 
 ## Content
 
@@ -21,10 +21,11 @@ Field `segments` (indexes start at 0):
 ```json
 [
   "Network name: SmithHome",
-  "Security: WEP",
-  "Password: 20 random characters",
-  "WPS: on",
-  "Firmware: up to date"
+  "Wi-Fi security: WEP",
+  "Admin page password: admin (the factory one)",
+  "WPS: on, with an 8-digit PIN",
+  "UPnP: on",
+  "Remote administration: off"
 ]
 ```
 
@@ -32,7 +33,7 @@ Field `answer` (unsafe indexes): `[1,3]`
 
 ## Explanation (field `explanation`)
 
-WEP can be cracked in minutes and the WPS PIN can be guessed by brute force. Use WPA3 (or WPA2) and turn WPS off.
+A neighbor within range can attack the Wi-Fi itself for days without anyone noticing. Use WPA3 (or WPA2) with a long password, turn WPS off, change the factory admin password and turn UPnP off if you do not need it.
 
 ## Done when
 

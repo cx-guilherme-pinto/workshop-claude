@@ -1,6 +1,6 @@
 // Tests of the Arena's decision points for Project 1:
 //   - "your card" (specs/my-card.json -> card my-01): validation in the Arena language, generation, plan, gallery;
-//   - the cards broken on purpose (spec_gaps): spec.md without the detail, card.test.js that still checks it;
+//   - the cards broken on purpose (spec_gaps): spec.md without the deciding detail, card.test.js with only a hash;
 //   - the cost decision: tools/plan.mjs --crypto sonnet|haiku;
 //   - the settings that stop agents from changing a card's spec or test.
 // (--retry is tested with the orchestrator, in orchestrator/test/retry.test.mjs.)
@@ -179,70 +179,165 @@ test('your card: clear, short errors in the Arena language (field, what is wrong
 // ---------- the cards broken on purpose ----------
 
 const specsPt = lerJson(join(DEMO, 'specs', 'cards.json'));
+const specsEn = lerJson(join(DEMO, 'i18n', 'en', 'specs', 'cards.json'));
 const broken = specsPt.cards.filter((c) => c.spec_gaps?.length);
+// The values a broken card must not show anywhere in its card.test.js or (incomplete) spec.md.
+function plainAnswers(c) {
+  const out = [JSON.stringify(c.answer)];
+  if (Array.isArray(c.answer)) out.push(JSON.stringify(c.answer).replace(/,/g, ', '), c.answer.map((x) => `'${x}'`).join(', '));
+  else out.push(`'${c.answer}'`, `\`${c.answer}\``);
+  if (c.accept) out.push(JSON.stringify(c.accept));
+  return out;
+}
+const wordRe = (v) => new RegExp(`(^|[^\\w])${String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`, 'i');
+// Copies the reference solutions into an Arena (dev/solutions, then dev/solutions/i18n/<l>).
+function addSolutions(dest, l) {
+  cpSync(SOLUTIONS, dest, { recursive: true, filter: (p) => !p.startsWith(join(SOLUTIONS, 'i18n')) });
+  if (existsSync(join(SOLUTIONS, 'i18n', l))) cpSync(join(SOLUTIONS, 'i18n', l), dest, { recursive: true });
+}
+// The card.js of the reference solution with another answer: what an agent that guessed wrong writes.
+const WRONG = {
+  'pv-07': { from: "answer: 'b'", to: "answer: 'a'", shows: { en: /the card picks option a \("Browser fingerprinting: /, pt: /o cartão escolhe a opção a \("Impressão digital do browser: / } },
+  'rd-09': { from: 'answer: [1, 3]', to: 'answer: [1, 2, 3]', shows: { en: /the card marks the indexes \[1, 2, 3\] as unsafe/, pt: /o cartão marca os índices \[1, 2, 3\] como inseguros/ } },
+  'cr-07': { from: "answer: ['c', 'd', 'a', 'b']", to: "answer: ['c', 'd', 'b', 'a']", shows: { en: /the card puts the items in the order \["c", "d", "b", "a"\]/, pt: /o cartão põe os itens pela ordem \["c", "d", "b", "a"\]/ } },
+  'sc-08': { from: /accept: \[.*\]/, to: "accept: ['403', '403 Forbidden', 'Forbidden']", shows: { en: /the card accepts \["403", "403 Forbidden", "Forbidden"\]/, pt: /o cartão aceita \["403", "403 Forbidden", "Forbidden"\]/ } },
+};
+const failureLine = (out, id) => out.split('\n').find((x) => x.includes('AssertionError') && x.includes(`cards/${id}/spec.md`));
 
 test('broken cards: 4 of the 100, in 4 categories and 4 templates, the same in pt and en', () => {
   assert.equal(specsPt.cards.length, 100);
-  assert.deepEqual(broken.map((c) => c.id).sort(), ['es-06', 'pv-07', 'rd-09', 'sc-08']);
+  assert.deepEqual(broken.map((c) => c.id).sort(), ['cr-07', 'pv-07', 'rd-09', 'sc-08']);
   assert.equal(new Set(broken.map((c) => c.category)).size, 4);
   assert.equal(new Set(broken.map((c) => c.template)).size, 4);
-  const en = lerJson(join(DEMO, 'i18n', 'en', 'specs', 'cards.json'));
-  assert.equal(en.cards.length, 100);
-  for (const c of broken) assert.deepEqual(en.cards.find((x) => x.id === c.id).spec_gaps, c.spec_gaps, c.id);
-});
-
-test('broken cards: spec.md leaves the detail out, card.test.js still checks it (and checks the spec)', () => {
+  assert.equal(specsEn.cards.length, 100);
   for (const c of broken) {
-    const spec = ler(join(DEMO, 'cards', c.id, 'spec.md'));
-    const t = ler(join(DEMO, 'cards', c.id, 'card.test.js'));
-    const value = JSON.stringify(c.spec_gaps[0] === 'accept' ? c.accept : c.answer);
-    assert.ok(!spec.includes(value), `${c.id}: spec.md must not have ${value}`);
-    if (c.template === 'answer') assert.ok(!spec.includes(`\`${c.answer}\``), `${c.id}: no example answer either`);
-    assert.ok(t.includes(`"answer":${JSON.stringify(c.answer)}`), `${c.id}: the test checks the answer`);
-    assert.match(t, /const GAPS = /);
-    assert.ok(t.includes(`--retry ${c.id}`), `${c.id}: the message says how to retry`);
+    const en = specsEn.cards.find((x) => x.id === c.id);
+    assert.deepEqual(en.spec_gaps, c.spec_gaps, c.id);
+    assert.deepEqual(en.answer, c.answer, `${c.id}: the same answer in both languages`);
   }
-  // The other cards: no GAPS block.
-  assert.doesNotMatch(ler(join(DEMO, 'cards', 'pw-01', 'card.test.js')), /GAPS/);
+  assert.equal(specsEn.cards.filter((c) => c.spec_gaps?.length).length, 4);
 });
 
 for (const l of ['pt', 'en']) {
-  test(`broken cards (${l}): fail with the line to add, pass once a person adds it, and gen keeps the fix`, () => {
+  test(`broken cards (${l}): no plaintext answer in card.test.js or spec.md, only a short hash`, () => {
     const { dest, limpar } = arena(l);
     try {
-      cpSync(SOLUTIONS, dest, { recursive: true, filter: (p) => !p.startsWith(join(SOLUTIONS, 'i18n')) });
-      if (existsSync(join(SOLUTIONS, 'i18n', l))) cpSync(join(SOLUTIONS, 'i18n', l), dest, { recursive: true });
+      const cards = (l === 'en' ? specsEn : specsPt).cards;
+      for (const b of broken) {
+        const c = cards.find((x) => x.id === b.id);
+        const t = ler(join(dest, 'cards', c.id, 'card.test.js'));
+        const spec = ler(join(dest, 'cards', c.id, 'spec.md'));
+        for (const v of plainAnswers(c)) {
+          assert.ok(!t.includes(v), `${c.id}: card.test.js has ${v}`);
+          assert.ok(!spec.includes(v), `${c.id}: spec.md has ${v}`);
+        }
+        if (c.template === 'answer') {
+          for (const v of c.accept) assert.doesNotMatch(t + spec, wordRe(v), `${c.id}: ${v}`);
+          // Nor the wrong answers (they would give the right one away).
+          for (const w of c.wrong.filter(Boolean)) assert.doesNotMatch(t, wordRe(w), `${c.id}: wrong ${w}`);
+        } else {
+          assert.doesNotMatch(t.split('\n').find((x) => x.startsWith('const SPEC = ')), /"wrong"|"answer"/, `${c.id}: no answer or wrong answers in SPEC`);
+        }
+        assert.match(t, /const GAP = \{"right":\["[0-9a-f]{8}"\]/, `${c.id}: the hash`);
+        assert.match(t, /Math\.imul\(h \^ s\.charCodeAt\(i\), 0x01000193\)/, `${c.id}: FNV-1a inline`);
+        assert.doesNotMatch(t, /\bcrypto\b|node:/, `${c.id}: no crypto and no Node-only import (runs in the browser too)`);
+        assert.ok(t.includes(`--retry ${c.id}`), `${c.id}: the message says how to retry`);
+        assert.doesNotMatch(t, /readSource\('\.\/spec\.md'/, `${c.id}: the test does not read the spec`);
+      }
+      // The other cards are as before: the answer in SPEC, no GAP block.
+      const other = ler(join(dest, 'cards', 'pw-01', 'card.test.js'));
+      assert.doesNotMatch(other, /GAP/);
+      assert.match(other, /"answer":"c","wrong":\["a","b","d"\]/);
+    } finally {
+      limpar();
+    }
+  });
+
+  test(`broken cards (${l}): the reference solutions pass with the incomplete specs; a wrong answer fails with the card's value and what the spec does not decide`, () => {
+    const { dest, limpar } = arena(l);
+    try {
+      addSolutions(dest, l);
       for (const c of broken) {
         const file = `cards/${c.id}/card.test.js`;
+        const ok = node(dest, '--test', '--test-reporter=spec', file);
+        assert.equal(ok.status, 0, `${c.id}: the hash matches the reference solution\n${ok.stdout.slice(-1500)}`);
+        // An agent that guessed wrong.
+        const js = join(dest, 'cards', c.id, 'card.js');
+        const right = ler(js);
+        const w = WRONG[c.id];
+        assert.ok(typeof w.from === 'string' ? right.includes(w.from) : w.from.test(right), `${c.id}: solution shape`);
+        writeFileSync(js, right.replace(w.from, w.to));
         const r = node(dest, '--test', '--test-reporter=spec', file);
-        assert.equal(r.status, 1, `${c.id} should fail with the reference solution and the incomplete spec`);
-        const line = r.stdout.split('\n').find((x) => x.includes('AssertionError') && x.includes(`cards/${c.id}/spec.md`));
+        assert.equal(r.status, 1, `${c.id} should fail with a wrong answer`);
+        assert.match(r.stdout, /ℹ fail 1\b/, `${c.id}: only the answer test fails`);
+        const line = failureLine(r.stdout, c.id);
         assert.ok(line, `${c.id}: failure line\n${r.stdout.slice(-1500)}`);
-        assert.match(line, l === 'en' ? /A person adds this line to the spec: / : /Uma pessoa acrescenta à spec esta linha: /);
-        // Only the spec test fails: the card itself is right.
-        assert.match(r.stdout, /ℹ fail 1\b/);
-        // The participant copies the line from the message into the spec.
-        const add = line.split(l === 'en' ? 'to the spec: ' : 'esta linha: ')[1].split(' — ')[0];
-        appendFileSync(join(dest, 'cards', c.id, 'spec.md'), `\n${add}\n`);
-        const ok = node(dest, '--test', file);
-        assert.equal(ok.status, 0, `${c.id} after the fix: ${ok.stdout.slice(-1500)}`);
+        assert.match(line, w.shows[l]);
+        assert.match(line, l === 'en' ? /but that is not the answer the test expects\. cards\/[\w-]+\/spec\.md does not say / : /mas não é essa a resposta que o teste espera\. A spec cards\/[\w-]+\/spec\.md não diz /);
+        assert.match(line, l === 'en' ? /decide it from the prompt and the concept, write it in the spec \(Field `(answer|accept)`/ : /decide-o a partir do enunciado e do conceito, escreve-o na spec \(Campo `(answer|accept)`/);
+        assert.ok(line.includes(`/demo-swarm --retry ${c.id}`), c.id);
+        for (const v of plainAnswers(c).slice(0, 2)) assert.ok(!line.includes(v), `${c.id}: the message must not give the answer ${v}`);
+        if (c.template === 'answer') assert.doesNotMatch(line, wordRe(c.answer));
+        writeFileSync(js, right);
       }
-      // Re-running gen does not undo the participant's fix, and --check is still green.
-      assert.equal(node(dest, 'tools/gen.mjs').status, 0);
-      assert.equal(node(dest, 'tools/gen.mjs', '--check').status, 0);
-      for (const c of broken) assert.equal(node(dest, '--test', `cards/${c.id}/card.test.js`).status, 0, c.id);
     } finally {
       limpar();
     }
   });
 }
 
+test('broken cards: a person writes the decision in spec.md, gen keeps it, --check stays green and the test is the same', () => {
+  const { dest, limpar } = arena('en');
+  try {
+    addSolutions(dest, 'en');
+    const before = Object.fromEntries(broken.map((c) => [c.id, ler(join(dest, 'cards', c.id, 'card.test.js'))]));
+    for (const c of broken) appendFileSync(join(dest, 'cards', c.id, 'spec.md'), `\nField \`answer\`: decided by a person\n`);
+    assert.equal(node(dest, 'tools/gen.mjs').status, 0);
+    assert.equal(node(dest, 'tools/gen.mjs', '--check').status, 0);
+    for (const c of broken) {
+      assert.match(ler(join(dest, 'cards', c.id, 'spec.md')), /decided by a person/, `${c.id}: the fix stays`);
+      assert.equal(ler(join(dest, 'cards', c.id, 'card.test.js')), before[c.id], `${c.id}: the test does not depend on the spec`);
+      assert.equal(node(dest, '--test', `cards/${c.id}/card.test.js`).status, 0, c.id);
+    }
+  } finally {
+    limpar();
+  }
+});
+
+test('broken cards: the plan flags them (spec_gap), and grade fails a wrong one for good on attempt 1 with motivo "spec"', () => {
+  const { dest, limpar } = arena('en');
+  try {
+    addSolutions(dest, 'en');
+    const p = node(dest, 'tools/plan.mjs');
+    assert.equal(p.status, 0, p.stderr);
+    const plan = lerJson(join(dest, 'plan.json'));
+    assert.deepEqual(plan.tasks.filter((t) => t.spec_gap).map((t) => t.id).sort(), broken.map((c) => c.id).sort());
+    assert.ok(plan.tasks.filter((t) => t.spec_gap).every((t) => t.spec_gap === true && t.group_type === 'card'));
+    // A wrong guess on rd-09: failed for good, motivo spec, the message in the excerpt.
+    const js = join(dest, 'cards', 'rd-09', 'card.js');
+    writeFileSync(js, ler(js).replace(WRONG['rd-09'].from, WRONG['rd-09'].to));
+    const g = node(dest, 'tools/workshop/orchestrator/grade.mjs', 'rd-09', 'pv-07');
+    assert.equal(g.status, 0, g.stderr);
+    const st = lerJson(join(dest, '.workshop', 'status', 'rd-09.json'));
+    assert.equal(st.estado, 'falhou');
+    assert.equal(st.motivo, 'spec');
+    assert.match(st.teste.excerto, /the card marks the indexes \[1, 2, 3\] as unsafe/);
+    const ok = lerJson(join(dest, '.workshop', 'status', 'pv-07.json'));
+    assert.equal(ok.estado, 'verde');
+    assert.equal(ok.motivo, undefined);
+  } finally {
+    limpar();
+  }
+});
+
 test('broken cards: gen --no-gaps writes the complete specs (the reference solution of the exercise)', () => {
   const { dest, limpar } = arena('pt');
   try {
     assert.equal(node(dest, 'tools/gen.mjs', '--no-gaps').status, 0);
-    assert.match(ler(join(dest, 'cards', 'pv-07', 'spec.md')), /Campo `answer`: `"a"`/);
-    assert.match(ler(join(dest, 'cards', 'sc-08', 'spec.md')), /Campo `accept`: `\["MFA"/);
+    assert.match(ler(join(dest, 'cards', 'pv-07', 'spec.md')), /Campo `answer`: `"b"`/);
+    assert.match(ler(join(dest, 'cards', 'rd-09', 'spec.md')), /Campo `answer` \(índices inseguros\): `\[1,3\]`/);
+    assert.match(ler(join(dest, 'cards', 'cr-07', 'spec.md')), /Campo `answer` \(ordem certa\): `\["c","d","a","b"\]`/);
+    assert.match(ler(join(dest, 'cards', 'sc-08', 'spec.md')), /Campo `accept`: `\["404"/);
     // Without --no-gaps, the gaps come back (the complete spec only stays if a person completed it).
     rmSync(join(dest, 'cards', 'pv-07', 'spec.md'));
     assert.equal(node(dest, 'tools/gen.mjs').status, 0);

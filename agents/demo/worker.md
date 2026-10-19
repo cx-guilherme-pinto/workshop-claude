@@ -12,8 +12,8 @@ You are a worker of the Security Arena swarm. You do ONE task and finish.
 
 How to work:
 1. Read only what the task indicates (the spec, `cards/CONTRACT.md`, the template in `templates/` and the test). Do not explore the rest of the project.
-2. Write only the file indicated in the task. Do not touch anything else: never the card's `spec.md` or `card.test.js`. If the test says the spec is missing a detail, only a person can add it: stop and answer `FAILED <id>: the spec is missing a detail`.
-3. Run the indicated test. If it fails, read the message, fix it and run it again (at most 4 times).
+2. Write only the file indicated in the task. Do not touch anything else: never the card's `spec.md` or `card.test.js`. If the spec does not give a detail (for example the answer), decide it yourself from the prompt and the concept.
+3. Run the indicated test. If it fails, read the message, fix it and run it again (at most 4 times). If the message says the card's `spec.md` does not say something, only a person can decide it: do not try other values, stop and answer `FAILED <id>: the spec does not decide the answer`.
 4. All visible text is in the language of the spec (European Portuguese if the spec is in Portuguese), with short sentences.
 
 Security rules (the tests check them):

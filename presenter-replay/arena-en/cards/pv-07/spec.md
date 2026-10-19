@@ -6,11 +6,11 @@
 
 ## Concept
 
-Browser fingerprinting combines technical details that identify you without cookies.
+A site can recognize you without cookies, through details that do not change when you delete them.
 
 ## Prompt (field `prompt`)
 
-You deleted all your cookies, but a site still recognizes you. How is that possible?
+At home, you deleted all your cookies and opened the site in another browser, on the same laptop. The site still recognizes you. What is the most likely explanation?
 
 ## Content
 
@@ -18,16 +18,16 @@ Field `options` (keep the ids):
 
 | id | text |
 | --- | --- |
-| a | Browser fingerprinting: screen, fonts, version and other details |
-| b | The site read your email |
-| c | The Wi-Fi told the site |
+| a | Browser fingerprinting: version, extensions, settings and other browser details |
+| b | The public IP address of your home connection |
+| c | The site read your browser history |
 | d | It was a coincidence |
 
-Field `answer`: `"a"`
+Field `answer`: `"b"`
 
 ## Explanation (field `explanation`)
 
-The combination of small browser details is almost unique. Use a browser with fingerprinting protection and few extensions.
+Deleting cookies only clears what the browser stored. What the site sees from the outside depends on the browser you use and the network you connect from. For visits you do not want linked to each other, use a VPN or Tor.
 
 ## Done when
 

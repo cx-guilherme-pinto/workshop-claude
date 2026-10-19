@@ -118,6 +118,7 @@ export function legacyPlan(p) {
         instrucoes: t.instructions,
       };
       if (t.prepare) o.preparar = t.prepare;
+      if (t.spec_gap) o.spec_gap = true;
       if (o.spec === undefined) delete o.spec;
       return o;
     }),

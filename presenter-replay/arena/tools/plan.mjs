@@ -201,6 +201,9 @@ function build(mode, maxParallel) {
       depends_on: c.depends || [],
       test: ['node', '--test', `cards/${c.id}/card.test.js`],
       files: [`cards/${c.id}/card.js`],
+      // A card broken on purpose (specs/cards.json "spec_gaps"): the orchestrator fails it on its first failed
+      // attempt, with no new attempts; a person decides the answer in its spec.md and runs --retry.
+      ...(c.spec_gaps?.length ? { spec_gap: true } : {}),
       instructions: I.card(c),
     });
   }
@@ -254,6 +257,7 @@ function fromLegacy(p) {
       test: test(t.teste),
       files: t.ficheiros,
       ...(t.preparar ? { prepare: t.preparar } : {}),
+      ...(t.spec_gap ? { spec_gap: true } : {}),
       instructions: t.instrucoes,
     })),
   };

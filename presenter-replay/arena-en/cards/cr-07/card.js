@@ -2,17 +2,17 @@ import { order } from '../../templates/order.js';
 
 export default order({
   id: 'cr-07',
-  title: 'Da chave mais fraca à mais forte',
+  title: 'Which generated password lasts longest?',
   category: 'cryptography',
-  difficulty: 1,
-  concept: 'Cada bit a mais numa chave duplica o número de chaves que um atacante tem de testar.',
-  prompt: 'Ordena estas cifras, da chave mais fraca à mais forte.',
+  difficulty: 2,
+  concept: 'The strength of a randomly generated password is the number of possibilities of its generator.',
+  prompt: 'A password manager generated these four passwords at random. The attacker knows how each one was generated and tries every possibility. Order them, from the one that falls fastest to the one that lasts longest.',
   items: [
-    { id: 'a', text: 'DES (56 bits)' },
-    { id: 'b', text: 'AES-128' },
-    { id: 'c', text: 'AES-256' },
-    { id: 'd', text: 'César (25 chaves)' },
+    { id: 'a', text: '4 random words from a list of 2,000, like cloud-stapler-horse-river' },
+    { id: 'b', text: '12 random characters from the 94 on the keyboard, like q7#Vm2!xR9pL' },
+    { id: 'c', text: '8 random digits, like 40718325' },
+    { id: 'd', text: '6 random lowercase letters, like kqzmwe' },
   ],
-  answer: ['d', 'a', 'b', 'c'],
-  explanation: 'César e DES partem-se por força bruta; o AES-128 já está fora de alcance e o AES-256 dá margem extra. Usa AES com chaves de 128 ou 256 bits.',
+  answer: ['c', 'd', 'a', 'b'],
+  explanation: 'Count each generator\'s possibilities: the options for one symbol, multiplied once for every symbol. An attacker who knows the generator only tries those.',
 });

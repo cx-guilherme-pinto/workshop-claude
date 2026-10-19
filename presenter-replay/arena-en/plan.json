@@ -2,7 +2,7 @@
   "v": 1,
   "project": "security-arena",
   "mode": "participant",
-  "created_at": "2026-10-19T09:49:50.989Z",
+  "created_at": "2026-10-19T11:21:46.998Z",
   "main_model": "claude-sonnet-5-5",
   "config": {
     "max_parallel": 8,
@@ -794,6 +794,7 @@
       "files": [
         "cards/rd-09/card.js"
       ],
+      "spec_gap": true,
       "instructions": "Build the card rd-09 (\"The badly configured router\").\n1. Read cards/rd-09/spec.md and cards/CONTRACT.md.\n2. Write only cards/rd-09/card.js, with the template given in the spec.\n3. Check: node --test cards/rd-09/card.test.js\nAnswer with one single line: \"OK rd-09\" or \"FAILED rd-09: <reason in a few words>\"."
     },
     {
@@ -946,6 +947,7 @@
       "files": [
         "cards/pv-07/card.js"
       ],
+      "spec_gap": true,
       "instructions": "Build the card pv-07 (\"No cookies and they still recognize you\").\n1. Read cards/pv-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/pv-07/card.js, with the template given in the spec.\n3. Check: node --test cards/pv-07/card.test.js\nAnswer with one single line: \"OK pv-07\" or \"FAILED pv-07: <reason in a few words>\"."
     },
     {
@@ -1321,7 +1323,7 @@
     },
     {
       "id": "cr-07",
-      "title": "From the weakest key to the strongest",
+      "title": "Which generated password lasts longest?",
       "group": "cryptography",
       "group_name": "Basic cryptography",
       "group_type": "card",
@@ -1336,7 +1338,8 @@
       "files": [
         "cards/cr-07/card.js"
       ],
-      "instructions": "Build the card cr-07 (\"From the weakest key to the strongest\").\n1. Read cards/cr-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-07/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-07/card.test.js\nAnswer with one single line: \"OK cr-07\" or \"FAILED cr-07: <reason in a few words>\"."
+      "spec_gap": true,
+      "instructions": "Build the card cr-07 (\"Which generated password lasts longest?\").\n1. Read cards/cr-07/spec.md and cards/CONTRACT.md.\n2. Write only cards/cr-07/card.js, with the template given in the spec.\n3. Check: node --test cards/cr-07/card.test.js\nAnswer with one single line: \"OK cr-07\" or \"FAILED cr-07: <reason in a few words>\"."
     },
     {
       "id": "cr-08",
@@ -1530,7 +1533,7 @@
     },
     {
       "id": "sc-08",
-      "title": "The cloud root account",
+      "title": "The production secret",
       "group": "cloud-secrets",
       "group_name": "Secrets and cloud",
       "group_type": "card",
@@ -1545,7 +1548,8 @@
       "files": [
         "cards/sc-08/card.js"
       ],
-      "instructions": "Build the card sc-08 (\"The cloud root account\").\n1. Read cards/sc-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-08/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-08/card.test.js\nAnswer with one single line: \"OK sc-08\" or \"FAILED sc-08: <reason in a few words>\"."
+      "spec_gap": true,
+      "instructions": "Build the card sc-08 (\"The production secret\").\n1. Read cards/sc-08/spec.md and cards/CONTRACT.md.\n2. Write only cards/sc-08/card.js, with the template given in the spec.\n3. Check: node --test cards/sc-08/card.test.js\nAnswer with one single line: \"OK sc-08\" or \"FAILED sc-08: <reason in a few words>\"."
     },
     {
       "id": "sc-09",

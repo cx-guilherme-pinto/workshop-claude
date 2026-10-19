@@ -293,14 +293,14 @@ Answer in the participant's language.`,
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 5,
     titulo: 'Porque é que este cartão falhou?',
-    intro: '4 cartões falham de propósito: a spec deixa de fora um detalhe que o teste verifica.',
-    passos: ['No /status, clica num quadrado vermelho', 'Lê a linha do teste que falhou', 'Acrescenta o detalhe que falta em cards/<id>/spec.md', 'Corre de novo só esse cartão'],
+    intro: '4 cartões falham de propósito: a spec deixa de fora a regra que decide a resposta, e o agente adivinha.',
+    passos: ['Abre o /status e clica num quadrado vermelho', 'Lê o que o agente produziu e o que a spec não decide', 'Decide o valor certo a partir do enunciado e do conceito', 'Escreve-o em cards/<id>/spec.md', 'Corre /demo-swarm --retry <id>'],
     comandos: [
       { rotulo: 'Browser', cmd: 'http://localhost:3000/status' },
       { rotulo: 'Terminal 1', cmd: '/demo-swarm --retry <id>' },
     ],
-    esperado: 'Esse quadrado fica verde: a qualidade da spec decide o swarm',
-    notas: 'A lição do Projeto 1: o agente não adivinha o que a spec não diz. O teste mostra o que esperava e o que recebeu; a spec do cartão não o dizia, por isso nem o Haiku nem o Sonnet (que entra à terceira tentativa) o acertam. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).',
+    esperado: 'Verde; ou a mesma mensagem com o teu valor, se decidiste mal',
+    notas: 'A lição do Projeto 1: o que a spec não decide, o agente adivinha. Nos 4 cartões (pv-07, rd-09, cr-07 e sc-08) há duas respostas plausíveis e a spec não tem a regra que escolhe uma; o teste só guarda um hash curto da certa, por isso nem o agente nem a mensagem a revelam. A mensagem diz o que o agente produziu e o que a spec não decide; a decisão é da pessoa, a partir do enunciado e do conceito. Estes cartões falham à primeira, sem novas tentativas. Se a pessoa decidir mal, o agente segue a spec e volta a mesma mensagem com esse valor: pensar outra vez. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).',
   },
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,

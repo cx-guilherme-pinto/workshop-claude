@@ -2,7 +2,7 @@
   "v": 1,
   "project": "security-arena",
   "mode": "presenter",
-  "created_at": "2026-10-19T09:49:49.777Z",
+  "created_at": "2026-10-19T11:21:45.877Z",
   "main_model": "claude-sonnet-5-5",
   "config": {
     "max_parallel": 16,
@@ -794,6 +794,7 @@
       "files": [
         "cards/rd-09/card.js"
       ],
+      "spec_gap": true,
       "instructions": "Constrói o cartão rd-09 (\"O router mal configurado\").\n1. Lê cards/rd-09/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/rd-09/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/rd-09/card.test.js\nResponde com uma única linha: \"OK rd-09\" ou \"FAILED rd-09: <motivo em poucas palavras>\"."
     },
     {
@@ -946,6 +947,7 @@
       "files": [
         "cards/pv-07/card.js"
       ],
+      "spec_gap": true,
       "instructions": "Constrói o cartão pv-07 (\"Sem cookies e ainda te reconhecem\").\n1. Lê cards/pv-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/pv-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/pv-07/card.test.js\nResponde com uma única linha: \"OK pv-07\" ou \"FAILED pv-07: <motivo em poucas palavras>\"."
     },
     {
@@ -1321,7 +1323,7 @@
     },
     {
       "id": "cr-07",
-      "title": "Da chave mais fraca à mais forte",
+      "title": "Que password gerada aguenta mais?",
       "group": "cryptography",
       "group_name": "Criptografia básica",
       "group_type": "card",
@@ -1336,7 +1338,8 @@
       "files": [
         "cards/cr-07/card.js"
       ],
-      "instructions": "Constrói o cartão cr-07 (\"Da chave mais fraca à mais forte\").\n1. Lê cards/cr-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-07/card.test.js\nResponde com uma única linha: \"OK cr-07\" ou \"FAILED cr-07: <motivo em poucas palavras>\"."
+      "spec_gap": true,
+      "instructions": "Constrói o cartão cr-07 (\"Que password gerada aguenta mais?\").\n1. Lê cards/cr-07/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/cr-07/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/cr-07/card.test.js\nResponde com uma única linha: \"OK cr-07\" ou \"FAILED cr-07: <motivo em poucas palavras>\"."
     },
     {
       "id": "cr-08",
@@ -1530,7 +1533,7 @@
     },
     {
       "id": "sc-08",
-      "title": "A conta root da cloud",
+      "title": "O segredo de produção",
       "group": "cloud-secrets",
       "group_name": "Segredos e cloud",
       "group_type": "card",
@@ -1545,7 +1548,8 @@
       "files": [
         "cards/sc-08/card.js"
       ],
-      "instructions": "Constrói o cartão sc-08 (\"A conta root da cloud\").\n1. Lê cards/sc-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-08/card.test.js\nResponde com uma única linha: \"OK sc-08\" ou \"FAILED sc-08: <motivo em poucas palavras>\"."
+      "spec_gap": true,
+      "instructions": "Constrói o cartão sc-08 (\"O segredo de produção\").\n1. Lê cards/sc-08/spec.md e cards/CONTRACT.md.\n2. Escreve só cards/sc-08/card.js, com o modelo indicado na spec.\n3. Verifica: node --test cards/sc-08/card.test.js\nResponde com uma única linha: \"OK sc-08\" ou \"FAILED sc-08: <motivo em poucas palavras>\"."
     },
     {
       "id": "sc-09",

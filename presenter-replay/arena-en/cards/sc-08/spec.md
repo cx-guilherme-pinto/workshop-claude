@@ -1,28 +1,28 @@
-# Card sc-08 — The cloud root account
+# Card sc-08 — The production secret
 
 - **Category:** cloud-secrets
-- **Difficulty:** 1
+- **Difficulty:** 2
 - **Template:** `answer` from `../../templates/answer.js`
 
 ## Concept
 
-The main cloud account controls everything and needs the strongest protection.
+Authorization: being signed in does not mean you may read every secret.
 
 ## Prompt (field `prompt`)
 
-Atlas Corp's cloud root account only has a password. What protection should you turn on right away?
+A signed-in developer asks Atlas Corp's secrets API for GET /secrets/prod-db-password, but has no permission for production secrets. Which HTTP status code should the API return?
 
 ## Content
 
-Field `placeholder`: `Acronym`
+Field `placeholder`: `3-digit HTTP code`
 
-Field `accept`: `["MFA","2FA","multi-factor authentication","multifactor authentication","two-factor authentication","two factor authentication","two factors"]`
+Field `accept`: `["404","404 Not Found","Not Found","HTTP 404"]`
 
-Example of a right answer: `MFA`
+Example of a right answer: `404`
 
 ## Explanation (field `explanation`)
 
-Whoever gets into the root account can delete everything or create resources at your expense. Turn on MFA with a physical key and use accounts with fewer permissions day to day.
+A secret's name already says a lot (prod-db-password, stripe-live-key). If the API answers 'not allowed' differently from 'does not exist', anyone with an account can try names and find out which secrets exist. Log the attempt so the security team sees it.
 
 ## Done when
 

@@ -1,16 +1,16 @@
-# Card cr-07 — From the weakest key to the strongest
+# Card cr-07 — Which generated password lasts longest?
 
 - **Category:** cryptography
-- **Difficulty:** 1
+- **Difficulty:** 2
 - **Template:** `order` from `../../templates/order.js`
 
 ## Concept
 
-Each extra bit in a key doubles the number of keys an attacker has to try.
+The strength of a randomly generated password is the number of possibilities of its generator.
 
 ## Prompt (field `prompt`)
 
-Order these ciphers, from weakest key to strongest.
+A password manager generated these four passwords at random. The attacker knows how each one was generated and tries every possibility. Order them, from the one that falls fastest to the one that lasts longest.
 
 ## Content
 
@@ -18,16 +18,16 @@ Field `items` (already shuffled; keep this order):
 
 | id | text |
 | --- | --- |
-| a | DES (56 bits) |
-| b | AES-128 |
-| c | AES-256 |
-| d | Caesar (25 keys) |
+| a | 4 random words from a list of 2,000, like cloud-stapler-horse-river |
+| b | 12 random characters from the 94 on the keyboard, like q7#Vm2!xR9pL |
+| c | 8 random digits, like 40718325 |
+| d | 6 random lowercase letters, like kqzmwe |
 
-Field `answer` (right order): `["d","a","b","c"]`
+Field `answer` (right order): `["c","d","a","b"]`
 
 ## Explanation (field `explanation`)
 
-Caesar and DES break by brute force; AES-128 is already out of reach and AES-256 gives extra margin. Use AES with 128-bit or 256-bit keys.
+Count each generator's possibilities: the options for one symbol, multiplied once for every symbol. An attacker who knows the generator only tries those.
 
 ## Done when
 

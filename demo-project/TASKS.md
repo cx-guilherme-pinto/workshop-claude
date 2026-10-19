@@ -72,7 +72,7 @@ Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/
 | rd-06 | spot-the-flaw | Portas a mais na firewall | Um servidor web só deve expor à internet as portas de que precisa. | — |
 | rd-07 | answer | DNS que ninguém lê | O DNS tradicional viaja sem cifra; o DoH esconde os nomes que consultas. | — |
 | rd-08 | choice | Onde ligar as câmaras baratas | Separar dispositivos pouco fiáveis numa rede própria limita o estrago se forem atacados. | — |
-| rd-09 | spot-the-flaw | O router mal configurado | WEP e WPS são pontos fracos conhecidos no Wi-Fi de casa. | — |
+| rd-09 | spot-the-flaw | O router mal configurado | Um router de casa tem várias portas: o próprio Wi-Fi, a página de administração e os aparelhos ligados a ele. | — |
 | rd-10 | choice | Aviso de certificado | Um aviso de certificado pode ser sinal de que alguém está a intercetar a ligação. | — |
 
 ## Privacidade
@@ -85,7 +85,7 @@ Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/
 | pv-04 | answer | Levar os dados contigo | O RGPD dá-te o direito de receber os teus dados num formato que outro serviço consegue ler. | — |
 | pv-05 | spot-the-flaw | Dados a mais na newsletter | Minimização: recolhe só os dados de que precisas para o fim anunciado. | — |
 | pv-06 | order | Pedir os teus dados a uma empresa | O direito de acesso deixa-te saber que dados uma empresa tem sobre ti. | — |
-| pv-07 | choice | Sem cookies e ainda te reconhecem | A impressão digital do browser junta detalhes técnicos que te identificam sem cookies. | — |
+| pv-07 | choice | Sem cookies e ainda te reconhecem | Um site pode reconhecer-te sem cookies, através de detalhes que não mudam quando os apagas. | — |
 | pv-08 | choice | A foto do cartão de embarque | O código de barras de um cartão de embarque contém o nome e a referência da reserva. | — |
 | pv-09 | spot-the-flaw | Dados pessoais no URL | Dados pessoais no URL ficam no histórico e nos registos dos servidores por onde o pedido passa. | — |
 | pv-10 | order | Quem vê a tua publicação? | Cada nível de partilha alarga quem vê o que publicas; o mais restrito é o mais privado. | — |
@@ -115,7 +115,7 @@ Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/
 | cr-04 | answer | Hashes repetidos na fuga | Sem salt, passwords iguais dão hashes iguais e saltam à vista numa fuga. | lib-hash |
 | cr-05 | choice | Hash ou cifra? | Uma cifra reverte-se com a chave; um hash é de sentido único. | — |
 | cr-06 | answer | Uma letra muda tudo | Efeito avalanche: mudar um só carácter na entrada muda o hash todo. | lib-hash |
-| cr-07 | order | Da chave mais fraca à mais forte | Cada bit a mais numa chave duplica o número de chaves que um atacante tem de testar. | — |
+| cr-07 | order | Que password gerada aguenta mais? | A força de uma password gerada ao acaso é o número de possibilidades do gerador. | — |
 | cr-08 | order | Guardar passwords: do pior ao melhor | Passwords guardam-se com um hash lento e com salt, feito de propósito para custar a testar. | — |
 | cr-09 | answer | O S do HTTPS | O HTTPS é HTTP dentro de TLS; o antigo SSL já não é seguro. | — |
 | cr-10 | choice | Números ao acaso a sério | Tokens de segurança precisam de um gerador aleatório criptográfico, não de Math.random(). | — |
@@ -131,7 +131,7 @@ Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/
 | sc-05 | choice | O bucket público | Um bucket com leitura pública fica acessível a qualquer pessoa na internet. | — |
 | sc-06 | order | A vida de um segredo | Um segredo tem ciclo de vida: cria-se num cofre, roda-se com regularidade e revoga-se no fim. | — |
 | sc-07 | spot-the-flaw | O segredo no registo do CI | Tudo o que um pipeline escreve fica nos registos, que muita gente pode ler. | — |
-| sc-08 | answer | A conta root da cloud | A conta principal da cloud controla tudo e precisa da proteção mais forte. | — |
+| sc-08 | answer | O segredo de produção | Autorização: ter sessão iniciada não quer dizer que possas ler todos os segredos. | — |
 | sc-09 | spot-the-flaw | O segredo na imagem | Um segredo escrito no Dockerfile fica gravado na imagem, ao alcance de quem a descarregar. | — |
 | sc-10 | choice | Como a app chega à base de dados | Credenciais temporárias, dadas pela cloud a um serviço, evitam chaves fixas que podem vazar. | — |
 
