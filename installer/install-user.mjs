@@ -10,6 +10,7 @@
 //   node installer/install-user.mjs desinstalar
 //   node installer/install-user.mjs registar   --tipo <t> --nome <n> [--caminho <p>] [--valor <v>]
 //   node installer/install-user.mjs extras
+//   node installer/install-user.mjs limpar     [--dry-run] [--projects-dir <dir>]   (setup --cleanup / -Cleanup)
 //
 // O que faz "instalar":
 //   - copia hooks/ orchestrator/ statusline/ telemetry/ missions/ pricing.json para ~/.workshop-claude/kit/
@@ -26,8 +27,8 @@
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
 //   0 ok · 1 em falta (verificar) · 2 erro de utilizacao · 3 settings.json invalido · 4 outro erro
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, copyFileSync, statSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, copyFileSync, statSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConf } from './lib/conf.mjs';
 import { gitSync } from './lib/kit-repo.mjs';
@@ -555,7 +556,150 @@ export function desinstalar(flags, env = process.env) {
   return 0;
 }
 
-const CMDS = { instalar, verificar, desinstalar, registar, extras };
+// Os projetos de exercicio (Projeto 1 e missoes) e os nomes com que a Agent Memory guarda as notas deles (o da Arena
+// era "arena-de-seguranca" antes da v1.0). O projeto do Projeto 2 (practice-project) nunca e um deles.
+export const EXERCICIOS = ['missions-project', 'canivete-project', 'demo-project'];
+export const MEMORIAS_EXERCICIO = ['missions-project', 'canivete', 'security-arena', 'arena-de-seguranca'];
+
+// As pastas da Agent Memory onde pode haver notas: AGENT_MEMORY_HOME (senao MEMORIA_HOME; "~" e caminhos relativos
+// contam a partir da HOME, como no setup), ~/.agent-memory e a antiga ~/.memoria. Sem repetidas (um link de uma
+// para a outra conta uma vez).
+export function pastasMemoria(P, env = process.env) {
+  const lista = [];
+  const v = String(env.AGENT_MEMORY_HOME || env.MEMORIA_HOME || '').trim();
+  if (v) {
+    let p = v === '~' ? P.home : /^~[\\/]/.test(v) ? join(P.home, v.slice(2)) : v;
+    if (!isAbsolute(p)) p = join(P.home, p);
+    lista.push(p);
+  }
+  lista.push(join(P.home, '.agent-memory'), join(P.home, '.memoria'));
+  const vistos = new Set();
+  return lista.filter((p) => {
+    let k = resolve(p);
+    try {
+      k = realpathSync(p);
+    } catch {
+      // nao existe
+    }
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+}
+
+// "limpar" (setup --cleanup / -Cleanup; D-34): tira os dados do workshop e deixa o projeto do Projeto 2.
+//   - projetos de exercicio (no manifest ou na pasta dos projetos): intacto (so o commit do kit, nada mudado) e
+//     apagado; com trabalho da pessoa vai para ~/.workshop-claude/backup/<data>/projects/ (nunca e apagado)
+//   - ~/.workshop-claude/telemetry/ (caderneta de missoes, fila e registo no painel): apagada
+//   - as notas da Agent Memory desses projetos: vao para ~/.workshop-claude/backup/<data>/memory/<pasta>/<projeto>
+//   - fica tudo o resto: practice-project e outros repositorios, o kit, o Claude Code, gh, Node, uv, a app e as
+//     outras notas. O manifest deixa de ter os projetos tirados.
+// Saida (TSV): removido <caminho> <tipo> · backup <caminho> <destino> <tipo> · mantido <caminho> · pasta_backup <pasta> ·
+// nada 1 (nada a fazer) · erro <caminho: motivo>; <tipo> = projeto | telemetria | memoria. Com --dry-run (primeira
+// linha "dry_run 1") so diz o que faria.
+export function limpar(flags, env = process.env) {
+  const P = userPaths(env);
+  const dry = Boolean(flags['dry-run']);
+  const ts = timestamp();
+  const manifest = loadManifest(P);
+  const telDir = join(P.wsDir, 'telemetry');
+  const tel = readTelemetry(telemetryPaths(telDir));
+  const projDir = resolve(typeof flags['projects-dir'] === 'string' ? flags['projects-dir'] : tel?.projects_dir || join(P.home, 'workshop-claude'));
+  const linha = (...c) => process.stdout.write(c.map((x) => String(x).replace(/[\t\r\n]+/g, ' ')).join('\t') + '\n');
+  const usados = new Set();
+  // destino no backup sem pisar outro desta corrida (dois projetos com o mesmo nome, em pastas diferentes)
+  const destino = (rel) => {
+    let d = rel;
+    for (let i = 2; usados.has(d) || ocupado(join(P.backupDir, d)); i++) d = `${rel}-${i}`;
+    usados.add(d);
+    return d;
+  };
+  let feito = 0;
+  let falhou = false;
+  const tirados = new Set();
+  const agir = (p, fn) => {
+    try {
+      if (!dry) fn();
+      return true;
+    } catch (e) {
+      linha('erro', `${fwd(p)}: ${e.message}`);
+      falhou = true;
+      return false;
+    }
+  };
+  if (dry) linha('dry_run', 1);
+
+  // 1. Projetos de exercicio: os do manifest e os da pasta dos projetos.
+  const cands = new Map();
+  for (const x of manifest?.extras || []) {
+    if (x.tipo === 'projeto' && x.caminho && EXERCICIOS.includes(basename(x.caminho))) cands.set(resolve(x.caminho), x.caminho);
+  }
+  for (const n of EXERCICIOS) cands.set(resolve(join(projDir, n)), join(projDir, n));
+  for (const [k, p] of cands) {
+    if (!ocupado(p)) {
+      tirados.add(k);
+      continue;
+    }
+    if (projetoIntacto(p)) {
+      if (agir(p, () => rmSync(p, { recursive: true, force: true }))) {
+        linha('removido', fwd(p), 'projeto');
+        tirados.add(k);
+        feito++;
+      }
+    } else {
+      const d = destino(join(ts, 'projects', basename(p)));
+      if (agir(p, () => moveAside(p, P.backupDir, d))) {
+        linha('backup', fwd(p), fwd(join(P.backupDir, d)), 'projeto');
+        tirados.add(k);
+        feito++;
+      }
+    }
+  }
+
+  // 2. A caderneta de missoes, a fila e o registo no painel.
+  if (ocupado(telDir) && agir(telDir, () => rmSync(telDir, { recursive: true, force: true }))) {
+    linha('removido', fwd(telDir), 'telemetria');
+    feito++;
+  }
+
+  // 3. As notas da Agent Memory dos projetos de exercicio.
+  for (const raiz of pastasMemoria(P, env)) {
+    for (const n of MEMORIAS_EXERCICIO) {
+      const p = join(raiz, n);
+      if (!ocupado(p)) continue;
+      const d = destino(join(ts, 'memory', basename(raiz).replace(/^\.+/, '') || 'memory', n));
+      if (agir(p, () => moveAside(p, P.backupDir, d))) {
+        linha('backup', fwd(p), fwd(join(P.backupDir, d)), 'memoria');
+        feito++;
+      }
+    }
+  }
+
+  // 4. O que fica: os outros projetos da pasta (o practice-project incluido) e os do manifest fora dela.
+  const mantidos = new Set();
+  if (existsSync(projDir)) {
+    for (const n of readdirSync(projDir).sort()) {
+      const p = join(projDir, n);
+      if (!n.startsWith('.') && !EXERCICIOS.includes(n) && statSync(p, { throwIfNoEntry: false })?.isDirectory()) mantidos.add(resolve(p));
+    }
+  }
+  for (const x of manifest?.extras || []) {
+    if (x.tipo === 'projeto' && x.caminho && !EXERCICIOS.includes(basename(x.caminho)) && existsSync(x.caminho)) mantidos.add(resolve(x.caminho));
+  }
+  for (const p of mantidos) linha('mantido', fwd(p));
+
+  // 5. O manifest sem os projetos tirados.
+  if (!dry && manifest) {
+    const antes = (manifest.extras || []).length;
+    manifest.extras = (manifest.extras || []).filter((x) => !(x.tipo === 'projeto' && x.caminho && tirados.has(resolve(x.caminho))));
+    if (manifest.extras.length !== antes) saveManifest(P, manifest);
+  }
+  if (feito && [...usados].length) linha('pasta_backup', fwd(join(P.backupDir, ts)));
+  if (!feito && !falhou) linha('nada', 1);
+  return falhou ? 4 : 0;
+}
+
+const CMDS = { instalar, verificar, desinstalar, registar, extras, limpar };
 
 const isMain = ehPrincipal(import.meta.url);
 if (isMain) {

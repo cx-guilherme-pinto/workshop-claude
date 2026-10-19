@@ -97,6 +97,8 @@ export function derived(conf) {
     DOCTOR_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Doctor',
     UNINSTALL_MAC: 'bash ~/.workshop-claude/setup-mac.sh --uninstall',
     UNINSTALL_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Uninstall',
+    CLEANUP_MAC: 'bash ~/.workshop-claude/setup-mac.sh --cleanup',
+    CLEANUP_WINDOWS: 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.workshop-claude\\setup-windows.ps1" -Cleanup',
     UV_INSTALL_SH_URL_V: expand(conf.UV_INSTALL_SH_URL || '', { version: conf.UV_VERSION }),
     UV_INSTALL_PS1_URL_V: expand(conf.UV_INSTALL_PS1_URL || '', { version: conf.UV_VERSION }),
     PROJETOS: '~/workshop-claude',

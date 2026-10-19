@@ -522,3 +522,145 @@ test('workshop v2: config.json da telemetria (sala, pasta, codigo, painel, domin
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// Um projeto do workshop como os assemblers o deixam: so o commit do kit.
+function kitProject(dir, files = { 'README.md': 'kit\n' }) {
+  mkdirSync(dir, { recursive: true });
+  for (const [f, t] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, f)), { recursive: true });
+    writeFileSync(join(dir, f), t);
+  }
+  const g = (...a) => {
+    const r = spawnSync('git', ['-c', 'user.name=Kit', '-c', 'user.email=kit@example.test', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=.git/no-hooks', ...a], { cwd: dir, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+  };
+  g('init', '-q');
+  g('add', '-A');
+  g('commit', '-q', '-m', 'kit');
+}
+
+test('workshop v2: limpar (--cleanup) tira os projetos de exercicio, a telemetria e as memorias deles e deixa o practice-project', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-limpar-'));
+  const home = join(base, 'João Silva');
+  const kit = fakeKit(base);
+  const node = process.execPath;
+  const proj = join(home, 'workshop-claude');
+  const ws = join(home, '.workshop-claude');
+  const mem = join(home, '.agent-memory');
+  const legacy = join(home, '.memoria');
+  const runL = (args, env = {}) => {
+    const r = spawnSync(process.execPath, [IU, ...args], {
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: join(home, '.claude'), ...env },
+    });
+    const rows = r.stdout.split('\n').filter(Boolean).map((l) => l.split('\t'));
+    return { ...r, rows, get: (k) => rows.filter((x) => x[0] === k).map((x) => x.slice(1).join('\t')) };
+  };
+  const fw = (p) => p.replace(/\\/g, '/');
+  try {
+    let r = runL(['instalar', '--node', node, '--kit-src', kit, '--projects-dir', proj]);
+    assert.equal(r.status, 0, r.stderr);
+    // os tres projetos de exercicio (o Canivete com trabalho da pessoa), o projeto do Projeto 2 e outro repositorio
+    kitProject(join(proj, 'missions-project'));
+    kitProject(join(proj, 'canivete-project'));
+    writeFileSync(join(proj, 'canivete-project', 'my-tool.js'), 'o trabalho da pessoa\n');
+    kitProject(join(proj, 'demo-project'));
+    kitProject(join(proj, 'practice-project'));
+    kitProject(join(proj, 'o-meu-repo'));
+    for (const n of ['missions-project', 'canivete-project', 'demo-project', 'practice-project']) {
+      r = runL(['registar', '--tipo', 'projeto', '--nome', n, '--caminho', join(proj, n)]);
+      assert.equal(r.status, 0, r.stderr);
+    }
+    r = runL(['registar', '--tipo', 'opcao', '--nome', 'p1', '--valor', 'canivete']);
+    // a caderneta e o registo no painel
+    mkdirSync(join(ws, 'telemetry'), { recursive: true });
+    writeFileSync(join(ws, 'telemetry', 'missions.json'), '{}\n');
+    // notas da Agent Memory: as dos exercicios (na pasta nova e na antiga) e as de outros projetos
+    for (const [root, n] of [[mem, 'canivete'], [mem, 'security-arena'], [mem, 'missions-project'], [mem, 'practice-project'], [mem, 'outro'], [legacy, 'security-arena']]) {
+      mkdirSync(join(root, n), { recursive: true });
+      writeFileSync(join(root, n, 'nota.md'), `# ${n}\n`);
+    }
+    const manifestText = () => readFileSync(join(ws, 'manifest.json'), 'utf8');
+    const before = manifestText();
+    const backups = () => (existsSync(join(ws, 'backup')) ? readdirSync(join(ws, 'backup')).filter((n) => statSync(join(ws, 'backup', n)).isDirectory()) : []);
+    const backups0 = backups();
+
+    // --dry-run: diz tudo e nao muda nada
+    r = runL(['limpar', '--dry-run']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.get('dry_run'), ['1']);
+    assert.deepEqual(r.get('removido').sort(), [fw(join(proj, 'demo-project')) + '\tprojeto', fw(join(proj, 'missions-project')) + '\tprojeto', fw(join(ws, 'telemetry')) + '\ttelemetria'].sort());
+    const bk = r.get('backup');
+    assert.equal(bk.length, 5, bk.join(' | '));
+    assert.ok(bk.some((x) => x.startsWith(fw(join(proj, 'canivete-project')) + '\t') && /\/backup\/[^/]+\/projects\/canivete-project\tprojeto$/.test(x)));
+    assert.ok(bk.some((x) => x.startsWith(fw(join(legacy, 'security-arena')) + '\t') && /\/memory\/memoria\/security-arena\tmemoria$/.test(x)));
+    assert.deepEqual(r.get('mantido').sort(), [fw(join(proj, 'o-meu-repo')), fw(join(proj, 'practice-project'))]);
+    for (const n of ['missions-project', 'canivete-project', 'demo-project']) assert.ok(existsSync(join(proj, n)), `dry-run keeps ${n}`);
+    assert.ok(existsSync(join(ws, 'telemetry', 'missions.json')));
+    assert.ok(existsSync(join(mem, 'canivete', 'nota.md')));
+    assert.ok(existsSync(join(legacy, 'security-arena', 'nota.md')));
+    assert.equal(manifestText(), before, 'dry-run: manifest unchanged');
+    assert.deepEqual(backups(), backups0, 'dry-run: no backup folder made');
+
+    // a serio
+    r = runL(['limpar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!existsSync(join(proj, 'missions-project')), 'untouched: deleted');
+    assert.ok(!existsSync(join(proj, 'demo-project')), 'untouched: deleted');
+    assert.ok(!existsSync(join(proj, 'canivete-project')), 'modified: moved');
+    const [pasta] = r.get('pasta_backup');
+    assert.ok(pasta, r.stdout);
+    assert.equal(readFileSync(join(pasta, 'projects', 'canivete-project', 'my-tool.js'), 'utf8'), 'o trabalho da pessoa\n', 'the work is in the backup');
+    assert.ok(!existsSync(join(ws, 'telemetry')));
+    for (const n of ['canivete', 'security-arena', 'missions-project']) {
+      assert.ok(!existsSync(join(mem, n)));
+      assert.ok(existsSync(join(pasta, 'memory', 'agent-memory', n, 'nota.md')), n);
+    }
+    assert.ok(!existsSync(join(legacy, 'security-arena')));
+    assert.ok(existsSync(join(pasta, 'memory', 'memoria', 'security-arena', 'nota.md')));
+    // fica: o practice-project, o outro repositorio, as outras notas, o kit e as skills
+    assert.ok(existsSync(join(proj, 'practice-project', 'README.md')));
+    assert.ok(existsSync(join(proj, 'o-meu-repo', 'README.md')));
+    assert.ok(existsSync(join(mem, 'practice-project', 'nota.md')));
+    assert.ok(existsSync(join(mem, 'outro', 'nota.md')));
+    assert.ok(existsSync(join(ws, 'kit', 'orchestrator', 'next-wave.mjs')));
+    assert.ok(existsSync(join(home, '.claude', 'skills', 'task-plan', 'SKILL.md')));
+    const m = JSON.parse(manifestText());
+    assert.deepEqual(m.extras.filter((x) => x.tipo === 'projeto').map((x) => x.nome), ['practice-project'], 'the manifest no longer lists the removed projects');
+    assert.ok(m.extras.some((x) => x.tipo === 'opcao' && x.nome === 'p1'));
+    r = runL(['verificar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, 'the kit is still installed: ' + r.stdout);
+
+    // segunda vez: nada a fazer
+    const after = manifestText();
+    r = runL(['limpar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.get('nada'), ['1']);
+    assert.deepEqual([r.get('removido'), r.get('backup')], [[], []]);
+    assert.equal(manifestText(), after);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('workshop v2: limpar respeita AGENT_MEMORY_HOME e funciona sem manifest', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-limpar2-'));
+  const home = join(base, 'h');
+  const memHome = join(base, 'notas do trabalho');
+  try {
+    mkdirSync(join(memHome, 'canivete'), { recursive: true });
+    writeFileSync(join(memHome, 'canivete', 'n.md'), 'x\n');
+    mkdirSync(join(memHome, 'canivete-outro'), { recursive: true });
+    mkdirSync(join(home, 'workshop-claude', 'missions-project'), { recursive: true });
+    writeFileSync(join(home, 'workshop-claude', 'missions-project', 'solto.txt'), 'sem git\n');
+    const r = spawnSync(process.execPath, [IU, 'limpar'], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: home, USERPROFILE: home, AGENT_MEMORY_HOME: memHome } });
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(!existsSync(join(memHome, 'canivete')), 'AGENT_MEMORY_HOME is cleaned');
+    assert.ok(existsSync(join(memHome, 'canivete-outro')), 'only the exact names');
+    assert.ok(!existsSync(join(home, 'workshop-claude', 'missions-project')));
+    assert.match(r.stdout, /^backup\t.*missions-project\t.*\/projects\/missions-project\tprojeto$/m, 'a folder without the kit commit is never deleted');
+    assert.ok(!existsSync(join(home, '.workshop-claude', 'manifest.json')), 'no manifest is created');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

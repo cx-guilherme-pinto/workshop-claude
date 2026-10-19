@@ -31,6 +31,7 @@ Setup में 10 से 20 मिनट लगते हैं। अगर �
 | Check | `bash ~/.workshop-claude/setup-mac.sh --check` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check` |
 | Claude के साथ diagnosis | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` |
 | Uninstall | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Uninstall` |
+| Clean up after the workshop (keeps the practice project and the tools) | `bash ~/.workshop-claude/setup-mac.sh --cleanup` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Cleanup` |
 
 अगर पहले से कुछ install नहीं है, तो check सीधे भी चल जाता है: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash -s -- --check` (macOS) या `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex` (Windows)।
 

@@ -317,6 +317,27 @@ eq "$(p1 "$(printf 'a%.0s' $(seq 60))" new | cut -d'|' -f2 | wc -c | tr -d ' ')"
 eq "$(p1 UNSET old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, a Arena"
 eq "$(p1 canivete old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, a Arena mesmo com canivete"
 eq "$(p1 xpto old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, sem nota"
+# A escolha gravada ao instalar (extra "opcao p1" do manifest): sem WORKSHOP_P1, o --check ve o Projeto 1 instalado.
+P1H="$WS_TMP/p1home"; mkdir -p "$P1H/.workshop-claude" "$P1K/real"; cp -R "$ROOT/installer" "$P1K/real/"; cp -R "$ROOT/hooks" "$ROOT/telemetry" "$P1K/real/"
+p1s() { ( HOME="$P1H"; WS_HOME="$P1H/.workshop-claude"; WS_NODE=$NODE; WS_MODE=${P1S_MODE:-check}; if [ "$1" = UNSET ]; then unset WORKSHOP_P1; else WORKSHOP_P1=$1; fi; KIT_SRC="$P1K/${2:-real}"; ws_p1_pick; printf '%s|%s' "$WS_P1" "$WS_P1_IGNORADO" ); }
+printf 'opcao\tp1\t\tarena\t\n' > "$P1H/.workshop-claude/extras-pendentes.tsv"
+eq "$(p1s UNSET)" "arena|" "ws_p1_pick: sem WORKSHOP_P1, a escolha por registar (extras-pendentes.tsv)"
+eq "$(p1s canivete)" "canivete|" "ws_p1_pick: WORKSHOP_P1 ganha a escolha gravada"
+rm -f "$P1H/.workshop-claude/extras-pendentes.tsv"
+if [ -n "$NODE" ]; then
+  ( HOME="$P1H"; WS_HOME="$P1H/.workshop-claude"; WS_NODE=$NODE; KIT_SRC="$P1K/real"; WS_MODE=install; WS_P1=arena; ws_p1_save )
+  eq "$(p1s UNSET)" "arena|" "ws_p1_pick: sem WORKSHOP_P1, a escolha do manifest (gravada pelo ws_p1_save)"
+  eq "$(p1s '')" "arena|" "ws_p1_pick: WORKSHOP_P1 vazio, a escolha do manifest"
+  eq "$(p1s arena)" "arena|" "ws_p1_pick: arena com arena gravada"
+  eq "$(p1s pocket)" "canivete|pocket" "ws_p1_pick: valor invalido nao usa a escolha gravada"
+  eq "$(P1S_MODE=doctor p1s UNSET)" "arena|" "ws_p1_pick: o --doctor tambem le a escolha gravada"
+  eq "$(P1S_MODE=install p1s UNSET)" "canivete|" "ws_p1_pick: ao instalar, sem WORKSHOP_P1 continua o Canivete (A4)"
+  ( HOME="$P1H"; WS_HOME="$P1H/.workshop-claude"; WS_NODE=$NODE; KIT_SRC="$P1K/real"; WS_MODE=check; WS_P1=canivete; ws_p1_save )
+  eq "$(p1s UNSET)" "arena|" "ws_p1_save: o --check nunca grava"
+  ( HOME="$P1H"; WS_HOME="$P1H/.workshop-claude"; WS_NODE=$NODE; KIT_SRC="$P1K/real"; WS_MODE=install; WS_P1=canivete; ws_p1_save )
+  eq "$(p1s UNSET)" "canivete|" "ws_p1_save: a escolha nova substitui a anterior"
+  grep -q '"tipo": "opcao"' "$P1H/.workshop-claude/manifest.json" && ok || ko "ws_p1_save: o extra opcao no manifest do HOME do setup"
+fi
 # (6) a contagem dos testes da app nao depende do locale (no C o [#ℹ] do sed apanhava so o primeiro byte)
 NODE_OUT=$(printf '✔ pass 3 a test named pass\nℹ tests 16\nℹ pass 16\nℹ fail 0\n')
 for loc in C en_US.utf8 en_US.UTF-8 ''; do
@@ -415,19 +436,20 @@ if command -v script >/dev/null 2>&1 && [ -n "${M_ui_sn_repetir:-}" ]; then
   eq "$(g1_ask '' 'a\n' 'b\n' 'c\n')" "RESULT=no TTY=normal 2" "G1 ask: tres respostas invalidas = nao"
   eq "$(g1_ask '' '\n')" "RESULT=yes TTY=normal 0" "G1 ask: Enter = o defeito"
   eq "$(g1_ask '' '  N \n')" "RESULT=no TTY=normal 0" "G1 ask: espacos a volta da resposta"
-  # A pergunta da participacao e a da sala, a serio (pty): Enter = nao; sim + sala invalida + sala valida.
+  # A pergunta da sala, a serio (pty): B a primeira; invalida e depois B; 3 invalidas = A.
   printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; WS_LOG=$2; WS_SIM=0; WS_FILL_KEYS=""; . "$3"; sleep 1' \
-    'echo "FLAGS=[$(WS_PART_MODE=install WS_PART_CFG=0 WS_PART_TTY=1 ws_part_flags)]"' > "$G1/part.sh"
-  g1_part() { # respostas... -> FLAGS=[...] e quantas vezes pediu A ou B
+    'echo "ROOM=[$(WS_PART_MODE=install WS_PART_TTY=1 ws_room_pick)]"' > "$G1/part.sh"
+  g1_part() { # respostas... -> ROOM=[...] e quantas vezes pediu A ou B
     local a i=0; : > "$G1/part.out"
-    { while ! grep -q '? Send anonymous events' "$G1/part.out" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.2; i=$((i + 1)); done
+    { while ! grep -q '? Which room are you in' "$G1/part.out" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.2; i=$((i + 1)); done
       for a in "$@"; do sleep 0.3; printf '%b' "$a"; done; sleep 1; } |
       g1_timeout 20 script -q /dev/null /bin/bash "$G1/part.sh" "$ROOT/setup/setup-mac.sh" /dev/null "$G1/msgs.sh" > "$G1/part.out" 2>&1
-    printf '%s %s' "$(grep -o 'FLAGS=\[[^]]*\]' "$G1/part.out")" "$(grep -cF "$M_ui_s8_painel_sala_repetir" "$G1/part.out")"
+    printf '%s %s' "$(grep -o 'ROOM=\[[^]]*\]' "$G1/part.out")" "$(grep -cF "$M_ui_s8_painel_sala_repetir" "$G1/part.out")"
   }
-  eq "$(g1_part '\n')" "FLAGS=[--telemetry off] 0" "G1 participacao: Enter = nao (o defeito)"
-  eq "$(g1_part 'y\n' 'c\n' 'b\n')" "FLAGS=[--telemetry on --room B] 1" "G1 participacao: sim, sala invalida e depois B"
-  eq "$(g1_part 'y\n' '\n' 'x\n' 'C\n')" "FLAGS=[--telemetry off] 2" "G1 participacao: 3 salas invalidas = desligada"
+  eq "$(g1_part 'b\n')" "ROOM=[B] 0" "G1 sala: B"
+  eq "$(g1_part 'c\n' ' a \n')" "ROOM=[A] 1" "G1 sala: invalida e depois a"
+  eq "$(g1_part 'c\n' 'b\n')" "ROOM=[B] 1" "G1 sala: invalida e depois B"
+  eq "$(g1_part '\n' 'x\n' 'C\n')" "ROOM=[A] 2" "G1 sala: 3 respostas invalidas = A"
 fi
 
 # sem terminal (agente de IA, tarefa do IDE): o passo 3 diz onde fazer o login; cores so num terminal que as mostra
@@ -811,77 +833,173 @@ eq "$(g5git -C "$G5/mig/demo-project" cat-file -t arena-start 2>/dev/null)" comm
 grep -q 'You had changed task-plan: your copy is saved in ~/.workshop-claude/backup/t/edited/skills/task-plan' "$G5/s8" && ok || ko "s8: nota editado [$(cat "$G5/s8")]"
 grep -q 'previous versions of the kit.s skills and agents are saved in ~/.workshop-claude/backup/t/previous' "$G5/s8" && ok || ko "s8: nota anteriores"
 
-# Passo 8: participacao no painel do workshop (spec 6.6). As perguntas sao trocadas: o ws_part_flags e puro.
+# Passo 8: a sala (D-34). A pergunta e trocada: o ws_room_pick e puro.
 PF="$WS_TMP/pf"; mkdir -p "$PF"
-pf() { # modo config tty WORKSHOP_TELEMETRY WORKSHOP_ROOM resposta(s|n) salas... -> flags#perguntas feitas
-  ( WS_PART_MODE=$1; WS_PART_CFG=$2; WS_PART_TTY=$3; WS_PART_T=$4; WS_PART_R=$5; PF_YN=$6; shift 6; PF_ROOMS=("$@"); : > "$PF/asked"
-    ws_part_ask_yn() { printf 'yn ' >> "$PF/asked"; [ "$PF_YN" = s ]; }
+rp() { # modo tty WORKSHOP_ROOM sala-gravada salas... -> sala#perguntas feitas
+  ( WS_PART_MODE=$1; WS_PART_TTY=$2; WS_PART_R=$3; WS_PART_PREV=$4; shift 4; PF_ROOMS=("$@"); : > "$PF/asked"
     ws_part_ask_room() { printf 'room%s ' "$1" >> "$PF/asked"; printf '%s' "${PF_ROOMS[$(($1 - 1))]:-}"; }
-    f=$(ws_part_flags); printf '%s#%s' "$f" "$(sed 's/ $//' "$PF/asked")" )
+    f=$(ws_room_pick); printf '%s#%s' "$f" "$(sed 's/ $//' "$PF/asked")" )
 }
-eq "$(pf install 1 1 on A s A)" "#" "participacao: config.json ja existe = nada a perguntar nem a passar"
-eq "$(pf install 1 1 '' '' s A)" "#" "participacao: config.json ja existe, interativo = nao pergunta"
-eq "$(pf install 0 0 on A n)" "--telemetry on --room A#" "participacao: WORKSHOP_TELEMETRY=on WORKSHOP_ROOM=A"
-eq "$(pf install 0 1 ON ' b ' n)" "--telemetry on --room B#" "participacao: ON e ' b ' (maiusculas, espacos), sem perguntar"
-eq "$(pf install 0 1 off A s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=off ganha a pergunta"
-eq "$(pf install 0 0 yes b n)" "--telemetry on --room B#" "participacao: WORKSHOP_TELEMETRY=yes"
-eq "$(pf install 0 0 TRUE a n)" "--telemetry on --room A#" "participacao: WORKSHOP_TELEMETRY=TRUE"
-eq "$(pf install 0 1 0 A s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=0"
-eq "$(pf install 0 1 No '' s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=No"
-eq "$(pf install 0 0 1 '' n)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=1 sem sala e sem terminal = desligada"
-eq "$(pf install 0 0 on C n)" "--telemetry off#" "participacao: on com sala invalida, sem terminal = desligada"
-eq "$(pf install 0 1 on C n a)" "--telemetry on --room A#room1" "participacao: on com sala invalida, interativo = pergunta a sala"
-eq "$(pf install 0 1 '' '' s b)" "--telemetry on --room B#yn room1" "participacao: interativo, sim + sala"
-eq "$(pf install 0 1 '' '' n A)" "--telemetry off#yn" "participacao: interativo, Enter/nao (defeito) = desligada, sem perguntar a sala"
-eq "$(pf install 0 1 '' '' s x '' C)" "--telemetry off#yn room1 room2 room3" "participacao: 3 salas invalidas = desligada"
-eq "$(pf install 0 1 '' '' s x ' a ')" "--telemetry on --room A#yn room1 room2" "participacao: sala valida a segunda"
-eq "$(pf install 0 1 '' B s)" "--telemetry on --room B#yn" "participacao: sim com WORKSHOP_ROOM valido nao pergunta a sala"
-eq "$(pf install 0 1 talvez '' n)" "--telemetry off#yn" "participacao: WORKSHOP_TELEMETRY invalido = pergunta"
-eq "$(pf install 0 0 '' '' s A)" "--telemetry off#" "participacao: sem terminal = desligada, sem pergunta"
-eq "$(pf check 0 1 on A s A)" "#" "participacao: --check nunca pergunta nem passa flags"
-eq "$(pf doctor 0 1 '' '' s A)" "#" "participacao: --doctor nunca pergunta"
-eq "$(pf uninstall 0 1 '' '' s A)" "#" "participacao: --uninstall nunca pergunta"
+eq "$(rp install 1 B '' a)" "B#" "sala: WORKSHOP_ROOM=B ganha a pergunta"
+eq "$(rp install 1 ' b ' A a)" "B#" "sala: WORKSHOP_ROOM ' b ' (minuscula, espacos) ganha a sala gravada"
+eq "$(rp install 0 a '' )" "A#" "sala: WORKSHOP_ROOM=a sem terminal"
+eq "$(rp install 1 '' '' b)" "B#room1" "sala: interativo e sem sala gravada = pergunta"
+eq "$(rp install 1 '' '' x ' a ')" "A#room1 room2" "sala: resposta invalida pergunta outra vez"
+eq "$(rp install 1 '' '' x '' C)" "A#room1 room2 room3" "sala: 3 respostas invalidas = A"
+eq "$(rp install 1 '' '' x '' C B)" "A#room1 room2 room3" "sala: no maximo 3 perguntas"
+eq "$(rp install 1 '' B a)" "B#" "sala: interativo com sala gravada = nao pergunta, fica a gravada"
+eq "$(rp install 1 C B a)" "B#" "sala: WORKSHOP_ROOM invalido = a gravada"
+eq "$(rp install 0 '' '' b)" "A#" "sala: sem terminal e sem sala gravada = A, sem pergunta"
+eq "$(rp install 0 '' B b)" "B#" "sala: sem terminal = a gravada"
+eq "$(rp check 1 '' '' b)" "A#" "sala: --check nunca pergunta"
+eq "$(rp doctor 1 '' B b)" "B#" "sala: --doctor nunca pergunta"
+eq "$(rp uninstall 1 '' '' b)" "A#" "sala: --uninstall nunca pergunta"
 
-# O passo 8 a instalar: as flags que o install-user recebe (sempre --projects-dir) e a nota da escolha.
+# O passo 8 a instalar: os argumentos do instalar (sempre --projects-dir e --room) e o registo no painel com um
+# ctl.mjs falso (sai com FC_EXIT; com 0 grava o participante como o verdadeiro). Ver tools/test do ctl.mjs.
 mkdir -p "$PF/kit/telemetry" "$PF/kit/installer" "$PF/h/.workshop-claude"; : > "$PF/kit/installer/install-user.mjs"
-p8() { # config(0|1) tty(0|1) WORKSHOP_TELEMETRY WORKSHOP_ROOM [kit] -> argumentos do instalar#notas
-  ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC=${5:-$PF/kit}; WS_MODE=install; WS_CUR=8; WS_SIM=0; WS_SUBST_SL=0
-    SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WORKSHOP_TELEMETRY=$3; WORKSHOP_ROOM=$4
-    rm -rf "$WS_HOME/telemetry"; if [ "$1" = 1 ]; then mkdir -p "$WS_HOME/telemetry"; echo '{}' > "$WS_HOME/telemetry/config.json"; fi
-    PF_TTY=$2; ws_has_tty() { [ "$PF_TTY" = 1 ]; }
-    ws_part_ask_yn() { return 1; }
-    ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }
-    ws_iu() { printf '%s ' "$@" > "$PF/iu.args"; printf 'skills\t7\nagentes\t3\n'; if [ -n "${P8_PAINEL:-}" ]; then printf 'painel\t%s\n' "$P8_PAINEL"; fi; }
-    ws_s8_install >/dev/null; printf '%s#%s' "$(sed 's/ $//' "$PF/iu.args")" "$SN_8" )
+cat > "$PF/ctl.mjs" <<'EOF'
+import fs from 'node:fs';
+import path from 'node:path';
+const [cmd, room] = process.argv.slice(2);
+const cfgFile = path.join(process.env.HOME, '.workshop-claude', 'telemetry', 'config.json');
+fs.appendFileSync(path.join(process.env.HOME, 'ctl.calls'), `${cmd} ${room} gh=${process.env.WORKSHOP_GH || '-'}\n`);
+const rc = Number(process.env.FC_EXIT || 0);
+if (rc === 0) {
+  const c = JSON.parse(fs.readFileSync(cfgFile, 'utf8'));
+  fs.writeFileSync(cfgFile, JSON.stringify({ ...c, enabled: true, room, participant: { p: 'ab'.repeat(16), credential: 'x', name: 'ana-silva' } }, null, 2));
+  console.log(`Registered on the panel as ana-silva (room ${room}).`);
 }
-r=$(p8 0 0 on b); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry on --room B#"*"Workshop panel: on (room B)."*) ok ;; *) ko "s8 participacao: on B [$r]" ;; esac
-r=$(p8 0 0 '' ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry off#"*"Workshop panel: off. To turn it on, run: node ~/.workshop-claude/kit/telemetry/ctl.mjs on A (A or B: your room)"*) ok ;; *) ko "s8 participacao: sem terminal = off [$r]" ;; esac
-r=$(p8 0 1 '' ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry off#"*) ok ;; *) ko "s8 participacao: interativo, nao = off [$r]" ;; esac
-r=$(p8 1 1 on A); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*"Workshop panel: as you chose before. To see it: node ~/.workshop-claude/kit/telemetry/ctl.mjs status"*) ok ;; *) ko "s8 participacao: config.json existente = sem flags [$r]" ;; esac
-mkdir -p "$PF/velho/installer"; : > "$PF/velho/installer/install-user.mjs"
-r=$(p8 0 1 on A "$PF/velho"); case "$r" in *"Workshop panel"*) ko "s8 participacao: kit sem telemetry/ sem nota [$r]" ;; "instalar --projects-dir $PF/h/workshop-claude#"*) ok ;; *) ko "s8 participacao: kit sem telemetry/ = sem pergunta, sem flags, sem nota [$r]" ;; esac
-r=$( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_SIM=1; WS_MODE=install; WORKSHOP_TELEMETRY=""; WORKSHOP_ROOM=""; rm -rf "$WS_HOME/telemetry"
-  ws_has_tty() { return 0; }; ws_part_ask_yn() { printf ASKED >&2; return 0; }; ws_s8_part 2>&1; printf '%s|%s' "$WS_S8_TELEM" "$WS_S8_ROOM" )
-eq "$r" "off|" "s8 participacao: --yes nunca liga a participacao nem pergunta"
-# O detect: sem config.json (num kit com telemetria) o passo 8 corre para perguntar; no --check nao.
-p8d() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_MODE=$1; WS_CUR=8; SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WS_SUBST_SL=0
-  rm -rf "$WS_HOME/telemetry"; if [ "$2" = 1 ]; then mkdir -p "$WS_HOME/telemetry"; echo '{}' > "$WS_HOME/telemetry/config.json"; fi
+process.exit(rc);
+EOF
+p8() { # config(0|1: sem sala|2: registado na sala A) tty(0|1) WORKSHOP_ROOM [kit] -> argumentos do instalar#notas#avisos#chamadas do ctl
+  ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC=${4:-$PF/kit}; WS_MODE=install; WS_CUR=8; WS_SIM=0; WS_SUBST_SL=0
+    SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WORKSHOP_ROOM=$3; WS_NODE=$NODE; WS_GH_EXE=/opt/x/bin/gh; WS_S8_ROOM_PICKED=""
+    rm -rf "$WS_HOME/telemetry" "$WS_HOME/kit" "$HOME/ctl.calls"; mkdir -p "$WS_HOME/kit/telemetry"; cp "$PF/ctl.mjs" "$WS_HOME/kit/telemetry/ctl.mjs"
+    mkdir -p "$WS_HOME/telemetry"
+    case "$1" in
+      0) printf '{\n  "v": 1,\n  "room": null,\n  "email_domain": "checkmarx.com",\n  "panel_url": "https://panel.example.test"\n}\n' > "$WS_HOME/telemetry/config.json" ;;
+      2) printf '{\n  "v": 1,\n  "enabled": true,\n  "room": "A",\n  "panel_url": "https://panel.example.test",\n  "participant": {\n    "p": "%s",\n    "name": "ana-silva"\n  }\n}\n' "$(printf 'ab%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)" > "$WS_HOME/telemetry/config.json" ;;
+    esac
+    PF_TTY=$2; ws_has_tty() { [ "$PF_TTY" = 1 ]; }
+    ws_part_ask_room() { printf 'b'; }
+    ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }
+    ws_iu() { printf '%s ' "$@" > "$PF/iu.args"; printf 'skills\t7\nagentes\t3\n'; }
+    ws_s8_install >/dev/null; printf '%s#%s#%s#%s' "$(sed 's/ $//' "$PF/iu.args")" "$SN_8" "$SW_8" "$(cat "$HOME/ctl.calls" 2>/dev/null)" )
+}
+if [ -n "$NODE" ]; then
+  r=$(p8 0 0 B); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --room B#"*"Workshop panel: registered as ana-silva (room B).
+##register B gh=/opt/x/bin/gh") ok ;; *) ko "s8 registo: WORKSHOP_ROOM=B, registado [$r]" ;; esac
+  r=$(p8 0 1 ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --room B#"*"registered as ana-silva (room B)"*"register B "*) ok ;; *) ko "s8 registo: interativo sem sala gravada pergunta (B) [$r]" ;; esac
+  r=$(p8 0 0 ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --room A#"*"register A "*) ok ;; *) ko "s8 registo: sem terminal nem sala = A [$r]" ;; esac
+  r=$(p8 2 1 ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --room A#"*"Workshop panel: registered as ana-silva (room A).
+##") ok ;; *) ko "s8 registo: ja registado na sala = sem pedido ao painel [$r]" ;; esac
+  r=$(p8 2 0 B); case "$r" in *"--room B#"*"register B "*) ok ;; *) ko "s8 registo: outra sala (WORKSHOP_ROOM) = regista outra vez [$r]" ;; esac
+  r=$(FC_EXIT=3 p8 0 0 A); case "$r" in *"#E-TEL-02|@checkmarx.com
+#register A "*) ok ;; *) ko "s8 registo: 3 = E-TEL-02 com o dominio [$r]" ;; esac
+  r=$(FC_EXIT=4 p8 0 0 A); case "$r" in *"#E-TEL-03|gh auth refresh -h github.com -s user:email
+#register A "*) ok ;; *) ko "s8 registo: 4 = E-TEL-03 [$r]" ;; esac
+  r=$(WS_GH_SCOPE_WARN=1 FC_EXIT=4 p8 0 0 A); case "$r" in *"Workshop panel: not registered yet. Fix the GitHub warning of step 6"*"ctl.mjs register A)."*"##register A "*) ok ;; *) ko "s8 registo: 4 com o aviso do passo 6 = so uma nota [$r]" ;; esac
+  r=$(FC_EXIT=5 p8 0 0 A); case "$r" in *"#E-TEL-01|https://panel.example.test/ · register
+#register A "*) ok ;; *) ko "s8 registo: 5 = E-TEL-01 [$r]" ;; esac
+  r=$(FC_EXIT=1 p8 0 0 A); case "$r" in *"--room A#"*[!#]"
+##register A "*) ok ;; *) ko "s8 registo: outro codigo = so no log [$r]" ;; esac
+  mkdir -p "$PF/velho/installer"; : > "$PF/velho/installer/install-user.mjs"
+  r=$(p8 0 1 '' "$PF/velho"); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*[!#]"
+##") ok ;; *) ko "s8 registo: kit sem telemetry/ = sem sala nem registo [$r]" ;; esac
+fi
+r=$( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_SIM=1; WS_MODE=install; WORKSHOP_ROOM=""; WS_S8_ROOM_PICKED=""; rm -rf "$WS_HOME/telemetry"
+  ws_has_tty() { return 0; }; ws_part_ask_room() { printf ASKED >&2; printf B; }; ws_s8_room 2>&1; printf '|%s' "$WS_S8_ROOM" )
+eq "$r" "|A" "s8 sala: --yes nunca pergunta (A)"
+r=$( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_SIM=0; WS_MODE=install; WORKSHOP_ROOM=""; WS_S8_ROOM_PICKED=""; rm -rf "$WS_HOME/telemetry"
+  ws_has_tty() { return 0; }; ws_part_ask_room() { printf ASKED >&2; printf B; }; ws_s8_room 2>&1; ws_s8_room 2>&1; printf '|%s' "$WS_S8_ROOM" )
+eq "$r" "ASKED|B" "s8 sala: uma pergunta por execucao (o detect e o install usam a mesma)"
+# O resultado do registo, sozinho (codigos e textos).
+rr() { ( WS_CUR=8; SW_8=""; SN_8=""; WS_HOME="$PF/h/.workshop-claude"; printf '{"v":1,"room":"B","panel_url":"%s","email_domain":"%s","participant":{"p":"%s","name":"zé"}}' "${3:-https://p.example/x}" "${4:-}" "$(printf 'cd%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)" > "$PF/rr.json"
+  ws_s8_register_result "$1" "$PF/rr.json" "${2:-B}"; printf '%s#%s' "$SW_8" "$SN_8" ); }
+eq "$(rr 0)" "#Workshop panel: registered as zé (room B)." "s8 resultado 0: a nota com o nome do config.json"
+eq "$(rr 3 B '' acme.example)" "E-TEL-02|@acme.example
+#" "s8 resultado 3: o dominio do config.json"
+eq "$(rr 3)" "E-TEL-02|@checkmarx.com
+#" "s8 resultado 3: sem dominio, o do ctl.mjs"
+eq "$(rr 124)" "E-TEL-01|https://p.example/ · register
+#" "s8 resultado: sem resposta a tempo = E-TEL-01"
+eq "$(rr 5 B ' ')" "#" "s8 resultado 5 sem panel_url = so no log"
+eq "$(rr 2)" "#" "s8 resultado 2 = so no log"
+# O detect: sem config.json (num kit com o painel) o passo 8 corre para gravar a sala; no --check nao. Ao instalar
+# com o passo feito, uma sala diferente da gravada tambem o faz correr; a mesma, so o registo.
+p8d() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_MODE=$1; WS_CUR=8; SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WS_SUBST_SL=0; WS_SIM=1; WS_S8_ROOM_PICKED=""; WORKSHOP_ROOM=${3:-}
+  rm -rf "$WS_HOME/telemetry" "$WS_HOME/kit"; if [ "$2" = 1 ]; then mkdir -p "$WS_HOME/telemetry"; printf '{\n  "v": 1,\n  "room": "A"\n}\n' > "$WS_HOME/telemetry/config.json"; fi
   ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }; ws_iu() { printf 'skills\t7\nagentes\t3\n'; }
   ws_s8_detect >/dev/null; printf '%s' "$?" ); }
-eq "$(p8d install 0)|$(p8d install 1)|$(p8d check 0)" "1|0|0" "s8 detect: sem config.json da telemetria instala (so no modo install)"
-# A nota do passo 8 diz o estado real (a linha "painel" do instalar), tambem quando ficou a escolha de antes.
-r=$(P8_PAINEL="on A" p8 1 1 '' ''); case "$r" in *"Workshop panel: on (room A)."*) ok ;; *) ko "s8 participacao: mantida, painel on A [$r]" ;; esac
-case "$r" in *"as you chose before"*) ko "s8 participacao: mantida com a linha painel nao diz 'como antes' [$r]" ;; *) ok ;; esac
-r=$(P8_PAINEL=off p8 1 1 '' ''); case "$r" in *"Workshop panel: off. To turn it on, run: node ~/.workshop-claude/kit/telemetry/ctl.mjs on A"*) ok ;; *) ko "s8 participacao: mantida, painel off [$r]" ;; esac
-r=$(P8_PAINEL="on B" p8 0 0 on b); case "$r" in *"Workshop panel: on (room B)."*) ok ;; *) ko "s8 participacao: on B com a linha painel [$r]" ;; esac
-r=$(P8_PAINEL=off p8 0 0 on b); case "$r" in *"Workshop panel: off."*) ok ;; *) ko "s8 participacao: a linha painel ganha a escolha [$r]" ;; esac
+eq "$(p8d install 0)|$(p8d install 1)|$(p8d check 0)|$(p8d install 1 B)|$(p8d install 1 a)" "1|0|0|1|0" "s8 detect: sem config.json ou com outra sala instala (so no modo install)"
+# No --check: sem registo, o aviso E-TEL-04 com o comando (a sala do config.json); registado ou expirado, nada.
+rc8() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_MODE=${2:-check}; WS_CUR=8; SW_8=""; mkdir -p "$WS_HOME/telemetry"; printf '%s' "$1" > "$WS_HOME/telemetry/config.json"
+  ws_s8_register_check; printf '%s' "$SW_8" ); }
+eq "$(rc8 '{"v":1,"room":"B","expires_at":"2099-01-01T00:00:00.000Z","participant":null}')" "E-TEL-04|node ~/.workshop-claude/kit/telemetry/ctl.mjs register B" "s8 --check: sem registo = E-TEL-04 com a sala"
+eq "$(rc8 '{"v":1,"room":null}')" "E-TEL-04|node ~/.workshop-claude/kit/telemetry/ctl.mjs register A" "s8 --check: sem sala = o comando com A"
+eq "$(rc8 '{"v":1,"room":"B","participant":{"p":"0123456789abcdef0123456789abcdef","name":"x"}}')" "" "s8 --check: registado = nada"
+eq "$(rc8 '{"v":1,"room":"B","expires_at":"2020-01-01T00:00:00.000Z"}')" "" "s8 --check: config expirada = nada"
+eq "$(rc8 '{"v":1,"room":"B"}' install)" "" "s8: o install nao usa o aviso do --check"
 eq "$( WS_CUR=8; SN_8=""; ws_s8_parse "$(printf 'skills\t7\npainel\ton B\n')"; printf '%s' "$WS_S8_PAINEL" )" "on B" "s8 parse: linha painel"
 eq "$( WS_CUR=8; SN_8=""; WS_S8_PAINEL=velho; ws_s8_parse "$(printf 'skills\t7\n')"; printf '%s' "$WS_S8_PAINEL" )" "" "s8 parse: sem linha painel fica vazio"
 
+# Passo 6: o scope user:email (D-34) lido do "gh auth status" (formatos novo e antigo, varias contas e servidores).
+GHS_NEW='github.com
+  ✓ Logged in to github.com account ana (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: '"'"'gist'"'"', '"'"'read:org'"'"', '"'"'repo'"'"', '"'"'workflow'"'"'
+
+  ✓ Logged in to github.com account ana-work (keyring)
+  - Active account: false
+  - Token scopes: '"'"'repo'"'"', '"'"'user:email'"'"'
+ghe.corp.example
+  ✓ Logged in to ghe.corp.example account ana (keyring)
+  - Token scopes: '"'"'user'"'"
+eq "$(ws_gh_scopes "$GHS_NEW")" "'gist', 'read:org', 'repo', 'workflow'" "gh scopes: a conta ativa do github.com"
+ws_gh_email_scope "$(ws_gh_scopes "$GHS_NEW")"; eq "$?" 1 "gh scopes: sem user:email"
+GHS_ACT=$(printf '%s\n' "$GHS_NEW" | sed -e 's/Active account: true/Active account: X/' -e 's/Active account: false/Active account: true/')
+ws_gh_email_scope "$(ws_gh_scopes "$GHS_ACT")"; eq "$?" 0 "gh scopes: a outra conta ativa tem user:email"
+GHS_OLD='github.com
+  ✓ Logged in to github.com as ana (oauth_token)
+  ✓ Git operations for github.com configured to use https protocol.
+  ✓ Token: *******************
+  ✓ Token scopes: gist, read:org, repo, user, workflow'
+eq "$(ws_gh_scopes "$GHS_OLD")" "gist, read:org, repo, user, workflow" "gh scopes: formato antigo"
+ws_gh_email_scope "$(ws_gh_scopes "$GHS_OLD")"; eq "$?" 0 "gh scopes: user inclui o user:email"
+ws_gh_email_scope "$(ws_gh_scopes "$(printf 'github.com\n  ✓ Logged in to github.com account a (GH_TOKEN)\n  - Active account: true\n')")"; eq "$?" 0 "gh scopes: sem a linha (token fine-grained) = nao se sabe, nao avisa"
+eq "$(ws_gh_scopes "$(printf 'ghe.corp\n  - Token scopes: user\n')")" "-" "gh scopes: so outro servidor = nao se sabe"
+ws_gh_email_scope "none"; eq "$?" 1 "gh scopes: none = sem scope"
+ws_gh_email_scope "'repo', 'user:emailx'"; eq "$?" 1 "gh scopes: so o nome exato"
+ws_gh_email_scope "'repo','user:email'"; eq "$?" 0 "gh scopes: sem espacos"
+# ws_s6_scope: no --check e sem terminal so o aviso; ao instalar com terminal pergunta e corre o refresh.
+s6s() { # modo tty resposta(s|n) scopes-depois -> SW_6#chamadas
+  ( WS_CUR=6; SW_6=""; WS_MODE=$1; WS_SIM=0; WS_GH_SCOPE_ASKED=""; WS_STEP_LOG=/dev/null; S6_TTY=$2; S6_ANS=$3; S6_AFTER=$4; : > "$PF/s6.calls"
+    ws_has_tty() { [ "$S6_TTY" = 1 ]; }; ws_ask() { printf 'ask ' >> "$PF/s6.calls"; [ "$S6_ANS" = s ]; }
+    ws_run_login() { shift; printf '%s ' "$*" >> "$PF/s6.calls"; }
+    ws_timeout() { printf 'github.com\n  ✓ Logged in to github.com account a (keyring)\n  - Token scopes: %s\n' "$S6_AFTER"; }
+    ws_s6_scope gh "$GHS_NEW"; printf '%s#%s#%s' "$SW_6" "$(sed 's/ $//' "$PF/s6.calls")" "$WS_GH_SCOPE_WARN" )
+}
+eq "$(s6s check 1 s "'user:email'")" "E-TEL-03|gh auth refresh -h github.com -s user:email
+##1" "s6 scope --check: so o aviso"
+eq "$(s6s install 0 s "'user:email'")" "E-TEL-03|gh auth refresh -h github.com -s user:email
+##1" "s6 scope sem terminal: so o aviso com o comando"
+eq "$(s6s install 1 s "'repo', 'user:email'")" "#ask auth refresh -h github.com -s user:email#0" "s6 scope interativo: sim = refresh, sem aviso"
+eq "$(s6s install 1 s "'repo'")" "E-TEL-03|gh auth refresh -h github.com -s user:email
+#ask auth refresh -h github.com -s user:email#1" "s6 scope interativo: o refresh nao deu = aviso"
+eq "$(s6s install 1 n "'user:email'")" "E-TEL-03|gh auth refresh -h github.com -s user:email
+#ask#1" "s6 scope interativo: nao = aviso"
+eq "$( WS_CUR=6; SW_6=""; WS_MODE=check; ws_s6_scope gh "$GHS_OLD"; printf '%s#%s' "$SW_6" "$WS_GH_SCOPE_WARN" )" "#0" "s6 scope: com user = nada"
+grep -q 'auth login --hostname github.com --git-protocol https --web --scopes user:email$' "$ROOT/setup/setup-mac.sh" && ok || ko "s6: o login pede o scope user:email"
+
 # O painel no --check (spec 6.8): o config.json da telemetria decide se ha alguma coisa a testar.
 TC="$WS_TMP/tc"; mkdir -p "$TC"
-tcfg() { # enabled panel_url expires_at [room] -> config.json (como o install-user o escreve)
-  printf '{\n  "v": 1,\n  "enabled": %s,\n  "room": "%s",\n  "workshop": "dev",\n  "panel_url": "%s",\n  "expires_at": "%s"\n}\n' "$1" "${4:-A}" "$2" "$3" > "$TC/config.json"
+tcfg() { # enabled panel_url expires_at [room] -> config.json (como o install-user o escreve; enabled = registado)
+  local part=null
+  [ "$1" = true ] && part='{\n    "p": "0123456789abcdef0123456789abcdef",\n    "credential": "c",\n    "name": "ana"\n  }'
+  printf '{\n  "v": 1,\n  "enabled": %s,\n  "room": "%s",\n  "workshop": "dev",\n  "panel_url": "%s",\n  "expires_at": "%s",\n  "participant": '"$part"'\n}\n' "$1" "${4:-A}" "$2" "$3" > "$TC/config.json"
 }
 tcfg true "https://panel.example.test/" "2026-10-21T00:00:00.000Z"
 eq "$(ws_tel_panel_url "$TC/config.json" 2026-10-19T12:00:00Z)" "https://panel.example.test" "painel: ligado, com panel_url e em vigor = testa (sem a / do fim)"
@@ -1054,6 +1172,8 @@ if [ -n "$NODE" ]; then
   eq "$(g5git -C "$A" cat-file -t arena-start 2>/dev/null)" commit "s9 git hostil: tag arena-start leve"
   [ -n "$(g5git -C "$A" ls-files 'lib/*.js')" ] && [ -n "$(g5git -C "$P" ls-files 'src/*.js')" ] && ok || ko "s9 git hostil: os .js entram no commit apesar do gitignore global"
   [ ! -e "$HH/hook-ran" ] && ok || ko "s9 git hostil: o hook da pessoa correu"
+  # Instalado com WORKSHOP_P1=arena: o --check sem a variavel ve a Arena (a escolha gravada), nao o Canivete em falta.
+  r=$(G5_P1="" G5_MODE=check g5e ws_s9_detect); case "$r" in '0###App tests: '*'#Security Arena at ~/workshop-claude/demo-project') ok ;; *) ko "s9 --check depois de WORKSHOP_P1=arena: a Arena [$r]" ;; esac
   # Ctrl-C a meio da copia do projeto de treino: so a marca incompleta e um ficheiro. Volta a montar, sem backup.
   rm -rf "$P"; mkdir -p "$P"; printf '{"status":"incomplete","language":"en"}\n' > "$P/.sandbox-kit.json"; echo '{}' > "$P/package.json"
   r=$(g5e ws_s9_install); case "$r" in '0###'*) ok ;; *) ko "s9 montagem interrompida: refeita sem backup [$r]" ;; esac
@@ -1861,6 +1981,35 @@ o=$( WS_HOME="$UI/h/.workshop-claude"; WS_RESUMO="$WS_HOME/summary.txt"; WS_LOG=
   for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do ws_set ST "$n" feito; ws_set SD "$n" "d$n"; done; ws_set ST 1 ja; ws_set ST 6 falhou; ws_set ST 11 aviso; WS_TODO_MCP=1; ws_summary 2>&1 )
 case "$o" in *"╭"*"Summary · "*"✔ 11 ready"*"▲ 1 with warnings"*"✖ 1 still to do"*"╰"*"1   Git"*"✔ Already done"*"d1"*"6   GitHub CLI"*"✖ Failed"*"d6"*"✖ 1 step still to do: 6 (GitHub CLI (gh))."*"→ After you fix it"*"▲ There is 1 warning above"*"→ To finish: open Claude Code"*"Summary saved to"*) ok ;; *) ko "ui fancy: resumo [$o]" ;; esac
 case "$(cat "$UI/h/.workshop-claude/summary.txt")" in "Summary · "*"6     GitHub CLI (gh)"*"✖ Failed"*) ok ;; *) ko "ui fancy: summary.txt igual ao do plain" ;; esac
+
+# --- --cleanup (D-34): a lista (dry-run), a confirmacao e o install-user limpar a serio, num HOME de teste
+if [ -n "$NODE" ]; then
+  CL="$WS_TMP/cl"; mkdir -p "$CL/h/workshop-claude" "$CL/h/.workshop-claude/telemetry" "$CL/h/.agent-memory/canivete" "$CL/h/.agent-memory/practice-project"
+  clgit() { git -C "$1" -c user.name=t -c user.email=t@t.test -c commit.gpgsign=false -c core.hooksPath=.git/no-hooks "${@:2}" >/dev/null 2>&1; }
+  for n in missions-project canivete-project practice-project; do
+    mkdir -p "$CL/h/workshop-claude/$n"; echo kit > "$CL/h/workshop-claude/$n/README.md"; clgit "$CL/h/workshop-claude/$n" init -q; clgit "$CL/h/workshop-claude/$n" add -A; clgit "$CL/h/workshop-claude/$n" commit -q -m kit
+  done
+  echo meu > "$CL/h/workshop-claude/canivete-project/my-tool.js"
+  echo '{}' > "$CL/h/.workshop-claude/telemetry/missions.json"; echo n > "$CL/h/.agent-memory/canivete/n.md"; echo n > "$CL/h/.agent-memory/practice-project/n.md"
+  cl() { # sim(0|1) tty(0|1) -> saida e codigo
+    ( HOME="$CL/h"; unset AGENT_MEMORY_HOME MEMORIA_HOME; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; WS_PRACTICE=practice-project; WS_LOG="$CL/log"; KIT_SRC=$ROOT
+      WS_SIM=$1; CL_TTY=$2; WS_UI=plain; WS_COLOR=0; ws_has_tty() { [ "$CL_TTY" = 1 ]; }; ws_s4_detect() { WS_NODE=$NODE; }; ws_ask() { [ "$WS_SIM" = 1 ]; }
+      ws_limpar; printf 'rc=%s\n' "$?" ) 2>&1
+  }
+  r=$(cl 0 0)
+  case "$r" in *"This is what the cleanup will do:"*"delete (untouched, only the kit's copy): ~/workshop-claude/missions-project"*"move to the backup (it has your work): ~/workshop-claude/canivete-project"*"keep: ~/workshop-claude/practice-project"*"Nothing was changed."*"rc=0") ok ;; *) ko "cleanup: sem confirmacao, so a lista [$r]" ;; esac
+  [ -d "$CL/h/workshop-claude/missions-project" ] && [ -d "$CL/h/.workshop-claude/telemetry" ] && ok || ko "cleanup: sem confirmacao nada muda"
+  r=$(cl 1 0)
+  case "$r" in *"Deleted: ~/workshop-claude/missions-project"*"Moved to the backup: ~/workshop-claude/canivete-project -> ~/.workshop-claude/backup/"*"Cleanup complete."*"rc=0") ok ;; *) ko "cleanup: --yes limpa [$r]" ;; esac
+  eq "$(printf '%s\n' "$r" | grep -c 'keep:')" 1 "cleanup: depois de limpar nao repete a lista do que fica"
+  case "$r" in *"delete the mission book and the panel registration: ~/.workshop-claude/telemetry"*"move the Agent Memory notes of this exercise to the backup: ~/.agent-memory/canivete"*) ok ;; *) ko "cleanup: a lista diz o que e cada coisa [$r]" ;; esac
+  [ ! -e "$CL/h/workshop-claude/missions-project" ] && [ ! -e "$CL/h/workshop-claude/canivete-project" ] && [ -d "$CL/h/workshop-claude/practice-project" ] &&
+    [ ! -e "$CL/h/.workshop-claude/telemetry" ] && [ ! -e "$CL/h/.agent-memory/canivete" ] && [ -f "$CL/h/.agent-memory/practice-project/n.md" ] && ok || ko "cleanup: o que sai e o que fica"
+  ls "$CL"/h/.workshop-claude/backup/*/projects/canivete-project/my-tool.js >/dev/null 2>&1 && ok || ko "cleanup: o Canivete com trabalho no backup"
+  r=$(cl 1 0)
+  case "$r" in *"Nothing to clean up"*"rc=0") ok ;; *) ko "cleanup: segunda vez = nada a fazer [$r]" ;; esac
+fi
+grep -q -- '--cleanup  ' "$ROOT/setup/setup-mac.sh" && ok || ko "cleanup: --cleanup na ajuda"
 
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

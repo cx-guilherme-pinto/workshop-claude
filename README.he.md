@@ -31,6 +31,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 | בדיקה | `bash ~/.workshop-claude/setup-mac.sh --check` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check` |
 | אבחון בעזרת Claude | `bash ~/.workshop-claude/setup-mac.sh --doctor` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor` |
 | הסרת ההתקנה | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Uninstall` |
+| ניקוי אחרי הסדנה (פרויקט התרגול והכלים נשארים) | `bash ~/.workshop-claude/setup-mac.sh --cleanup` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Cleanup` |
 
 אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash -s -- --check` (ב-macOS) או `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex` (ב-Windows).
 

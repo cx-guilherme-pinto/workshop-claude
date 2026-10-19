@@ -467,7 +467,7 @@ Describe 'chaos G9-windows: o Windows PowerShell de 64 bits (F2)' {
     $text | Should -Match '-File \$PSCommandPath @self \| Out-Default'
     # Os logins correm numa janela sua (chaos G4: Invoke-WsLogin), e nunca capturados.
     $text | Should -Match "Invoke-WsLogin \`$script:ClaudeExe @\('auth', 'login', '--console'\)"
-    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web'\) -CancelCodes @\(2\)"
+    $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web', '--scopes', 'user:email'\) -CancelCodes @\(2\)"
     $text | Should -Match "Invoke-WsLogin \`$exe @\('auth', 'login'\)"
   }
   It 'erros de download do PowerShell 5.1 e 7 dao o codigo certo' {
@@ -1887,7 +1887,7 @@ Describe 'chaos G4-auth-tools' {
     @($script:Calls | Where-Object { $_ -like 'auth status*' }).Count | Should -Be 1
     $script:Sim = $false; $script:Status = @(1, 0); $script:StatusN = 0; $script:Calls = @(); $script:T = New-WsStateTable
     Test-WsStep6 -Exe $gh | Should -BeTrue
-    $script:Login | Should -BeExactly 'auth login --hostname github.com --git-protocol https --web'
+    $script:Login | Should -BeExactly 'auth login --hostname github.com --git-protocol https --web --scopes user:email'
     $script:Calls | Should -Contain 'auth setup-git (25)'
     $script:GhSemLogin | Should -BeFalse
     Should -Invoke Get-Command -Times 0 -Exactly -ParameterFilter { $Name -eq 'gh' } -Because 'com -Exe nao se procura o gh no PATH'
@@ -3824,54 +3824,38 @@ Describe 'aspeto: cartao, lista de passos e spinner' {
   }
 }
 
-Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (passo 9)' {
+Describe 'painel do workshop (passos 6 e 8, D-34) e projeto das missoes (passo 9)' {
   BeforeEach {
     $script:T = New-WsStateTable
     $script:StepLog = New-Object System.Text.StringBuilder
     $script:Asked = @()
   }
 
-  It 'decide as flags: <Name>' -ForEach @(
-    @{ Name = 'config.json ja existe = nada a perguntar nem a passar'; Mode = 'install'; Cfg = $true; Ask = $true; T = 'on'; R = 'A'; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
-    @{ Name = 'config.json ja existe, interativo = nao pergunta'; Mode = 'install'; Cfg = $true; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=on WORKSHOP_ROOM=A'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'on'; R = 'A'; Yn = $false; Rooms = @(); Want = '--telemetry on --room A'; Q = '' },
-    @{ Name = 'ON e " b " (maiusculas, espacos), sem perguntar'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'ON'; R = ' b '; Yn = $false; Rooms = @(); Want = '--telemetry on --room B'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=off ganha a pergunta'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'off'; R = 'A'; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=yes'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'yes'; R = 'b'; Yn = $false; Rooms = @(); Want = '--telemetry on --room B'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=TRUE'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'TRUE'; R = 'a'; Yn = $false; Rooms = @(); Want = '--telemetry on --room A'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=0'; Mode = 'install'; Cfg = $false; Ask = $true; T = '0'; R = 'A'; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=No'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'No'; R = ''; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
-    @{ Name = 'WORKSHOP_TELEMETRY=1 sem sala e sem consola = desligada'; Mode = 'install'; Cfg = $false; Ask = $false; T = '1'; R = ''; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = '' },
-    @{ Name = 'on com sala invalida, sem consola = desligada'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'on'; R = 'C'; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = '' },
-    @{ Name = 'on com sala invalida, interativo = pergunta a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'on'; R = 'C'; Yn = $false; Rooms = @('a'); Want = '--telemetry on --room A'; Q = 'room1' },
-    @{ Name = 'interativo, sim + sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('b'); Want = '--telemetry on --room B'; Q = 'yn room1' },
-    @{ Name = 'interativo, nao (o defeito) = desligada, sem perguntar a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $false; Rooms = @('A'); Want = '--telemetry off'; Q = 'yn' },
-    @{ Name = '3 salas invalidas = desligada'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('x', '', 'C'); Want = '--telemetry off'; Q = 'yn room1 room2 room3' },
-    @{ Name = 'sala valida a segunda'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('x', ' a '); Want = '--telemetry on --room A'; Q = 'yn room1 room2' },
-    @{ Name = 'sim com WORKSHOP_ROOM valido nao pergunta a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = 'B'; Yn = $true; Rooms = @(); Want = '--telemetry on --room B'; Q = 'yn' },
-    @{ Name = 'WORKSHOP_TELEMETRY invalido = pergunta'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'talvez'; R = ''; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = 'yn' },
-    @{ Name = 'sem consola = desligada, sem pergunta'; Mode = 'install'; Cfg = $false; Ask = $false; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
-    @{ Name = '-Check nunca pergunta nem passa flags'; Mode = 'check'; Cfg = $false; Ask = $true; T = 'on'; R = 'A'; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
-    @{ Name = '-Doctor nunca pergunta'; Mode = 'doctor'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
-    @{ Name = '-Uninstall nunca pergunta'; Mode = 'uninstall'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' }
+  It 'Get-WsRoomPick: <Name>' -ForEach @(
+    @{ Name = 'WORKSHOP_ROOM=B ganha a pergunta'; Mode = 'install'; Ask = $true; R = 'B'; Saved = ''; Rooms = @('a'); Want = 'B'; Q = '' },
+    @{ Name = 'WORKSHOP_ROOM " b " (minuscula, espacos) ganha a sala gravada'; Mode = 'install'; Ask = $true; R = ' b '; Saved = 'A'; Rooms = @('a'); Want = 'B'; Q = '' },
+    @{ Name = 'WORKSHOP_ROOM=a sem consola'; Mode = 'install'; Ask = $false; R = 'a'; Saved = ''; Rooms = @(); Want = 'A'; Q = '' },
+    @{ Name = 'interativo e sem sala gravada = pergunta'; Mode = 'install'; Ask = $true; R = ''; Saved = ''; Rooms = @('b'); Want = 'B'; Q = 'room1' },
+    @{ Name = 'resposta invalida pergunta outra vez'; Mode = 'install'; Ask = $true; R = ''; Saved = ''; Rooms = @('x', ' a '); Want = 'A'; Q = 'room1 room2' },
+    @{ Name = '3 respostas invalidas = A'; Mode = 'install'; Ask = $true; R = ''; Saved = ''; Rooms = @('x', '', 'C'); Want = 'A'; Q = 'room1 room2 room3' },
+    @{ Name = 'no maximo 3 perguntas'; Mode = 'install'; Ask = $true; R = ''; Saved = ''; Rooms = @('x', '', 'C', 'B'); Want = 'A'; Q = 'room1 room2 room3' },
+    @{ Name = 'interativo com sala gravada = nao pergunta, fica a gravada'; Mode = 'install'; Ask = $true; R = ''; Saved = 'B'; Rooms = @('a'); Want = 'B'; Q = '' },
+    @{ Name = 'WORKSHOP_ROOM invalido = a gravada'; Mode = 'install'; Ask = $true; R = 'C'; Saved = 'B'; Rooms = @('a'); Want = 'B'; Q = '' },
+    @{ Name = 'sem consola e sem sala gravada = A, sem pergunta'; Mode = 'install'; Ask = $false; R = ''; Saved = ''; Rooms = @('b'); Want = 'A'; Q = '' },
+    @{ Name = 'sem consola = a gravada'; Mode = 'install'; Ask = $false; R = ''; Saved = 'B'; Rooms = @('b'); Want = 'B'; Q = '' },
+    @{ Name = '-Check nunca pergunta'; Mode = 'check'; Ask = $true; R = ''; Saved = ''; Rooms = @('b'); Want = 'A'; Q = '' },
+    @{ Name = '-Doctor nunca pergunta'; Mode = 'doctor'; Ask = $true; R = ''; Saved = 'B'; Rooms = @('b'); Want = 'B'; Q = '' },
+    @{ Name = '-Uninstall nunca pergunta'; Mode = 'uninstall'; Ask = $true; R = ''; Saved = ''; Rooms = @('b'); Want = 'A'; Q = '' }
   ) {
-    $script:Yn = $Yn; $script:Rooms = $Rooms
-    Mock Read-WsParticipation { $script:Asked += 'yn'; return $script:Yn }
+    $script:Rooms = $Rooms
     Mock Read-WsRoom { $script:Asked += ('room' + $Try); return [string]$script:Rooms[$Try - 1] }
-    (@(Get-WsParticipationArgs -Mode $Mode -HasConfig $Cfg -CanAsk $Ask -Telemetry $T -Room $R) -join ' ') | Should -BeExactly $Want
+    Get-WsRoomPick -Mode $Mode -CanAsk $Ask -Room $R -Saved $Saved | Should -BeExactly $Want
     ($script:Asked -join ' ') | Should -BeExactly $Q
   }
 
-  It 'as perguntas a serio: Enter = nao (o defeito); a sala repete com "A ou B" e regista a resposta' {
-    $script:Sim = $false
+  It 'a pergunta da sala a serio: repete com "A ou B" e regista a resposta' {
     $script:Said = @()
     Mock Write-WsSay { $script:Said += $Text }
-    Mock Test-WsInteractive { return $true }
-    Mock Clear-WsTypeAhead { }
-    Mock Read-Host { return '' }
-    Read-WsParticipation | Should -BeFalse
-    Mock Read-Host { return ' y ' }
-    Read-WsParticipation | Should -BeTrue
     Mock Read-Host { return ' b ' }
     Read-WsRoom 1 | Should -BeExactly 'b'
     $script:Said.Count | Should -Be 0
@@ -3881,12 +3865,58 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
     Read-WsRoom 1 | Should -BeExactly ''
   }
 
-  Context 'Install-WsStep8 e Test-WsStep8' {
+  It 'Get-WsGhScopes e Test-WsGhEmailScope: a conta ativa do github.com (formatos novo e antigo)' {
+    $new = "github.com`n  X Logged in to github.com account ana (keyring)`n  - Active account: true`n  - Token: gho_****`n  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'`n`n  X Logged in to github.com account ana-work (keyring)`n  - Active account: false`n  - Token scopes: 'repo', 'user:email'`nghe.corp.example`n  X Logged in to ghe.corp.example account ana (keyring)`n  - Token scopes: 'user'`n"
+    Get-WsGhScopes $new | Should -BeExactly "'gist', 'read:org', 'repo', 'workflow'"
+    Test-WsGhEmailScope (Get-WsGhScopes $new) | Should -BeFalse
+    $act = ($new -replace 'Active account: true', 'Active account: X') -replace 'Active account: false', 'Active account: true'
+    Test-WsGhEmailScope (Get-WsGhScopes $act) | Should -BeTrue
+    $old = "github.com`r`n  X Logged in to github.com as ana (oauth_token)`r`n  X Token: ****`r`n  X Token scopes: gist, read:org, repo, user, workflow`r`n"
+    Get-WsGhScopes $old | Should -BeExactly 'gist, read:org, repo, user, workflow'
+    Test-WsGhEmailScope (Get-WsGhScopes $old) | Should -BeTrue
+    Test-WsGhEmailScope (Get-WsGhScopes "github.com`n  X Logged in to github.com account a (GH_TOKEN)`n  - Active account: true`n") | Should -BeTrue -Because 'sem a linha (token fine-grained) nao se sabe'
+    Get-WsGhScopes "ghe.corp`n  - Token scopes: user`n" | Should -BeExactly '-'
+    Test-WsGhEmailScope 'none' | Should -BeFalse
+    Test-WsGhEmailScope "'repo', 'user:emailx'" | Should -BeFalse
+    Test-WsGhEmailScope "'repo','user:email'" | Should -BeTrue
+  }
+
+  It 'Test-WsStep6Scope: <Name>' -ForEach @(
+    @{ Name = '-Check: so o aviso'; Mode = 'check'; Inter = $true; Yes = $true; After = "'user:email'"; Warn = 1; Calls = '' },
+    @{ Name = 'sem consola: so o aviso com o comando'; Mode = 'install'; Inter = $false; Yes = $true; After = "'user:email'"; Warn = 1; Calls = '' },
+    @{ Name = 'interativo, sim = refresh, sem aviso'; Mode = 'install'; Inter = $true; Yes = $true; After = "'repo', 'user:email'"; Warn = 0; Calls = 'ask auth refresh -h github.com -s user:email' },
+    @{ Name = 'interativo, o refresh nao deu = aviso'; Mode = 'install'; Inter = $true; Yes = $true; After = "'repo'"; Warn = 1; Calls = 'ask auth refresh -h github.com -s user:email' },
+    @{ Name = 'interativo, nao = aviso'; Mode = 'install'; Inter = $true; Yes = $false; After = "'user:email'"; Warn = 1; Calls = 'ask' }
+  ) {
+    $script:Cur = '6'; $script:Mode = $Mode; $script:Sim = $false; $script:GhScopeAsked = $false; $script:TmoGh = 5
+    $script:Calls = @(); $script:Yes = $Yes; $script:After = $After; $script:Inter = $Inter
+    Mock Test-WsInteractive { return $script:Inter }
+    Mock Read-WsYesNo { $script:Calls += 'ask'; return $script:Yes }
+    Mock Clear-WsTypeAhead { }
+    Mock Invoke-WsLogin { $script:Calls += ($Arguments -join ' ') }
+    Mock Invoke-WsProcess { return @{ ExitCode = 0; StdOut = ("github.com`n  X Logged in to github.com account a (keyring)`n  - Token scopes: " + $script:After + "`n"); StdErr = '' } }
+    $null = Test-WsStep6Scope 'gh' "github.com`n  X Logged in to github.com account a (keyring)`n  - Token scopes: 'repo'`n"
+    ($script:Calls -join ' ') | Should -BeExactly $Calls
+    @($script:T['6'].Avisos).Count | Should -Be $Warn
+    if ($Warn) { ($script:T['6'].Avisos[0] -join '|') | Should -BeExactly 'E-TEL-03|gh auth refresh -h github.com -s user:email' }
+    [bool]$script:GhScopeWarn | Should -Be ([bool]$Warn)
+  }
+
+  It 'passo 6: o login pede o scope user:email' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "@\('auth', 'login', '--hostname', 'github\.com', '--git-protocol', 'https', '--web', '--scopes', 'user:email'\)"
+  }
+
+  Context 'Install-WsStep8 e Test-WsStep8 (sala e registo no painel)' {
     BeforeAll {
-      $script:SaveT = $env:WORKSHOP_TELEMETRY; $script:SaveR = $env:WORKSHOP_ROOM
+      $script:SaveR = $env:WORKSHOP_ROOM
+      function Set-Cfg8([string]$Text) {
+        New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), $Text)
+      }
     }
     AfterAll {
-      $env:WORKSHOP_TELEMETRY = $script:SaveT; $env:WORKSHOP_ROOM = $script:SaveR
+      $env:WORKSHOP_ROOM = $script:SaveR
     }
     BeforeEach {
       $script:UserHome = Join-Path $TestDrive 'perfil8'
@@ -3895,93 +3925,150 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
       $script:KitSrc = Join-Path $TestDrive 'kit8'
       New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'telemetry') -Force | Out-Null
       Remove-Item -LiteralPath (Join-Path $script:WsHome 'telemetry') -Recurse -Force -ErrorAction SilentlyContinue
+      New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'kit/telemetry') -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $script:WsHome 'kit/telemetry/ctl.mjs'), '')
       $script:Cur = '8'; $script:Mode = 'install'; $script:Sim = $false; $script:SubstSl = $false; $script:Lang = 'en'; $script:LangKit = 'en'
-      $env:WORKSHOP_TELEMETRY = ''; $env:WORKSHOP_ROOM = ''
-      $script:IuExtra = @()
+      $script:S8RoomPicked = ''; $script:GhScopeWarn = $false; $script:GhExe = (Join-Path (Join-Path $TestDrive 'ghbin') 'gh.exe'); $script:NodeExe = 'node-do-kit'
+      $env:WORKSHOP_ROOM = ''
+      $script:IuExtra = @(); $script:Ctl = @(); $script:CtlExit = 0
       Mock Initialize-WsKit { return $true }
       Mock Sync-WsExtras { }
       Mock Test-WsClaudeConfigDir { }
       Mock Invoke-WsInstallUser { $script:IuExtra = @($Extra); return @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`n" } }
       Mock Test-WsInteractive { return $false }
-      Mock Read-WsParticipation { $script:Asked += 'yn'; return $false }
+      Mock Read-WsRoom { $script:Asked += 'room'; return 'b' }
+      # O ctl.mjs falso: sai com $script:CtlExit; com 0 grava o participante como o verdadeiro.
+      Mock Invoke-WsProcess {
+        $script:Ctl += , @($FilePath, ($Arguments -join ' '), [string]$Environment['WORKSHOP_GH'], [string]$Environment['PATH'])
+        if ($script:CtlExit -eq 0) {
+          $f = Join-Path $script:WsHome 'telemetry/config.json'
+          $j = [IO.File]::ReadAllText($f) | ConvertFrom-Json
+          $room = $Arguments[2]
+          [IO.File]::WriteAllText($f, ('{"v":1,"enabled":true,"room":"' + $room + '","panel_url":"' + $j.panel_url + '","participant":{"p":"' + ('ab' * 16) + '","name":"ana-silva"}}'))
+        }
+        return @{ ExitCode = $script:CtlExit; StdOut = ''; StdErr = '' }
+      }
+      Set-Cfg8 '{"v":1,"room":null,"email_domain":"checkmarx.com","panel_url":"https://panel.example.test"}'
     }
-    It 'on com sala: --projects-dir, --telemetry on --room B e a nota' {
-      $env:WORKSHOP_TELEMETRY = 'on'; $env:WORKSHOP_ROOM = 'b'
+    It 'WORKSHOP_ROOM=b: --projects-dir e --room B, o registo com o gh do passo 6 e a nota com o nome' {
+      $env:WORKSHOP_ROOM = 'b'
       Install-WsStep8 | Should -BeTrue
-      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|on|--room|B')
-      $script:T['8'].Notas | Should -Contain 'Workshop panel: on (room B).'
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--room|B')
+      $script:Ctl.Count | Should -Be 1
+      $script:Ctl[0][0] | Should -BeExactly 'node-do-kit'
+      $script:Ctl[0][1] | Should -BeExactly ((Join-Path $script:WsHome 'kit\telemetry\ctl.mjs') + ' register B')
+      $script:Ctl[0][2] | Should -BeExactly $script:GhExe
+      $script:Ctl[0][3].StartsWith((Split-Path $script:GhExe -Parent) + ';') | Should -BeTrue
+      $script:T['8'].Notas | Should -Contain 'Workshop panel: registered as ana-silva (room B).'
+      @($script:T['8'].Avisos).Count | Should -Be 0
     }
-    It 'sem consola nem variaveis: --telemetry off, sem pergunta, e a nota com o comando para a ligar' {
-      Install-WsStep8 | Should -BeTrue
-      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
-      $script:Asked.Count | Should -Be 0
-      $script:T['8'].Notas | Should -Contain 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)'
-    }
-    It 'interativo e nao: --telemetry off' {
+    It 'interativo e sem sala gravada: pergunta a sala (uma vez)' {
       Mock Test-WsInteractive { return $true }
       Install-WsStep8 | Should -BeTrue
-      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
-      ($script:Asked -join ' ') | Should -BeExactly 'yn'
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--room|B')
+      $null = Initialize-WsStep8Room
+      ($script:Asked -join ' ') | Should -BeExactly 'room'
     }
-    It '-Yes nunca liga a participacao nem pergunta' {
+    It 'sem consola nem sala: A' {
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--room|A')
+      $script:Ctl[0][1] | Should -Match ' register A$'
+    }
+    It '-Yes nunca pergunta (A)' {
       Mock Test-WsInteractive { return $true }
       $script:Sim = $true
       Install-WsStep8 | Should -BeTrue
-      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--room|A')
       $script:Asked.Count | Should -Be 0
     }
-    It 'config.json existente: so --projects-dir, e a nota com o comando para a ver' {
-      New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
-      [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
-      $env:WORKSHOP_TELEMETRY = 'on'; $env:WORKSHOP_ROOM = 'A'
+    It 'ja registado na sala: sem pedido ao painel, so a nota' {
+      Set-Cfg8 ('{"v":1,"enabled":true,"room":"A","panel_url":"https://panel.example.test","participant":{"p":"' + ('cd' * 16) + '","name":"ze"}}')
       Install-WsStep8 | Should -BeTrue
-      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj)
-      $script:T['8'].Notas | Should -Contain 'Workshop panel: as you chose before. To see it: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs status'
+      $script:Ctl.Count | Should -Be 0
+      $script:T['8'].Notas | Should -Contain 'Workshop panel: registered as ze (room A).'
     }
-    It 'a nota diz o estado real (a linha "painel" do instalar), tambem quando ficou a escolha de antes: <Painel>' -ForEach @(
-      @{ Painel = 'on A'; Cfg = $true; T = ''; R = ''; Want = 'Workshop panel: on (room A).' },
-      @{ Painel = 'off'; Cfg = $true; T = ''; R = ''; Want = 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)' },
-      @{ Painel = 'on B'; Cfg = $false; T = 'on'; R = 'b'; Want = 'Workshop panel: on (room B).' },
-      @{ Painel = 'off'; Cfg = $false; T = 'on'; R = 'b'; Want = 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)' }
+    It 'registado noutra sala (WORKSHOP_ROOM): regista outra vez' {
+      Set-Cfg8 ('{"v":1,"enabled":true,"room":"A","panel_url":"https://panel.example.test","participant":{"p":"' + ('cd' * 16) + '","name":"x"}}')
+      $env:WORKSHOP_ROOM = 'B'
+      Install-WsStep8 | Should -BeTrue
+      $script:Ctl[0][1] | Should -Match ' register B$'
+    }
+    It 'o resultado do registo: <Exit>' -ForEach @(
+      @{ Exit = 3; Warn = 'E-TEL-02|@checkmarx.com'; Note = '' },
+      @{ Exit = 4; Warn = 'E-TEL-03|gh auth refresh -h github.com -s user:email'; Note = '' },
+      @{ Exit = 5; Warn = 'E-TEL-01|https://panel.example.test/ - register'; Note = '' },
+      @{ Exit = -2; Warn = 'E-TEL-01|https://panel.example.test/ - register'; Note = '' },
+      @{ Exit = 1; Warn = ''; Note = '' },
+      @{ Exit = 2; Warn = ''; Note = '' }
     ) {
-      if ($Cfg) {
-        New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
-        [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
-      }
-      $env:WORKSHOP_TELEMETRY = $T; $env:WORKSHOP_ROOM = $R
-      $script:IuOut = "skills`t7`nagentes`t6`npainel`t" + $Painel + "`n"
-      Mock Invoke-WsInstallUser { $script:IuExtra = @($Extra); return @{ ExitCode = 0; StdOut = $script:IuOut } }
+      $script:CtlExit = $Exit
       Install-WsStep8 | Should -BeTrue
-      $script:T['8'].Notas | Should -Contain $Want
-      @($script:T['8'].Notas | Where-Object { $_ -match 'as you chose before' }).Count | Should -Be 0
-      $script:S8Panel | Should -BeExactly $Painel
+      @($script:T['8'].Avisos | ForEach-Object { $_ -join '|' }) -join ' ; ' | Should -BeExactly $Warn
+      @($script:T['8'].Notas | Where-Object { $_ -match 'Workshop panel' }).Count | Should -Be 0
+      $script:T['8'].Falha | Should -BeNullOrEmpty
     }
-    It 'Read-WsInstallUserOutput: sem linha painel o S8Panel fica vazio' {
-      $script:S8Panel = 'velho'
-      Read-WsInstallUserOutput "skills`t7`n"
-      $script:S8Panel | Should -BeExactly ''
+    It 'o resultado 4 com o aviso do passo 6: so uma nota' {
+      $script:CtlExit = 4; $script:GhScopeWarn = $true
+      Install-WsStep8 | Should -BeTrue
+      @($script:T['8'].Avisos).Count | Should -Be 0
+      ($script:T['8'].Notas -join ' ') | Should -Match ([regex]::Escape('Workshop panel: not registered yet. Fix the GitHub warning of step 6, then run the setup again (or node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A).'))
     }
-    It 'kit sem a pasta telemetry: sem pergunta, sem flags da participacao e sem nota' {
+    It 'Set-WsStep8RegisterResult: dominio do config.json e sem panel_url' {
+      Set-WsStep8RegisterResult 3 ([pscustomobject]@{ email_domain = 'acme.example' }) 'A'
+      ($script:T['8'].Avisos[0] -join '|') | Should -BeExactly 'E-TEL-02|@acme.example'
+      $script:T = New-WsStateTable
+      Set-WsStep8RegisterResult 5 ([pscustomobject]@{ panel_url = ' ' }) 'A'
+      @($script:T['8'].Avisos).Count | Should -Be 0
+    }
+    It 'kit sem a pasta telemetry: sem sala, sem registo e sem nota' {
       Mock Test-WsInteractive { return $true }
       $script:KitSrc = Join-Path $TestDrive 'kit8-velho'
       New-Item -ItemType Directory -Path $script:KitSrc -Force | Out-Null
       Install-WsStep8 | Should -BeTrue
       ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj)
       $script:Asked.Count | Should -Be 0
+      $script:Ctl.Count | Should -Be 0
       @($script:T['8'].Notas | Where-Object { $_ -match 'Workshop panel' }).Count | Should -Be 0
     }
-    It 'Test-WsStep8: sem config.json (num kit com telemetria) instala, so no modo install' {
+    It 'Test-WsStep8: sem config.json ou com outra sala instala (so no modo install); a mesma sala, so o registo' {
+      Remove-Item -LiteralPath (Join-Path $script:WsHome 'telemetry') -Recurse -Force
       Test-WsStep8 | Should -BeFalse
       $script:Mode = 'check'; $script:T = New-WsStateTable
       Test-WsStep8 | Should -BeTrue
-      $script:Mode = 'install'; $script:T = New-WsStateTable
-      New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
-      [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
+      $script:Mode = 'install'; $script:T = New-WsStateTable; $script:S8RoomPicked = ''
+      Set-Cfg8 '{"v":1,"room":"A","panel_url":"https://panel.example.test"}'
       Test-WsStep8 | Should -BeTrue
+      $script:Ctl[0][1] | Should -Match ' register A$'
+      $env:WORKSHOP_ROOM = 'B'; $script:T = New-WsStateTable; $script:S8RoomPicked = ''
+      Test-WsStep8 | Should -BeFalse
+    }
+    It 'Test-WsStep8Register (-Check): <Name>' -ForEach @(
+      @{ Name = 'sem registo = E-TEL-04 com a sala'; Cfg = '{"v":1,"room":"B","expires_at":"2099-01-01T00:00:00.000Z","participant":null}'; Mode = 'check'; Want = 'E-TEL-04|node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register B' },
+      @{ Name = 'sem sala = o comando com A'; Cfg = '{"v":1,"room":null}'; Mode = 'doctor'; Want = 'E-TEL-04|node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A' },
+      @{ Name = 'registado = nada'; Cfg = '{"v":1,"room":"B","participant":{"p":"0123456789abcdef0123456789abcdef","name":"x"}}'; Mode = 'check'; Want = '' },
+      @{ Name = 'config expirada = nada'; Cfg = '{"v":1,"room":"B","expires_at":"2020-01-01T00:00:00.000Z"}'; Mode = 'check'; Want = '' },
+      @{ Name = 'o install nao usa o aviso do -Check'; Cfg = '{"v":1,"room":"B"}'; Mode = 'install'; Want = '' }
+    ) {
+      $script:Mode = $Mode
+      Set-Cfg8 $Cfg
+      Test-WsStep8Register
+      @($script:T['8'].Avisos | ForEach-Object { $_ -join '|' }) -join ' ; ' | Should -BeExactly $Want
+    }
+    It 'Read-WsInstallUserOutput: sem linha painel o S8Panel fica vazio' {
+      $script:S8Panel = 'velho'
+      Read-WsInstallUserOutput "skills`t7`n"
+      $script:S8Panel | Should -BeExactly ''
+      Read-WsInstallUserOutput "skills`t7`npainel`ton B`n"
+      $script:S8Panel | Should -BeExactly 'on B'
     }
     It 'Get-WsInstallUserArgs junta o -Extra no fim' {
-      (Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -Extra @('--projects-dir', 'C:\p', '--telemetry', 'off')) -join '|' | Should -Match '\|instalar\|--node\|n\|--kit-src\|k\|--projects-dir\|C:\\p\|--telemetry\|off$'
+      (Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -Extra @('--projects-dir', 'C:\p', '--room', 'B')) -join '|' | Should -Match '\|instalar\|--node\|n\|--kit-src\|k\|--projects-dir\|C:\\p\|--room\|B$'
       (Get-WsInstallUserArgs -Sub 'verificar' -NodePath 'n' -KitSrc 'k').Count | Should -Be 6
+    }
+    It 'o setup ja nao tem a pergunta da participacao nem o --telemetry' {
+      $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+      $text | Should -Not -Match 'Get-WsParticipationArgs|Read-WsParticipation|--telemetry'
+      $script:Msgs.ui.PSObject.Properties.Name | Should -Not -Contain 's8_painel_pergunta'
     }
   }
 
@@ -4054,8 +4141,11 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
 
 Describe 'o painel no -Check (passo 8) e o check_ok no fim' {
   BeforeAll {
+    # Como o install-user o escreve: enabled = registado (com o participante).
     function New-TelConfig([string]$Enabled, [string]$Url, [string]$Exp, [string]$Room = 'B') {
-      return ("{`n  ""v"": 1,`n  ""enabled"": $Enabled,`n  ""room"": ""$Room"",`n  ""workshop"": ""dev"",`n  ""panel_url"": ""$Url"",`n  ""expires_at"": ""$Exp""`n}`n")
+      $part = 'null'
+      if ($Enabled -eq 'true') { $part = '{ "p": "0123456789abcdef0123456789abcdef", "credential": "c", "name": "ana" }' }
+      return ("{`n  ""v"": 1,`n  ""enabled"": $Enabled,`n  ""room"": ""$Room"",`n  ""workshop"": ""dev"",`n  ""panel_url"": ""$Url"",`n  ""expires_at"": ""$Exp"",`n  ""participant"": $part`n}`n")
     }
     function Set-TelConfig([string]$Text) { [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), $Text) }
   }
@@ -4360,5 +4450,142 @@ Describe 'Projeto 1 (WORKSHOP_P1) no passo 9' {
       $cat.erros.'E-DEMO-06'.windows[0] | Should -Match 'Rename-Item \{PROJETOS\}\\canivete-project canivete-project-old'
       $cat.ui.PSObject.Properties.Name | Should -Not -Contain 's9_ja'
     }
+  }
+}
+
+# A escolha do Projeto 1 gravada ao instalar (extra "opcao p1"): o -Check sem WORKSHOP_P1 ve o Projeto 1 instalado.
+Describe 'Projeto 1 gravado no manifest (passo 9)' {
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Cur = '9'
+    $script:WsHome = Join-Path $TestDrive ('p1save-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    $script:KitSrc = Join-Path $TestDrive 'p1save-kit'
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-canivete.mjs'), '')
+    $script:KeepP1 = $env:WORKSHOP_P1
+    Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue
+  }
+  AfterEach {
+    if ($null -eq $script:KeepP1) { Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue } else { $env:WORKSHOP_P1 = $script:KeepP1 }
+    $script:P1 = 'arena'; $script:P1Ignored = ''
+  }
+
+  It 'Get-WsP1Saved: o que esta por registar, depois o manifest; so canivete ou arena' {
+    Get-WsP1Saved | Should -BeExactly ''
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'manifest.json'), '{"v":1,"extras":[{"tipo":"projeto","nome":"x","caminho":"/x"},{"tipo":"opcao","nome":"p1","valor":"arena"}]}')
+    Get-WsP1Saved | Should -BeExactly 'arena'
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'extras-pendentes.tsv'), "opcao`tp1`t`tcanivete`t`n")
+    Get-WsP1Saved | Should -BeExactly 'canivete'
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'extras-pendentes.tsv'), "opcao`tp1`t`txpto`t`n")
+    Get-WsP1Saved | Should -BeExactly ''
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'extras-pendentes.tsv'), '')
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'manifest.json'), '{nao e json')
+    Get-WsP1Saved | Should -BeExactly ''
+  }
+
+  It 'Initialize-WsP1: <Name>' -ForEach @(
+    @{ Name = '-Check sem WORKSHOP_P1 = a escolha gravada'; Mode = 'check'; V = $null; Want = 'arena' },
+    @{ Name = '-Doctor sem WORKSHOP_P1 = a escolha gravada'; Mode = 'doctor'; V = ''; Want = 'arena' },
+    @{ Name = '-Check com WORKSHOP_P1 = a variavel'; Mode = 'check'; V = 'canivete'; Want = 'canivete' },
+    @{ Name = 'a instalar sem WORKSHOP_P1 = o Canivete (A4)'; Mode = 'install'; V = $null; Want = 'canivete' }
+  ) {
+    [IO.File]::WriteAllText((Join-Path $script:WsHome 'manifest.json'), '{"v":1,"extras":[{"tipo":"opcao","nome":"p1","valor":"arena"}]}')
+    $script:Mode = $Mode
+    if ($null -ne $V) { $env:WORKSHOP_P1 = $V }
+    Initialize-WsP1
+    $script:P1 | Should -BeExactly $Want
+  }
+
+  It 'Save-WsP1: so ao instalar e so nos kits com o Canivete' {
+    $script:Reg = @()
+    Mock Register-WsExtra { $script:Reg += ($Tipo + ' ' + $Nome + ' [' + $Caminho + '] ' + $Valor) }
+    $script:P1 = 'arena'
+    $script:Mode = 'check'; Save-WsP1
+    $script:Mode = 'install'; Save-WsP1
+    $script:Reg | Should -Be @('opcao p1 [] arena')
+    Remove-Item -LiteralPath (Join-Path $script:KitSrc 'installer/assemble-canivete.mjs')
+    Save-WsP1
+    $script:Reg.Count | Should -Be 1
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match '\$null = Save-WsP1'
+  }
+}
+
+# -Cleanup (D-34): a lista do install-user limpar --dry-run, a confirmacao e a limpeza a serio.
+Describe '-Cleanup' {
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:UserHome = Join-Path $TestDrive 'perfil-limpar'
+    $script:WsHome = Join-Path $script:UserHome '.workshop-claude'
+    $script:Proj = Join-Path $script:UserHome 'workshop-claude'
+    New-Item -ItemType Directory -Path $script:WsHome -Force | Out-Null
+    $script:KitSrc = Join-Path $TestDrive 'kit-limpar'
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/install-user.mjs'), '')
+    $script:NodeExe = (Join-Path $script:KitSrc 'installer/install-user.mjs')
+    $script:Mode = 'cleanup'; $script:Sim = $false
+    $script:Said = @(); $script:Calls = @()
+    $p = $script:Proj -replace '\\', '/'
+    $w = $script:WsHome -replace '\\', '/'
+    $h = $script:UserHome -replace '\\', '/'
+    $script:DryOut = "dry_run`t1`nremovido`t$p/missions-project`tprojeto`nbackup`t$p/canivete-project`t$w/backup/t/projects/canivete-project`tprojeto`nremovido`t$w/telemetry`ttelemetria`nbackup`t$h/.agent-memory/canivete`t$w/backup/t/memory/agent-memory/canivete`tmemoria`nmantido`t$p/practice-project`n"
+    $script:RealOut = ($script:DryOut -replace "dry_run`t1`n", '') + "pasta_backup`t$w/backup/t`n"
+    Mock Test-WsStep4 { return $true }
+    Mock Initialize-WsKit { return $true }
+    Mock Write-WsSay { $script:Said += $Text }
+    Mock Invoke-WsProcess {
+      $script:Calls += ($Arguments -join ' ')
+      if ($Arguments -contains '--dry-run') { return @{ ExitCode = 0; StdOut = $script:DryOut; StdErr = '' } }
+      return @{ ExitCode = 0; StdOut = $script:RealOut; StdErr = '' }
+    }
+  }
+
+  It 'sem confirmacao: so a lista (o que e cada coisa), nada muda' {
+    Mock Read-WsYesNo { return $false }
+    Invoke-WsCleanup | Should -Be 0
+    $script:Calls.Count | Should -Be 1
+    $script:Calls[0] | Should -Match ' limpar --dry-run --projects-dir '
+    $all = $script:Said -join "`n"
+    $all | Should -Match ([regex]::Escape('This is what the cleanup will do:'))
+    $all | Should -Match ([regex]::Escape("delete (untouched, only the kit's copy): %USERPROFILE%\workshop-claude\missions-project"))
+    $all | Should -Match ([regex]::Escape('move to the backup (it has your work): %USERPROFILE%\workshop-claude\canivete-project'))
+    $all | Should -Match ([regex]::Escape('delete the mission book and the panel registration: %USERPROFILE%\.workshop-claude\telemetry'))
+    $all | Should -Match ([regex]::Escape('move the Agent Memory notes of this exercise to the backup: %USERPROFILE%\.agent-memory\canivete'))
+    $all | Should -Match ([regex]::Escape('keep: %USERPROFILE%\workshop-claude\practice-project'))
+    $all | Should -Match ([regex]::Escape('Nothing was changed.'))
+  }
+
+  It 'com -Yes (ou sim): limpa a serio e diz o que fez' {
+    Mock Read-WsYesNo { return $true }
+    Invoke-WsCleanup | Should -Be 0
+    $script:Calls.Count | Should -Be 2
+    $script:Calls[1] | Should -Match ' limpar --projects-dir '
+    $script:Calls[1] | Should -Not -Match 'dry-run'
+    $all = $script:Said -join "`n"
+    $all | Should -Match ([regex]::Escape('Deleted: %USERPROFILE%\workshop-claude\missions-project'))
+    $all | Should -Match ([regex]::Escape('Moved to the backup: %USERPROFILE%\workshop-claude\canivete-project -> %USERPROFILE%\.workshop-claude\backup\t\projects\canivete-project'))
+    $all | Should -Match ([regex]::Escape('Cleanup complete.'))
+    @($script:Said | Where-Object { $_ -match 'keep:' }).Count | Should -Be 1
+  }
+
+  It 'nada para limpar; um erro do install-user = incompleto (1)' {
+    $script:DryOut = "dry_run`t1`nmantido`t/x/practice-project`nnada`t1`n"
+    Mock Read-WsYesNo { throw 'nao devia perguntar' }
+    Invoke-WsCleanup | Should -Be 0
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape('Nothing to clean up'))
+    Mock Invoke-WsProcess { return @{ ExitCode = 2; StdOut = ''; StdErr = 'usage' } }
+    $script:Said = @()
+    Invoke-WsCleanup | Should -Be 1
+    ($script:Said -join "`n") | Should -Match ([regex]::Escape('The cleanup stopped before the end'))
+  }
+
+  It 'o parametro -Cleanup (alias -Limpar) e o modo cleanup' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "\[Alias\('Limpar'\)\]\[switch\]\`$Cleanup"
+    $text | Should -Match "if \(\`$o\.Limpar\) \{ \`$script:Mode = 'cleanup' \}"
+    (Get-WsSelfArgs @{ Limpar = $true; Sim = $true }) -join ' ' | Should -BeExactly '-Cleanup -Yes'
   }
 }
