@@ -70,7 +70,7 @@ To repeat only part of it, use `--only` with the phase numbers, for example `--o
 | 2. Setup | `--install` runs the real setup; `--check` always runs afterwards. Uses the release script if phase 5 downloaded it | only with `--install` (in your profile, as a participant) | — | 3 to 15 min |
 | 3. Accounts | Login and a test request to Claude; `gh` on the company server and the permission on the repository; the Jira MCP answering; `acli` logged in, reading the issue and the page (measures the size in `storage` and `view`); the Agent Memory app and its MCP | no | ~US$ 0.01 | 1 min |
 | 4. Project 2 | `/task-intake <issue>` in a copy of the practice project, first through the MCP and then with the MCP turned off, to force the use of `acli`. Checks `.workshop/task.json` (`source`, `id`, `epic`, `via`) and the Confluence section | only in the test folder | ~US$ 0.15 to 0.30 | 2 to 4 min |
-| 6. Arena | Only with `--arena`: the full participant session (`/demo-plan` → `/demo-swarm` → `/demo-review` → `/demo-cost`) | only in the test folder | ~US$ 1 | ~5 min |
+| 6. Arena | Only with `--arena`: the full participant session (own card, `/demo-plan` → `/demo-swarm` → `--retry` of the 4 broken cards → `/demo-review` → `/demo-cost`) | only in the test folder | ~US$ 4.5 | ~15 min |
 | 7. Write | Only with `--write`: posts 1 test comment on the issue with `acli`, after your "yes" | **yes**, 1 comment | — | seconds |
 
 The actual order is 1, 5, 2, 3, 4, 6, 7, because phase 5 downloads the setup that phase 2 uses.

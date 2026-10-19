@@ -316,8 +316,8 @@ p4_project2() { # jira
 # ---------------------------------------------------------------- 6. Arena
 p6_arena() {
   title 6 "Project 1: full Arena session (participant)"
-  printf '  %sAbout 5 minutes and US$ 1.%s\n' "$C_D" "$C_0"
-  if BENCH_CSV="$OUT/arena.csv" BENCH_REPORT="$OUT/arena.md" tm 2400 bash "$KIT/benchmark/run-benchmark.sh" --n 1 --sem-isolamento > "$LOGS/6-arena.log" 2>&1 && [ -s "$OUT/arena.csv" ]; then
+  printf '  %sAbout 15 minutes and US$ 4.5 (101 cards, the 4 broken cards fixed and retried).%s\n' "$C_D" "$C_0"
+  if BENCH_CSV="$OUT/arena.csv" BENCH_REPORT="$OUT/arena.md" tm 2400 bash "$KIT/benchmark/run-benchmark.sh" --scope p1 --n 1 --sem-isolamento > "$LOGS/6-arena.log" 2>&1 && [ -s "$OUT/arena.csv" ]; then
     local l; l=$(tail -1 "$OUT/arena.csv")
     if [ -n "$NODE" ]; then
       l=$("$NODE" -e 'const [h,v]=require("fs").readFileSync(process.argv[1],"utf8").trim().split("\n").filter((x,i,a)=>i===0||i===a.length-1).map(x=>x.split(","));const o=Object.fromEntries(h.map((k,i)=>[k,v[i]]));console.log(Object.entries(o).filter(([k])=>/duracao|custo_total|agentes|verdes|testes_pass|gate/.test(k)).map(([k,x])=>k+"="+x).join(" "))' "$OUT/arena.csv")

@@ -1,8 +1,10 @@
 # Benchmark de custo e tempo
 
-Gerado em 2026-10-16 17:02 a partir de `benchmark/results.csv`. O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13).
+Gerado em 2026-10-19 11:09 a partir de `benchmark/results.csv` (`benchmark/run-benchmark.sh`). O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13). Alvo por participante: US$ 5,00; teto: US$ 10,00 (nunca se corta por custo, só há avisos).
 
-## Modo participante (16 execuções)
+## Execuções anteriores (só o Projeto 1, antes da v1.0.0-rc.4; D-16)
+
+### Modo participante (16 execuções)
 
 | métrica | mínimo | média | máximo | desvio padrão |
 |---|---|---|---|---|
@@ -15,7 +17,6 @@ Gerado em 2026-10-16 17:02 a partir de `benchmark/results.csv`. O custo é medid
 | custo segundo o Claude Code | US$ 2,24 | US$ 2,45 | US$ 2,68 | US$ 0,10 |
 
 Execuções com sucesso (testes verdes e sem erros): **16/16**.
-Critério de aceitação (todas com sucesso, ≤ 20 min, custo máximo ≤ US$ 10, média idealmente ≤ US$ 5): **CUMPRIDO**.
 
 | execução | duração | custo | Haiku | Sonnet | Opus | agentes | verdes | testes | veredito | gate | negações |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -36,7 +37,7 @@ Critério de aceitação (todas com sucesso, ≤ 20 min, custo máximo ≤ US$ 1
 | 20261016-175411-participante-2 | 4,0 min | US$ 1,01 | US$ 0,0293 | US$ 0,65 | US$ 0,33 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
 | 20261016-175811-participante-3 | 4,2 min | US$ 1,05 | US$ 0,0290 | US$ 0,70 | US$ 0,33 | 22 | 20 | 167/167 | aprovado_com_reservas | aprovado | 0 |
 
-## Modo apresentador (3 execuções)
+### Modo apresentador (3 execuções)
 
 | métrica | mínimo | média | máximo | desvio padrão |
 |---|---|---|---|---|
