@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Gera slides/workshop.pptx + speaker-notes.md (pt) e slides/workshop.en.pptx + speaker-notes.en.md (en). Ferramenta do organizador, nao do participante.",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "build:v2": "node build-v2.mjs --png"
   },
   "devDependencies": {
     "lucide-static": "1.48.0",

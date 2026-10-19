@@ -91,9 +91,12 @@ cp "$ROOT/telemetry/allowlist.json" "$OUT/allowlist.json"
 mkdir -p "$OUT/replays"
 cp "$ROOT"/panel/replays/*.jsonl "$OUT/replays/" 2>/dev/null || true
 printf '{"api":"%s"}\n' "$API" > "$OUT/config.json"
+# No frame-ancestors: the stage (slides/palco.html, opened from the presenter's disk) shows the page in an iframe,
+# and a file:// page matches no frame-ancestors source. The page has nothing to click that needs protecting (the
+# admin token is typed by the presenter in the address, never sent by the page to anyone but the Worker).
 cat > "$OUT/_headers" <<EOF
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' $origin; base-uri 'none'; form-action 'none'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' $origin; base-uri 'none'; form-action 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
 EOF

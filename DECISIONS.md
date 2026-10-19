@@ -639,3 +639,21 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - **Um marcador sem valor é um erro na montagem**, para nenhum agente chegar ao participante com `{{…}}`.
 - **Fica igual:** o frontmatter (`model`, `tools`, `permissionMode`, `maxTurns`); nenhum agente muda a spec nem o teste de uma ferramenta ou de um cartão; o `FAILED <id>: the spec does not decide the answer` quando o teste diz que a spec não decide; e a Arena continua a funcionar (os seus agentes instalados dizem o mesmo que antes, com `cards/…`). O exemplo do `memory-extractor` deixou de falar de cartões.
 - **Testes:** `tools/test/project-agents.test.mjs` (os agentes preenchidos para os dois projetos, sem marcadores, sem nomes do outro projeto, com o frontmatter e a regra da spec e do teste; e os erros de um `workshop.project.json` incompleto); o `canivete.test.mjs` confirma que os agentes instalados no Canivete não falam da Arena nem de cartões; o `assemble-demo.test.mjs` confirma os da Arena.
+
+## D-36 · Workshop v2, Fase 5: o deck v2 e o palco (19 out. 2026)
+
+- **Pedido do organizador:** avançar com a Fase 5 antes da 4 e garantir a apresentação atualizada em pt e en.
+- **O deck** segue a secção 8 da especificação:
+  - 29 slides em 1280 × 1080 (13,333 × 11,25 pol.), 90 min: Abertura 8, Missões 15, Projeto 1 24, Projeto 2 40, Fecho 3;
+  - cada slide tem uma fase do painel (`opening`, `missions`, `p1`, `p2`, `closing`) e um tipo da secção 2.2 (Faz agora, Missão, Decide, Prevê, Painel); só 3 são exceções (título, regras, perguntas);
+  - corpo ≥ 24 pt e código ≥ 20 pt: o `build-v2.mjs` avisa abaixo disso;
+  - a identidade da Checkmarx: os fundos do modelo cortados para 1280 × 1080 (a parte da direita, onde está o motivo), as cores e as letras do deck atual;
+  - sem salas (D-34) e com o apagamento à meia-noite no slide das regras.
+- **Ficheiros:** `slides/content-v2.mjs` e `content-v2.en.mjs`, com a mesma forma (o teste `tools/test/slides-v2.test.mjs` verifica-o); `slides/build-v2.mjs`; saídas `workshop-v2.pptx`, `workshop-v2.en.pptx`, `speaker-notes-v2.md`, `speaker-notes-v2.en.md` e `palco.html`. O deck v1 da Arena fica como alternativa.
+- **Desvios da especificação, com a razão:**
+  - um gerador próprio (`build-v2.mjs`) em vez de mudar o `build.mjs`: o v1 continua a gerar-se igual, e as duas grelhas (16:9 e 1280 × 1080) não partilham coordenadas;
+  - as imagens do palco vêm do LibreOffice (local ou numa imagem Docker, `slides/libreoffice/`) e do `pdftoppm`: nesta máquina não há PowerPoint nem LibreOffice, e o organizador recusou o controlo do Keynote. Sem imagens, o palco desenha cada slide em HTML a partir do mesmo conteúdo;
+  - o palco chama `/admin/phase` (o nome da API, D-30) e não `/admin/fase`; aceita `?notas=1` e `?notes=1`;
+  - a página do painel nas Pages deixa de ter `frame-ancestors 'self'`: um `palco.html` aberto do disco é `file://` e nenhuma origem o deixava mostrar o painel num iframe. É preciso voltar a publicar a página (`tools/deploy-panel.sh`).
+- **Depende da Fase 4:** o slide 26 diz que o `/task-report` escreve `report.md` no projeto de treino, o que só acontece com a Fase 4; e o funil do Projeto 2 no painel só se enche com os eventos `p2_*`.
+- **Notas do apresentador** pela ordem da secção 8.4: objetivo, o que dizer (≤ 3 frases), olha para o painel (frases condicionais), falhas típicas com o comando, e o relógio.

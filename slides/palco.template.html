@@ -1,0 +1,167 @@
+<!doctype html>
+<!-- O palco do deck v2 (docs/pt/WORKSHOP-V2-SPEC.md, seccao 8.1). GERADO por build-v2.mjs a partir deste modelo:
+     editar o modelo (palco.template.html), nunca o palco.html.
+       palco.html[?lang=pt|en]#admin=<token>   os slides a esquerda (1280 x 1080) e o painel a direita (640 x 1080)
+       palco.html?notas=1 (ou ?notes=1)         as notas do apresentador, numa segunda janela (BroadcastChannel)
+     Setas, espaco e PageUp/PageDown mudam de slide; N abre as notas; F ecra inteiro. Quando a fase do slide muda,
+     o palco chama POST <PANEL_URL>/admin/phase com o token de admin (guardado so neste browser). -->
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palco do workshop</title>
+<style>
+  :root { --bg: #F4EFFE; --surface: #FFFFFF; --ink: #140920; --muted: #4A405A; --accent: #6B34FD; --laranja: #F25928; --lilas: #93A7FF; --escuro: #140920; --escuro-ink: #FCF9FE; --escuro-muted: #B9AEDB; --verde: #1E9E57; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; display: flex; }
+  #slide { width: 1280px; height: 1080px; position: relative; background: var(--bg); overflow: hidden; }
+  #slide img { width: 1280px; height: 1080px; display: block; }
+  #panel { width: 640px; height: 1080px; border: 0; background: #14101c; }
+  #status { position: fixed; left: 8px; bottom: 6px; font: 12px Arial; color: #aaa; background: rgba(0,0,0,.55); padding: 3px 8px; border-radius: 4px; }
+  /* o desenho em HTML (sem imagens exportadas): a mesma grelha do .pptx, em pixeis de 1280 x 1080 */
+  .h { position: absolute; inset: 0; padding: 43px 67px 0; }
+  .h.dark { background: var(--escuro); color: var(--escuro-ink); }
+  .tag { display: inline-block; background: var(--accent); color: #fff; font-size: 24px; padding: 8px 18px; }
+  .tag.painel { background: var(--laranja); }
+  .bloco { position: absolute; right: 67px; top: 51px; font-size: 24px; color: var(--muted); }
+  .h h1 { font-size: 46px; margin: 34px 0 28px; line-height: 1.1; }
+  .h.dark h1 { font-size: 68px; margin-top: 300px; }
+  .h.dark .sub { color: var(--laranja); font-size: 34px; }
+  .concept { background: var(--escuro); color: var(--escuro-ink); font-size: 29px; padding: 22px 28px; margin-bottom: 26px; }
+  ol.steps { font-size: 27px; margin: 0 0 22px; padding-left: 40px; line-height: 1.55; }
+  .code { background: var(--ink); color: var(--escuro-ink); font: 22px "Courier New", monospace; white-space: pre-wrap; padding: 16px 24px; margin: 0 0 16px; }
+  .code b { display: block; font: bold 20px Arial; color: var(--lilas); margin-bottom: 8px; }
+  .cue { background: var(--laranja); color: #fff; font-size: 25px; font-weight: bold; padding: 14px 22px; margin: 6px 0 16px; }
+  .expected { font-size: 25px; }
+  .expected b { color: var(--verde); }
+  .q { font-size: 54px; font-weight: bold; line-height: 1.15; margin: 40px 120px 26px 0; }
+  .support { font-size: 29px; color: var(--muted); margin-bottom: 26px; }
+  .opts { display: flex; gap: 24px; margin: 20px 0; }
+  .opt { flex: 1; background: var(--surface); padding: 24px; min-height: 360px; position: relative; }
+  .opt h3 { font-size: 34px; margin: 10px 0; }
+  .opt p { font-size: 24px; color: var(--muted); }
+  .opt .code { position: absolute; left: 16px; right: 16px; bottom: 16px; margin: 0; }
+  .stats { display: flex; gap: 22px; margin: 10px 0 30px; }
+  .stat { flex: 1; background: var(--surface); padding: 22px; font-size: 24px; color: var(--muted); }
+  .stat:first-child { background: var(--ink); color: var(--escuro-muted); }
+  .stat strong { display: block; font-size: 60px; color: var(--ink); }
+  .stat:first-child strong { color: var(--escuro-ink); }
+  ul.sees { font-size: 27px; line-height: 1.7; }
+  .arrow { position: absolute; right: 67px; top: 300px; font-size: 120px; color: var(--laranja); }
+  .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: var(--escuro); color: var(--escuro-ink); font-size: 14px; padding: 18px 67px; text-align: right; }
+  /* a janela das notas */
+  body.notas { background: #111; color: #eee; overflow: auto; }
+  .nwrap { max-width: 1000px; margin: 0 auto; padding: 24px; font-size: 20px; line-height: 1.5; }
+  .nwrap .top { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; }
+  .nwrap h2 { margin: 6px 0; font-size: 30px; }
+  .nwrap .clock { font: bold 34px "Courier New", monospace; color: #F1C232; }
+  .nwrap pre { white-space: pre-wrap; font: 20px/1.5 Arial; background: #1c1c1c; padding: 18px; border-radius: 6px; }
+  .nwrap .next { color: #aaa; }
+  .nwrap button { font-size: 20px; padding: 8px 18px; margin-right: 8px; }
+</style>
+</head>
+<body>
+<script>
+const DADOS = /*DADOS*/null;
+const q = new URLSearchParams(location.search);
+const lang = DADOS.decks[q.get('lang')] ? q.get('lang') : DADOS.decks.pt ? 'pt' : Object.keys(DADOS.decks)[0];
+const deck = DADOS.decks[lang];
+const canal = 'BroadcastChannel' in window ? new BroadcastChannel('ws-palco') : null;
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const ler = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+let atual = Math.min(Math.max(0, Number(ler(`ws-palco-${lang}`) || 0)), deck.length - 1);
+
+function desenhar(d) {
+  const tag = `<span class="tag${d.tipo === 'painel' ? ' painel' : ''}">${esc(d.rotulo)} · ${esc(String(d.min).replace('.', lang === 'pt' ? ',' : '.'))} min</span><span class="bloco">${esc(d.bloco)}</span>`;
+  const cmds = (d.comandos || []).map((c) => `<div class="code">${c.rotulo ? `<b>${esc(c.rotulo)}</b>` : ''}${esc(c.cmd)}</div>`).join('');
+  const pe = `${d.painel ? `<div class="cue">${esc(d.painel)} →</div>` : ''}${d.esperado ? `<div class="expected"><b>✔</b> ${esc(d.esperado)}</div>` : ''}`;
+  if (d.tipo === 'titulo' || d.tipo === 'perguntas') return `<div class="h dark"><h1>${esc(d.titulo)}</h1><div class="sub">${esc(d.subtitulo || '')}</div>${d.rodape ? `<p>${esc(d.rodape)}</p>` : ''}</div>`;
+  if (d.tipo === 'regras') return `<div class="h"><h1>${esc(d.titulo)}</h1><div class="stats">${d.custo.map((c) => `<div class="stat"><strong>${esc(c.valor)}</strong>${esc(c.rotulo)}</div>`).join('')}</div><ul class="sees">${d.painelVe.map((t) => `<li>${esc(t)}</li>`).join('')}</ul><div class="foot"></div></div>`;
+  if (d.tipo === 'decide') return `<div class="h">${tag}<h1>${esc(d.titulo)}</h1><div class="support"><b>${esc(d.pergunta)}</b></div><div class="opts">${d.opcoes.map((o) => `<div class="opt"><h3>${esc(o.titulo)}</h3><p>${esc(o.efeito)}</p><div class="code">${esc(o.cmd)}</div></div>`).join('')}</div><div class="support">${esc(d.rodape || '')}</div>${pe}<div class="foot"></div></div>`;
+  if (d.tipo === 'painel') return `<div class="h">${tag}<h1>${esc(d.titulo)}</h1><div class="arrow">➜</div><div class="q">${esc(d.pergunta)}</div>${d.apoio ? `<div class="support">${esc(d.apoio)}</div>` : ''}${d.ideias ? `<ol class="steps">${d.ideias.map((t) => `<li><b>${esc(t)}</b></li>`).join('')}</ol>` : ''}${cmds}<div class="foot"></div></div>`;
+  return `<div class="h">${tag}<h1>${esc(d.titulo)}</h1>${d.conceito ? `<div class="concept">💡 ${esc(d.conceito)}</div>` : ''}<ol class="steps">${(d.passos || []).map((p) => `<li>${esc(p)}</li>`).join('')}</ol>${cmds}${d.preve ? `<div class="concept">⏱ ${esc(d.preve.pergunta)}<br><small>${esc(d.preve.onde)}</small></div>` : ''}${pe}<div class="foot"></div></div>`;
+}
+
+// ---------- a janela das notas ----------
+if (q.get('notas') === '1' || q.get('notes') === '1') {
+  document.body.className = 'notas';
+  document.body.innerHTML = '<div class="nwrap"><div class="top"><div><small id="n-pos"></small><h2 id="n-title"></h2></div><div class="clock" id="n-clock">0:00</div></div><p><button id="n-prev">◀</button><button id="n-next">▶</button><span class="next" id="n-next-title"></span></p><pre id="n-notes"></pre></div>';
+  const t0 = Date.now();
+  const mostrar = (i) => {
+    const d = deck[i];
+    document.getElementById('n-pos').textContent = `${i + 1} / ${deck.length} · ${d.bloco} · ${d.fase}`;
+    document.getElementById('n-title').textContent = d.titulo;
+    document.getElementById('n-notes').textContent = d.notas;
+    document.getElementById('n-next-title').textContent = deck[i + 1] ? `→ ${deck[i + 1].titulo}` : '';
+  };
+  mostrar(atual);
+  setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    document.getElementById('n-clock').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }, 1000);
+  canal?.addEventListener('message', (e) => { if (e.data?.lang === lang && e.data.type === 'slide') { atual = e.data.i; mostrar(atual); } });
+  document.getElementById('n-prev').onclick = () => canal?.postMessage({ type: 'nav', lang, d: -1 });
+  document.getElementById('n-next').onclick = () => canal?.postMessage({ type: 'nav', lang, d: 1 });
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: 1 });
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: -1 });
+  });
+} else {
+  // ---------- o palco ----------
+  document.documentElement.lang = lang;
+  document.body.innerHTML = '<div id="stage"><div id="slide"></div><iframe id="panel" title="panel"></iframe></div><div id="status"></div>';
+  const m = location.hash.match(/admin=([^&]+)/);
+  if (m) { guardar('ws-palco-admin', decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); }
+  const token = ler('ws-palco-admin') || '';
+  const panel = document.getElementById('panel');
+  const page = q.get('panel') || DADOS.panelPage;
+  if (page) panel.src = `${page.replace(/\/+$/, '')}/?lang=${lang}`;
+  const api = (q.get('api') || DADOS.panelApi || '').replace(/\/+$/, '');
+  let fase = null;
+  let estado = '';
+  const status = () => { document.getElementById('status').textContent = `${atual + 1}/${deck.length} · ${deck[atual].fase}${estado ? ` · ${estado}` : ''}${token ? '' : ' · sem token: a fase muda à mão (teclas 1-5 no painel)'}`; };
+  async function mudarFase(f) {
+    if (f === fase) return;
+    fase = f;
+    if (!token || !api) return status();
+    try {
+      const r = await fetch(`${api}/admin/phase`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token }, body: JSON.stringify({ phase: f }) });
+      estado = r.ok ? `painel: ${f}` : `painel: erro ${r.status}`;
+    } catch { estado = 'painel: sem rede'; }
+    status();
+  }
+  function mostrar(i) {
+    atual = Math.min(Math.max(0, i), deck.length - 1);
+    guardar(`ws-palco-${lang}`, String(atual));
+    const d = deck[atual];
+    const el = document.getElementById('slide');
+    el.innerHTML = DADOS.imagens[lang] >= deck.length ? `<img alt="${esc(d.titulo)}" src="palco/${lang}/${String(atual + 1).padStart(2, '0')}.png">` : desenhar(d);
+    canal?.postMessage({ type: 'slide', lang, i: atual });
+    mudarFase(d.fase);
+    status();
+  }
+  const escala = () => {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    const st = document.getElementById('stage');
+    st.style.transform = `scale(${k})`;
+    st.style.left = `${(innerWidth - 1920 * k) / 2}px`;
+    st.style.top = `${(innerHeight - 1080 * k) / 2}px`;
+  };
+  addEventListener('resize', escala);
+  escala();
+  addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); mostrar(atual + 1); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); mostrar(atual - 1); }
+    else if (e.key === 'Home') mostrar(0);
+    else if (e.key === 'End') mostrar(deck.length - 1);
+    else if (e.key === 'n' || e.key === 'N') open(`${location.pathname}?notas=1&lang=${lang}`, 'ws-notas', 'width=1000,height=800');
+    else if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
+  });
+  canal?.addEventListener('message', (e) => { if (e.data?.lang === lang && e.data.type === 'nav') mostrar(atual + e.data.d); });
+  mostrar(atual);
+}
+</script>
+</body>
+</html>

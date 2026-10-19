@@ -43,9 +43,18 @@ If the organizer provides access (by inviting people to their Console organizati
 - **Plan B for the video:** if the MP4 fails on the projector, open `/status?replay=recording` in the recorded Arena (`presenter-replay/`), which replays the real run without calling the API.
 - **Pace:** `slides/speaker-notes.en.md` (English deck, `slides/workshop.en.pptx`) has the running clock and the slides you can skip. The Portuguese deck has its own, `slides/speaker-notes.md`.
 
+## The v2 deck and the stage (workshop v2)
+
+The v2 deck has 29 slides at 1280 × 1080: the slides take the left two thirds of a 1920 × 1080 screen and the live panel the right third. Each slide has a panel phase, so the panel's view follows the slides (D-36).
+- **Build** (from `slides/`, after `npm install`): `node build-v2.mjs`. It writes `workshop-v2.en.pptx` and `workshop-v2.pptx`, `speaker-notes-v2.en.md` and `speaker-notes-v2.md`, and `palco.html`. With `--png` it also exports one image per slide to `slides/palco/<language>/`, with LibreOffice (local, or the Docker image: `docker build -t ws-libreoffice slides/libreoffice`). Without the images, the stage draws each slide in HTML from the same content.
+- **The stage:** open `slides/palco.html?lang=en#admin=<token>` in the browser, full screen (F). Arrows, space and PageUp/PageDown change slides. When the phase changes, the stage calls the Worker's `/admin/phase` with the token, which stays only in that browser. N opens the speaker notes in a second window (`palco.html?notes=1`), synced with the stage.
+- **Speaker notes:** for each slide, in this order: the goal, what to say (at most 3 sentences), what to read on the panel (sentences ready for each case), typical failures with the command that fixes them, and the clock.
+- **Plan B:** PowerPoint (`workshop-v2.en.pptx`) in a window next to the browser with the panel, changing the phase by hand with keys 1 to 5 on the panel.
+- The v1 deck (the Arena, `workshop.pptx`) stays as the alternative.
+
 ## The live panel (workshop v2)
 
-The panel is a page projected next to the slides, fed by anonymous events from the laptops whose owners said yes in the setup (`docs/PRIVACY.md`). It runs on Cloudflare (D-30): the API on a Worker with a Durable Object, the page on Pages.
+The panel is a page projected next to the slides, fed by the events of the laptops registered in the setup (`docs/PRIVACY.md`; D-34: everyone is on it, with their GitHub name, and everything is deleted at midnight). It runs on Cloudflare (D-30): the API on a Worker with a Durable Object, the page on Pages.
 
 - **Publish** (at least 3 days before), from this repository, logged in to `wrangler`:
   1. Set `WORKSHOP_CODE` (a new one for each workshop) and `WORKSHOP_DATE` in `repos.conf`.

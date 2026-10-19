@@ -102,7 +102,8 @@ export function run({ soGit = false } = {}) {
   const erros = [];
   const conf = loadConf({ env: {} });
   const generated = JSON.parse(readFileSync(join(KIT_ROOT, 'tools/generated-files.json'), 'utf8')).ficheiros;
-  const allowed = new Set(['repos.conf', 'tools/generated-files.json', ...generated]);
+  // as saidas do slides/build-v2.mjs tambem levam os valores do repos.conf (o URL do repositorio no ultimo slide)
+  const allowed = new Set(['repos.conf', 'tools/generated-files.json', ...generated, 'slides/palco.html', 'slides/speaker-notes-v2.md', 'slides/speaker-notes-v2.en.md']);
   const pats = hostPatterns(conf);
   const files = listFiles(soGit);
 

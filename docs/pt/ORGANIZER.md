@@ -43,9 +43,18 @@ Se for o organizador a dar acesso (convidando as pessoas para a sua organizaçã
 - **Plano B para o vídeo:** se o MP4 falhar no projetor, abre `/status?replay=recording` na Arena gravada (`presenter-replay/`), que reproduz a execução real sem chamar a API.
 - **Ritmo:** o `slides/speaker-notes.md` (apresentação em português, `slides/workshop.pptx`) tem o relógio acumulado e os slides que se podem saltar. A apresentação em inglês tem o seu, `slides/speaker-notes.en.md`.
 
+## O deck v2 e o palco (workshop v2)
+
+O deck v2 tem 29 slides em 1280 × 1080: os slides ocupam os dois terços da esquerda de um ecrã de 1920 × 1080 e o painel ao vivo o terço da direita. Cada slide tem uma fase do painel, por isso a vista do painel acompanha os slides (D-36).
+- **Gerar** (em `slides/`, depois do `npm install`): `node build-v2.mjs`. Escreve `workshop-v2.pptx` e `workshop-v2.en.pptx`, `speaker-notes-v2.md` e `speaker-notes-v2.en.md`, e o `palco.html`. Com `--png` exporta também uma imagem por slide para `slides/palco/<língua>/`, com o LibreOffice (local, ou a imagem Docker: `docker build -t ws-libreoffice slides/libreoffice`). Sem as imagens, o palco desenha cada slide em HTML a partir do mesmo conteúdo.
+- **O palco:** abre `slides/palco.html?lang=pt#admin=<token>` no browser, em ecrã inteiro (F). As setas, o espaço e PageUp/PageDown mudam de slide. Quando a fase muda, o palco chama o `/admin/phase` da Worker com o token, que fica só nesse browser. A tecla N abre as notas do apresentador numa segunda janela (`palco.html?notas=1`), sincronizada com o palco.
+- **Notas do apresentador:** em cada slide, por esta ordem: o objetivo, o que dizer (no máximo 3 frases), o que ler no painel (frases prontas para cada caso), as falhas típicas com o comando que resolve, e o relógio.
+- **Plano B:** o PowerPoint (`workshop-v2.pptx`) numa janela ao lado do browser com o painel, com a fase mudada à mão com as teclas 1 a 5 no painel.
+- O deck v1 (a Arena, `workshop.pptx`) fica como alternativa.
+
 ## O painel ao vivo (workshop v2)
 
-O painel é uma página projetada ao lado dos slides, alimentada por eventos anónimos dos portáteis de quem disse que sim no setup (`docs/pt/PRIVACY.md`). Corre no Cloudflare (D-30): a API numa Worker com um Durable Object, e a página nas Pages.
+O painel é uma página projetada ao lado dos slides, alimentada pelos eventos dos portáteis registados no setup (`docs/pt/PRIVACY.md`; D-34: toda a gente entra, com o nome do GitHub, e tudo é apagado à meia-noite). Corre no Cloudflare (D-30): a API numa Worker com um Durable Object, e a página nas Pages.
 
 - **Publicar** (pelo menos 3 dias antes), a partir deste repositório e com sessão iniciada no `wrangler`:
   1. Põe um `WORKSHOP_CODE` novo (um por workshop) e a `WORKSHOP_DATE` no `repos.conf`.
