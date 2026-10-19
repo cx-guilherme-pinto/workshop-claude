@@ -1,0 +1,186 @@
+{
+  "v": 1,
+  "lang": "pt",
+  "about": "O catálogo do Canivete (docs/pt/WORKSHOP-V2-SPEC.md, secção 5.4). node tools/gen.mjs gera daqui tools/<id>/spec.md, tools/<id>/tool.test.js e TASKS.md. Formato em tools/CONTRACT.md.",
+  "categories": [
+    { "id": "text", "name": "Texto" },
+    { "id": "numbers", "name": "Números" },
+    { "id": "dates", "name": "Datas" },
+    { "id": "money", "name": "Dinheiro" },
+    { "id": "dev", "name": "Dev" },
+    { "id": "daily", "name": "Dia a dia" }
+  ],
+  "tools": [
+    {
+      "id": "tx-02",
+      "category": "text",
+      "template": "text",
+      "title": "Maiúsculas de título",
+      "concept": "Põe um título com maiúsculas como num livro ou num filme, seja qual for a forma como foi escrito.",
+      "inputs": [{ "name": "text", "type": "text", "label": "Título" }],
+      "output": { "type": "text", "label": "Título" },
+      "rules": [
+        "Cada palavra começa por maiúscula e o resto da palavra fica em minúsculas.",
+        "Os espaços a mais (no início, no fim e entre palavras) ficam um só espaço."
+      ],
+      "examples": [
+        { "in": { "text": "lisboa noite" }, "out": "Lisboa Noite" },
+        { "in": { "text": "MAR SALGADO" }, "out": "Mar Salgado" },
+        { "in": { "text": "  guia   rápido  " }, "out": "Guia Rápido" }
+      ],
+      "errors": [{ "in": { "text": "   " }, "error": "Falta preencher: Título." }],
+      "spec_gaps": [
+        {
+          "what": "o que fazer às palavras pequenas, como de, da, e ou em",
+          "rule": "As palavras pequenas (a, à, o, os, as, e, de, da, do, das, dos, em, na, no, nas, nos, um, uma, por, para, com) ficam em minúsculas, exceto quando são a primeira palavra do título: «a casa de papel» dá «A Casa de Papel».",
+          "cases": [
+            { "in": { "text": "a casa de papel" }, "out": "A Casa de Papel" },
+            { "in": { "text": "o senhor dos anéis" }, "out": "O Senhor dos Anéis" },
+            { "in": { "text": "CIDADE E SERRA" }, "out": "Cidade e Serra" }
+          ],
+          "obvious": ["A Casa De Papel", "O Senhor Dos Anéis", "Cidade E Serra"]
+        }
+      ]
+    },
+    {
+      "id": "nm-01",
+      "category": "numbers",
+      "template": "calc",
+      "title": "X % de Y e Y é que % de X",
+      "concept": "As duas contas de percentagens do dia a dia: quanto é uma percentagem de um valor, e que percentagem um valor é de outro.",
+      "inputs": [
+        { "name": "x", "type": "number", "label": "X" },
+        { "name": "y", "type": "number", "label": "Y" }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "x_percent_of_y", "label": "X % de Y" },
+          { "name": "y_percent_of_x", "label": "Y é que % de X" }
+        ]
+      },
+      "rules": [
+        "x_percent_of_y = X × Y / 100.",
+        "y_percent_of_x = Y / X × 100.",
+        "Os dois resultados arredondam a 2 casas decimais (Math.round(v × 100) / 100 serve)."
+      ],
+      "examples": [
+        { "in": { "x": "10", "y": "200" }, "out": { "x_percent_of_y": 20, "y_percent_of_x": 2000 } },
+        { "in": { "x": "50", "y": "25" }, "out": { "x_percent_of_y": 12.5, "y_percent_of_x": 50 } },
+        { "in": { "x": "7,5", "y": "40" }, "out": { "x_percent_of_y": 3, "y_percent_of_x": 533.33 } }
+      ],
+      "errors": [
+        { "in": { "x": "0", "y": "10" }, "error": "X não pode ser 0." },
+        { "in": { "x": "dez", "y": "10" }, "error": "X: escreve um número." }
+      ]
+    },
+    {
+      "id": "nm-03",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Arredondar com casas decimais",
+      "concept": "Arredonda um número ao número de casas decimais que escolheres.",
+      "inputs": [
+        { "name": "value", "type": "number", "label": "Número" },
+        { "name": "places", "type": "integer", "label": "Casas decimais", "default": "2", "min": 0, "max": 10 }
+      ],
+      "output": { "type": "number", "label": "Arredondado" },
+      "rules": [
+        "Arredonda o número a `places` casas decimais e devolve um número.",
+        "Sem casas a preencher usa 2."
+      ],
+      "examples": [
+        { "in": { "value": "3,14159", "places": "2" }, "out": 3.14 },
+        { "in": { "value": "2,5", "places": "0" }, "out": 3 },
+        { "in": { "value": "10", "places": "" }, "out": 10 },
+        { "in": { "value": "1,23456", "places": "3" }, "out": 1.235 }
+      ],
+      "errors": [
+        { "in": { "value": "abc", "places": "2" }, "error": "Número: escreve um número." },
+        { "in": { "value": "1", "places": "1,5" }, "error": "Casas decimais: escreve um número inteiro." },
+        { "in": { "value": "1", "places": "11" }, "error": "Casas decimais: o máximo é 10." }
+      ],
+      "spec_gaps": [
+        {
+          "what": "como arredondar os casos que ficam exatamente a meio, como 1,005 com 2 casas",
+          "rule": "Os casos exatamente a meio, em decimal, arredondam para cima: 1,005 com 2 casas dá 1,01 e 2,675 com 2 casas dá 2,68. Atenção à vírgula flutuante: em JavaScript 1.005 * 100 é 100.49999…, por isso Math.round(v * 100) / 100 e toFixed(2) dão 1.",
+          "cases": [
+            { "in": { "value": "1,005", "places": "2" }, "out": 1.01 },
+            { "in": { "value": "2,675", "places": "2" }, "out": 2.68 },
+            { "in": { "value": "1,0049", "places": "2" }, "out": 1 }
+          ],
+          "obvious": [1, 2.67, 1]
+        }
+      ]
+    },
+    {
+      "id": "dn-01",
+      "category": "money",
+      "template": "calc",
+      "title": "Gorjeta e divisão da conta",
+      "concept": "Num jantar de grupo: quanto é a gorjeta e quanto paga cada pessoa.",
+      "inputs": [
+        { "name": "total", "type": "number", "label": "Total da conta (€)", "min": 0 },
+        { "name": "tip", "type": "number", "label": "Gorjeta (%)", "default": "10", "min": 0, "max": 100 },
+        { "name": "people", "type": "integer", "label": "Pessoas", "default": "2", "min": 1, "max": 100 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "tip", "label": "Gorjeta (€)" },
+          { "name": "total", "label": "Total com gorjeta (€)" },
+          { "name": "per_person", "label": "Cada pessoa paga (€)" }
+        ]
+      },
+      "rules": [
+        "Gorjeta = total × percentagem / 100, arredondada ao cêntimo.",
+        "Total com gorjeta = total + gorjeta.",
+        "Cada pessoa paga o total com gorjeta a dividir pelo número de pessoas, em euros com 2 casas decimais."
+      ],
+      "examples": [
+        { "in": { "total": "100", "tip": "10", "people": "2" }, "out": { "tip": 10, "total": 110, "per_person": 55 } },
+        { "in": { "total": "40", "tip": "0", "people": "4" }, "out": { "tip": 0, "total": 40, "per_person": 10 } },
+        { "in": { "total": "80", "tip": "5", "people": "2" }, "out": { "tip": 4, "total": 84, "per_person": 42 } }
+      ],
+      "errors": [
+        { "in": { "total": "", "tip": "10", "people": "2" }, "error": "Falta preencher: Total da conta (€)." },
+        { "in": { "total": "50", "tip": "10", "people": "0" }, "error": "Pessoas: o mínimo é 1." }
+      ],
+      "spec_gaps": [
+        {
+          "what": "como arredondar a parte de cada pessoa",
+          "rule": "A parte de cada pessoa arredonda para cima ao cêntimo, para a soma das partes nunca ficar abaixo do total: 100 € sem gorjeta por 3 pessoas dá 33,34 € cada (33,33 € × 3 = 99,99 € não chega). Uma divisão exata fica igual (60 € por 3 dá 20 €).",
+          "cases": [
+            { "in": { "total": "100", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 100, "per_person": 33.34 } },
+            { "in": { "total": "10", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 10, "per_person": 3.34 } },
+            { "in": { "total": "60", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 60, "per_person": 20 } }
+          ],
+          "obvious": [
+            { "tip": 0, "total": 100, "per_person": 33.33 },
+            { "tip": 0, "total": 10, "per_person": 3.33 },
+            { "tip": 0, "total": 60, "per_person": 20 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dv-03",
+      "category": "dev",
+      "template": "generate",
+      "title": "Gerar UUID v4",
+      "concept": "Gera identificadores únicos ao acaso no formato UUID versão 4, para testes e dados de exemplo.",
+      "inputs": [{ "name": "count", "type": "integer", "label": "Quantos", "default": "1", "min": 1, "max": 20 }],
+      "output": { "type": "list", "label": "UUIDs" },
+      "rules": [
+        "Devolve uma lista com `count` UUIDs v4, em minúsculas: 8-4-4-4-12 dígitos hexadecimais.",
+        "No terceiro grupo o primeiro dígito é 4 (a versão); no quarto grupo o primeiro dígito é 8, 9, a ou b (a variante).",
+        "Usa o random() que o run recebe (nunca Math.random), para o resultado ser igual com a mesma seed."
+      ],
+      "examples": [
+        { "in": { "count": "1" }, "seed": 1, "check": { "length": 1, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } },
+        { "in": { "count": "5" }, "seed": 7, "check": { "length": 5, "unique": true, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } }
+      ],
+      "errors": [{ "in": { "count": "21" }, "error": "Quantos: o máximo é 20." }]
+    }
+  ]
+}

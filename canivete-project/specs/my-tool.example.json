@@ -1,0 +1,15 @@
+{
+  "title": "Minutos em horas",
+  "concept": "Diz quantas horas e minutos são um número de minutos, por exemplo para a duração de um filme.",
+  "template": "calc",
+  "category": "daily",
+  "inputs": [{ "name": "minutes", "type": "integer", "label": "Minutos", "min": 0 }],
+  "output": { "type": "fields", "fields": [{ "name": "hours", "label": "Horas" }, { "name": "minutes", "label": "Minutos" }] },
+  "rules": ["As horas são os minutos a dividir por 60, sem casas decimais.", "Os minutos que sobram ficam entre 0 e 59."],
+  "examples": [
+    { "in": { "minutes": "125" }, "out": { "hours": 2, "minutes": 5 } },
+    { "in": { "minutes": "59" }, "out": { "hours": 0, "minutes": 59 } },
+    { "in": { "minutes": "180" }, "out": { "hours": 3, "minutes": 0 } }
+  ],
+  "errors": [{ "in": { "minutes": "-5" }, "error": "Minutos: o mínimo é 0." }]
+}

@@ -1,0 +1,36 @@
+{
+  "v": 1,
+  "pages": [
+    {
+      "id": "index-page",
+      "title": "Página de pesquisa e categorias",
+      "wave": 2,
+      "agent": "implementer",
+      "spec": "specs/index-page.md",
+      "test": ["node", "--test", "pages/catalog.test.js"],
+      "files": ["pages/catalog.js"],
+      "depends": ["*tools"]
+    }
+  ],
+  "integration": {
+    "id": "integration",
+    "title": "Integração e suite completa",
+    "wave": 3,
+    "agent": "integrator",
+    "spec": "specs/integration.md",
+    "test": ["node", "tools/check-integration.mjs"],
+    "files": ["public/", "pages/"],
+    "depends": ["index-page"]
+  },
+  "review": {
+    "id": "review",
+    "title": "Revisão de segurança e qualidade",
+    "wave": 4,
+    "agent": "reviewer",
+    "spec": "specs/review.md",
+    "prepare": ["node", "tools/review-digest.mjs"],
+    "test": { "json_file": ".workshop/verdict.json", "field": "verdict" },
+    "files": [".workshop/verdict.json"],
+    "depends": ["integration"]
+  }
+}

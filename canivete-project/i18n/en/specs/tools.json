@@ -1,0 +1,186 @@
+{
+  "v": 1,
+  "lang": "en",
+  "about": "The Pocketknife catalogue (docs/pt/WORKSHOP-V2-SPEC.md, section 5.4). node tools/gen.mjs generates tools/<id>/spec.md, tools/<id>/tool.test.js and TASKS.md from it. Format in tools/CONTRACT.md.",
+  "categories": [
+    { "id": "text", "name": "Text" },
+    { "id": "numbers", "name": "Numbers" },
+    { "id": "dates", "name": "Dates" },
+    { "id": "money", "name": "Money" },
+    { "id": "dev", "name": "Dev" },
+    { "id": "daily", "name": "Everyday" }
+  ],
+  "tools": [
+    {
+      "id": "tx-02",
+      "category": "text",
+      "template": "text",
+      "title": "Title case",
+      "concept": "Capitalises a title the way books and films do, however it was typed.",
+      "inputs": [{ "name": "text", "type": "text", "label": "Title" }],
+      "output": { "type": "text", "label": "Title" },
+      "rules": [
+        "Each word starts with a capital letter and the rest of the word is lower case.",
+        "Extra spaces (at the start, at the end and between words) become a single space."
+      ],
+      "examples": [
+        { "in": { "text": "london nights" }, "out": "London Nights" },
+        { "in": { "text": "SALT WATER" }, "out": "Salt Water" },
+        { "in": { "text": "  quick   guide  " }, "out": "Quick Guide" }
+      ],
+      "errors": [{ "in": { "text": "   " }, "error": "Missing: Title." }],
+      "spec_gaps": [
+        {
+          "what": "what to do with small words such as of, the, and or in",
+          "rule": "Small words (a, an, the, and, but, or, nor, for, of, in, on, at, to, by) stay lower case, except when they are the first word of the title: \"the lord of the rings\" gives \"The Lord of the Rings\".",
+          "cases": [
+            { "in": { "text": "the lord of the rings" }, "out": "The Lord of the Rings" },
+            { "in": { "text": "war and peace" }, "out": "War and Peace" },
+            { "in": { "text": "A TALE OF TWO CITIES" }, "out": "A Tale of Two Cities" }
+          ],
+          "obvious": ["The Lord Of The Rings", "War And Peace", "A Tale Of Two Cities"]
+        }
+      ]
+    },
+    {
+      "id": "nm-01",
+      "category": "numbers",
+      "template": "calc",
+      "title": "X % of Y and Y is what % of X",
+      "concept": "The two everyday percentage sums: how much a percentage of a value is, and what percentage one value is of another.",
+      "inputs": [
+        { "name": "x", "type": "number", "label": "X" },
+        { "name": "y", "type": "number", "label": "Y" }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "x_percent_of_y", "label": "X % of Y" },
+          { "name": "y_percent_of_x", "label": "Y is what % of X" }
+        ]
+      },
+      "rules": [
+        "x_percent_of_y = X × Y / 100.",
+        "y_percent_of_x = Y / X × 100.",
+        "Both results are rounded to 2 decimal places (Math.round(v × 100) / 100 is fine)."
+      ],
+      "examples": [
+        { "in": { "x": "10", "y": "200" }, "out": { "x_percent_of_y": 20, "y_percent_of_x": 2000 } },
+        { "in": { "x": "50", "y": "25" }, "out": { "x_percent_of_y": 12.5, "y_percent_of_x": 50 } },
+        { "in": { "x": "7.5", "y": "40" }, "out": { "x_percent_of_y": 3, "y_percent_of_x": 533.33 } }
+      ],
+      "errors": [
+        { "in": { "x": "0", "y": "10" }, "error": "X cannot be 0." },
+        { "in": { "x": "ten", "y": "10" }, "error": "X: type a number." }
+      ]
+    },
+    {
+      "id": "nm-03",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Round to decimal places",
+      "concept": "Rounds a number to the number of decimal places you choose.",
+      "inputs": [
+        { "name": "value", "type": "number", "label": "Number" },
+        { "name": "places", "type": "integer", "label": "Decimal places", "default": "2", "min": 0, "max": 10 }
+      ],
+      "output": { "type": "number", "label": "Rounded" },
+      "rules": [
+        "Rounds the number to `places` decimal places and returns a number.",
+        "With no places filled in, use 2."
+      ],
+      "examples": [
+        { "in": { "value": "3.14159", "places": "2" }, "out": 3.14 },
+        { "in": { "value": "2.5", "places": "0" }, "out": 3 },
+        { "in": { "value": "10", "places": "" }, "out": 10 },
+        { "in": { "value": "1.23456", "places": "3" }, "out": 1.235 }
+      ],
+      "errors": [
+        { "in": { "value": "abc", "places": "2" }, "error": "Number: type a number." },
+        { "in": { "value": "1", "places": "1.5" }, "error": "Decimal places: type a whole number." },
+        { "in": { "value": "1", "places": "11" }, "error": "Decimal places: the maximum is 10." }
+      ],
+      "spec_gaps": [
+        {
+          "what": "how to round the cases that sit exactly halfway, such as 1.005 to 2 places",
+          "rule": "Cases exactly halfway, in decimal, round up: 1.005 to 2 places gives 1.01 and 2.675 to 2 places gives 2.68. Mind floating point: in JavaScript 1.005 * 100 is 100.49999…, so Math.round(v * 100) / 100 and toFixed(2) both give 1.",
+          "cases": [
+            { "in": { "value": "1.005", "places": "2" }, "out": 1.01 },
+            { "in": { "value": "2.675", "places": "2" }, "out": 2.68 },
+            { "in": { "value": "1.0049", "places": "2" }, "out": 1 }
+          ],
+          "obvious": [1, 2.67, 1]
+        }
+      ]
+    },
+    {
+      "id": "dn-01",
+      "category": "money",
+      "template": "calc",
+      "title": "Tip and split the bill",
+      "concept": "At a group dinner: how much the tip is and how much each person pays.",
+      "inputs": [
+        { "name": "total", "type": "number", "label": "Bill total", "min": 0 },
+        { "name": "tip", "type": "number", "label": "Tip (%)", "default": "10", "min": 0, "max": 100 },
+        { "name": "people", "type": "integer", "label": "People", "default": "2", "min": 1, "max": 100 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "tip", "label": "Tip" },
+          { "name": "total", "label": "Total with tip" },
+          { "name": "per_person", "label": "Each person pays" }
+        ]
+      },
+      "rules": [
+        "Tip = total × percentage / 100, rounded to the cent.",
+        "Total with tip = total + tip.",
+        "Each person pays the total with tip divided by the number of people, with 2 decimal places."
+      ],
+      "examples": [
+        { "in": { "total": "100", "tip": "10", "people": "2" }, "out": { "tip": 10, "total": 110, "per_person": 55 } },
+        { "in": { "total": "40", "tip": "0", "people": "4" }, "out": { "tip": 0, "total": 40, "per_person": 10 } },
+        { "in": { "total": "80", "tip": "5", "people": "2" }, "out": { "tip": 4, "total": 84, "per_person": 42 } }
+      ],
+      "errors": [
+        { "in": { "total": "", "tip": "10", "people": "2" }, "error": "Missing: Bill total." },
+        { "in": { "total": "50", "tip": "10", "people": "0" }, "error": "People: the minimum is 1." }
+      ],
+      "spec_gaps": [
+        {
+          "what": "how to round each person's share",
+          "rule": "Each person's share rounds up to the cent, so the shares never add up to less than the total: 100 with no tip for 3 people gives 33.34 each (33.33 × 3 = 99.99 is not enough). An exact split stays the same (60 for 3 gives 20).",
+          "cases": [
+            { "in": { "total": "100", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 100, "per_person": 33.34 } },
+            { "in": { "total": "10", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 10, "per_person": 3.34 } },
+            { "in": { "total": "60", "tip": "0", "people": "3" }, "out": { "tip": 0, "total": 60, "per_person": 20 } }
+          ],
+          "obvious": [
+            { "tip": 0, "total": 100, "per_person": 33.33 },
+            { "tip": 0, "total": 10, "per_person": 3.33 },
+            { "tip": 0, "total": 60, "per_person": 20 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dv-03",
+      "category": "dev",
+      "template": "generate",
+      "title": "Generate a UUID v4",
+      "concept": "Generates random unique identifiers in the UUID version 4 format, for tests and sample data.",
+      "inputs": [{ "name": "count", "type": "integer", "label": "How many", "default": "1", "min": 1, "max": 20 }],
+      "output": { "type": "list", "label": "UUIDs" },
+      "rules": [
+        "Returns a list of `count` v4 UUIDs, in lower case: 8-4-4-4-12 hexadecimal digits.",
+        "In the third group the first digit is 4 (the version); in the fourth group the first digit is 8, 9, a or b (the variant).",
+        "Use the random() that run receives (never Math.random), so that the same seed gives the same result."
+      ],
+      "examples": [
+        { "in": { "count": "1" }, "seed": 1, "check": { "length": 1, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } },
+        { "in": { "count": "5" }, "seed": 7, "check": { "length": 5, "unique": true, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } }
+      ],
+      "errors": [{ "in": { "count": "21" }, "error": "How many: the maximum is 20." }]
+    }
+  ]
+}

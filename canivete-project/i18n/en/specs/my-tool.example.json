@@ -1,0 +1,15 @@
+{
+  "title": "Minutes to hours",
+  "concept": "Tells how many hours and minutes a number of minutes is, for example the length of a film.",
+  "template": "calc",
+  "category": "daily",
+  "inputs": [{ "name": "minutes", "type": "integer", "label": "Minutes", "min": 0 }],
+  "output": { "type": "fields", "fields": [{ "name": "hours", "label": "Hours" }, { "name": "minutes", "label": "Minutes" }] },
+  "rules": ["The hours are the minutes divided by 60, with no decimals.", "The minutes left over are between 0 and 59."],
+  "examples": [
+    { "in": { "minutes": "125" }, "out": { "hours": 2, "minutes": 5 } },
+    { "in": { "minutes": "59" }, "out": { "hours": 0, "minutes": 59 } },
+    { "in": { "minutes": "180" }, "out": { "hours": 3, "minutes": 0 } }
+  ],
+  "errors": [{ "in": { "minutes": "-5" }, "error": "Minutes: the minimum is 0." }]
+}
