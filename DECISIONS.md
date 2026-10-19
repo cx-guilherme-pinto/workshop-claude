@@ -588,14 +588,14 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - o nome aparece no board de liderança;
   - a participação não é opcional.
 - **Isto muda** o princípio 2.3.3 ("sem ranking de pessoas") e a secção 6.6 (participação opcional e anónima, alcunhas). A especificação ganhou a secção 12 com estas alterações, e os `PRIVACY.md` foram reescritos.
-- **O registo** (`telemetry/ctl.mjs register`, corrido pelo setup a seguir ao login do `gh`):
-  1. o `ctl.mjs` lê o token com `gh auth token`, só em memória, e envia-o uma vez por HTTPS para `/register`;
-  2. a Worker faz duas leituras da API do GitHub (`/user` e `/user/emails`) e exige um email **verificado** do domínio `PANEL_EMAIL_DOMAIN` (checkmarx.com);
-  3. guarda só o nome do GitHub, um hash do id da conta (a mesma conta mantém o mesmo id noutro portátil) e a sala, e deita o token fora;
-  4. devolve uma credencial HMAC, com o segredo criado e guardado no Durable Object.
-  - Os eventos só são aceites com a credencial (`X-Participant`), e os de outro participante são descartados.
+- **O registo** (`telemetry/ctl.mjs register`, corrido pelo setup a seguir ao login do `gh`). Revisto no mesmo dia, a pedido do organizador: nenhum token, nem nada equivalente, e o mínimo de dados vão para a Worker.
+  1. O `ctl.mjs` pede ao `gh` (que guarda o seu próprio login) a conta (`gh api user`) e os emails (`gh api user/emails`, scope `user:email`).
+  2. Confirma **no portátil** que há um email verificado do domínio `PANEL_EMAIL_DOMAIN` (checkmarx.com).
+  3. Envia à Worker só `{name, room, account}`, em que `account` é o SHA-256 do código do workshop e do id da conta GitHub. A mesma conta mantém o mesmo id noutro portátil.
+  4. A Worker responde com o id de participante e uma credencial HMAC, com o segredo criado e guardado no Durable Object.
+  - Os eventos só são aceites com essa assinatura (`X-Participant`), e os de outro participante são descartados.
   - O scope `user:email` passa a ser pedido no login do `gh`.
-- **O aviso de segurança dado ao organizador:** o token do `gh` tem o scope `repo` e passa uma vez pela Worker. A Worker não tem logs e o token não é guardado. A alternativa mais segura, o device flow com uma OAuth App só com `user:email`, foi proposta; o organizador escolheu o `gh`.
+- **O compromisso, escolhido pelo organizador entre três opções** (device flow com OAuth App, assinatura SSH com membro da org, verificação local): a Worker confia na verificação do portátil. Quem tiver o código do workshop pode registar um nome inventado. Mitigações: o código muda por workshop, o apresentador esconde nomes e os registos têm limite de ritmo. A primeira versão, que enviava o token do `gh` à Worker, foi abandonada.
 - **`/admin/register`** (com o token de admin) regista pessoas sem GitHub: o simulador, os ensaios, ou alguém que o organizador deixe entrar à mão.
 - **Pontos do board:** cobertura e qualidade, nunca gasto.
   - missão validada: 1;

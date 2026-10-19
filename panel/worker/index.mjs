@@ -6,8 +6,7 @@
 // wrangler.toml; the events are the allowlisted ones only (telemetry/schema.mjs, checked again in api.mjs).
 //
 // Environment (wrangler.toml and secrets): WORKSHOP_CODE (var, from repos.conf), ALLOWED_ORIGINS (var: the Pages
-// address, comma separated), EMAIL_DOMAIN (var, from repos.conf PANEL_EMAIL_DOMAIN: who can register, D-34),
-// ADMIN_TOKEN (secret: `wrangler secret put ADMIN_TOKEN`, typed by the organizer).
+// address, comma separated), ADMIN_TOKEN (secret: `wrangler secret put ADMIN_TOKEN`, typed by the organizer).
 import allow from '../../telemetry/allowlist.json' with { type: 'json' };
 import { createApi } from '../api.mjs';
 
@@ -58,7 +57,6 @@ export class PanelRoom {
         adminToken: this.env.ADMIN_TOKEN || '',
         store: sqlStore(this.ctx.storage.sql),
         allowedOrigins: origins(this.env),
-        emailDomain: this.env.EMAIL_DOMAIN || '',
       });
     }
     return this.api.fetch(request);

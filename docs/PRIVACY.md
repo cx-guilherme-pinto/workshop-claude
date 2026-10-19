@@ -5,10 +5,12 @@ The kit has a **mission book** that lives only on your computer, and an optional
 ## Registration (decision D-34)
 
 - **Everyone is on the panel.** The setup registers you right after the GitHub login (step 6). There is no question to answer.
-- **How the registration works:**
-  - the kit reads your gh token with `gh auth token`, in memory only (never on the command line, in a file or in a log), and sends it once, over HTTPS, to the workshop panel's Worker;
-  - the Worker uses it for two reads of the GitHub API (your profile and your emails), checks that the account has a **verified email of the company domain** (`PANEL_EMAIL_DOMAIN`, checkmarx.com), and throws the token away. It never stores or logs it.
-- **What the panel keeps:** your GitHub name (as it appears on the leaderboard), a hash of your GitHub account id (so a second laptop or a new setup keeps your place) and your room. Never your email, your login or the token.
+- **How the registration works — no token and no email leave your computer:**
+  - on your laptop, the kit asks gh (which keeps its own login) for your GitHub profile and your emails, and checks there that the account has a **verified email of the company domain** (`PANEL_EMAIL_DOMAIN`, checkmarx.com);
+  - it then sends the panel's Worker, over HTTPS, only three things: your GitHub name, your room and a hash (SHA-256) of the workshop code and your GitHub account id, so that a second laptop or a new setup keeps your place;
+  - the Worker answers with a credential, an HMAC signature that only the server can make. That signature is all that goes with your events afterwards.
+- **What the panel keeps:** your GitHub name (as it appears on the leaderboard), the hash and your room. Never your email, your login, your account id or any token.
+- **The trade-off (the organizer's choice):** the company email is checked on the laptop, so the Worker trusts the kit's word. Anyone who has the workshop code could register a made-up name; the presenter can hide any name, and the code changes for each workshop.
 - **Without a company email:** you do the workshop all the same; you just do not appear on the leaderboard.
 - **Your commands:**
   - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` shows your registration;
@@ -44,8 +46,8 @@ The events add:
 - Your prompts, Claude's answers and your code.
 - File names, paths, the working folder and `transcript_path`.
 - Repository names and real issue keys.
-- Tokens, with one exception: the gh token goes once to the panel's Worker at registration, which uses it to read your profile and emails and throws it away (see "Registration").
-- Your email, your GitHub login and your machine name. Only your GitHub name reaches the leaderboard.
+- Tokens: none, ever. gh keeps its own; the panel credential is a signature made by the server.
+- Your email, your GitHub login, your account id and your machine name. Only your GitHub name and a hash of the account reach the panel.
 
 **How the kit makes sure:**
 - The telemetry hook reads Claude Code's hook input, keeps only the name of the feature and discards the rest without writing it anywhere.
@@ -67,7 +69,7 @@ Ties go to whoever got there first. The cost never counts: spending more cannot 
 ## The server
 
 - **Where it runs:** a Cloudflare Worker with a Durable Object (the API) and Cloudflare Pages (the page), on `workers.dev` and `pages.dev` addresses (D-30).
-- **What our code stores:** the allowed events and the registrations (GitHub name, the hash of the account id, room). It never stores your IP address, the request headers, Cloudflare's request data, your email or your token, and the Worker's logs are off.
+- **What our code stores:** the allowed events and the registrations (GitHub name, the account hash, room). It never receives your email or any token, it never stores your IP address, the request headers or Cloudflare's request data, and the Worker's logs are off.
 - **What Cloudflare sees:** your IP address, at the network level, like any website you open.
 - **How long it keeps the events:** they are deleted 7 days after the workshop. The organizer resets the workshop with `POST /admin/reset`, and the workshop code and the admin token change for each workshop.
 

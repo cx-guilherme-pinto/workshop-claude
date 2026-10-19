@@ -404,72 +404,64 @@ test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no error
   }
 });
 
-test('registration with the GitHub token: a verified company email; the same account keeps its id; the token is not kept', async () => {
-  const seen = [];
-  const accounts = {
-    'tok-ana-000000': { id: 11, name: 'Ana Silva', emails: [{ email: 'ana@gmail.com', verified: true }, { email: 'Ana.Silva@Checkmarx.com', verified: true }] },
-    'tok-other-0000': { id: 12, name: 'Zé', emails: [{ email: 'ze@gmail.com', verified: true }] },
-    'tok-unverified': { id: 13, name: 'Rita', emails: [{ email: 'rita@checkmarx.com', verified: false }] },
-  };
-  const github = async (token) => {
-    seen.push(token);
-    if (token === 'tok-noscope-00') return { error: 'scope' };
-    return accounts[token] ?? { error: 'token' };
-  };
-  const { x, store } = await api({ github, emailDomain: 'checkmarx.com' });
-  const register = (token, room = 'A') => x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t' }, body: JSON.stringify({ token, room }) }));
+test('registration: only name, room and an account hash reach the server; the same account keeps its id; bad bodies refused', async () => {
+  const { x, store } = await api();
+  const register = (body, code = 'ws-t') => x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': code }, body: JSON.stringify(body) }));
+  const acc = (n) => String(n).padStart(64, 'a');
   try {
-    let r = await register('tok-ana-000000');
+    let r = await register({ name: 'Ana Silva', room: 'A', account: acc(1) });
     assert.equal(r.status, 200);
     const ana = await r.json();
     assert.equal(ana.name, 'Ana Silva');
     assert.match(ana.p, /^[0-9a-f]{32}$/);
+    assert.match(ana.credential, /^[0-9a-f]{64}$/, 'the credential is an HMAC signature');
     assert.equal((await post(x, [{ v: 1, ws: 'ws-t', room: 'A', p: ana.p, ev: 'check_ok', t: at(1), kit: 'v2' }], { 'X-Participant': `${ana.p}.${ana.credential}` })).status, 204);
-    assert.equal((await (await register('tok-ana-000000', 'B')).json()).p, ana.p, 'same account, same id');
-    r = await register('tok-other-0000');
-    assert.deepEqual([r.status, (await r.json()).reason], [403, 'domain']);
-    r = await register('tok-unverified');
-    assert.deepEqual([r.status, (await r.json()).reason], [403, 'domain'], 'an unverified company email does not count');
-    r = await register('tok-noscope-00');
-    assert.deepEqual([r.status, (await r.json()).reason], [400, 'scope']);
-    r = await register('tok-wrong-0000');
-    assert.equal(r.status, 401);
-    assert.equal((await x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'X-Workshop-Code': 'other' }, body: '{}' }))).status, 403);
-    // the token never reaches the store, the state or the snapshot
+    assert.equal((await (await register({ name: 'Ana Silva', room: 'B', account: acc(1) })).json()).p, ana.p, 'same account, same id');
+    for (const bad of [{ name: 'X', room: 'A' }, { name: 'X', room: 'C', account: acc(2) }, { name: '', room: 'A', account: acc(2) }, { name: 'X', room: 'A', account: 'not-a-hash' }, { name: 'X'.repeat(101), room: 'A', account: acc(2) }]) {
+      assert.equal((await register(bad)).status, 400, JSON.stringify(bad).slice(0, 60));
+    }
+    assert.equal((await register({ name: 'X', room: 'A', account: acc(3) }, 'other')).status, 403);
+    // the server keeps the name, the room and the hash: nothing else of the registration
     await x.flush();
-    const everything = JSON.stringify(store.rows) + JSON.stringify(await get(x, '/state')) + String(store.getMeta('snapshot')) + String(store.getMeta('participants'));
-    for (const t of seen) assert.ok(!everything.includes(t), 'a token was kept');
-    assert.ok(!everything.includes('checkmarx.com') && !everything.includes('gmail'), 'no email is kept');
+    assert.deepEqual(Object.keys(JSON.parse(store.getMeta('participants'))), [acc(1)]);
     assert.equal((await get(x, '/state')).board.all.top[0].name, 'Ana Silva');
   } finally {
     x.close();
   }
 });
 
-test('ctl.mjs register: gh token → the panel → config.json with the credential; the join reaches the board; clear errors', async () => {
+test('ctl.mjs register: the account checked on the laptop; only name, room and the account hash are sent; clear errors', async () => {
   const { register } = await import('../../telemetry/ctl.mjs');
   const data = mkdtempSync(join(tmpdir(), 'ws-reg-'));
-  const github = async (token) => (token === 'gho_company_token' ? { id: 7, name: 'Marta Reis', emails: [{ email: 'marta@checkmarx.com', verified: true }] } : token === 'gho_noscope_tok' ? { error: 'scope' } : { id: 8, name: 'X', emails: [{ email: 'x@example.com', verified: true }] });
-  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20, emailDomain: 'checkmarx.com', github });
+  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
   const t = await telemetryHome(srv.url, { registered: false });
   const out = [];
+  const sent = [];
+  const spy = (u, o) => (sent.push(o?.body ?? ''), fetch(u, o));
+  const marta = { id: 7, name: 'Marta Reis', emails: [{ email: 'marta@gmail.com', verified: true }, { email: 'marta@checkmarx.com', verified: true }] };
   try {
     const cfg = JSON.parse(readFileSync(t.P.config, 'utf8'));
     writeFileSync(t.P.config, JSON.stringify({ ...cfg, email_domain: 'checkmarx.com' }));
-    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => null }), 4);
+    const reg = (room, account) => register(room, { P: t.P, print: (m) => out.push(m), fetchImpl: spy, account: () => account });
+    assert.equal(await reg('A', { error: 'gh' }), 4);
     assert.match(out.at(-1), /gh auth login/);
-    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => 'gho_other_token' }), 3);
-    assert.match(out.at(-1), /@checkmarx\.com/);
-    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => 'gho_noscope_tok' }), 4);
+    assert.equal(await reg('A', { error: 'scope' }), 4);
     assert.match(out.at(-1), /gh auth refresh -h github\.com -s user:email/);
-    assert.equal(await register('Z', { P: t.P, print: (m) => out.push(m), token: () => 'gho_company_token' }), 2);
-    assert.equal(await register('b', { P: t.P, print: (m) => out.push(m), token: () => 'gho_company_token' }), 0);
+    assert.equal(await reg('A', { id: 8, name: 'X', emails: [{ email: 'x@example.com', verified: true }] }), 3);
+    assert.equal(await reg('A', { id: 9, name: 'Y', emails: [{ email: 'y@checkmarx.com', verified: false }] }), 3, 'an unverified company email does not count');
+    assert.match(out.at(-1), /@checkmarx\.com/);
+    assert.equal(sent.length, 0, 'nothing is sent before the account is checked');
+    assert.equal(await reg('Z', marta), 2);
+    assert.equal(await reg('b', marta), 0);
     assert.match(out.at(-1), /Marta Reis/);
+    assert.equal(sent.length, 1);
+    const body = JSON.parse(sent[0]);
+    assert.deepEqual(Object.keys(body).sort(), ['account', 'name', 'room']);
+    assert.match(body.account, /^[0-9a-f]{64}$/);
+    assert.ok(!sent[0].includes('checkmarx') && !sent[0].includes('gmail') && !sent[0].includes('"7"') && !sent[0].includes(':7'), 'no email and no raw account id leave the laptop');
     const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
     assert.equal(c.room, 'B');
-    assert.match(c.participant.p, /^[0-9a-f]{32}$/);
-    assert.ok(!JSON.stringify(c).includes('gho_'), 'the token is not written');
-    for (const f of ['local.jsonl', 'queue.jsonl']) assert.ok(!readFileSync(join(t.P.dir, f), 'utf8').includes('gho_'));
+    assert.match(c.participant.credential, /^[0-9a-f]{64}$/);
     await sendQueue({ P: t.P });
     const s = await (await fetch(`${srv.url}/state`)).json();
     assert.deepEqual(s.board.B.top.map((r) => r.name), ['Marta Reis']);

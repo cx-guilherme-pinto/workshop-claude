@@ -2477,7 +2477,7 @@ ws_iu() { # subcomando [extra]
 }
 # Painel do workshop (D-34): a participacao e obrigatoria e faz-se com o registo pelo GitHub. O passo 8 escolhe a
 # sala (o install-user grava-a em ~/.workshop-claude/telemetry/config.json) e depois regista a pessoa com
-# telemetry/ctl.mjs register <sala> (o token do gh vai uma vez para o painel, que confirma o email da empresa).
+# telemetry/ctl.mjs register <sala> (o gh confirma no portatil o email verificado da empresa; ao painel so vao o nome, a sala e um hash da conta, nunca o token).
 # Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B (vazio se nao for nenhuma).
 ws_part_room() { case "$(ws_trim "$1")" in a|A) printf A ;; b|B) printf B ;; esac; }
 # A sala para o instalar. Funcao pura: as entradas vem nas variaveis e a pergunta e o ws_part_ask_room (os testes

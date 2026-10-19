@@ -5,12 +5,14 @@
 //   node ctl.mjs status                                             registration, room, workshop, events
 //   node ctl.mjs show                                               the last 20 events, exactly as they leave
 //
-// register (the setup runs it after the GitHub login, step 6): reads the gh token with `gh auth token` (in memory
-// only: never on the command line, in a file or in a log) and sends it once to the panel's Worker, which checks with
-// the GitHub API that the account has a verified email of the company domain, keeps only the name of the account and
-// throws the token away. The panel answers with a participant id and a credential, kept in config.json; from then on
-// the events of this computer go to the leaderboard with that name. The mission book works with or without it.
+// register (the setup runs it after the GitHub login, step 6), D-34: no token and no email ever leave this computer.
+// It asks gh (which keeps its own token) for the account (`gh api user`) and its emails (`gh api user/emails`, the
+// user:email scope), checks HERE that one of the verified emails is of the company domain (config.json email_domain),
+// and sends the panel only the name of the account, the room and a SHA-256 of the workshop code and the account id
+// (so the same account keeps its place). The panel answers with a participant id and a credential (an HMAC signature),
+// kept in config.json: that signature is all that goes with the events afterwards. The mission book works without it.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
@@ -59,29 +61,54 @@ const T = textos(
 const fmt = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '-');
 
-// The gh token, read in memory (stdout of `gh auth token`). null if gh is missing or not logged in.
-export function ghToken(env = process.env) {
-  const r = spawnSync(env.WORKSHOP_GH || 'gh', ['auth', 'token', '--hostname', 'github.com'], { encoding: 'utf8', env, windowsHide: true, timeout: 15000 });
-  const t = r.status === 0 ? String(r.stdout || '').trim() : '';
-  return /^[A-Za-z0-9_]{10,400}$/.test(t) ? t : null;
+// Runs gh (it uses its own login; no token passes through this script).
+export function runGh(args, env = process.env) {
+  const r = spawnSync(env.WORKSHOP_GH || 'gh', args, { encoding: 'utf8', env, windowsHide: true, timeout: 20000 });
+  return { status: r.error ? -1 : r.status, stdout: String(r.stdout || ''), stderr: String(r.stderr || '') };
+}
+
+// The GitHub account as gh sees it: { id, name } and its verified emails, or { error: 'gh' | 'scope' }.
+export function githubAccount(gh = runGh) {
+  const u = gh(['api', '--hostname', 'github.com', 'user']);
+  if (u.status !== 0) return { error: 'gh' };
+  let user;
+  try {
+    user = JSON.parse(u.stdout);
+  } catch {
+    return { error: 'gh' };
+  }
+  const e = gh(['api', '--hostname', 'github.com', 'user/emails']);
+  if (e.status !== 0) return { error: /HTTP 40[34]|scope|user:email/i.test(e.stderr + e.stdout) ? 'scope' : 'gh' };
+  let emails = [];
+  try {
+    emails = JSON.parse(e.stdout);
+  } catch {
+    return { error: 'gh' };
+  }
+  return { id: user.id, name: user.name || user.login, emails: Array.isArray(emails) ? emails : [] };
 }
 
 // Exit codes: 0 registered · 2 usage · 3 not a company account · 4 gh missing/without the email scope · 5 network.
-export async function register(room, { P = paths(), print = console.log, fetchImpl = fetch, token = ghToken, now = new Date() } = {}) {
+export async function register(room, { P = paths(), print = console.log, fetchImpl = fetch, account = () => githubAccount(), now = new Date() } = {}) {
   const cfg = readConfig(P);
   if (!cfg) return print(T.semConfig), 1;
   if (!active(cfg, now)) return print(fmt(T.expirou, { data: day(cfg.expires_at) })), 1;
   const sala = String(room || cfg.room || '').toUpperCase();
   if (!['A', 'B'].includes(sala)) return print(T.sala), 2;
   if (!cfg.panel_url) return print(T.semPainel), 5;
-  const tok = token();
-  if (!tok) return print(fmt(T.semGh, { sala })), 4;
+  const acc = account();
+  if (acc.error) return print(fmt(acc.error === 'scope' ? T.escopo : T.semGh, { sala })), 4;
+  const domain = String(cfg.email_domain || '').toLowerCase();
+  const ok = acc.emails.some((m) => m?.verified === true && typeof m.email === 'string' && domain && m.email.toLowerCase().endsWith('@' + domain));
+  if (!ok) return print(fmt(T.dominio, { dominio: domain || '?', sala })), 3;
+  // only the name, the room and a hash of the workshop code and the account id leave this computer
+  const body = { name: String(acc.name || '').slice(0, 60), room: sala, account: createHash('sha256').update(`${cfg.workshop}:${acc.id}`).digest('hex') };
   let r;
   try {
     r = await fetchImpl(`${cfg.panel_url.replace(/\/+$/, '')}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': cfg.workshop },
-      body: JSON.stringify({ token: tok, room: sala }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(15000),
     });
   } catch (e) {
@@ -93,9 +120,6 @@ export async function register(room, { P = paths(), print = console.log, fetchIm
     record('join', { lang: lingua(), os: process.platform === 'win32' ? 'win' : 'mac' }, { P, now });
     return print(fmt(T.registado, { nome: j.name, sala })), 0;
   }
-  if (r.status === 403 && j.reason === 'domain') return print(fmt(T.dominio, { dominio: cfg.email_domain || 'checkmarx.com', sala })), 3;
-  if (j.reason === 'scope') return print(fmt(T.escopo, { sala })), 4;
-  if (j.reason === 'token') return print(fmt(T.semGh, { sala })), 4;
   return print(fmt(T.rede, { motivo: `HTTP ${r.status}`, sala })), 5;
 }
 

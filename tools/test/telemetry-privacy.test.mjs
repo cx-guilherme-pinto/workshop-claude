@@ -193,3 +193,13 @@ test('the hook process exits with 0, prints nothing and is fast (p95 ≤ 300 ms)
     rmSync(t.base, { recursive: true, force: true });
   }
 });
+
+test('githubAccount: gh answers the account and its emails; not logged in or without the user:email scope are told apart', async () => {
+  const { githubAccount } = await import('../../telemetry/ctl.mjs');
+  const fake = (user, emails) => (args) => (args.at(-1) === 'user' ? user : emails);
+  const ok = (j) => ({ status: 0, stdout: JSON.stringify(j), stderr: '' });
+  assert.deepEqual(githubAccount(fake(ok({ id: 5, login: 'ana', name: null }), ok([{ email: 'a@x.com', verified: true }]))), { id: 5, name: 'ana', emails: [{ email: 'a@x.com', verified: true }] });
+  assert.deepEqual(githubAccount(fake({ status: 1, stdout: '', stderr: 'To get started with GitHub CLI, please run: gh auth login' }, null)), { error: 'gh' });
+  assert.deepEqual(githubAccount(fake(ok({ id: 5, name: 'Ana' }), { status: 1, stdout: '', stderr: 'gh: Not Found (HTTP 404)' })), { error: 'scope' });
+  assert.deepEqual(githubAccount(fake({ status: -1, stdout: '', stderr: '' }, null)), { error: 'gh' }, 'gh not installed');
+});

@@ -14,11 +14,11 @@
 //   POST /admin/reset    clears the workshop's events
 //   POST /admin/register {name, room, p?}: registers a person without GitHub (the simulator, a rehearsal, someone the
 //                        organizer lets in by hand); answers {p, name, credential}
-//   POST /register       {token, room}: registers a person (D-34). The token is the participant's gh token, sent once by
-//                        telemetry/ctl.mjs; it is used for two reads of the GitHub API (/user, /user/emails) and
-//                        dropped — never stored, never logged. The account needs a verified email of the allowed
-//                        domain (checkmarx.com). Answers {p, name, credential}; 403 {reason: "domain"}; 400
-//                        {reason: "scope"} when the token cannot read the emails (gh auth refresh -s user:email).
+//   POST /register       {name, room, account}: registers a person (D-34). No token and no email ever reach the
+//                        server: telemetry/ctl.mjs checks on the laptop, with gh, that the GitHub account has a verified
+//                        email of the company domain, and sends only the name, the room and "account", a SHA-256 of the
+//                        workshop code and the GitHub account id (the same account keeps its participant id). Answers
+//                        {p, name, credential}: the credential (an HMAC) is all that goes with the events afterwards.
 //   GET  /health
 //
 // store: { append(event, key) → seq | null (duplicate), since(seq) → [{seq, e}], getMeta(k), setMeta(k, v), reset() }
@@ -39,22 +39,8 @@ async function hmac(secret, text) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
 }
-const sha256 = async (text) => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
 
-// The two reads of the GitHub API for a registration. Returns { id, name, emails } or { error }.
-export async function githubIdentity(token, { fetchImpl = fetch, api = 'https://api.github.com' } = {}) {
-  const h = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'workshop-panel', 'X-GitHub-Api-Version': '2022-11-28' };
-  const u = await fetchImpl(`${api}/user`, { headers: h });
-  if (u.status === 401) return { error: 'token' };
-  if (!u.ok) return { error: 'github' };
-  const user = await u.json();
-  const e = await fetchImpl(`${api}/user/emails`, { headers: h });
-  if (e.status === 403 || e.status === 404) return { error: 'scope' };
-  if (!e.ok) return { error: 'github' };
-  return { id: user.id, name: user.name || user.login, emails: await e.json() };
-}
-
-export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500, emailDomain = '', github = githubIdentity }) {
+export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500 }) {
   if (!wsCode) throw new Error('createApi: wsCode is required');
   let agg = Aggregate.fromJSON(JSON.parse((await store.getMeta('snapshot')) || 'null'));
   agg.ws = wsCode;
@@ -189,24 +175,16 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     const { body, error } = await readBody(req);
     if (error) return json(req, error, { error: 'body' });
     const room = body?.room;
-    if (!['A', 'B'].includes(room) || typeof body?.token !== 'string' || body.token.length < 10 || body.token.length > 400) return json(req, 400, { error: 'token and room' });
-    let who;
-    try {
-      who = await github(body.token);
-    } catch {
-      who = { error: 'github' };
+    const account = String(body?.account || '');
+    if (!['A', 'B'].includes(room) || !/^[0-9a-f]{64}$/.test(account) || typeof body?.name !== 'string' || !body.name.trim() || body.name.length > 100) {
+      return json(req, 400, { error: 'name, room and account' });
     }
-    if (who.error) return json(req, who.error === 'scope' ? 400 : who.error === 'token' ? 401 : 502, { reason: who.error });
-    const domain = String(emailDomain || '').toLowerCase();
-    const ok = (who.emails || []).some((m) => m?.verified === true && typeof m.email === 'string' && (domain === '*' || m.email.toLowerCase().endsWith('@' + domain)));
-    if (!domain || !ok) return json(req, 403, { reason: 'domain' });
-    // the same GitHub account gets the same participant id (a second laptop, a re-run of the setup)
-    const gh = await sha256(`${wsCode}:${who.id}`);
+    // the same GitHub account (the same hash) keeps its participant id: a second laptop, a re-run of the setup
     const known = JSON.parse((await store.getMeta('participants')) || '{}');
-    const p = known[gh] || hex(crypto.getRandomValues(new Uint8Array(16)));
-    known[gh] = p;
+    const p = known[account] || hex(crypto.getRandomValues(new Uint8Array(16)));
+    known[account] = p;
     await store.setMeta('participants', JSON.stringify(known));
-    return json(req, 200, await enrol(p, who.name, room, t));
+    return json(req, 200, await enrol(p, body.name, room, t));
   }
 
   // Records a registration (an internal "register" event: the name reaches the leaderboard and the replays).

@@ -35,7 +35,6 @@ conf() { # value of a repos.conf key (the environment wins)
 CODE=$(conf WORKSHOP_CODE)
 API=$(conf PANEL_URL)
 PAGE=$(conf PANEL_PAGE_URL)
-DOMAIN=$(conf PANEL_EMAIL_DOMAIN)
 [ -n "$CODE" ] || { echo "ERROR: WORKSHOP_CODE is empty in repos.conf" >&2; exit 1; }
 printf '%s' "$CODE" | grep -Eq '^[A-Za-z0-9_-]{1,40}$' || { echo "ERROR: WORKSHOP_CODE must be 1-40 of A-Z a-z 0-9 _ -" >&2; exit 1; }
 
@@ -62,7 +61,7 @@ echo "Workshop panel: code $CODE · Pages project $PROJECT"
 echo
 echo "1. Worker (panel/worker): API and Durable Object, workshop code $CODE, allowed origin ${PAGE:-<none yet>}"
 if ask "Deploy the Worker?"; then
-  out=$(cd "$ROOT/panel/worker" && run wrangler deploy --var "WORKSHOP_CODE:$CODE" --var "ALLOWED_ORIGINS:${PAGE:-}" --var "EMAIL_DOMAIN:${DOMAIN:-}" 2>&1) || { echo "$out"; exit 1; }
+  out=$(cd "$ROOT/panel/worker" && run wrangler deploy --var "WORKSHOP_CODE:$CODE" --var "ALLOWED_ORIGINS:${PAGE:-}" 2>&1) || { echo "$out"; exit 1; }
   echo "$out"
   url=$(printf '%s\n' "$out" | grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -n 1 || true)
   [ -z "$API" ] && [ -n "$url" ] && API=$url

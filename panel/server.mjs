@@ -47,9 +47,9 @@ function staticFile(roots, pathname) {
   return null;
 }
 
-export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now, emailDomain = process.env.PANEL_EMAIL_DOMAIN || confValue('PANEL_EMAIL_DOMAIN'), github } = {}) {
+export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now } = {}) {
   const store = fileStore(join(data, ws));
-  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, emailDomain, ...(now ? { now } : {}), ...(github ? { github } : {}) });
+  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, ...(now ? { now } : {}) });
   const roots = [
     ['/replays/', join(HERE, 'replays')],
     ['/', join(HERE, 'public')],

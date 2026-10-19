@@ -3376,7 +3376,7 @@ function Invoke-WsInstallUser {
 
 # Painel do workshop (D-34): a participacao e obrigatoria e faz-se com o registo pelo GitHub. O passo 8 escolhe a
 # sala (o install-user grava-a em %USERPROFILE%\.workshop-claude\telemetry\config.json) e depois regista a pessoa
-# com telemetry\ctl.mjs register <sala> (o token do gh vai uma vez para o painel, que confirma o email da empresa).
+# com telemetry\ctl.mjs register <sala> (o gh confirma no portatil o email verificado da empresa; ao painel so vao o nome, a sala e um hash da conta, nunca o token).
 # Ver ws_room_pick e ws_s8_register no setup-mac.sh.
 function ConvertTo-WsRoom {
   # Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B ('' se nao for nenhuma)
