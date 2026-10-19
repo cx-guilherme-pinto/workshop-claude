@@ -54,7 +54,10 @@ test('skills and agents use the agent-memory MCP tools and the English markers',
   for (const p of ['skills-demo/demo-swarm/SKILL.md', 'skills-prod/task-swarm/SKILL.md']) {
     for (const m of ['STATE: DONE', 'STATE: BLOCKED', 'STATE: BATCH', '<<<CALLS', 'CALLS>>>', 'ERROR: plan not found']) assert.ok(read(p).includes(m), `${p}: ${m}`);
   }
-  assert.match(read('skills-demo/demo-review/SKILL.md'), /gate\.mjs --test "node tools\/check-integration\.mjs" --base arena-start --ignore cards\//);
+  // the generic /demo-review runs the gate command of each project's workshop.project.json (D-33)
+  assert.match(read('skills-demo/demo-review/SKILL.md'), /Run the command in `gate`/);
+  assert.match(JSON.parse(read('demo-project/workshop.project.json')).gate, /gate\.mjs --test "node tools\/check-integration\.mjs" --base arena-start --ignore cards\//);
+  assert.match(JSON.parse(read('canivete-project/workshop.project.json')).gate, /gate\.mjs --test "node tools\/check-integration\.mjs" --base canivete-start/);
   assert.match(read('skills-demo/demo-plan/SKILL.md'), /node tools\/plan\.mjs --apply \.workshop\/planner\.json/);
   assert.match(read('skills-prod/task-intake/SKILL.md'), /`## Acceptance criteria`/);
 });
