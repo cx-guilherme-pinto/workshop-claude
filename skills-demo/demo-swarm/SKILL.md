@@ -15,7 +15,7 @@ allowed-tools:
 
 **Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output (tables, numbers) exactly as it comes. Never translate the status markers (`STATE: …`, `ERROR: …`, `SWARM OK`).
 
-Arguments: `$ARGUMENTS`. With `--auto` you ask no questions, because it is the benchmark mode. With `--retry <id>` (for example `--retry pv-07`) only that task runs again: its attempts start from zero (first on the plan's model, usually Haiku), the files the participant changed (such as the card's `spec.md`) stay as they are, and the rest of the run is kept.
+Arguments: `$ARGUMENTS`. With `--auto` you ask no questions, because it is the benchmark mode. With `--retry <id>` (for example `--retry pv-07`) only that task runs again: its attempts start from zero (first on the plan's model, usually Haiku; a card broken on purpose gets a single attempt), the files the participant changed (such as the card's `spec.md`) stay as they are, and the rest of the run is kept.
 
 The script decides the graph, not you. Your job is to launch exactly what it asks for.
 
@@ -33,7 +33,7 @@ The script decides the graph, not you. Your job is to launch exactly what it ask
 
 **At the end**, show the last table and the `STATE: DONE` line (with `--retry`, also the `Retry of …` line above it). Without `--auto`, suggest:
 - running `node server.js` and opening the `/status` address it prints (usually `http://localhost:3000/status`) to see the grid;
-- for a red card, asking "why did this card fail?": the reason is in the card's test message, on `/status` and in `node --test cards/<id>/card.test.js`. If the card's `spec.md` is missing a detail, the participant adds the line the message gives (agents never change specs) and runs `/demo-swarm --retry <id>`;
+- for a red card, asking "why did this card fail?": the reason is in the card's test message, on `/status` and in `node --test cards/<id>/card.test.js`. If the message says the card's `spec.md` does not decide the answer, it shows what the agent produced, never the right value: the participant decides that value from the prompt and the concept, writes it in the spec (agents never change specs) and runs `/demo-swarm --retry <id>`. Do not tell them the answer; if they decide wrong, the same message comes back with their value;
 - `/demo-review` for the final gate;
 - `/demo-cost` for the cost report.
 

@@ -225,7 +225,7 @@ Ainda durante o swarm. A statusline do kit lê o que o hook gravou e mostra o cu
 
 [48:00 → 53:00] 5 min · deves estar aqui aos 48 min
 
-A lição do Projeto 1: o agente não adivinha o que a spec não diz. O teste mostra o que esperava e o que recebeu; a spec do cartão não o dizia, por isso nem o Haiku nem o Sonnet (que entra à terceira tentativa) o acertam. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).
+A lição do Projeto 1: o que a spec não decide, o agente adivinha. Nos 4 cartões (pv-07, rd-09, cr-07 e sc-08) há duas respostas plausíveis e a spec não tem a regra que escolhe uma; o teste só guarda um hash curto da certa, por isso nem o agente nem a mensagem a revelam. A mensagem diz o que o agente produziu e o que a spec não decide; a decisão é da pessoa, a partir do enunciado e do conceito. Estes cartões falham à primeira, sem novas tentativas. Se a pessoa decidir mal, o agente segue a spec e volta a mesma mensagem com esse valor: pensar outra vez. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).
 
 ### 30. O gate de segurança
 

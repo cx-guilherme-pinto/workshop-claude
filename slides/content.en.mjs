@@ -293,14 +293,14 @@ Answer in the participant's language.`,
   {
     seccao: 'Project 1', tipo: 'faca', min: 5,
     titulo: 'Why did this card fail?',
-    intro: '4 cards fail on purpose: their spec leaves out a detail that the test checks.',
-    passos: ['On /status, click a red square', 'Read the test line that failed', 'Add the missing detail to cards/<id>/spec.md', 'Run only that card again'],
+    intro: '4 cards fail on purpose: their spec leaves out the rule that decides the answer, so the agent guesses.',
+    passos: ['Open /status and click a red square', 'Read what the agent produced and what the spec does not decide', 'Decide the right value from the prompt and the concept', 'Write it in cards/<id>/spec.md', 'Run /demo-swarm --retry <id>'],
     comandos: [
       { rotulo: 'Browser', cmd: 'http://localhost:3000/status' },
       { rotulo: 'Terminal 1', cmd: '/demo-swarm --retry <id>' },
     ],
-    esperado: 'That square turns green: the quality of the spec decides the swarm',
-    notas: 'The lesson of Project 1: the agent does not guess what the spec does not say. The test shows what it expected and what it got; the card spec did not say it, so neither Haiku nor Sonnet (which steps in on the third attempt) gets it right. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).',
+    esperado: 'Green; or the same message with your value, if you decided wrong',
+    notas: 'The lesson of Project 1: what the spec does not decide, the agent guesses. In the 4 cards (pv-07, rd-09, cr-07 and sc-08) two answers are plausible and the spec lacks the rule that picks one; the test only keeps a short hash of the right one, so neither the agent nor the message gives it away. The message says what the agent produced and what the spec does not decide; the decision is the person\'s, from the prompt and the concept. These cards fail at once, with no new attempts. If the person decides wrong, the agent follows the spec and the same message comes back with that value: think again. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).',
   },
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,

@@ -137,21 +137,67 @@ test('--retry: unknown id, missing id and a task whose dependencies are not done
   }
 });
 
-test('a spec missing a detail (a card broken on purpose) fails at once: no new attempts, motivo "spec"', async () => {
-  const GAP = ['node', '-e', 'process.exit(require("fs").existsSync("ok.txt") ? 0 : (console.log("✖ cards/x/spec.md is missing a detail the test checks: the right answer."), 1))'];
-  const p = project([{ id: 'x', test: GAP }]);
+test('a card broken on purpose (spec_gap in the plan) fails for good on its first failed attempt, motivo "spec"; --retry grades the person\'s attempt the same way', async () => {
+  // A plain failing test: the flag decides, not the message.
+  const p = project([{ id: 'x', test: WHEN_FIXED, spec_gap: true }, { id: 'y', test: WHEN_FIXED }]);
   try {
-    const r = await untilDone(p);
-    const st = state(p.dir, 'x');
-    assert.equal(st.estado ?? st.state, 'falhou');
-    assert.equal(st.tentativa ?? st.attempt, 1, 'only the first attempt');
+    let r = await untilDone(p);
+    let st = state(p.dir, 'x');
+    assert.equal(st.estado, 'falhou');
+    assert.equal(st.tentativa, 1, 'only the first attempt');
     assert.equal(st.motivo, 'spec');
-    assert.ok(r);
-    // the person adds the line, then --retry: green
+    assert.match(st.teste.excerto, /ok\.txt is missing/, 'the test message is kept for /status');
+    // The same plan without the flag: the usual 3 attempts and no motivo.
+    assert.equal(state(p.dir, 'y').tentativa, 3);
+    assert.equal(state(p.dir, 'y').motivo, undefined);
+    assert.match(textoOnda(r, 'en'), /STATE: DONE · 0 green, 2 failed/);
+
+    // The person decided wrong: --retry runs one attempt (Haiku) and fails for good again, with no automatic retries.
+    const agents = [];
+    r = await run(p, { retry: 'x' });
+    while (r.chamadas.length) {
+      agents.push(r.chamadas[0].subagent_type + ' ' + /ATTEMPT: (\d)/.exec(r.chamadas[0].prompt)[1]);
+      r = await run(p, { retry: 'x' });
+    }
+    assert.deepEqual(agents, ['worker 1']);
+    st = state(p.dir, 'x');
+    assert.equal(st.estado, 'falhou');
+    assert.equal(st.motivo, 'spec');
+    assert.equal(st.repeticoes, 1);
+    assert.match(textoOnda(r, 'en'), /Retry of x: failed again/);
+
+    // Decided right this time: --retry is graded green and the motivo goes away.
     writeFileSync(join(p.dir, 'ok.txt'), '');
     await untilDone(p, { retry: 'x' });
-    assert.equal(state(p.dir, 'x').estado ?? state(p.dir, 'x').state, 'verde');
+    st = state(p.dir, 'x');
+    assert.equal(st.estado, 'verde');
+    assert.equal(st.tentativa, 1);
+    assert.equal(st.motivo, undefined);
   } finally {
     rmSync(p.dir, { recursive: true, force: true });
+  }
+});
+
+test('a plan without the flag: the broken-card message of the test (new and old wording) still fails it at once', async () => {
+  const messages = [
+    '✖ AssertionError: the card marks the indexes [1, 2] as unsafe, but that is not the answer the test expects. cards/x/spec.md does not say which lines count as unsafe.',
+    '✖ AssertionError: o cartão aceita ["403"], mas não é essa a resposta que o teste espera. A spec cards/x/spec.md não diz que respostas são aceites.',
+    '✖ cards/x/spec.md is missing a detail the test checks: the right answer.',
+  ];
+  for (const m of messages) {
+    const GAP = ['node', '-e', `process.exit(require("fs").existsSync("ok.txt") ? 0 : (console.log(${JSON.stringify(m)}), 1))`];
+    const p = project([{ id: 'x', test: GAP }]);
+    try {
+      await untilDone(p);
+      const st = state(p.dir, 'x');
+      assert.equal(st.estado, 'falhou', m);
+      assert.equal(st.tentativa, 1, m);
+      assert.equal(st.motivo, 'spec', m);
+      writeFileSync(join(p.dir, 'ok.txt'), '');
+      await untilDone(p, { retry: 'x' });
+      assert.equal(state(p.dir, 'x').estado, 'verde', m);
+    } finally {
+      rmSync(p.dir, { recursive: true, force: true });
+    }
   }
 });
