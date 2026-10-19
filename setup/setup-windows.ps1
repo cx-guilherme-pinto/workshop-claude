@@ -553,13 +553,15 @@ function Get-WsInstallUserArgs {
   # Argumentos para "node install-user.mjs <sub>": caminhos completos, um argumento cada (espacos e acentos).
   # -NoProxy: o NO_PROXY completo (Merge-WsNoProxy); sem ele o install-user grava so localhost,127.0.0.1. So vai com
   # o --ca-pem ou o --https-proxy (como no Mac): sem nenhum, o install-user tira o NO_PROXY que um setup anterior gravou.
-  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang, [string]$NoProxy)
+  # -Extra: argumentos a mais no fim (no instalar: --projects-dir e a participacao no painel).
+  param([string]$Sub, [string]$NodePath, [string]$KitSrc, [string]$CaPem, [string]$Proxy, [switch]$SubstituirStatusline, [string]$Lang, [string]$NoProxy, [string[]]$Extra)
   $a = @([IO.Path]::Combine($KitSrc, 'installer', 'install-user.mjs'), $Sub, '--node', $NodePath, '--kit-src', $KitSrc)
   if ($Lang) { $a += @('--lingua-maquina', $Lang) }
   if ($CaPem) { $a += @('--ca-pem', $CaPem) }
   if ($Proxy) { $a += @('--https-proxy', $Proxy) }
   if ($NoProxy -and ($CaPem -or $Proxy)) { $a += @('--no-proxy', $NoProxy) }
   if ($SubstituirStatusline) { $a += '--substituir-statusline' }
+  if ($Extra) { $a += $Extra }
   return , $a
 }
 
@@ -3303,9 +3305,98 @@ function Install-WsStep7 {
 # =============================================================== PASSO 8 - nivel do utilizador
 
 function Invoke-WsInstallUser {
-  param([string]$Sub)
-  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl) -Lang $script:Lang -NoProxy $script:NoProxy
+  param([string]$Sub, [string[]]$Extra)
+  $a = Get-WsInstallUserArgs -Sub $Sub -NodePath $script:NodeExe -KitSrc $script:KitSrc -CaPem $script:CaPem -Proxy $script:Proxy -SubstituirStatusline:($Sub -eq 'instalar' -and $script:SubstSl) -Lang $script:Lang -NoProxy $script:NoProxy -Extra $Extra
   return (Invoke-WsProcess $script:NodeExe $a -TimeoutSec 600)
+}
+
+# Participacao no painel do workshop (spec 6.6): opt-in, "nao" por defeito. O install-user grava a escolha em
+# %USERPROFILE%\.workshop-claude\telemetry\config.json; sem --telemetry/--room mantem a que la esta (sem ficheiro:
+# desligada). Ver ws_part_flags no setup-mac.sh.
+function ConvertTo-WsOnOff {
+  # WORKSHOP_TELEMETRY: on/off, yes/no, 1/0 ou true/false (maiusculas ou minusculas) -> on|off ('' se nao for nada disso)
+  param([string]$Text)
+  $t = ([string]$Text).Trim().ToLowerInvariant()
+  if (@('on', 'yes', '1', 'true') -contains $t) { return 'on' }
+  if (@('off', 'no', '0', 'false') -contains $t) { return 'off' }
+  return ''
+}
+
+function ConvertTo-WsRoom {
+  # Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B ('' se nao for nenhuma)
+  param([string]$Text)
+  $t = ([string]$Text).Trim()
+  if ($t -eq 'a') { return 'A' }
+  if ($t -eq 'b') { return 'B' }
+  return ''
+}
+
+function Get-WsParticipationArgs {
+  # Flags do install-user para a participacao. Funcao pura: as perguntas sao o Read-WsParticipation e o Read-WsRoom
+  # (os testes trocam-nas). -Mode: so o install decide (o -Check, o -Doctor e o -Uninstall nunca perguntam).
+  # -HasConfig: ja ha config.json (nada a perguntar nem a passar: o install-user mantem-na). -CanAsk: ha consola e nao
+  # e -Yes (a participacao nunca se liga sozinha). -Telemetry/-Room: WORKSHOP_TELEMETRY e WORKSHOP_ROOM (ganham a
+  # pergunta). Devolve @() (manter), --telemetry off ou --telemetry on --room A|B. Ligada sem sala valida pergunta a
+  # sala (ate 3 vezes); sem consola, ou sem resposta valida, fica desligada.
+  param([string]$Mode, [bool]$HasConfig, [bool]$CanAsk, [string]$Telemetry, [string]$Room)
+  if ($Mode -ne 'install' -or $HasConfig) { return @() }
+  $off = @('--telemetry', 'off')
+  $t = ConvertTo-WsOnOff $Telemetry
+  $r = ConvertTo-WsRoom $Room
+  if ($t -eq 'off') { return $off }
+  if ($t -ne 'on') {
+    if (-not $CanAsk) { return $off }
+    if (-not (Read-WsParticipation)) { return $off }
+  }
+  for ($i = 1; (-not $r) -and $CanAsk -and $i -le 3; $i++) { $r = ConvertTo-WsRoom (Read-WsRoom $i) }
+  if ($r) { return @('--telemetry', 'on', '--room', $r) }
+  return $off
+}
+
+function Read-WsParticipation { return (Read-WsYesNoCore (M 's8_painel_pergunta') $false -NeverSim) }
+
+function Read-WsRoom {
+  # Tentativa -> o que a pessoa escreveu (a partir da segunda, diz antes o que se espera).
+  param([int]$Try)
+  if ($Try -gt 1) { Write-WsSay ('  ' + (M 's8_painel_sala_repetir')) }
+  # O Read-Host da $null quando o anfitriao esta a fechar: o [string] faz disso um Enter.
+  $ans = ([string](Read-Host ('  ? ' + (M 's8_painel_sala')))).Trim()
+  $shown = $ans
+  if ($shown -eq '') { $shown = '<enter>' }
+  Write-WsLog ('question: room -> ' + $shown)
+  return $ans
+}
+
+# A telemetria so existe nos kits que a trazem (a pasta telemetry): sem ela, nem pergunta nem flags.
+function Test-WsTelemetryKit { return [bool]($script:KitSrc -and (Test-Path -LiteralPath (Join-Path $script:KitSrc 'telemetry') -PathType Container)) }
+function Test-WsTelemetryConfig { return [bool]($script:WsHome -and (Test-Path -LiteralPath (Join-Path $script:WsHome 'telemetry\config.json') -PathType Leaf)) }
+
+function Get-WsStep8Participation {
+  # Decide a participacao para o instalar: as flags, e $script:S8Telem (on|off|'' = manter) e $script:S8Room (A|B).
+  $script:S8Telem = ''; $script:S8Room = ''
+  if (-not (Test-WsTelemetryKit)) { return @() }
+  $cfg = Test-WsTelemetryConfig
+  $ask = (-not $script:Sim) -and (Test-WsInteractive)
+  # A pergunta fica sozinha na ultima linha (sem o spinner), como no Read-WsYesNo.
+  $hide = $ask -and -not $cfg
+  $live = $script:Live.On
+  if ($hide) { Hide-WsLive }
+  try { $f = @(Get-WsParticipationArgs -Mode $script:Mode -HasConfig $cfg -CanAsk $ask -Telemetry $env:WORKSHOP_TELEMETRY -Room $env:WORKSHOP_ROOM) } finally { if ($hide -and $live) { Show-WsLive } }
+  $shown = $f -join ' '
+  if (-not $shown) { $shown = 'kept' }
+  Write-WsLog ('participation: ' + $shown)
+  if ($f.Count -ge 2) { $script:S8Telem = $f[1] }
+  if ($f.Count -ge 4) { $script:S8Room = $f[3] }
+  return $f
+}
+
+function Add-WsStep8ParticipationNote {
+  # A escolha, como nota do passo 8 (com o comando para a mudar).
+  if (-not (Test-WsTelemetryKit)) { return }
+  $ctl = 'node ' + (Format-WsShowPath (Join-Path $script:WsHome 'kit\telemetry\ctl.mjs'))
+  if ($script:S8Telem -eq 'on') { Add-WsNote (M 's8_painel_on' @{ SALA = $script:S8Room }) }
+  elseif ($script:S8Telem -eq 'off') { Add-WsNote (M 's8_painel_off' @{ CMD = ($ctl + ' on A') }) }
+  else { Add-WsNote (M 's8_painel_mantido' @{ CMD = ($ctl + ' status') }) }
 }
 
 function Read-WsInstallUserOutput {
@@ -3383,6 +3474,8 @@ function Test-WsStep8 {
     # -ReplaceStatusline (o comando do E-CFG-06): uma statusline alheia conta como em falta, para o passo 8 instalar com
     # a opcao. Sem isto o passo ficava "ja feito" e o mesmo aviso voltava.
     if ($script:Mode -eq 'install' -and $script:SubstSl -and ([string]$r.StdOut -match '(?m)^statusline\talheia')) { return $false }
+    # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
+    if ($script:Mode -eq 'install' -and (Test-WsTelemetryKit) -and -not (Test-WsTelemetryConfig)) { Write-WsLog 'missing: telemetry config'; return $false }
     Test-WsClaudeConfigDir; return $true
   }
   # -Check/-Doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
@@ -3410,13 +3503,16 @@ function Install-WsStep8 {
   $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @()
   # a mudanca de lingua que o Test viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
   $de = $script:S8De; $para = $script:S8Para
-  $r = Invoke-WsInstallUser 'instalar'
+  # A pasta dos projetos vai sempre; a participacao so quando ha uma escolha nova (sem ela o install-user mantem a que tem).
+  $extra = @('--projects-dir', $script:Proj) + @(Get-WsStep8Participation)
+  $r = Invoke-WsInstallUser 'instalar' $extra
   Read-WsInstallUserOutput $r.StdOut
   # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
   if ($r.ExitCode -ne 0) { $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @() }
   if ($r.ExitCode -eq 3) { if (-not $script:T['8'].Falha) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json') }; return $false }
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-KIT-03' ('install-user ({0})' -f $r.ExitCode); return $false }
   if ($de) { Add-WsNote (M 's8_lingua_mudou' @{ DE = $de; PARA = $para }) }
+  Add-WsStep8ParticipationNote
   Sync-WsExtras
   Test-WsClaudeConfigDir
   return $true
@@ -3488,6 +3584,9 @@ function Format-WsShowPath {
 # mesmo commit.
 $script:PracticeDir = 'practice-project'
 $script:PracticeDirOld = 'exemplo-projeto-real'
+# Workshop v2: o projeto das missoes (%USERPROFILE%\workshop-claude\missions-project), so nos kits com o
+# assemble-missions.mjs.
+$script:MissionsDir = 'missions-project'
 
 function Invoke-WsStep9Migrate {
   $demo = Join-Path $script:Proj 'demo-project'
@@ -3534,6 +3633,10 @@ function Test-WsStep9 {
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if ((Get-WsProjState $sb '.sandbox-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $sb; return $false }
   }
+  if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-missions.mjs')) {
+    $mp = Join-Path $script:Proj $script:MissionsDir
+    if ((Get-WsProjState $mp '.missions-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $mp; return $false }
+  }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   Add-WsStep9LangNote
   if ($script:Mode -ne 'install') { return (Test-WsAppTests) }
@@ -3543,7 +3646,7 @@ function Test-WsStep9 {
 function Add-WsStep9LangNote {
   # Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
   # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
-  foreach ($p in @(@('demo-project', '.arena-kit.json'), @($script:PracticeDir, '.sandbox-kit.json'))) {
+  foreach ($p in @(@('demo-project', '.arena-kit.json'), @($script:PracticeDir, '.sandbox-kit.json'), @($script:MissionsDir, '.missions-kit.json'))) {
     $f = Join-Path (Join-Path $script:Proj $p[0]) $p[1]
     if (-not (Test-Path -LiteralPath $f)) { continue }
     $l = ''
@@ -3616,6 +3719,10 @@ function Install-WsStep9 {
   if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' 'refs/tags/arena-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' 'HEAD' @('--language', $script:LangKit))) { return $false }
+  }
+  # As missoes usam o kit instalado (o reporter dos testes, a caderneta): --kit-dir e o %USERPROFILE%\.workshop-claude\kit.
+  if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-missions.mjs')) {
+    if (-not (Invoke-WsAssemble 'assemble-missions.mjs' (Join-Path $script:Proj $script:MissionsDir) '.missions-kit.json' 'HEAD' @('--language', $script:LangKit, '--kit-dir', (Join-Path $script:WsHome 'kit')))) { return $false }
   }
   Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
   Add-WsStep9LangNote

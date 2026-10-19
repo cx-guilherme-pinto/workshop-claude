@@ -392,6 +392,19 @@ if command -v script >/dev/null 2>&1 && [ -n "${M_ui_sn_repetir:-}" ]; then
   eq "$(g1_ask '' 'a\n' 'b\n' 'c\n')" "RESULT=no TTY=normal 2" "G1 ask: tres respostas invalidas = nao"
   eq "$(g1_ask '' '\n')" "RESULT=yes TTY=normal 0" "G1 ask: Enter = o defeito"
   eq "$(g1_ask '' '  N \n')" "RESULT=no TTY=normal 0" "G1 ask: espacos a volta da resposta"
+  # A pergunta da participacao e a da sala, a serio (pty): Enter = nao; sim + sala invalida + sala valida.
+  printf '%s\n' 'WS_SOURCE_ONLY=1; . "$1"; WS_LOG=$2; WS_SIM=0; WS_FILL_KEYS=""; . "$3"; sleep 1' \
+    'echo "FLAGS=[$(WS_PART_MODE=install WS_PART_CFG=0 WS_PART_TTY=1 ws_part_flags)]"' > "$G1/part.sh"
+  g1_part() { # respostas... -> FLAGS=[...] e quantas vezes pediu A ou B
+    local a i=0; : > "$G1/part.out"
+    { while ! grep -q '? Send anonymous events' "$G1/part.out" 2>/dev/null && [ "$i" -lt 50 ]; do sleep 0.2; i=$((i + 1)); done
+      for a in "$@"; do sleep 0.3; printf '%b' "$a"; done; sleep 1; } |
+      g1_timeout 20 script -q /dev/null /bin/bash "$G1/part.sh" "$ROOT/setup/setup-mac.sh" /dev/null "$G1/msgs.sh" > "$G1/part.out" 2>&1
+    printf '%s %s' "$(grep -o 'FLAGS=\[[^]]*\]' "$G1/part.out")" "$(grep -cF "$M_ui_s8_painel_sala_repetir" "$G1/part.out")"
+  }
+  eq "$(g1_part '\n')" "FLAGS=[--telemetry off] 0" "G1 participacao: Enter = nao (o defeito)"
+  eq "$(g1_part 'y\n' 'c\n' 'b\n')" "FLAGS=[--telemetry on --room B] 1" "G1 participacao: sim, sala invalida e depois B"
+  eq "$(g1_part 'y\n' '\n' 'x\n' 'C\n')" "FLAGS=[--telemetry off] 2" "G1 participacao: 3 salas invalidas = desligada"
 fi
 
 # sem terminal (agente de IA, tarefa do IDE): o passo 3 diz onde fazer o login; cores so num terminal que as mostra
@@ -774,6 +787,81 @@ eq "$(g5git -C "$G5/mig/demo-project" cat-file -t arena-start 2>/dev/null)" comm
 ( WS_CUR=8; SN_8=""; ws_s8_parse "$(printf 'skills\t7\neditado\t%s/.workshop-claude/backup/t/edited/skills/task-plan\nanteriores\t%s/.workshop-claude/backup/t/previous\n' "$HOME" "$HOME")"; printf '%s' "$SN_8" ) > "$G5/s8"
 grep -q 'You had changed task-plan: your copy is saved in ~/.workshop-claude/backup/t/edited/skills/task-plan' "$G5/s8" && ok || ko "s8: nota editado [$(cat "$G5/s8")]"
 grep -q 'previous versions of the kit.s skills and agents are saved in ~/.workshop-claude/backup/t/previous' "$G5/s8" && ok || ko "s8: nota anteriores"
+
+# Passo 8: participacao no painel do workshop (spec 6.6). As perguntas sao trocadas: o ws_part_flags e puro.
+PF="$WS_TMP/pf"; mkdir -p "$PF"
+pf() { # modo config tty WORKSHOP_TELEMETRY WORKSHOP_ROOM resposta(s|n) salas... -> flags#perguntas feitas
+  ( WS_PART_MODE=$1; WS_PART_CFG=$2; WS_PART_TTY=$3; WS_PART_T=$4; WS_PART_R=$5; PF_YN=$6; shift 6; PF_ROOMS=("$@"); : > "$PF/asked"
+    ws_part_ask_yn() { printf 'yn ' >> "$PF/asked"; [ "$PF_YN" = s ]; }
+    ws_part_ask_room() { printf 'room%s ' "$1" >> "$PF/asked"; printf '%s' "${PF_ROOMS[$(($1 - 1))]:-}"; }
+    f=$(ws_part_flags); printf '%s#%s' "$f" "$(sed 's/ $//' "$PF/asked")" )
+}
+eq "$(pf install 1 1 on A s A)" "#" "participacao: config.json ja existe = nada a perguntar nem a passar"
+eq "$(pf install 1 1 '' '' s A)" "#" "participacao: config.json ja existe, interativo = nao pergunta"
+eq "$(pf install 0 0 on A n)" "--telemetry on --room A#" "participacao: WORKSHOP_TELEMETRY=on WORKSHOP_ROOM=A"
+eq "$(pf install 0 1 ON ' b ' n)" "--telemetry on --room B#" "participacao: ON e ' b ' (maiusculas, espacos), sem perguntar"
+eq "$(pf install 0 1 off A s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=off ganha a pergunta"
+eq "$(pf install 0 0 yes b n)" "--telemetry on --room B#" "participacao: WORKSHOP_TELEMETRY=yes"
+eq "$(pf install 0 0 TRUE a n)" "--telemetry on --room A#" "participacao: WORKSHOP_TELEMETRY=TRUE"
+eq "$(pf install 0 1 0 A s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=0"
+eq "$(pf install 0 1 No '' s A)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=No"
+eq "$(pf install 0 0 1 '' n)" "--telemetry off#" "participacao: WORKSHOP_TELEMETRY=1 sem sala e sem terminal = desligada"
+eq "$(pf install 0 0 on C n)" "--telemetry off#" "participacao: on com sala invalida, sem terminal = desligada"
+eq "$(pf install 0 1 on C n a)" "--telemetry on --room A#room1" "participacao: on com sala invalida, interativo = pergunta a sala"
+eq "$(pf install 0 1 '' '' s b)" "--telemetry on --room B#yn room1" "participacao: interativo, sim + sala"
+eq "$(pf install 0 1 '' '' n A)" "--telemetry off#yn" "participacao: interativo, Enter/nao (defeito) = desligada, sem perguntar a sala"
+eq "$(pf install 0 1 '' '' s x '' C)" "--telemetry off#yn room1 room2 room3" "participacao: 3 salas invalidas = desligada"
+eq "$(pf install 0 1 '' '' s x ' a ')" "--telemetry on --room A#yn room1 room2" "participacao: sala valida a segunda"
+eq "$(pf install 0 1 '' B s)" "--telemetry on --room B#yn" "participacao: sim com WORKSHOP_ROOM valido nao pergunta a sala"
+eq "$(pf install 0 1 talvez '' n)" "--telemetry off#yn" "participacao: WORKSHOP_TELEMETRY invalido = pergunta"
+eq "$(pf install 0 0 '' '' s A)" "--telemetry off#" "participacao: sem terminal = desligada, sem pergunta"
+eq "$(pf check 0 1 on A s A)" "#" "participacao: --check nunca pergunta nem passa flags"
+eq "$(pf doctor 0 1 '' '' s A)" "#" "participacao: --doctor nunca pergunta"
+eq "$(pf uninstall 0 1 '' '' s A)" "#" "participacao: --uninstall nunca pergunta"
+
+# O passo 8 a instalar: as flags que o install-user recebe (sempre --projects-dir) e a nota da escolha.
+mkdir -p "$PF/kit/telemetry" "$PF/kit/installer" "$PF/h/.workshop-claude"; : > "$PF/kit/installer/install-user.mjs"
+p8() { # config(0|1) tty(0|1) WORKSHOP_TELEMETRY WORKSHOP_ROOM [kit] -> argumentos do instalar#notas
+  ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC=${5:-$PF/kit}; WS_MODE=install; WS_CUR=8; WS_SIM=0; WS_SUBST_SL=0
+    SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WORKSHOP_TELEMETRY=$3; WORKSHOP_ROOM=$4
+    rm -rf "$WS_HOME/telemetry"; if [ "$1" = 1 ]; then mkdir -p "$WS_HOME/telemetry"; echo '{}' > "$WS_HOME/telemetry/config.json"; fi
+    PF_TTY=$2; ws_has_tty() { [ "$PF_TTY" = 1 ]; }
+    ws_part_ask_yn() { return 1; }
+    ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }
+    ws_iu() { printf '%s ' "$@" > "$PF/iu.args"; printf 'skills\t7\nagentes\t3\n'; }
+    ws_s8_install >/dev/null; printf '%s#%s' "$(sed 's/ $//' "$PF/iu.args")" "$SN_8" )
+}
+r=$(p8 0 0 on b); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry on --room B#"*"Workshop panel: on (room B)."*) ok ;; *) ko "s8 participacao: on B [$r]" ;; esac
+r=$(p8 0 0 '' ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry off#"*"Workshop panel: off. To turn it on, run: node ~/.workshop-claude/kit/telemetry/ctl.mjs on A (A or B: your room)"*) ok ;; *) ko "s8 participacao: sem terminal = off [$r]" ;; esac
+r=$(p8 0 1 '' ''); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry off#"*) ok ;; *) ko "s8 participacao: interativo, nao = off [$r]" ;; esac
+r=$(p8 1 1 on A); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*"Workshop panel: as you chose before. To see it: node ~/.workshop-claude/kit/telemetry/ctl.mjs status"*) ok ;; *) ko "s8 participacao: config.json existente = sem flags [$r]" ;; esac
+mkdir -p "$PF/velho/installer"; : > "$PF/velho/installer/install-user.mjs"
+r=$(p8 0 1 on A "$PF/velho"); case "$r" in *"Workshop panel"*) ko "s8 participacao: kit sem telemetry/ sem nota [$r]" ;; "instalar --projects-dir $PF/h/workshop-claude#"*) ok ;; *) ko "s8 participacao: kit sem telemetry/ = sem pergunta, sem flags, sem nota [$r]" ;; esac
+r=$( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_SIM=1; WS_MODE=install; WORKSHOP_TELEMETRY=""; WORKSHOP_ROOM=""; rm -rf "$WS_HOME/telemetry"
+  ws_has_tty() { return 0; }; ws_part_ask_yn() { printf ASKED >&2; return 0; }; ws_s8_part 2>&1; printf '%s|%s' "$WS_S8_TELEM" "$WS_S8_ROOM" )
+eq "$r" "off|" "s8 participacao: --yes nunca liga a participacao nem pergunta"
+# O detect: sem config.json (num kit com telemetria) o passo 8 corre para perguntar; no --check nao.
+p8d() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_MODE=$1; WS_CUR=8; SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WS_SUBST_SL=0
+  rm -rf "$WS_HOME/telemetry"; if [ "$2" = 1 ]; then mkdir -p "$WS_HOME/telemetry"; echo '{}' > "$WS_HOME/telemetry/config.json"; fi
+  ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }; ws_iu() { printf 'skills\t7\nagentes\t3\n'; }
+  ws_s8_detect >/dev/null; printf '%s' "$?" ); }
+eq "$(p8d install 0)|$(p8d install 1)|$(p8d check 0)" "1|0|0" "s8 detect: sem config.json da telemetria instala (so no modo install)"
+
+# Passo 9: o projeto das missoes monta-se como o de treino (so com o assemble-missions.mjs), depois dele.
+mkdir -p "$PF/k9/installer"; : > "$PF/k9/installer/assemble-sandbox.mjs"
+p9() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC="$PF/k9"; WS_NODE=node; WS_LANG_KIT=pt; WS_CUR=9; SF_9=""; SN_9=""
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_s9_tests() { :; }; ws_s9_lang_check() { :; }
+  ws_assemble() { printf '%s\n' "$*" | sed "s#$HOME#~#g" >> "$PF/asm"; }
+  : > "$PF/asm"; ws_s9_install; cat "$PF/asm" ); }
+r=$(p9); case "$r" in *missions*) ko "s9: sem assemble-missions.mjs nao monta as missoes [$r]" ;; *) ok ;; esac
+: > "$PF/k9/installer/assemble-missions.mjs"
+eq "$(p9)" "assemble-demo.mjs ~/workshop-claude/demo-project .arena-kit.json refs/tags/arena-start --node node --language pt
+assemble-sandbox.mjs ~/workshop-claude/practice-project .sandbox-kit.json HEAD --language pt
+assemble-missions.mjs ~/workshop-claude/missions-project .missions-kit.json HEAD --language pt --kit-dir ~/.workshop-claude/kit" "s9: Arena, treino e missoes, por esta ordem"
+r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""; rm -rf "$WS_PROJ"
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_proj_state() { case "$1" in (*missions-project) echo vazia ;; (*) echo ok ;; esac; }
+  ws_s9_detect >/dev/null; printf '%s|%s' "$?" "$SF_9" )
+eq "$r" "1|E-DEMO-01|$PF/h/workshop-claude/missions-project" "s9 detect: sem o projeto das missoes falta montar"
 
 # Passo 9 a serio (node e assemblers do repositorio) num HOME falso com um git global hostil: assinatura sem gpg,
 # hook que falha, gitignore global com *.js e lib/, autocrlf + safecrlf.

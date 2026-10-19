@@ -3811,3 +3811,183 @@ Describe 'aspeto: cartao, lista de passos e spinner' {
     $txt | Should -Match '6\s+GitHub CLI \(gh\)\s+\[XX\]\s+Failed\s+d6'
   }
 }
+
+Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (passo 9)' {
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Asked = @()
+  }
+
+  It 'decide as flags: <Name>' -ForEach @(
+    @{ Name = 'config.json ja existe = nada a perguntar nem a passar'; Mode = 'install'; Cfg = $true; Ask = $true; T = 'on'; R = 'A'; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
+    @{ Name = 'config.json ja existe, interativo = nao pergunta'; Mode = 'install'; Cfg = $true; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=on WORKSHOP_ROOM=A'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'on'; R = 'A'; Yn = $false; Rooms = @(); Want = '--telemetry on --room A'; Q = '' },
+    @{ Name = 'ON e " b " (maiusculas, espacos), sem perguntar'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'ON'; R = ' b '; Yn = $false; Rooms = @(); Want = '--telemetry on --room B'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=off ganha a pergunta'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'off'; R = 'A'; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=yes'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'yes'; R = 'b'; Yn = $false; Rooms = @(); Want = '--telemetry on --room B'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=TRUE'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'TRUE'; R = 'a'; Yn = $false; Rooms = @(); Want = '--telemetry on --room A'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=0'; Mode = 'install'; Cfg = $false; Ask = $true; T = '0'; R = 'A'; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=No'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'No'; R = ''; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
+    @{ Name = 'WORKSHOP_TELEMETRY=1 sem sala e sem consola = desligada'; Mode = 'install'; Cfg = $false; Ask = $false; T = '1'; R = ''; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = '' },
+    @{ Name = 'on com sala invalida, sem consola = desligada'; Mode = 'install'; Cfg = $false; Ask = $false; T = 'on'; R = 'C'; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = '' },
+    @{ Name = 'on com sala invalida, interativo = pergunta a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'on'; R = 'C'; Yn = $false; Rooms = @('a'); Want = '--telemetry on --room A'; Q = 'room1' },
+    @{ Name = 'interativo, sim + sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('b'); Want = '--telemetry on --room B'; Q = 'yn room1' },
+    @{ Name = 'interativo, nao (o defeito) = desligada, sem perguntar a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $false; Rooms = @('A'); Want = '--telemetry off'; Q = 'yn' },
+    @{ Name = '3 salas invalidas = desligada'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('x', '', 'C'); Want = '--telemetry off'; Q = 'yn room1 room2 room3' },
+    @{ Name = 'sala valida a segunda'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('x', ' a '); Want = '--telemetry on --room A'; Q = 'yn room1 room2' },
+    @{ Name = 'sim com WORKSHOP_ROOM valido nao pergunta a sala'; Mode = 'install'; Cfg = $false; Ask = $true; T = ''; R = 'B'; Yn = $true; Rooms = @(); Want = '--telemetry on --room B'; Q = 'yn' },
+    @{ Name = 'WORKSHOP_TELEMETRY invalido = pergunta'; Mode = 'install'; Cfg = $false; Ask = $true; T = 'talvez'; R = ''; Yn = $false; Rooms = @(); Want = '--telemetry off'; Q = 'yn' },
+    @{ Name = 'sem consola = desligada, sem pergunta'; Mode = 'install'; Cfg = $false; Ask = $false; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = '--telemetry off'; Q = '' },
+    @{ Name = '-Check nunca pergunta nem passa flags'; Mode = 'check'; Cfg = $false; Ask = $true; T = 'on'; R = 'A'; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
+    @{ Name = '-Doctor nunca pergunta'; Mode = 'doctor'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' },
+    @{ Name = '-Uninstall nunca pergunta'; Mode = 'uninstall'; Cfg = $false; Ask = $true; T = ''; R = ''; Yn = $true; Rooms = @('A'); Want = ''; Q = '' }
+  ) {
+    $script:Yn = $Yn; $script:Rooms = $Rooms
+    Mock Read-WsParticipation { $script:Asked += 'yn'; return $script:Yn }
+    Mock Read-WsRoom { $script:Asked += ('room' + $Try); return [string]$script:Rooms[$Try - 1] }
+    (@(Get-WsParticipationArgs -Mode $Mode -HasConfig $Cfg -CanAsk $Ask -Telemetry $T -Room $R) -join ' ') | Should -BeExactly $Want
+    ($script:Asked -join ' ') | Should -BeExactly $Q
+  }
+
+  It 'as perguntas a serio: Enter = nao (o defeito); a sala repete com "A ou B" e regista a resposta' {
+    $script:Sim = $false
+    $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Mock Test-WsInteractive { return $true }
+    Mock Clear-WsTypeAhead { }
+    Mock Read-Host { return '' }
+    Read-WsParticipation | Should -BeFalse
+    Mock Read-Host { return ' y ' }
+    Read-WsParticipation | Should -BeTrue
+    Mock Read-Host { return ' b ' }
+    Read-WsRoom 1 | Should -BeExactly 'b'
+    $script:Said.Count | Should -Be 0
+    Read-WsRoom 2 | Should -BeExactly 'b'
+    @($script:Said | Where-Object { $_ -eq ('  ' + $script:Msgs.ui.s8_painel_sala_repetir) }).Count | Should -Be 1
+    Mock Read-Host { return $null }
+    Read-WsRoom 1 | Should -BeExactly ''
+  }
+
+  Context 'Install-WsStep8 e Test-WsStep8' {
+    BeforeAll {
+      $script:SaveT = $env:WORKSHOP_TELEMETRY; $script:SaveR = $env:WORKSHOP_ROOM
+    }
+    AfterAll {
+      $env:WORKSHOP_TELEMETRY = $script:SaveT; $env:WORKSHOP_ROOM = $script:SaveR
+    }
+    BeforeEach {
+      $script:UserHome = Join-Path $TestDrive 'perfil8'
+      $script:WsHome = Join-Path $script:UserHome '.workshop-claude'
+      $script:Proj = Join-Path $script:UserHome 'workshop-claude'
+      $script:KitSrc = Join-Path $TestDrive 'kit8'
+      New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'telemetry') -Force | Out-Null
+      Remove-Item -LiteralPath (Join-Path $script:WsHome 'telemetry') -Recurse -Force -ErrorAction SilentlyContinue
+      $script:Cur = '8'; $script:Mode = 'install'; $script:Sim = $false; $script:SubstSl = $false; $script:Lang = 'en'; $script:LangKit = 'en'
+      $env:WORKSHOP_TELEMETRY = ''; $env:WORKSHOP_ROOM = ''
+      $script:IuExtra = @()
+      Mock Initialize-WsKit { return $true }
+      Mock Sync-WsExtras { }
+      Mock Test-WsClaudeConfigDir { }
+      Mock Invoke-WsInstallUser { $script:IuExtra = @($Extra); return @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`n" } }
+      Mock Test-WsInteractive { return $false }
+      Mock Read-WsParticipation { $script:Asked += 'yn'; return $false }
+    }
+    It 'on com sala: --projects-dir, --telemetry on --room B e a nota' {
+      $env:WORKSHOP_TELEMETRY = 'on'; $env:WORKSHOP_ROOM = 'b'
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|on|--room|B')
+      $script:T['8'].Notas | Should -Contain 'Workshop panel: on (room B).'
+    }
+    It 'sem consola nem variaveis: --telemetry off, sem pergunta, e a nota com o comando para a ligar' {
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
+      $script:Asked.Count | Should -Be 0
+      $script:T['8'].Notas | Should -Contain 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)'
+    }
+    It 'interativo e nao: --telemetry off' {
+      Mock Test-WsInteractive { return $true }
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
+      ($script:Asked -join ' ') | Should -BeExactly 'yn'
+    }
+    It '-Yes nunca liga a participacao nem pergunta' {
+      Mock Test-WsInteractive { return $true }
+      $script:Sim = $true
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj + '|--telemetry|off')
+      $script:Asked.Count | Should -Be 0
+    }
+    It 'config.json existente: so --projects-dir, e a nota com o comando para a ver' {
+      New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
+      $env:WORKSHOP_TELEMETRY = 'on'; $env:WORKSHOP_ROOM = 'A'
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj)
+      $script:T['8'].Notas | Should -Contain 'Workshop panel: as you chose before. To see it: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs status'
+    }
+    It 'kit sem a pasta telemetry: sem pergunta, sem flags da participacao e sem nota' {
+      Mock Test-WsInteractive { return $true }
+      $script:KitSrc = Join-Path $TestDrive 'kit8-velho'
+      New-Item -ItemType Directory -Path $script:KitSrc -Force | Out-Null
+      Install-WsStep8 | Should -BeTrue
+      ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj)
+      $script:Asked.Count | Should -Be 0
+      @($script:T['8'].Notas | Where-Object { $_ -match 'Workshop panel' }).Count | Should -Be 0
+    }
+    It 'Test-WsStep8: sem config.json (num kit com telemetria) instala, so no modo install' {
+      Test-WsStep8 | Should -BeFalse
+      $script:Mode = 'check'; $script:T = New-WsStateTable
+      Test-WsStep8 | Should -BeTrue
+      $script:Mode = 'install'; $script:T = New-WsStateTable
+      New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
+      [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
+      Test-WsStep8 | Should -BeTrue
+    }
+    It 'Get-WsInstallUserArgs junta o -Extra no fim' {
+      (Get-WsInstallUserArgs -Sub 'instalar' -NodePath 'n' -KitSrc 'k' -Extra @('--projects-dir', 'C:\p', '--telemetry', 'off')) -join '|' | Should -Match '\|instalar\|--node\|n\|--kit-src\|k\|--projects-dir\|C:\\p\|--telemetry\|off$'
+      (Get-WsInstallUserArgs -Sub 'verificar' -NodePath 'n' -KitSrc 'k').Count | Should -Be 6
+    }
+  }
+
+  It 'passo 9: Arena, treino e missoes, por esta ordem; as missoes so com o assemble-missions.mjs' {
+    Mock Initialize-WsKit { return $true }
+    Mock Get-WsGit { return 'git' }
+    Mock Invoke-WsStep9Migrate { }
+    Mock Add-WsStep9LangNote { }
+    Mock Test-WsAppTests { return $true }
+    Mock Invoke-WsAssemble { $script:Asm += ($Script + ' ' + (Split-Path $Dest -Leaf) + ' ' + $Mark + ' ' + $Ref + ' ' + ($Extra -join ' ')); return $true }
+    $script:UserHome = Join-Path $TestDrive 'perfil9'
+    $script:WsHome = Join-Path $script:UserHome '.workshop-claude'
+    $script:Proj = Join-Path $script:UserHome 'workshop-claude'
+    $script:KitSrc = Join-Path $TestDrive 'kit9m'
+    $script:NodeExe = 'node'; $script:LangKit = 'pt'; $script:Cur = '9'; $script:Mode = 'install'
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-sandbox.mjs'), '')
+    $script:Asm = @()
+    Install-WsStep9 | Should -BeTrue
+    ($script:Asm -join "`n") | Should -Not -Match 'missions'
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-missions.mjs'), '')
+    $script:Asm = @()
+    Install-WsStep9 | Should -BeTrue
+    $script:Asm.Count | Should -Be 3
+    $script:Asm[0] | Should -BeExactly 'assemble-demo.mjs demo-project .arena-kit.json refs/tags/arena-start --node node --language pt'
+    $script:Asm[1] | Should -BeExactly 'assemble-sandbox.mjs practice-project .sandbox-kit.json HEAD --language pt'
+    $script:Asm[2] | Should -BeExactly ('assemble-missions.mjs missions-project .missions-kit.json HEAD --language pt --kit-dir ' + (Join-Path $script:WsHome 'kit'))
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match "Invoke-WsAssemble 'assemble-missions\.mjs' \(Join-Path \`$script:Proj \`$script:MissionsDir\) '\.missions-kit\.json' 'HEAD' @\("
+  }
+
+  It 'Test-WsStep9: sem o projeto das missoes (num kit com o assemble-missions.mjs) falta montar' {
+    Mock Initialize-WsKit { return $true }
+    Mock Invoke-WsStep9Migrate { }
+    Mock Get-WsProjState { if ($Dir -like '*missions-project') { return 'vazia' }; return 'ok' }
+    $script:Proj = Join-Path $TestDrive 'proj9m'
+    $script:KitSrc = Join-Path $TestDrive 'kit9m2'
+    $script:Mode = 'install'; $script:Cur = '9'
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-missions.mjs'), '')
+    Test-WsStep9 | Should -BeFalse
+    $script:T['9'].Falha -join '|' | Should -BeExactly ('E-DEMO-01|' + (Join-Path $script:Proj 'missions-project'))
+  }
+}

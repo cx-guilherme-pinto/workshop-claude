@@ -2426,6 +2426,80 @@ ws_iu() { # subcomando [extra]
   { [ -n "${WS_CA_PEM:-}" ] || [ -n "${WS_PROXY:-}" ]; } && set -- "$@" --no-proxy "$(ws_no_proxy)"
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
+# Participacao no painel do workshop (spec 6.6): opt-in, "nao" por defeito. O install-user grava a escolha em
+# ~/.workshop-claude/telemetry/config.json; sem --telemetry/--room mantem a que la esta (sem ficheiro: desligada).
+# WORKSHOP_TELEMETRY: on/off, yes/no, 1/0 ou true/false (maiusculas ou minusculas) -> on|off (vazio se nao for nada disso).
+ws_part_onoff() {
+  case "$(ws_trim "$1" | tr '[:upper:]' '[:lower:]')" in
+    on|yes|1|true) printf on ;;
+    off|no|0|false) printf off ;;
+  esac
+}
+# Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B (vazio se nao for nenhuma).
+ws_part_room() { case "$(ws_trim "$1")" in a|A) printf A ;; b|B) printf B ;; esac; }
+# Flags do install-user para a participacao. Funcao pura: as entradas vem nas variaveis e as perguntas sao o
+# ws_part_ask_yn e o ws_part_ask_room (os testes trocam-nas).
+#   WS_PART_MODE  modo do setup: so o install decide (o --check, o --doctor e o --uninstall nunca perguntam)
+#   WS_PART_CFG   1 = ja ha config.json da telemetria: nada a perguntar nem a passar (o install-user mantem-na)
+#   WS_PART_TTY   1 = pode perguntar (ha terminal e nao e --yes: a participacao nunca se liga sozinha)
+#   WS_PART_T     WORKSHOP_TELEMETRY;  WS_PART_R  WORKSHOP_ROOM (ganham a pergunta)
+# Escreve "" (manter), "--telemetry off" ou "--telemetry on --room A|B". Ligada sem sala valida pergunta a sala (ate
+# 3 vezes); sem terminal, ou sem resposta valida, fica desligada.
+ws_part_flags() {
+  local t r i=0
+  [ "${WS_PART_MODE:-}" = install ] || return 0
+  [ "${WS_PART_CFG:-0}" = 1 ] && return 0
+  t=$(ws_part_onoff "${WS_PART_T:-}"); r=$(ws_part_room "${WS_PART_R:-}")
+  if [ "$t" = off ]; then printf '%s' '--telemetry off'; return 0; fi
+  if [ "$t" != on ]; then
+    if [ "${WS_PART_TTY:-0}" != 1 ] || ! ws_part_ask_yn; then printf '%s' '--telemetry off'; return 0; fi
+  fi
+  while [ -z "$r" ] && [ "${WS_PART_TTY:-0}" = 1 ] && [ "$i" -lt 3 ]; do
+    i=$((i + 1)); r=$(ws_part_room "$(ws_part_ask_room "$i")")
+  done
+  if [ -n "$r" ]; then printf '%s' "--telemetry on --room $r"; else printf '%s' '--telemetry off'; fi
+}
+ws_part_ask_yn() { ws_ask_q "$(ws_m s8_painel_pergunta)" n nunca-sim; }
+ws_part_ask_room() { # tentativa -> o que a pessoa escreveu (a partir da segunda, diz antes o que se espera)
+  local ans
+  [ "$1" -gt 1 ] && printf '  %s\n' "$(ws_m s8_painel_sala_repetir)" > /dev/tty
+  printf '  ? %s ' "$(ws_m s8_painel_sala)" > /dev/tty
+  IFS= read -r ans < /dev/tty || ans=""
+  ws_log "question: room -> ${ans:-<enter>}"
+  printf '%s' "$ans"
+}
+# A telemetria so existe nos kits que a trazem (a pasta telemetry/): sem ela, nem pergunta nem flags.
+ws_part_kit() { [ -n "${KIT_SRC:-}" ] && [ -d "$KIT_SRC/telemetry" ]; }
+ws_part_cfg() { [ -f "$WS_HOME/telemetry/config.json" ]; }
+# Decide a participacao para o instalar: WS_S8_TELEM (on|off|vazio = manter) e WS_S8_ROOM (A|B).
+ws_s8_part() {
+  local tty=0 cfg=0 flags
+  WS_S8_TELEM=""; WS_S8_ROOM=""
+  ws_part_kit || return 0
+  ws_part_cfg && cfg=1
+  [ "$WS_SIM" != 1 ] && ws_has_tty && tty=1
+  # A pergunta fica sozinha na ultima linha (sem o spinner), como no ws_ask.
+  [ "$tty" = 1 ] && [ "$cfg" = 0 ] && ws_ui_hide
+  flags=$(WS_PART_MODE=$WS_MODE WS_PART_CFG=$cfg WS_PART_TTY=$tty WS_PART_T=${WORKSHOP_TELEMETRY:-} WS_PART_R=${WORKSHOP_ROOM:-} ws_part_flags)
+  [ "$tty" = 1 ] && [ "$cfg" = 0 ] && ws_ui_show
+  ws_log "participation: ${flags:-kept}"
+  case "$flags" in
+    "--telemetry on --room "?) WS_S8_TELEM=on; WS_S8_ROOM=${flags##* } ;;
+    "--telemetry off") WS_S8_TELEM=off ;;
+  esac
+  return 0
+}
+# A escolha, como nota do passo 8 (com o comando para a mudar).
+ws_s8_part_note() {
+  ws_part_kit || return 0
+  local ctl
+  ctl="node $(ws_tilde "$WS_HOME/kit/telemetry/ctl.mjs")"
+  case "${WS_S8_TELEM:-}" in
+    on) ws_note "$(ws_msg s8_painel_on SALA="$WS_S8_ROOM")" ;;
+    off) ws_note "$(ws_msg s8_painel_off CMD="$ctl on A")" ;;
+    *) ws_note "$(ws_msg s8_painel_mantido CMD="$ctl status")" ;;
+  esac
+}
 ws_s8_parse() { # le a saida TSV de install-user
   local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para="" err="" det="" lingua=0 outra=0
   # WS_S8_SO_LINGUA=1: so falta mudar a lingua (WORKSHOP_LANG diferente da instalada); WS_S8_DE/PARA: de qual para qual
@@ -2495,6 +2569,8 @@ ws_s8_detect() {
     if [ "$WS_MODE" = install ] && [ "$WS_SUBST_SL" = 1 ]; then
       case "$out" in *"statusline${WS_TAB}alheia"*) return 1 ;; esac
     fi
+    # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
+    if [ "$WS_MODE" = install ] && ws_part_kit && ! ws_part_cfg; then ws_log "missing: telemetry config"; return 1; fi
     ws_s8_config_dir; return 0
   fi
   # --check/--doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
@@ -2505,8 +2581,14 @@ ws_s8_install() {
   ws_set SW 8 ""; ws_set SN 8 ""; ws_set SF 8 ""
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   # a mudanca de lingua que o detect viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
-  local out rc de=${WS_S8_DE:-} para=${WS_S8_PARA:-}
-  if [ "$WS_SUBST_SL" = 1 ]; then out=$(ws_iu instalar --substituir-statusline); else out=$(ws_iu instalar); fi
+  local out rc de=${WS_S8_DE:-} para=${WS_S8_PARA:-} extra
+  # A pasta dos projetos vai sempre; a participacao so quando ha uma escolha nova (sem ela o install-user mantem a que tem).
+  extra=(--projects-dir "$WS_PROJ")
+  [ "$WS_SUBST_SL" = 1 ] && extra+=(--substituir-statusline)
+  ws_s8_part
+  [ -n "$WS_S8_TELEM" ] && extra+=(--telemetry "$WS_S8_TELEM")
+  [ -n "$WS_S8_ROOM" ] && extra+=(--room "$WS_S8_ROOM")
+  out=$(ws_iu instalar "${extra[@]}")
   rc=$?
   printf '%s\n' "$out" >> "$WS_STEP_LOG"
   ws_s8_parse "$out"
@@ -2514,6 +2596,7 @@ ws_s8_install() {
   [ "$rc" = 0 ] || { ws_set SD 8 ""; ws_set SN 8 ""; }
   case "$rc" in 0) ;; 3) [ -n "${SF_8:-}" ] || ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
   [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_mudou DE="$de" PARA="$para")"
+  ws_s8_part_note
   ws_registar_flush
   ws_s8_config_dir
   return 0
@@ -2525,6 +2608,8 @@ ws_s8_install() {
 # perder trabalho: a pasta antiga so e movida se a nova nao existir, e a tag nova aponta para o mesmo commit.
 WS_PRACTICE=practice-project
 WS_PRACTICE_OLD=exemplo-projeto-real
+# Workshop v2: o projeto das missoes (~/workshop-claude/missions-project), so nos kits com o assemble-missions.mjs.
+WS_MISSIONS=missions-project
 # git so no .git da propria pasta (nunca num repositorio acima, ex.: um HOME com os dotfiles em git), sem tag assinada.
 ws_git_own() { local d=$1; shift; git --git-dir="$d/.git" -c tag.gpgsign=false "$@" </dev/null; }
 # Estado de um projeto do workshop (pasta marca ref):
@@ -2578,6 +2663,9 @@ ws_s9_detect() {
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     [ "$(ws_proj_state "$sb" .sandbox-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$sb"; return 1; }
   fi
+  if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
+    [ "$(ws_proj_state "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$WS_PROJ/$WS_MISSIONS"; return 1; }
+  fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   ws_s9_lang_check
   [ "$WS_MODE" = install ] || ws_s9_tests
@@ -2587,7 +2675,7 @@ ws_s9_detect() {
 # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
 ws_s9_lang_check() {
   local f l nome
-  for f in "demo-project/.arena-kit.json" "$WS_PRACTICE/.sandbox-kit.json"; do
+  for f in "demo-project/.arena-kit.json" "$WS_PRACTICE/.sandbox-kit.json" "$WS_MISSIONS/.missions-kit.json"; do
     [ -f "$WS_PROJ/$f" ] || continue
     l=$(ws_json_field "$WS_PROJ/$f" 'language|lingua')
     case "$l" in pt|en) ;; *) continue ;; esac
@@ -2640,6 +2728,10 @@ ws_s9_install() {
   ws_assemble assemble-demo.mjs "$WS_PROJ/demo-project" .arena-kit.json refs/tags/arena-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json HEAD --language "${WS_LANG_KIT:-en}" || return 1
+  fi
+  # As missoes usam o kit instalado (o reporter dos testes, a caderneta): --kit-dir e o ~/.workshop-claude/kit.
+  if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
+    ws_assemble assemble-missions.mjs "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD --language "${WS_LANG_KIT:-en}" --kit-dir "$WS_HOME/kit" || return 1
   fi
   ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
   ws_s9_lang_check
