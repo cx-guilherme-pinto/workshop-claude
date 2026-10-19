@@ -44,22 +44,24 @@ export function sanitize(allow, ev, fields = {}, local = {}) {
   return { fields: pick(spec.fields, fields), local: pick(spec.local, local), localOnly: spec.local_only === true };
 }
 
-const ROOMS = new Set(['A', 'B']);
 const ID = /^[0-9a-f]{32}$/;
 const WS_CODE = /^[A-Za-z0-9_-]{1,40}$/;
 const KIT = /^[A-Za-z0-9._-]{1,40}$/;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
 // An event as it leaves the machine (and as the server accepts it), or null if it does not fit.
-export function envelope(allow, { ws, room, p, kit, ev, t }, fields) {
-  if (!WS_CODE.test(ws || '') || !ROOMS.has(room) || !ID.test(p || '') || !KIT.test(kit || '') || !ISO.test(t || '')) return null;
-  const e = { v: 1, ws, room, p, ev, t, kit, ...fields };
+export function envelope(allow, { ws, p, kit, ev, t }, fields) {
+  if (!WS_CODE.test(ws || '') || !ID.test(p || '') || !KIT.test(kit || '') || !ISO.test(t || '')) return null;
+  const e = { v: 1, ws, p, ev, t, kit, ...fields };
   return JSON.stringify(e).length <= (allow.max_bytes || 512) ? e : null;
 }
 
 // Server side: an event received from a laptop, checked again field by field. Returns the clean event or null.
-export function checkIncoming(allow, e, wsCode) {
-  if (!e || typeof e !== 'object' || Array.isArray(e) || e.v !== 1 || e.ws !== wsCode) return null;
+export function checkIncoming(allow, raw, wsCode) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  // a kit from before D-34 dropped the rooms still sends "room": dropped here, never stored
+  const { room: _room, ...e } = raw;
+  if (e.v !== 1 || e.ws !== wsCode) return null;
   const spec = allow?.events?.[e.ev];
   if (!spec || spec.local_only) return null;
   const known = new Set([...(allow.envelope || []), ...Object.keys(spec.fields || {})]);

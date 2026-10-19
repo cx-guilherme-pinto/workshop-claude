@@ -2,7 +2,7 @@
 // strict CSP (no inline scripts or styles, no HTML from strings, no eval), relative imports only, the same text
 // keys in pt and en, projector legibility in the CSS (text 24px or more, short animations, none with reduced
 // motion or ?lite=1), the URL options, the leaderboard by person (D-34: the main element of every view, ranked by the
-// aggregate's points, never by spend, hidden names as "—"), and the local server serving every file the page needs
+// aggregate's points, never by spend, hidden names as "—"; one board for everybody, no rooms), and the local server serving every file the page needs
 // under its CSP.
 // The screenshots (a real browser) are tools/record/panel-screenshots.mjs.
 import { test } from 'node:test';
@@ -116,10 +116,13 @@ test('panel.js: the leaderboard (D-34) is the main element of every view, ranked
   assert.match(source('boardBlock'), /`main board/);
   // the rows come from state.board as the aggregate sorted them: the page neither sorts them nor reads any cost
   const board = source('boardBlock');
-  assert.match(board, /state\.board\?\.\[ctx\.focus \|\| 'all'\]/);
+  assert.match(board, /state\.board \|\| \{\}/);
   assert.doesNotMatch(board, /\.sort\(|cost/);
-  // ?room filters; there is no room-vs-room comparison any more
-  assert.doesNotMatch(JS, /roomRows|ctx\.other/);
+  // one board for everybody (D-34): no rooms at all, no filter, no room-vs-room comparison
+  assert.doesNotMatch(JS, /roomRows|ctx\.other|ctx\.focus|feed_rooms|state\.rooms|room-tag|roomName|ROOMS|get\('(?:room|sala)'\)/);
+  assert.doesNotMatch(CSS, /room-tag/);
+  assert.match(JS, /s\.v !== 1 \|\| !s\.summary\) return/);
+  for (const l of ['pt', 'en']) for (const k of keys(page.TEXT[l])) assert.doesNotMatch(at(page.TEXT[l], k), /\bsalas?\b|\brooms?\b/i, `${l}.${k}`);
   // names: "name" (not the old "nickname"), "—" when hidden, H + click posts {name} to /admin/hide
   assert.doesNotMatch(JS, /nickname/);
   assert.match(source('nameEl'), /'—'/);
@@ -139,7 +142,7 @@ test('the stages of the leaderboard are the ones the aggregate writes', async ()
   for (const [i, e] of events.entries()) {
     agg.apply(e);
     if (i % 200) continue;
-    for (const r of agg.state(Date.parse(e.t)).board.all.top) {
+    for (const r of agg.state(Date.parse(e.t)).board.top) {
       seen.p1.add(r.p1);
       seen.p2.add(r.p2);
     }
@@ -147,24 +150,28 @@ test('the stages of the leaderboard are the ones the aggregate writes', async ()
   for (const s of seen.p1) assert.ok(s === null || page.P1_STAGES.includes(s), `p1 ${s}`);
   for (const s of seen.p2) assert.ok(s === null || page.P2_STAGES.includes(s), `p2 ${s}`);
   assert.ok(seen.p1.has('approved') && seen.p2.has('approved'));
+  // the shape the page reads (one board, one summary, one feed, one list of registrations; no rooms)
+  const st = agg.state(Date.parse(events.at(-1).t));
+  assert.ok(st.summary && st.board && Array.isArray(st.board.top) && Array.isArray(st.feed) && st.registrations && Array.isArray(st.registrations.recent));
+  assert.ok(!('rooms' in st) && !('feed_rooms' in st));
   assert.equal(page.stageStep(page.P1_STAGES, null), 0);
   assert.equal(page.stageStep(page.P1_STAGES, 'approved'), page.P1_STAGES.length);
   assert.equal(page.stageStep(page.P2_STAGES, 'intake'), 1);
 });
 
 test('the Opening\'s names: the first state keeps the leaderboard order, a later name goes on top, hidden ones never', () => {
-  const row = (name, room = 'A') => ({ rank: 1, name, room, points: 0, missions: [], p1: null, p2: null });
+  const row = (name) => ({ rank: 1, name, points: 0, missions: [], p1: null, p2: null });
   const seen = new Map();
-  let n = page.trackNames(seen, { board: { all: { top: [row('Ana'), row('Rui', 'B'), row(null)] }, A: { top: [row('Ana')] }, B: { top: [row('Rui', 'B')] } } }, 0);
+  let n = page.trackNames(seen, { board: { people: 3, top: [row('Ana'), row('Rui'), row(null)] } }, 0);
   const order = () => [...seen].sort((a, b) => b[1].seq - a[1].seq).map(([k]) => k);
   assert.deepEqual(order(), ['Ana', 'Rui']);
-  n = page.trackNames(seen, { board: { all: { top: [row('Ana'), row('Rui', 'B'), row('Zé', 'B')] } } }, n);
+  n = page.trackNames(seen, { board: { people: 3, top: [row('Ana'), row('Rui'), row('Zé')] } }, n);
   assert.deepEqual(order(), ['Zé', 'Ana', 'Rui']);
-  assert.equal(seen.get('Zé').room, 'B');
   assert.equal(page.trackNames(seen, null, n), n, 'a broken state changes nothing');
+  assert.equal(page.trackNames(seen, { board: { all: { top: [row('Old')] } } }, n), n, 'the old per-room shape changes nothing');
 });
 
-test('the URL options: language, room (with the pt aliases), lite, replay, speed and start minute', () => {
+test('the URL options: language, lite, replay, speed and start minute (an old ?room= is ignored)', () => {
   const o = page.readOptions;
   assert.equal(o('', 'pt-BR').lang, 'pt');
   assert.equal(o('', 'pt').lang, 'pt');
@@ -172,12 +179,10 @@ test('the URL options: language, room (with the pt aliases), lite, replay, speed
   assert.equal(o('', 'fr-FR').lang, 'en');
   assert.equal(o('?lang=en', 'pt-PT').lang, 'en');
   assert.equal(o('?lang=pt', 'en').lang, 'pt');
-  assert.equal(o('?room=A', 'en').room, 'A');
-  assert.equal(o('?room=b', 'en').room, 'B');
-  assert.equal(o('?sala=A', 'en').room, 'A');
-  assert.equal(o('?room=all', 'en').room, null);
-  assert.equal(o('?sala=todas', 'en').room, null);
-  assert.equal(o('', 'en').room, null);
+  for (const q of ['?room=A', '?sala=B', '?room=all']) {
+    assert.ok(!('room' in o(q, 'en')), q);
+    assert.deepEqual(o(`${q}&lang=pt&x=2`, 'en'), o('?lang=pt&x=2', 'en'), q);
+  }
   assert.equal(o('?lite=1', 'en').lite, true);
   assert.equal(o('', 'en').replay, null);
   assert.deepEqual([o('?replay=simulated&x=10&at=40', 'en').replay, o('?replay=simulated&x=10', 'en').x, o('?replay=simulated&at=40', 'en').at], ['simulated', 10, 40]);

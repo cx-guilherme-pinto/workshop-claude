@@ -1,7 +1,7 @@
 {
   "v": 1,
   "about": "The only events and fields the kit may record or send (docs/pt/WORKSHOP-V2-SPEC.md, section 6.4). The telemetry hook, emit.mjs and the panel server read this file; anything else is dropped. Field types: an array is the list of allowed values; int (0 to 100000), int_or_null, num (0 to 1000), catalog_id ([a-z]{2}-NN or my-NN), nickname (1 to 16 of A-Z a-z 0-9 space _ -). \"local\" fields stay in local.jsonl and are never sent; a \"local_only\" event never leaves the machine.",
-  "envelope": ["v", "ws", "room", "p", "ev", "t", "kit"],
+  "envelope": ["v", "ws", "p", "ev", "t", "kit"],
   "max_bytes": 512,
   "events": {
     "join": { "fields": { "lang": ["pt", "en"], "os": ["mac", "win"] } },

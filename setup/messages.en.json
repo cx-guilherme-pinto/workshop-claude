@@ -156,11 +156,9 @@
     "s8_anteriores": "The previous versions of the kit's skills and agents are saved in {PASTA}, in case you had changed one.",
     "s8_claude_dir": "Claude Code folder (CLAUDE_CONFIG_DIR): {CAMINHO}",
     "s8_alheio": "Your {NOME} has the same name as one in the kit: it is saved in {PASTA} and comes back if you uninstall the kit.",
-    "s8_painel_sala": "Which room are you in? (A or B)",
-    "s8_painel_sala_repetir": "Please answer A or B.",
-    "s8_painel_registado": "Workshop panel: registered as {NOME} (room {SALA}).",
+    "s8_painel_registado": "Workshop panel: registered as {NOME}.",
     "s8_painel_ver_gh": "Workshop panel: not registered yet. Fix the GitHub warning of step 6, then run the setup again (or {CMD}).",
-    "s8_painel_acessivel": "Workshop panel: on (room {SALA}), and it answers from this network.",
+    "s8_painel_acessivel": "Workshop panel: on, and it answers from this network.",
     "s9_backup": "Your previous folder is saved in {PASTA}.",
     "s9_testes_ok": "App tests: {OK} passed.",
     "s9_sem_testes": "The project doesn't have test/app.test.js yet. I skipped the tests.",
@@ -1229,17 +1227,17 @@
     "E-TEL-01": {
       "titulo": "The workshop panel can't be reached from this network",
       "so": "todos",
-      "causa": "The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the leaderboard in the room won't see your progress (or your registration, if it was not done yet).",
+      "causa": "The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the workshop leaderboard won't see your progress (or your registration, if it was not done yet).",
       "fazer": [
         "On the workshop day, connect to the event network or to your phone's hotspot and run the setup again: it registers you on the panel.",
-        "Or run the first command (A or B: your room) on that network. The second command shows whether you are registered."
+        "Or run the first command on that network. The second command shows whether you are registered."
       ],
       "mac": [
-        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A",
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register",
         "node ~/.workshop-claude/kit/telemetry/ctl.mjs status"
       ],
       "windows": [
-        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A",
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register",
         "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" status"
       ]
     },
@@ -1249,15 +1247,15 @@
       "causa": "To appear on the workshop leaderboard, the panel checks that your GitHub account has a verified @{PANEL_EMAIL_DOMAIN} email (shown above), and this account does not. This is only a warning: you do the workshop all the same, you just do not appear on the leaderboard.",
       "fazer": [
         "Add your company email to your GitHub account and confirm it (GitHub sends a link): open the page with the first command.",
-        "Then run the setup again (or the second command, A or B: your room): it registers you on the panel."
+        "Then run the setup again (or the second command): it registers you on the panel."
       ],
       "mac": [
         "open https://github.com/settings/emails",
-        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A"
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register"
       ],
       "windows": [
         "Start-Process https://github.com/settings/emails",
-        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A"
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register"
       ]
     },
     "E-TEL-03": {
@@ -1283,7 +1281,7 @@
       "causa": "The panel registration (with your GitHub account) has not been done on this computer yet, or it did not work the last time (network, company email or GitHub permission). This is only a warning: the workshop works the same; you just do not appear on the leaderboard.",
       "fazer": [
         "Run the setup again (without --check): it registers you and says what is missing, if anything.",
-        "Or run the command shown above (A or B: your room)."
+        "Or run the command shown above."
       ],
       "mac": [
         "{ONE_LINER_MAC}"

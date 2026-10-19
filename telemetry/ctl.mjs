@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // The workshop panel on this computer (docs/pt/WORKSHOP-V2-SPEC.md, section 6; D-34):
 //
-//   node ~/.workshop-claude/kit/telemetry/ctl.mjs register [A|B]   registers you on the panel's leaderboard
-//   node ctl.mjs status                                             registration, room, workshop, events
-//   node ctl.mjs show                                               the last 20 events, exactly as they leave
+//   node ~/.workshop-claude/kit/telemetry/ctl.mjs register   registers you on the panel's leaderboard
+//   node ctl.mjs status                                       registration, workshop, events
+//   node ctl.mjs show                                         the last 20 events, exactly as they leave
 //
 // register (the setup runs it after the GitHub login, step 6), D-34: no token and no email ever leave this computer.
 // It asks gh (which keeps its own token) for the account (`gh api user`) and its emails (`gh api user/emails`, the
 // user:email scope), checks HERE that one of the verified emails is of the company domain (config.json email_domain),
-// and sends the panel only the name of the account, the room and a SHA-256 of the workshop code and the account id
+// and sends the panel only the name of the account and a SHA-256 of the workshop code and the account id
 // (so the same account keeps its place). The panel answers with a participant id and a credential (an HMAC signature),
 // kept in config.json: that signature is all that goes with the events afterwards. The mission book works without it.
 import { spawnSync } from 'node:child_process';
@@ -23,36 +23,34 @@ const T = textos(
     pt: {
       semConfig: 'A telemetria do workshop não está instalada (corre o setup do kit).',
       expirou: 'A configuração expirou em {data}: o kit já não grava nem envia nada.',
-      registado: 'Registado no painel como {nome} (sala {sala}).',
-      naoRegistado: 'Ainda não estás registado no painel. Corre: node ~/.workshop-claude/kit/telemetry/ctl.mjs register A  (ou B, a tua sala)',
-      sala: 'Indica a sala: ctl.mjs register A  ou  ctl.mjs register B',
+      registado: 'Registado no painel como {nome}.',
+      naoRegistado: 'Ainda não estás registado no painel. Corre: node ~/.workshop-claude/kit/telemetry/ctl.mjs register',
       semPainel: 'Este kit não tem o endereço do painel (PANEL_URL no repos.conf).',
-      semGh: 'O gh não tem sessão iniciada no github.com: corre  gh auth login  e volta a correr  ctl.mjs register {sala}.',
-      escopo: 'O gh não pode ler os emails da tua conta. Corre  gh auth refresh -h github.com -s user:email  (abre o browser) e volta a correr  ctl.mjs register {sala}.',
-      dominio: 'A tua conta GitHub não tem um email verificado @{dominio}. Junta-o e confirma-o em https://github.com/settings/emails e volta a correr  ctl.mjs register {sala}. Fazes o workshop igual; só não apareces no painel.',
-      rede: 'Não consegui chegar ao painel ({motivo}). Tenta outra rede (a do evento ou um hotspot) e volta a correr  ctl.mjs register {sala}.',
+      semGh: 'O gh não tem sessão iniciada no github.com: corre  gh auth login  e volta a correr  ctl.mjs register.',
+      escopo: 'O gh não pode ler os emails da tua conta. Corre  gh auth refresh -h github.com -s user:email  (abre o browser) e volta a correr  ctl.mjs register.',
+      dominio: 'A tua conta GitHub não tem um email verificado @{dominio}. Junta-o e confirma-o em https://github.com/settings/emails e volta a correr  ctl.mjs register. Fazes o workshop igual; só não apareces no painel.',
+      rede: 'Não consegui chegar ao painel ({motivo}). Tenta outra rede (a do evento ou um hotspot) e volta a correr  ctl.mjs register.',
       workshop: 'Workshop: {ws} · expira em {data}',
       contagem: 'Eventos na caderneta local: {local} · à espera de envio: {fila}',
       nada: 'Ainda não há eventos enviados.',
       mostrar: 'Os últimos {n} eventos, exatamente como saem do teu computador:',
-      uso: 'Uso: ctl.mjs register [A|B] | status | show',
+      uso: 'Uso: ctl.mjs register | status | show',
     },
     en: {
       semConfig: 'The workshop telemetry is not installed (run the kit setup).',
       expirou: 'The configuration expired on {data}: the kit no longer records or sends anything.',
-      registado: 'Registered on the panel as {nome} (room {sala}).',
-      naoRegistado: 'You are not registered on the panel yet. Run: node ~/.workshop-claude/kit/telemetry/ctl.mjs register A  (or B, your room)',
-      sala: 'Choose the room: ctl.mjs register A  or  ctl.mjs register B',
+      registado: 'Registered on the panel as {nome}.',
+      naoRegistado: 'You are not registered on the panel yet. Run: node ~/.workshop-claude/kit/telemetry/ctl.mjs register',
       semPainel: 'This kit has no panel address (PANEL_URL in repos.conf).',
-      semGh: 'gh is not logged in to github.com: run  gh auth login  and then  ctl.mjs register {sala}  again.',
-      escopo: 'gh cannot read your account\'s emails. Run  gh auth refresh -h github.com -s user:email  (it opens the browser) and then  ctl.mjs register {sala}  again.',
-      dominio: 'Your GitHub account has no verified @{dominio} email. Add it and confirm it at https://github.com/settings/emails, then run  ctl.mjs register {sala}  again. You do the workshop all the same; you just do not appear on the panel.',
-      rede: 'I could not reach the panel ({motivo}). Try another network (the event\'s or a hotspot) and run  ctl.mjs register {sala}  again.',
+      semGh: 'gh is not logged in to github.com: run  gh auth login  and then  ctl.mjs register  again.',
+      escopo: 'gh cannot read your account\'s emails. Run  gh auth refresh -h github.com -s user:email  (it opens the browser) and then  ctl.mjs register  again.',
+      dominio: 'Your GitHub account has no verified @{dominio} email. Add it and confirm it at https://github.com/settings/emails, then run  ctl.mjs register  again. You do the workshop all the same; you just do not appear on the panel.',
+      rede: 'I could not reach the panel ({motivo}). Try another network (the event\'s or a hotspot) and run  ctl.mjs register  again.',
       workshop: 'Workshop: {ws} · expires on {data}',
       contagem: 'Events in the local book: {local} · waiting to be sent: {fila}',
       nada: 'No events sent yet.',
       mostrar: 'The last {n} events, exactly as they leave your computer:',
-      uso: 'Usage: ctl.mjs register [A|B] | status | show',
+      uso: 'Usage: ctl.mjs register | status | show',
     },
   },
   lingua(),
@@ -88,21 +86,20 @@ export function githubAccount(gh = runGh) {
   return { id: user.id, name: user.name || user.login, emails: Array.isArray(emails) ? emails : [] };
 }
 
-// Exit codes: 0 registered · 2 usage · 3 not a company account · 4 gh missing/without the email scope · 5 network.
-export async function register(room, { P = paths(), print = console.log, fetchImpl = fetch, account = () => githubAccount(), now = new Date() } = {}) {
+// Exit codes: 0 registered · 3 not a company account · 4 gh missing/without the email scope · 5 network. An old
+// room argument (A|B, before D-34 dropped the rooms) is accepted and ignored.
+export async function register(_room, { P = paths(), print = console.log, fetchImpl = fetch, account = () => githubAccount(), now = new Date() } = {}) {
   const cfg = readConfig(P);
   if (!cfg) return print(T.semConfig), 1;
   if (!active(cfg, now)) return print(fmt(T.expirou, { data: day(cfg.expires_at) })), 1;
-  const sala = String(room || cfg.room || '').toUpperCase();
-  if (!['A', 'B'].includes(sala)) return print(T.sala), 2;
   if (!cfg.panel_url) return print(T.semPainel), 5;
   const acc = account();
-  if (acc.error) return print(fmt(acc.error === 'scope' ? T.escopo : T.semGh, { sala })), 4;
+  if (acc.error) return print(fmt(acc.error === 'scope' ? T.escopo : T.semGh)), 4;
   const domain = String(cfg.email_domain || '').toLowerCase();
   const ok = acc.emails.some((m) => m?.verified === true && typeof m.email === 'string' && domain && m.email.toLowerCase().endsWith('@' + domain));
-  if (!ok) return print(fmt(T.dominio, { dominio: domain || '?', sala })), 3;
-  // only the name, the room and a hash of the workshop code and the account id leave this computer
-  const body = { name: String(acc.name || '').slice(0, 60), room: sala, account: createHash('sha256').update(`${cfg.workshop}:${acc.id}`).digest('hex') };
+  if (!ok) return print(fmt(T.dominio, { dominio: domain || '?' })), 3;
+  // only the name and a hash of the workshop code and the account id leave this computer
+  const body = { name: String(acc.name || '').slice(0, 60), account: createHash('sha256').update(`${cfg.workshop}:${acc.id}`).digest('hex') };
   let r;
   try {
     r = await fetchImpl(`${cfg.panel_url.replace(/\/+$/, '')}/register`, {
@@ -112,15 +109,16 @@ export async function register(room, { P = paths(), print = console.log, fetchIm
       signal: AbortSignal.timeout(15000),
     });
   } catch (e) {
-    return print(fmt(T.rede, { motivo: e?.name === 'TimeoutError' ? 'timeout' : 'sem ligação', sala })), 5;
+    return print(fmt(T.rede, { motivo: e?.name === 'TimeoutError' ? 'timeout' : 'sem ligação' })), 5;
   }
   const j = await r.json().catch(() => ({}));
   if (r.status === 200 && /^[0-9a-f]{32}$/.test(j.p || '') && j.credential) {
-    writeJson(P.config, { ...cfg, enabled: true, room: sala, participant: { p: j.p, credential: j.credential, name: j.name, registered_at: now.toISOString() } });
+    const { room: _old, ...rest } = cfg;
+    writeJson(P.config, { ...rest, enabled: true, participant: { p: j.p, credential: j.credential, name: j.name, registered_at: now.toISOString() } });
     record('join', { lang: lingua(), os: process.platform === 'win32' ? 'win' : 'mac' }, { P, now });
-    return print(fmt(T.registado, { nome: j.name, sala })), 0;
+    return print(fmt(T.registado, { nome: j.name })), 0;
   }
-  return print(fmt(T.rede, { motivo: `HTTP ${r.status}`, sala })), 5;
+  return print(fmt(T.rede, { motivo: `HTTP ${r.status}` })), 5;
 }
 
 export async function ctl(args, { P = paths(), print = console.log, now = new Date(), ...rest } = {}) {
@@ -132,7 +130,7 @@ export async function ctl(args, { P = paths(), print = console.log, now = new Da
       return register(arg, { P, print, now, ...rest });
     case 'status': {
       if (!active(cfg, now)) print(fmt(T.expirou, { data: day(cfg.expires_at) }));
-      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name, sala: cfg.room }) : T.naoRegistado);
+      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name }) : T.naoRegistado);
       print(fmt(T.workshop, { ws: cfg.workshop || '-', data: day(cfg.expires_at) }));
       print(fmt(T.contagem, { local: readLines(P.local).length, fila: readLines(P.queue).length + readLines(P.sending).length }));
       return 0;

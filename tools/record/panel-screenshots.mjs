@@ -8,8 +8,8 @@
 // only), opens the replay "simulated" (with its made-up registrations) at the right minute of each block and saves
 // into --out:
 //   panel-strip.png (the top strip), panel-opening.png, panel-missions.png, panel-p1.png, panel-p2.png,
-//   panel-closing.png (640 x 1080, pt, both rooms), panel-room-a-missions.png (?room=A, the board filtered),
-//   panel-wide-opening.png, panel-wide-missions.png, panel-wide-p1.png (room B) and panel-wide-closing.png
+//   panel-closing.png (640 x 1080, pt),
+//   panel-wide-opening.png, panel-wide-missions.png, panel-wide-p1.png and panel-wide-closing.png
 //   (1920 x 1080),
 //   panel-en-p2.png (en, ?lite=1) and panel-live-p1.png (live mode: the simulator's people registered with
 //   /admin/register and their events posted to /e with their credential, the view moved by key 3 with the admin
@@ -113,26 +113,25 @@ try {
   await shot({ file: 'panel-strip.png', path: '/?replay=simulated&lang=pt&at=40', clip: '#strip' });
   await shot({ file: 'panel-opening.png', path: '/?replay=simulated&lang=pt&at=4' });
   await shot({ file: 'panel-missions.png', path: '/?replay=simulated&lang=pt&at=21' });
-  await shot({ file: 'panel-room-a-missions.png', path: '/?replay=simulated&room=A&lang=pt&at=21' });
   await shot({ file: 'panel-p1.png', path: '/?replay=simulated&lang=pt&at=42' });
   await shot({ file: 'panel-p2.png', path: '/?replay=simulated&lang=pt&at=70' });
   // the closing shows the full leaderboard: 15 rows or more
   await shot({ file: 'panel-closing.png', path: '/?replay=simulated&lang=pt&at=89', minRows: 15 });
   await shot({ file: 'panel-wide-opening.png', path: '/?replay=simulated&lang=pt&at=4', width: 1920, height: 1080 });
   await shot({ file: 'panel-wide-missions.png', path: '/?replay=simulated&lang=pt&at=21', width: 1920, height: 1080 });
-  await shot({ file: 'panel-wide-p1.png', path: '/?replay=simulated&room=B&lang=pt&at=42', width: 1920, height: 1080 });
+  await shot({ file: 'panel-wide-p1.png', path: '/?replay=simulated&lang=pt&at=42', width: 1920, height: 1080 });
   await shot({ file: 'panel-wide-closing.png', path: '/?replay=simulated&lang=pt&at=89', width: 1920, height: 1080, minRows: 15 });
-  await shot({ file: 'panel-en-p2.png', path: '/?replay=simulated&room=B&lang=en&lite=1&at=66', lang: 'en-GB' });
+  await shot({ file: 'panel-en-p2.png', path: '/?replay=simulated&lang=en&lite=1&at=66', lang: 'en-GB' });
 
   // Live: the simulator's people registered (made-up names), their first 42 minutes posted to the server with
   // their credential, then key 3 with the admin token.
   const admin = { 'Content-Type': 'application/json', 'X-Admin-Token': token };
-  const events = simulate({ people: 60, rooms: 2, ws: WS, start: Date.now() - 42 * 60000 }).filter((e) => Date.parse(e.t) <= Date.now());
+  const events = simulate({ people: 60, ws: WS, start: Date.now() - 42 * 60000 }).filter((e) => Date.parse(e.t) <= Date.now());
   const byPerson = new Map();
   for (const e of events) byPerson.set(e.p, [...(byPerson.get(e.p) || []), e]);
   let k = 0;
   for (const [p, list] of byPerson) {
-    const reg = await fetch(`${url}/admin/register`, { method: 'POST', headers: admin, body: JSON.stringify({ p, room: list[0].room, name: fakeName(k++) }) });
+    const reg = await fetch(`${url}/admin/register`, { method: 'POST', headers: admin, body: JSON.stringify({ p, name: fakeName(k++) }) });
     if (reg.status !== 200) problems.push(`live: POST /admin/register answered ${reg.status}`);
     const { credential } = await reg.json();
     for (let j = 0; j < list.length; j += 50) {

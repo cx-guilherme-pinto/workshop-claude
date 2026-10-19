@@ -1,7 +1,7 @@
 // Local telemetry of the kit (docs/pt/WORKSHOP-V2-SPEC.md, sections 4.3, 6.4 and 6.6).
 //
 // Everything lives in ~/.workshop-claude/telemetry/ (WORKSHOP_TELEMETRY_DIR for tests):
-//   config.json   written by the installer: room, workshop code, panel, expiry, projects folder; and, after
+//   config.json   written by the installer: workshop code, panel, expiry, projects folder; and, after
 //                 ctl.mjs register (D-34), "participant": the id and credential the panel gave this GitHub account
 //   id            16 random bytes (hex), the local id before the registration (never sent)
 //   local.jsonl   every allowed event, also with participation off (the person's own mission book)
@@ -165,7 +165,7 @@ export function record(ev, fields = {}, { local = {}, P = paths(), now = new Dat
   const part = cfg.participant;
   if (part?.p && !s.localOnly) {
     const p = part.p;
-    const e = envelope(allow, { ws: cfg.workshop, room: cfg.room, p, kit: cfg.kit, ev, t }, s.fields);
+    const e = envelope(allow, { ws: cfg.workshop, p, kit: cfg.kit, ev, t }, s.fields);
     if (e) {
       appendLine(P.queue, e);
       capQueue(P.queue);

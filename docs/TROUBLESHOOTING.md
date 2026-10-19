@@ -996,15 +996,15 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 ### E-TEL-01 · The workshop panel can't be reached from this network
 
-- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the leaderboard in the room won't see your progress (or your registration, if it was not done yet).
+- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the workshop leaderboard won't see your progress (or your registration, if it was not done yet).
 - **What to do:**
   - On the workshop day, connect to the event network or to your phone's hotspot and run the setup again: it registers you on the panel.
-  - Or run the first command (A or B: your room) on that network. The second command shows whether you are registered.
+  - Or run the first command on that network. The second command shows whether you are registered.
 
 Commands (macOS):
 
 ```
-node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register
 node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 ```
 
@@ -1015,13 +1015,13 @@ node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 - **Why:** To appear on the workshop leaderboard, the panel checks that your GitHub account has a verified @checkmarx.com email (shown above), and this account does not. This is only a warning: you do the workshop all the same, you just do not appear on the leaderboard.
 - **What to do:**
   - Add your company email to your GitHub account and confirm it (GitHub sends a link): open the page with the first command.
-  - Then run the setup again (or the second command, A or B: your room): it registers you on the panel.
+  - Then run the setup again (or the second command): it registers you on the panel.
 
 Commands (macOS):
 
 ```
 open https://github.com/settings/emails
-node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register
 ```
 
 <a id="mac-e-tel-03"></a>
@@ -1047,7 +1047,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 - **Why:** The panel registration (with your GitHub account) has not been done on this computer yet, or it did not work the last time (network, company email or GitHub permission). This is only a warning: the workshop works the same; you just do not appear on the leaderboard.
 - **What to do:**
   - Run the setup again (without --check): it registers you and says what is missing, if anything.
-  - Or run the command shown above (A or B: your room).
+  - Or run the command shown above.
 
 Command (macOS):
 
@@ -2351,15 +2351,15 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 ### E-TEL-01 · The workshop panel can't be reached from this network
 
-- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the leaderboard in the room won't see your progress (or your registration, if it was not done yet).
+- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the workshop leaderboard won't see your progress (or your registration, if it was not done yet).
 - **What to do:**
   - On the workshop day, connect to the event network or to your phone's hotspot and run the setup again: it registers you on the panel.
-  - Or run the first command (A or B: your room) on that network. The second command shows whether you are registered.
+  - Or run the first command on that network. The second command shows whether you are registered.
 
 Commands (Windows):
 
 ```
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register
 node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 ```
 
@@ -2370,13 +2370,13 @@ node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 - **Why:** To appear on the workshop leaderboard, the panel checks that your GitHub account has a verified @checkmarx.com email (shown above), and this account does not. This is only a warning: you do the workshop all the same, you just do not appear on the leaderboard.
 - **What to do:**
   - Add your company email to your GitHub account and confirm it (GitHub sends a link): open the page with the first command.
-  - Then run the setup again (or the second command, A or B: your room): it registers you on the panel.
+  - Then run the setup again (or the second command): it registers you on the panel.
 
 Commands (Windows):
 
 ```
 Start-Process https://github.com/settings/emails
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register
 ```
 
 <a id="windows-e-tel-03"></a>
@@ -2402,7 +2402,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 - **Why:** The panel registration (with your GitHub account) has not been done on this computer yet, or it did not work the last time (network, company email or GitHub permission). This is only a warning: the workshop works the same; you just do not appear on the leaderboard.
 - **What to do:**
   - Run the setup again (without --check): it registers you and says what is missing, if anything.
-  - Or run the command shown above (A or B: your room).
+  - Or run the command shown above.
 
 Command (Windows):
 

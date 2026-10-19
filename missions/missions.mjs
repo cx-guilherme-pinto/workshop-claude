@@ -94,12 +94,13 @@ export const FILE_CHECKS = {
 // M6: after /loop started, an npm test with 0 red that follows one with red. Without those events (the tests were
 // run with node --test, not npm test), the tests of the missions project are run here once: all green is enough
 // (the spec's plan B), because the project ships with 2 red tests.
+// "After" is by the order of the local book (n), not the clock: two events of the same millisecond keep their order.
 function greenAfterLoop(ctx) {
-  const loopT = ctx.features.filter((f) => f.name === 'loop').map((f) => f.t).sort()[0];
-  if (!loopT) return false;
+  const loop = ctx.features.find((f) => f.name === 'loop');
+  if (!loop) return false;
   const runs = ctx.tests;
   const redAt = runs.findIndex((r) => r.red > 0);
-  if (redAt >= 0 && runs.slice(redAt + 1).some((r) => r.red === 0 && r.green > 0 && r.t >= loopT)) return true;
+  if (redAt >= 0 && runs.slice(redAt + 1).some((r) => r.red === 0 && r.green > 0 && r.n > loop.n)) return true;
   const proj = ctx.projs.find((p) => /[\\/]missions-project$/.test(p));
   if (!proj || !ctx.runTests) return false;
   return ctx.runTests(proj);
@@ -132,8 +133,8 @@ export function context(P, cfg, env = process.env, { runTests = runProjectTests 
   return {
     env,
     projs: projectDirs(cfg, env),
-    features: lines.filter((l) => l.ev === 'feature').map((l) => ({ name: l.name, family: l.local?.family, t: l.t })),
-    tests: lines.filter((l) => l.ev === 'tests_run').map((l) => ({ green: l.green, red: l.red, t: l.t })),
+    features: lines.map((l, n) => ({ l, n })).filter(({ l }) => l.ev === 'feature').map(({ l, n }) => ({ name: l.name, family: l.local?.family, t: l.t, n })),
+    tests: lines.map((l, n) => ({ l, n })).filter(({ l }) => l.ev === 'tests_run').map(({ l, n }) => ({ green: l.green, red: l.red, t: l.t, n })),
     runTests,
   };
 }

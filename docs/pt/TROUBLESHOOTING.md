@@ -996,15 +996,15 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 ### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
 
-- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
+- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança do workshop é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
 - **O que fazer:**
   - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.
-  - Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado.
+  - Ou corre o primeiro comando nessa rede. O segundo comando mostra se estás registado.
 
 Comandos (macOS):
 
 ```
-node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register
 node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 ```
 
@@ -1015,13 +1015,13 @@ node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 - **Porquê:** Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @checkmarx.com verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.
 - **O que fazer:**
   - Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.
-  - Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel.
+  - Depois volta a correr o setup (ou o segundo comando): ele regista-te no painel.
 
 Comandos (macOS):
 
 ```
 open https://github.com/settings/emails
-node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register
 ```
 
 <a id="mac-e-tel-03"></a>
@@ -1047,7 +1047,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 - **Porquê:** O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.
 - **O que fazer:**
   - Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.
-  - Ou corre o comando indicado acima (A ou B: a tua sala).
+  - Ou corre o comando indicado acima.
 
 Comando (macOS):
 
@@ -2351,15 +2351,15 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 ### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
 
-- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
+- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança do workshop é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
 - **O que fazer:**
   - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.
-  - Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado.
+  - Ou corre o primeiro comando nessa rede. O segundo comando mostra se estás registado.
 
 Comandos (Windows):
 
 ```
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register
 node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 ```
 
@@ -2370,13 +2370,13 @@ node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 - **Porquê:** Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @checkmarx.com verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.
 - **O que fazer:**
   - Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.
-  - Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel.
+  - Depois volta a correr o setup (ou o segundo comando): ele regista-te no painel.
 
 Comandos (Windows):
 
 ```
 Start-Process https://github.com/settings/emails
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register
 ```
 
 <a id="windows-e-tel-03"></a>
@@ -2402,7 +2402,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 - **Porquê:** O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.
 - **O que fazer:**
   - Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.
-  - Ou corre o comando indicado acima (A ou B: a tua sala).
+  - Ou corre o comando indicado acima.
 
 Comando (Windows):
 

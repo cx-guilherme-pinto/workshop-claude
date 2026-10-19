@@ -156,11 +156,9 @@
     "s8_anteriores": "As versões anteriores das skills e dos agentes do kit ficaram guardadas em {PASTA}, caso tenhas alterado alguma.",
     "s8_claude_dir": "Pasta do Claude Code (CLAUDE_CONFIG_DIR): {CAMINHO}",
     "s8_alheio": "O teu {NOME} tem o mesmo nome que um do kit: ficou guardado em {PASTA} e volta se desinstalares o kit.",
-    "s8_painel_sala": "Em que sala estás? (A ou B)",
-    "s8_painel_sala_repetir": "Responde A ou B.",
-    "s8_painel_registado": "Painel do workshop: registado como {NOME} (sala {SALA}).",
+    "s8_painel_registado": "Painel do workshop: registado como {NOME}.",
     "s8_painel_ver_gh": "Painel do workshop: ainda sem registo. Resolve o aviso do GitHub no passo 6 e volta a correr o setup (ou {CMD}).",
-    "s8_painel_acessivel": "Painel do workshop: ligado (sala {SALA}) e responde a partir desta rede.",
+    "s8_painel_acessivel": "Painel do workshop: ligado e responde a partir desta rede.",
     "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
@@ -1229,17 +1227,17 @@
     "E-TEL-01": {
       "titulo": "Não é possível chegar ao painel do workshop a partir desta rede",
       "so": "todos",
-      "causa": "O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).",
+      "causa": "O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança do workshop é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).",
       "fazer": [
         "No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.",
-        "Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado."
+        "Ou corre o primeiro comando nessa rede. O segundo comando mostra se estás registado."
       ],
       "mac": [
-        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A",
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register",
         "node ~/.workshop-claude/kit/telemetry/ctl.mjs status"
       ],
       "windows": [
-        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A",
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register",
         "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" status"
       ]
     },
@@ -1249,15 +1247,15 @@
       "causa": "Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @{PANEL_EMAIL_DOMAIN} verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.",
       "fazer": [
         "Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.",
-        "Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel."
+        "Depois volta a correr o setup (ou o segundo comando): ele regista-te no painel."
       ],
       "mac": [
         "open https://github.com/settings/emails",
-        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A"
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register"
       ],
       "windows": [
         "Start-Process https://github.com/settings/emails",
-        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A"
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register"
       ]
     },
     "E-TEL-03": {
@@ -1283,7 +1281,7 @@
       "causa": "O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.",
       "fazer": [
         "Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.",
-        "Ou corre o comando indicado acima (A ou B: a tua sala)."
+        "Ou corre o comando indicado acima."
       ],
       "mac": [
         "{ONE_LINER_MAC}"

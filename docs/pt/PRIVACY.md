@@ -1,20 +1,20 @@
 # Privacidade do painel do workshop
 
-O kit tem uma **caderneta de missões** que vive só no teu computador e um **painel ao vivo**, opcional, que os apresentadores projetam ao lado dos slides. Esta página explica o que o painel recebe, o que nunca sai do teu portátil e como o desligas. As regras vêm da especificação (`docs/pt/WORKSHOP-V2-SPEC.md`, secção 6.6) e das decisões D-30 e D-31 do `DECISIONS.md`.
+O kit tem uma **caderneta de missões** que vive só no teu computador e um **painel ao vivo** que os apresentadores projetam ao lado dos slides. Esta página explica o que o painel recebe, o que nunca sai do teu portátil e como o desligas. As regras vêm da especificação (`docs/pt/WORKSHOP-V2-SPEC.md`, secção 6.6) e das decisões D-30 e D-31 do `DECISIONS.md`.
 
 ## Registo (decisão D-34)
 
 - **Toda a gente está no painel.** O setup regista-te logo a seguir ao login do GitHub (passo 6). Não há pergunta.
 - **Como funciona o registo — nenhum token e nenhum email saem do teu computador:**
   - no teu portátil, o kit pede ao gh (que guarda o seu próprio login) o teu perfil do GitHub e os teus emails, e confirma ali mesmo que a conta tem um **email verificado do domínio da empresa** (`PANEL_EMAIL_DOMAIN`, checkmarx.com);
-  - depois envia à Worker do painel, por HTTPS, só três coisas: o teu nome do GitHub, a tua sala e um hash (SHA-256) do código do workshop e do id da tua conta GitHub, para um segundo portátil ou um setup novo manterem o teu lugar;
+  - depois envia à Worker do painel, por HTTPS, só duas coisas: o teu nome do GitHub e um hash (SHA-256) do código do workshop e do id da tua conta GitHub, para um segundo portátil ou um setup novo manterem o teu lugar nesse dia;
   - a Worker responde com uma credencial, uma assinatura HMAC que só o servidor sabe fazer. É só essa assinatura que acompanha os teus eventos a seguir.
-- **O que o painel guarda:** o teu nome do GitHub (como aparece no board de liderança), o hash e a tua sala. Nunca o teu email, o teu login, o id da conta nem nenhum token.
+- **O que o painel guarda:** o teu nome do GitHub (como aparece no board de liderança) e o hash, até ao fim do dia. Nunca o teu email, o teu login, o id da conta nem nenhum token.
 - **O compromisso (escolha do organizador):** o email da empresa é confirmado no portátil, por isso a Worker confia na palavra do kit. Quem tiver o código do workshop pode registar um nome inventado; o apresentador pode esconder qualquer nome, e o código muda em cada workshop.
 - **Sem email da empresa:** fazes o workshop igual; só não apareces no board.
 - **Os teus comandos:**
   - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` mostra o teu registo;
-  - `ctl.mjs register A` (ou `B`) volta a registar;
+  - `ctl.mjs register` volta a registar;
   - `ctl.mjs show` mostra os últimos 20 eventos, exatamente como saem do teu computador.
 - **O scope de que precisa:** o login do GitHub do setup pede o scope `user:email`, para o painel poder ver os teus emails verificados.
 - **A caderneta de missões** (`/missions` e a statusline) funciona igual, com ou sem registo.
@@ -24,7 +24,6 @@ O kit tem uma **caderneta de missões** que vive só no teu computador e um **pa
 Só os eventos e os campos de `telemetry/allowlist.json`. Mais nada pode ser enviado: o kit tira qualquer outro campo antes de escrever a fila, e o servidor volta a recusá-lo. Cada evento leva:
 - a versão do formato;
 - o código do workshop;
-- a tua sala (A ou B);
 - o id de participante que o painel te deu no registo;
 - o nome do evento, a hora e a versão do kit.
 
@@ -69,9 +68,10 @@ Em caso de empate, ganha quem chegou lá primeiro. O custo nunca conta: gastar m
 ## O servidor
 
 - **Onde corre:** numa Worker do Cloudflare com um Durable Object (a API) e no Cloudflare Pages (a página), em endereços `workers.dev` e `pages.dev` (D-30).
-- **O que o nosso código guarda:** os eventos permitidos e os registos (nome do GitHub, o hash da conta, a sala). Nunca recebe o teu email nem nenhum token, nunca guarda o teu endereço IP, os cabeçalhos do pedido nem os dados de pedido do Cloudflare, e os logs da Worker estão desligados.
+- **O que o nosso código guarda:** os eventos permitidos e os registos (nome do GitHub, o hash da conta). Nunca recebe o teu email nem nenhum token, nunca guarda o teu endereço IP, os cabeçalhos do pedido nem os dados de pedido do Cloudflare, e os logs da Worker estão desligados.
 - **O que o Cloudflare vê:** o teu IP, na rede dele, como qualquer site que abres.
-- **Durante quanto tempo:** os eventos apagam-se 7 dias depois do workshop. O organizador limpa-os com `POST /admin/reset`, e o código do workshop e o token de admin mudam a cada workshop.
+- **Durante quanto tempo: até à meia-noite.** No fim de cada dia (meia-noite, `PANEL_TIMEZONE` no `repos.conf`, Europe/Lisbon), o painel apaga tudo: os eventos, os nomes, os hashes das contas e o segredo das assinaturas, por isso as credenciais da véspera deixam de servir. Nada de um dia fica para o seguinte. O organizador também pode apagar tudo a qualquer momento com `POST /admin/reset`, e o código do workshop e o token de admin mudam a cada workshop.
+- **No teu portátil, depois disso:** da próxima vez que tenta enviar, o painel já não conhece a tua credencial; o kit termina o teu registo e esvazia a fila. A caderneta de missões fica (é tua, no teu computador).
 
 ## Expiração e desinstalação
 

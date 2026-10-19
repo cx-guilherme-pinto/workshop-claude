@@ -1,20 +1,20 @@
 # Privacy of the workshop panel
 
-The kit has a **mission book** that lives only on your computer, and an optional **live panel** that the presenters project next to the slides. This page covers what the panel receives, what never leaves your laptop and how to turn it off. The rules come from the specification (`docs/pt/WORKSHOP-V2-SPEC.md`, section 6.6) and from decisions D-30 and D-31 in `DECISIONS.md`.
+The kit has a **mission book** that lives only on your computer, and a **live panel** that the presenters project next to the slides. This page covers what the panel receives, what never leaves your laptop and how to turn it off. The rules come from the specification (`docs/pt/WORKSHOP-V2-SPEC.md`, section 6.6) and from decisions D-30 and D-31 in `DECISIONS.md`.
 
 ## Registration (decision D-34)
 
 - **Everyone is on the panel.** The setup registers you right after the GitHub login (step 6). There is no question to answer.
 - **How the registration works — no token and no email leave your computer:**
   - on your laptop, the kit asks gh (which keeps its own login) for your GitHub profile and your emails, and checks there that the account has a **verified email of the company domain** (`PANEL_EMAIL_DOMAIN`, checkmarx.com);
-  - it then sends the panel's Worker, over HTTPS, only three things: your GitHub name, your room and a hash (SHA-256) of the workshop code and your GitHub account id, so that a second laptop or a new setup keeps your place;
+  - it then sends the panel's Worker, over HTTPS, only two things: your GitHub name and a hash (SHA-256) of the workshop code and your GitHub account id, so that a second laptop or a new setup keeps your place that day;
   - the Worker answers with a credential, an HMAC signature that only the server can make. That signature is all that goes with your events afterwards.
-- **What the panel keeps:** your GitHub name (as it appears on the leaderboard), the hash and your room. Never your email, your login, your account id or any token.
+- **What the panel keeps:** your GitHub name (as it appears on the leaderboard) and the hash, until the end of the day. Never your email, your login, your account id or any token.
 - **The trade-off (the organizer's choice):** the company email is checked on the laptop, so the Worker trusts the kit's word. Anyone who has the workshop code could register a made-up name; the presenter can hide any name, and the code changes for each workshop.
 - **Without a company email:** you do the workshop all the same; you just do not appear on the leaderboard.
 - **Your commands:**
   - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` shows your registration;
-  - `ctl.mjs register A` (or `B`) registers again;
+  - `ctl.mjs register` registers again;
   - `ctl.mjs show` prints the last 20 events, exactly as they leave your computer.
 - **The scope it needs:** the GitHub login of the setup asks for the `user:email` scope, so that the panel can see your verified emails.
 - **The mission book** (`/missions` and the statusline) works the same, registered or not.
@@ -24,7 +24,6 @@ The kit has a **mission book** that lives only on your computer, and an optional
 Only the events and fields in `telemetry/allowlist.json`. Nothing else can be sent: the kit drops any other field before writing the queue, and the server refuses it again. Every event has:
 - the format version;
 - the workshop code;
-- your room (A or B);
 - the participant id the panel gave you at registration;
 - the event name, the time and the kit version.
 
@@ -69,9 +68,10 @@ Ties go to whoever got there first. The cost never counts: spending more cannot 
 ## The server
 
 - **Where it runs:** a Cloudflare Worker with a Durable Object (the API) and Cloudflare Pages (the page), on `workers.dev` and `pages.dev` addresses (D-30).
-- **What our code stores:** the allowed events and the registrations (GitHub name, the account hash, room). It never receives your email or any token, it never stores your IP address, the request headers or Cloudflare's request data, and the Worker's logs are off.
+- **What our code stores:** the allowed events and the registrations (GitHub name, the account hash). It never receives your email or any token, it never stores your IP address, the request headers or Cloudflare's request data, and the Worker's logs are off.
 - **What Cloudflare sees:** your IP address, at the network level, like any website you open.
-- **How long it keeps the events:** they are deleted 7 days after the workshop. The organizer resets the workshop with `POST /admin/reset`, and the workshop code and the admin token change for each workshop.
+- **How long it keeps them: until midnight.** At the end of each day (midnight, `PANEL_TIMEZONE` in `repos.conf`, Europe/Lisbon) the panel deletes everything: the events, the names, the account hashes and the signing secret, so yesterday's credentials stop working. Nothing of one day is left for the next. The organizer can also delete it all at any time with `POST /admin/reset`, and the workshop code and the admin token change for each workshop.
+- **On your laptop after that:** the next time it tries to send, the panel no longer knows your credential; the kit then ends your registration and empties its queue. Your mission book stays (it is yours, on your computer).
 
 ## Expiry and uninstall
 

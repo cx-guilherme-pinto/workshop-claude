@@ -52,16 +52,17 @@ The panel is a page projected next to the slides, fed by anonymous events from t
   2. Run `tools/deploy-panel.sh --dry-run`, then `tools/deploy-panel.sh`. It asks before each step: the Worker, the admin token (wrangler asks for it; it never goes on the command line) and the page.
   3. Put the two addresses it prints in `repos.conf` (`PANEL_URL`, `PANEL_PAGE_URL`), run `node tools/render.mjs` and build the release again, so the laptops send to the panel.
   4. Run `tools/deploy-panel.sh` again: the Worker now accepts the page's address (CORS).
-- **Rehearse:** `node panel/simulate.mjs --people 100 --rooms 2 --speed 10 --url <PANEL_URL> --ws <code>` (with `PANEL_ADMIN_TOKEN` in the environment it also moves the views). Or run everything locally with `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` and open `http://127.0.0.1:8787/?room=A`.
+- **Rehearse:** `node panel/simulate.mjs --people 100 --speed 10 --url <PANEL_URL> --ws <code>` (with `PANEL_ADMIN_TOKEN` in the environment it also moves the views). Or run everything locally with `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` and open `http://127.0.0.1:8787/`.
 - **On the day:**
-  - Each room opens `<page>/?room=A` or `?room=B`; the closing uses `?room=all`.
-  - The presenter adds `#admin=<token>` once: the token stays in the browser and keys 1 to 5 change the view in both rooms (Opening, Missions, Project 1, Project 2, Closing).
+  - Every screen opens the same `<page>/`: one leaderboard and one set of numbers for everybody, with no rooms (D-34).
+  - The presenter adds `#admin=<token>` once: the token stays in the browser and keys 1 to 5 change the view on every screen (Opening, Missions, Project 1, Project 2, Closing).
   - To hide a nickname from the feed, press `H` and click it.
   - On a slow projector, use `?lite=1`.
 - **Plan B:**
   - Without network or the Worker, use `<page>/?replay=simulated&x=10`. After the rehearsal, use `?replay=rehearsal`, from `panel/replays/rehearsal.jsonl`.
   - The laptops keep their events in the queue and send them later. Their mission book keeps working.
-- **After:** clear the workshop's events within 7 days: `POST <PANEL_URL>/admin/reset` with the header `X-Admin-Token`. Then change `WORKSHOP_CODE` and the token before the next workshop.
+- **After:** nothing to clear. At midnight (`PANEL_TIMEZONE` in `repos.conf`) the panel deletes everything by itself: events, names, account hashes and the signing secret (D-34). To delete it all earlier (after a rehearsal, say): `POST <PANEL_URL>/admin/reset` with the header `X-Admin-Token`; the people registered so far must run the setup again (or `ctl.mjs register`). Change `WORKSHOP_CODE` and the token before the next workshop.
+- **Rehearse on the day before, not the same morning:** a rehearsal with real registrations the same day stays on the board until midnight, unless you reset it.
 
 ## After
 

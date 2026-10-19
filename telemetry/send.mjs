@@ -13,7 +13,7 @@
 //   timeout), so nothing is counted twice.
 import { closeSync, existsSync, openSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
-import { QUEUE_MAX, active, paths, readConfig, readLines } from './lib.mjs';
+import { QUEUE_MAX, active, paths, readConfig, readLines, writeJson } from './lib.mjs';
 
 const BATCH = 50;
 const TIMEOUT_MS = 2000;
@@ -60,6 +60,9 @@ async function post(url, ws, part, events, fetchImpl) {
       return { done: Math.max(0, Math.min(events.length, Number(j.processed) || 0)), stop: true };
     }
     if (r.status === 400 || r.status === 413) return { done: events.length, dropped: true };
+    // the panel no longer knows this credential (it deletes everything at the end of each day, D-34): the registration
+    // is gone and so are the waiting events; the next ctl.mjs register (the setup) starts again
+    if (r.status === 401) return { done: 0, stop: true, unregistered: true };
     return { done: 0, stop: true };
   } catch {
     return { done: 0, stop: true };
@@ -96,6 +99,11 @@ export async function sendQueue({ P = paths(), fetchImpl = fetch, now = new Date
           writeLines(P.sending, list);
         }
         stop = !!r.stop;
+        if (r.unregistered) {
+          writeJson(P.config, { ...readConfig(P), enabled: false, participant: null });
+          rmSync(P.sending, { force: true });
+          rmSync(P.queue, { force: true });
+        }
       }
       if (stop) break;
     }

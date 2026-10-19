@@ -47,9 +47,9 @@ function staticFile(roots, pathname) {
   return null;
 }
 
-export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now } = {}) {
+export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now, dayTz = process.env.PANEL_TIMEZONE || confValue('PANEL_TIMEZONE') || 'UTC' } = {}) {
   const store = fileStore(join(data, ws));
-  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, ...(now ? { now } : {}) });
+  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, dayTz, ...(now ? { now } : {}) });
   const roots = [
     ['/replays/', join(HERE, 'replays')],
     ['/', join(HERE, 'public')],
@@ -108,5 +108,5 @@ if (isMain(import.meta.url)) {
   const a = process.argv.slice(2);
   const opt = (k, d) => (a.includes(k) ? a[a.indexOf(k) + 1] : d);
   const s = await startServer({ port: Number(opt('--port', 8787)), host: opt('--host', '127.0.0.1'), data: resolve(opt('--data', join(HERE, 'data'))), ws: opt('--ws', undefined) });
-  console.log(`panel: ${s.url}/?room=A  (workshop ${s.api.aggregate.ws})`);
+  console.log(`panel: ${s.url}/  (workshop ${s.api.aggregate.ws})`);
 }

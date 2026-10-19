@@ -591,7 +591,7 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
 - **O registo** (`telemetry/ctl.mjs register`, corrido pelo setup a seguir ao login do `gh`). Revisto no mesmo dia, a pedido do organizador: nenhum token, nem nada equivalente, e o mínimo de dados vão para a Worker.
   1. O `ctl.mjs` pede ao `gh` (que guarda o seu próprio login) a conta (`gh api user`) e os emails (`gh api user/emails`, scope `user:email`).
   2. Confirma **no portátil** que há um email verificado do domínio `PANEL_EMAIL_DOMAIN` (checkmarx.com).
-  3. Envia à Worker só `{name, room, account}`, em que `account` é o SHA-256 do código do workshop e do id da conta GitHub. A mesma conta mantém o mesmo id noutro portátil.
+  3. Envia à Worker só `{name, account}` (a sala saiu depois, ver abaixo), em que `account` é o SHA-256 do código do workshop e do id da conta GitHub. A mesma conta mantém o mesmo id noutro portátil.
   4. A Worker responde com o id de participante e uma credencial HMAC, com o segredo criado e guardado no Durable Object.
   - Os eventos só são aceites com essa assinatura (`X-Participant`), e os de outro participante são descartados.
   - O scope `user:email` passa a ser pedido no login do `gh`.
@@ -605,10 +605,23 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - relatório do Projeto 2: 1;
   - no máximo 17 pontos; em caso de empate, ganha quem chegou primeiro.
   - O apresentador esconde um nome com H e clique: a pessoa continua no board, como "—".
-- **A página:** o board é o elemento principal de cada vista. `?room=A|B` filtra o board, os números e o feed. A abertura mostra os registos recentes e os prontos entre os registados.
+- **A página:** o board é o elemento principal de cada vista. A abertura mostra os registos recentes e os prontos entre os registados.
 - **As alcunhas (A3) deixam de existir;** o `ctl.mjs` passa a ter `register`, `status` e `show`.
 - **Testes:** `panel.test.mjs` (11, com o registo por uma API do GitHub falsa: o domínio, um email não verificado, o scope em falta, o mesmo id para a mesma conta, e nenhum token nem email guardado; e o `ctl.mjs register` de ponta a ponta) e `panel-page.test.mjs`. As capturas foram refeitas.
 - **Por fazer:**
   - o setup do registo e o `--cleanup` (com um agente);
   - o deploy desta versão da Worker e da página (com o "sim" do organizador);
   - os replays de ensaio da Fase 6 com nomes reais têm de ser anonimizados antes de entrarem no repositório.
+- **Sem salas (pedido do organizador, 19 out.: "não vamos separar entre rooms A nem B"):**
+  - um só board, um só resumo e um só feed para toda a gente; o `state()` passa a ter `summary`, `board`, `registrations` e `feed`, sem `rooms` nem `feed_rooms`;
+  - o envelope dos eventos perde o campo `room` (a allowlist, o `schema.mjs`, o `lib.mjs`); o servidor tira o `room` que um kit antigo ainda mande, sem o guardar;
+  - o registo envia só `{name, account}`; o `ctl.mjs register` deixa de pedir a sala (um argumento A|B antigo é ignorado) e o código de saída 2 deixa de existir;
+  - o setup deixa de perguntar a sala; o `install-user` ignora `--room` e escreve `painel on|off`;
+  - a página perde o `?room=`, as etiquetas de sala e os textos "das duas salas"; o simulador e o replay `simulated.jsonl` foram refeitos sem salas (os mesmos 3099 eventos).
+- **Tudo apagado a cada dia (pedido do organizador, 19 out.: "todos os resultados devem ser apagados completamente a cada dia"):**
+  - à meia-noite de `PANEL_TIMEZONE` (`repos.conf`, Europe/Lisbon; a Worker recebe-o como `DAY_TZ`), o painel apaga os eventos, o snapshot, os registos (os hashes das contas) e o segredo das assinaturas;
+  - quem apaga: um alarme do Durable Object à meia-noite, mesmo que ninguém chame o painel nessa noite; e, de reserva, o primeiro pedido de um dia novo (também no servidor local). O `/admin/reset` faz o mesmo apagamento completo;
+  - as credenciais da véspera dão 401: o `send.mjs` termina então o registo do portátil e esvazia a fila. A caderneta de missões fica, porque é da pessoa e está no portátil dela;
+  - consequência: um ensaio com registos reais no próprio dia do workshop fica no board até à meia-noite, a não ser que se faça o reset; e quem se registou antes de um reset tem de voltar a registar-se;
+  - testes novos em `panel.test.mjs`: `dayOf`/`nextMidnight` com hora de verão, o apagamento à meia-noite (nada fica, a credencial antiga dá 401, a mesma conta recebe um id novo), um servidor desligado à meia-noite apaga ao arrancar, o alarme da Durable Object, e o 401 no portátil.
+- **De passagem:** o teste da M6 falhava às vezes, porque o `/loop` e o `npm test` verde podiam cair no mesmo milissegundo. A M6 passa a comparar a ordem na caderneta, e não a hora.

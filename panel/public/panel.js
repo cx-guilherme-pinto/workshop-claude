@@ -1,26 +1,24 @@
 // The live panel page (docs/pt/WORKSHOP-V2-SPEC.md, sections 6.1 to 6.3 and 6.8), projected next to the slides.
 //
-//   /?room=A|B|all           filters the leaderboard and the numbers to one room (default all: both rooms together)
 //   /?lang=pt|en             the language (default: the browser's; pt for any pt*)
 //   /?lite=1                 a slow projector: no animations, one update per second
 //   /?replay=<name>&x=<n>    plays replays/<name>.jsonl in the browser at n times real speed (plan B: no API)
 //                            &at=<min> starts at that minute of the agenda (rehearsals, screenshots)
 //   /#admin=<token>          the presenter's admin token (moved to sessionStorage, removed from the address bar)
 //
-// Keys: 1-5 = Opening, Missions, Project 1, Project 2, Closing (with the admin token the shared view of both rooms,
+// Keys: 1-5 = Opening, Missions, Project 1, Project 2, Closing (with the admin token the shared view on every screen,
 // without it this page only); 0 = follow the shared view again; H then a click on a name (in the leaderboard, the
 // list of names or the feed) hides it, for everyone with the admin token.
 //
-// Every view has the leaderboard (D-34: one board of people, ranked by points for coverage and quality, never by
-// spend) as its main element, at most 4 elements with the top strip. The leaderboard shows the names the Worker took
-// from the GitHub accounts; hidden ones are "—". The Project 1 scatter stays anonymous. There is no room-vs-room
-// comparison: ?room only filters.
+// Every view has the leaderboard (D-34: one board of people for the whole workshop, ranked by points for coverage and
+// quality, never by spend) as its main element, at most 4 elements with the top strip. The leaderboard shows the names
+// the Worker took from the GitHub accounts; hidden ones are "—". The Project 1 scatter stays anonymous. Every screen
+// shows the same numbers (an old ?room= in the address is ignored).
 //
 // Rules: the DOM is built with createElement/textContent (strict CSP: no inline scripts or styles, no HTML from
 // strings). Every text is in TEXT below, with the same keys in pt and en.
 
 export const VIEWS = ['opening', 'missions', 'p1', 'p2', 'closing'];
-const ROOMS = ['A', 'B'];
 const BUDGET = 5;
 // The stages of each project on the leaderboard, in order (what board().top[].p1 and .p2 hold).
 export const P1_STAGES = ['plan', 'swarm', 'gate', 'approved'];
@@ -31,8 +29,6 @@ const WIDE = 1100;
 export const TEXT = {
   pt: {
     title: 'Painel do workshop',
-    room: 'Sala {r}',
-    rooms: 'Salas A e B',
     boardPeople: 'Na classificação',
     costHead: 'Custo médio por pessoa',
     costTarget: 'alvo US$ {n}',
@@ -47,11 +43,11 @@ export const TEXT = {
     boardNote: '{n} pessoas · máx. {max} pontos',
     boardEmpty: 'Ainda ninguém na classificação.',
     noStage: 'ainda não',
-    missionsHead: 'O que a sala já fez',
+    missionsHead: 'O que já fizeram',
     tryNow: 'Experimenta agora',
-    feedHead: 'Os primeiros de cada sala',
+    feedHead: 'Os primeiros',
     feedEmpty: 'Ainda sem marcos.',
-    someone: 'Alguém da sala {r}',
+    someone: 'Alguém',
     feed: {
       mission: 'estreou a {m} · {label}',
       tool: 'inventou a primeira ferramenta ({tpl})',
@@ -77,7 +73,7 @@ export const TEXT = {
     offline: 'sem ligação, a tentar',
     waiting: 'À espera de dados…',
     replayError: 'Não consegui abrir o replay {name}.',
-    viewShared: 'Vista {v} nas duas salas',
+    viewShared: 'Vista {v} em todos os ecrãs',
     viewLocal: 'Vista {v} só nesta página (0 volta à partilhada)',
     viewFollow: 'A seguir a vista partilhada',
     adminRefused: 'Token de admin recusado: a vista mudou só aqui',
@@ -87,8 +83,6 @@ export const TEXT = {
   },
   en: {
     title: 'Workshop panel',
-    room: 'Room {r}',
-    rooms: 'Rooms A and B',
     boardPeople: 'On the leaderboard',
     costHead: 'Average cost per person',
     costTarget: 'target US$ {n}',
@@ -103,11 +97,11 @@ export const TEXT = {
     boardNote: '{n} people · max {max} points',
     boardEmpty: 'Nobody on the leaderboard yet.',
     noStage: 'not yet',
-    missionsHead: 'What the room can already do',
+    missionsHead: 'What everyone can already do',
     tryNow: 'Try it now',
-    feedHead: 'Firsts in each room',
+    feedHead: 'The firsts',
     feedEmpty: 'No milestones yet.',
-    someone: 'Someone in room {r}',
+    someone: 'Someone',
     feed: {
       mission: 'was first to finish {m} · {label}',
       tool: 'invented the first tool ({tpl})',
@@ -133,7 +127,7 @@ export const TEXT = {
     offline: 'offline, retrying',
     waiting: 'Waiting for data…',
     replayError: 'Could not open the replay {name}.',
-    viewShared: '{v} view in both rooms',
+    viewShared: '{v} view on every screen',
     viewLocal: '{v} view on this page only (0 goes back to the shared one)',
     viewFollow: 'Following the shared view',
     adminRefused: 'Admin token refused: the view changed here only',
@@ -152,14 +146,11 @@ export function readOptions(search, language) {
   const q = new URLSearchParams(search);
   const lang0 = (q.get('lang') || q.get('lingua') || language || '').toLowerCase();
   const lang = lang0.startsWith('pt') ? 'pt' : lang0 && TEXT[lang0.slice(0, 2)] ? lang0.slice(0, 2) : 'en';
-  const room0 = (q.get('room') || q.get('sala') || 'all').toUpperCase();
-  const room = ROOMS.includes(room0) ? room0 : null;
   const replay = q.get('replay');
   const x = Number(q.get('x'));
   const at = Number(q.get('at'));
   return {
     lang,
-    room,
     lite: q.get('lite') === '1',
     replay: replay && /^[A-Za-z0-9_-]{1,64}$/.test(replay) ? replay : replay ? '' : null,
     x: Number.isFinite(x) && x > 0 ? Math.min(x, 1000) : 1,
@@ -172,18 +163,16 @@ export function stageStep(stages, stage) {
   return stages.indexOf(stage) + 1;
 }
 
-// The names to list at the Opening, newest first. seen: Map name -> {seq, room}, kept by the page across states.
+// The names to list at the Opening, newest first. seen: Map name -> {seq}, kept by the page across states.
 // The first state's names keep the leaderboard's order; a name that appears later goes on top.
 export function trackNames(seen, state, counter) {
-  const boards = state?.board && typeof state.board === 'object' ? state.board : {};
+  const top = Array.isArray(state?.board?.top) ? state.board.top : [];
   const first = seen.size === 0;
   let n = counter;
   let i = 0;
-  for (const k of ['all', 'A', 'B']) {
-    for (const row of Array.isArray(boards[k]?.top) ? boards[k].top : []) {
-      if (typeof row?.name !== 'string' || seen.has(row.name)) continue;
-      seen.set(row.name, { seq: first ? -i++ : ++n, room: ROOMS.includes(row.room) ? row.room : '?' });
-    }
+  for (const row of top) {
+    if (typeof row?.name !== 'string' || seen.has(row.name)) continue;
+    seen.set(row.name, { seq: first ? -i++ : ++n });
   }
   return n;
 }
@@ -202,7 +191,6 @@ const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? new Int
 const usd = (v) => (typeof v !== 'number' || !Number.isFinite(v) ? '—' : num(v, v < 0.1 ? 3 : 2));
 const pctText = (v) => (typeof v === 'number' && Number.isFinite(v) ? `${num(v)}%` : '—');
 const frac = (a, b) => (b > 0 && Number.isFinite(a) ? Math.max(0, Math.min(1, a / b)) : 0);
-const roomName = (r) => (r ? t('room', { r }) : t('rooms'));
 
 // ---------- DOM helpers (no HTML strings) ----------
 
@@ -277,10 +265,9 @@ function buildStrip(root) {
   line.append(cost, meter);
   b.append(el('span', 'label', t('costHead')), line);
   root.append(a, b);
-  return (state, ctx) => {
-    const room = ctx.focus || 'all';
-    setText(people, num(state.board?.[room]?.people ?? 0));
-    const c = state.rooms?.[room]?.cost_avg_usd;
+  return (state) => {
+    setText(people, num(state.board?.people ?? 0));
+    const c = state.summary?.cost_avg_usd;
     const budget = state.budget_usd || BUDGET;
     setText(cost, typeof c === 'number' ? num(c, 2) : '—');
     setFill(fill, frac(c || 0, budget));
@@ -310,7 +297,7 @@ function boardBlock(parent, ctx, { mode, max = 30 }) {
   s.append(head, list);
   let key = '';
   return (state) => {
-    const b = state.board?.[ctx.focus || 'all'] || {};
+    const b = state.board || {};
     const maxPts = Number(state.max_points) || 0;
     setText(note, t('boardNote', { n: num(b.people ?? 0), max: num(maxPts) }));
     const top = (Array.isArray(b.top) ? b.top : []).slice(0, max);
@@ -322,7 +309,7 @@ function boardBlock(parent, ctx, { mode, max = 30 }) {
       if (!top.length) list.append(el('li', 'empty', t('boardEmpty')));
       for (const row of top) {
         const li = el('li', `brow${row.rank <= 3 ? ' podium' : ''}`);
-        li.append(el('span', 'rank', num(row.rank)), nameEl(row.name, ctx), el('span', 'room-tag', ROOMS.includes(row.room) ? row.room : '?'));
+        li.append(el('span', 'rank', num(row.rank)), nameEl(row.name, ctx));
         if (mode === 'missions') {
           const sq = el('span', 'squares');
           const done = new Set(Array.isArray(row.missions) ? row.missions : []);
@@ -343,19 +330,14 @@ function boardBlock(parent, ctx, { mode, max = 30 }) {
   };
 }
 
-// The milestone feed ("the first of each room"), newest first.
+// The milestone feed ("the firsts" of the whole workshop), newest first.
 function feedBlock(parent, ctx, n) {
   const f = section(parent, t('feedHead'), 'feed-block');
   const feed = el('ol', 'feed');
   f.append(feed);
   let key = '';
   return (state) => {
-    // ?room shows that room's own feed (the aggregate keeps the last few of each room).
-    const src = ctx.focus ? state.feed_rooms?.[ctx.focus] : state.feed;
-    const items = (Array.isArray(src) ? src : [])
-      .filter((it) => !ctx.focus || it.room === ctx.focus)
-      .slice(-n)
-      .reverse();
+    const items = (Array.isArray(state.feed) ? state.feed : []).slice(-n).reverse();
     const k = JSON.stringify([items, ctx.hiding, [...ctx.hidden]]);
     if (k === key) return;
     key = k;
@@ -363,9 +345,8 @@ function feedBlock(parent, ctx, n) {
     if (!items.length) feed.append(el('li', 'empty', t('feedEmpty')));
     for (const it of items) {
       const li = el('li');
-      const r = ROOMS.includes(it.room) ? it.room : '?';
-      if (typeof it.name === 'string' && !ctx.hidden.has(it.name)) li.append(nameEl(it.name, ctx, 'who'), document.createTextNode(' '), el('span', 'room-tag', r));
-      else li.append(el('span', 'who', t('someone', { r })));
+      if (typeof it.name === 'string' && !ctx.hidden.has(it.name)) li.append(nameEl(it.name, ctx, 'who'));
+      else li.append(el('span', 'who', t('someone')));
       li.append(document.createTextNode(' '), el('span', 'what', feedText(it)));
       feed.append(li);
     }
@@ -382,9 +363,9 @@ function feedText(it) {
 
 // ---------- the views ----------
 
-function viewHeader(root, v, ctx) {
+function viewHeader(root, v) {
   const h = el('div', 'view-head');
-  h.append(el('h2', 'view-title', `${t(`views.${v}`)} · ${roomName(ctx.focus)}`));
+  h.append(el('h2', 'view-title', t(`views.${v}`)));
   const status = el('span', 'status');
   h.append(status);
   root.append(h);
@@ -413,21 +394,20 @@ view.opening = (root, ctx) => {
   n.append(head, list);
   let key = '';
   return (state) => {
-    const room = ctx.focus || 'all';
-    const r = state.registrations?.[room] || { people: 0, ready: 0, recent: [] };
+    const r = state.registrations || { people: 0, ready: 0, recent: [] };
     setText(regNum, num(r.people ?? 0));
     setText(readyNum, num(r.ready ?? 0));
     setText(readyOf, t('readyOf', { n: num(r.people ?? 0) }));
     // the most recent registrations, newest first (a hidden name comes as null and shows as "—")
-    const names = (r.recent || []).map((x) => [x.name, { room: x.room }]);
+    const names = (Array.isArray(r.recent) ? r.recent : []).map((x) => x?.name ?? null);
     const k = JSON.stringify([names, ctx.hiding, [...ctx.hidden]]);
     if (k !== key) {
       key = k;
       clear(list);
       if (!names.length) list.append(el('li', 'empty', t('namesEmpty')));
-      for (const [name, v] of names) {
+      for (const name of names) {
         const li = el('li', 'brow');
-        li.append(nameEl(name, ctx), el('span', 'room-tag', v.room));
+        li.append(nameEl(name, ctx));
         list.append(li);
       }
     }
@@ -435,7 +415,7 @@ view.opening = (root, ctx) => {
   };
 };
 
-// Missions: the room's % per mission and "try it now" (one block); the leaderboard with each person's missions; the feed.
+// Missions: everyone's % per mission and "try it now" (one block); the leaderboard with each person's missions; the feed.
 view.missions = (root, ctx) => {
   const s = section(root, t('missionsHead'), 'missions');
   const grid = el('div', 'mgrid');
@@ -448,7 +428,7 @@ view.missions = (root, ctx) => {
   const board = boardBlock(root, ctx, { mode: 'missions' });
   const feed = feedBlock(root, ctx, ctx.width >= WIDE ? 5 : 3);
   return (state) => {
-    const room = state.rooms?.[ctx.focus || 'all'] || {};
+    const sum = state.summary || {};
     const list = Array.isArray(state.missions) ? state.missions : [];
     if ([...cells.keys()].join() !== list.join()) {
       clear(grid);
@@ -463,12 +443,12 @@ view.missions = (root, ctx) => {
       }
     }
     for (const [m, x] of cells) {
-      const p = room.missions?.[m]?.pct ?? 0;
+      const p = sum.missions?.[m]?.pct ?? 0;
       setFill(x.fill, p / 100);
       setText(x.pct, pctText(p));
-      x.c.classList.toggle('least', room.least_done === m);
+      x.c.classList.toggle('least', sum.least_done === m);
     }
-    const least = room.least_done;
+    const least = sum.least_done;
     tryBox.hidden = !least;
     setText(tryWhat, least ? `${least} · ${t(`missionNames.${least}`)}` : '');
     board(state);
@@ -518,7 +498,7 @@ view.p1 = (root, ctx) => {
   const feed = ctx.width >= WIDE ? feedBlock(root, ctx, 5) : () => {};
   let chartKey = '';
   return (state) => {
-    const points = state.rooms?.[ctx.focus || 'all']?.p1?.points || [];
+    const points = state.summary?.p1?.points || [];
     const key = JSON.stringify([points, ctx.width]);
     if (key !== chartKey) {
       chartKey = key;
@@ -583,11 +563,11 @@ view.p2 = (root, ctx) => {
   const board = boardBlock(root, ctx, { mode: 'p2' });
   const feed = feedBlock(root, ctx, ctx.width >= WIDE ? 5 : 3);
   return (state) => {
-    const room = state.rooms?.[ctx.focus || 'all'] || {};
-    const fun = room.p2?.funnel || {};
+    const sum = state.summary || {};
+    const fun = sum.p2?.funnel || {};
     // The aggregate counts the last step each person reached; a funnel shows who reached at least that step.
     const reached = FUNNEL.map((_, i) => FUNNEL.slice(i).reduce((a, st) => a + (Number(fun[st]) || 0), 0));
-    const base = Math.max(room.people || 0, reached[0], 1);
+    const base = Math.max(sum.people || 0, reached[0], 1);
     cells.forEach((x, i) => {
       setFill(x.fill, frac(reached[i], base));
       setText(x.n, num(reached[i]));
@@ -614,7 +594,7 @@ view.closing = (root, ctx) => {
   const haiku = mk(t('haiku'));
   const board = boardBlock(root, ctx, { mode: 'points', max: 20 });
   return (state) => {
-    const c = state.rooms?.[ctx.focus || 'all']?.closing || {};
+    const c = state.summary?.closing || {};
     setText(perGreen, usd(c.cost_per_green_usd));
     setText(greenFirst, pctText(c.green_first_pct));
     setText(haiku, pctText(c.haiku_pct));
@@ -643,7 +623,7 @@ function boot() {
   let statusEl = null;
   let toastTimer = null;
 
-  const ctx = () => ({ focus: opt.room, hiding: S.hiding, hidden: S.hidden, seen: S.seen, hide, width: viewRoot.clientWidth || 600 });
+  const ctx = () => ({ hiding: S.hiding, hidden: S.hidden, seen: S.seen, hide, width: viewRoot.clientWidth || 600 });
 
   function toast(text) {
     setText(toastEl, text);
@@ -666,7 +646,7 @@ function boot() {
       updateStrip = buildStrip(strip);
       clear(viewRoot);
       viewRoot.dataset.view = v;
-      statusEl = viewHeader(viewRoot, v, c);
+      statusEl = viewHeader(viewRoot, v);
       updateView = view[v](viewRoot, c);
     }
     setText(statusEl, S.conn === 'replay' ? (S.replayDone ? t('replayEnd') : t('replay', { x: num(opt.x, opt.x % 1 ? 1 : 0) })) : S.conn === 'offline' ? t('offline') : '');
@@ -676,12 +656,12 @@ function boot() {
       return;
     }
     viewRoot.querySelector('.waiting')?.remove();
-    updateStrip(S.state, c);
+    updateStrip(S.state);
     updateView(S.state, c);
   }
 
   function onState(s) {
-    if (!s || typeof s !== 'object' || s.v !== 1 || !s.rooms) return;
+    if (!s || typeof s !== 'object' || s.v !== 1 || !s.summary) return;
     S.state = s;
     S.seq = trackNames(S.seen, s, S.seq);
     render();
@@ -719,10 +699,10 @@ function boot() {
     toast(status === 403 ? t('adminRefused') : t('viewLocal', { v: name }));
   }
 
-  // The names on screen now: the leaderboard of this page's filter, the Opening's list and the feed.
+  // The names on screen now: the leaderboard, the Opening's list and the feed.
   function namesOnScreen() {
     const s = S.state || {};
-    const names = [...(s.board?.[opt.room || 'all']?.top || []).map((r) => r.name), ...(s.feed || []).map((f) => f.name)];
+    const names = [...(s.board?.top || []).map((r) => r.name), ...(s.feed || []).map((f) => f.name)];
     if (currentView() === 'opening') names.push(...S.seen.keys());
     return names.filter((n) => typeof n === 'string' && !S.hidden.has(n));
   }
@@ -878,7 +858,7 @@ function boot() {
           const e = JSON.parse(line);
           // "register" is the Worker's own record (the name from GitHub), never a laptop event: the allowlist does
           // not know it, so only its few fields are kept.
-          const ok = e?.ev === 'register' ? (typeof e.p === 'string' && typeof e.name === 'string' ? { v: 1, ws: e.ws, room: e.room, p: e.p, ev: 'register', t: e.t, name: e.name } : null) : check(e);
+          const ok = e?.ev === 'register' ? (typeof e.p === 'string' && typeof e.name === 'string' ? { v: 1, ws: e.ws, p: e.p, ev: 'register', t: e.t, name: e.name } : null) : check(e);
           if (ok && Number.isFinite(Date.parse(ok.t))) events.push(ok);
         } catch {
           /* a broken line is skipped */

@@ -30,7 +30,7 @@ function setup({ enabled = true } = {}) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, 'config.json'),
-    JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-test', kit: 'v9.9.9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: enabled ? { p: 'c'.repeat(32), credential: 'x', name: 'Ana' } : null }),
+    JSON.stringify({ v: 1, enabled, workshop: 'ws-test', kit: 'v9.9.9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: enabled ? { p: 'c'.repeat(32), credential: 'x', name: 'Ana' } : null }),
   );
   // the person's own hook and statusline, with private text in the commands
   writeFileSync(
@@ -118,7 +118,7 @@ test('emit and record keep only the allowlisted fields and values', () => {
     const all = everyFile(t.dir);
     assert.ok(!all.includes(MARK));
     const q = readFileSync(t.P.queue, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-    assert.deepEqual(q[0], { v: 1, ws: 'ws-test', room: 'A', p: 'c'.repeat(32), ev: 'p2_intake', t: q[0].t, kit: 'v9.9.9', origin: 'own' }, 'the id the panel gave at registration');
+    assert.deepEqual(q[0], { v: 1, ws: 'ws-test', p: 'c'.repeat(32), ev: 'p2_intake', t: q[0].t, kit: 'v9.9.9', origin: 'own' }, 'the id the panel gave at registration');
     assert.equal(q[1].parallel, 8);
     assert.equal(q[1].forecast_min, null);
     // local fields never go in the queue
@@ -160,13 +160,13 @@ test('past expires_at nothing is recorded', () => {
 });
 
 test('the server-side check refuses events outside the allowlist', () => {
-  const ok = { v: 1, ws: 'ws-test', room: 'B', p: 'a'.repeat(32), ev: 'feature', t: '2026-10-19T10:00:00.000Z', kit: 'v1', name: 'loop' };
+  const ok = { v: 1, ws: 'ws-test', p: 'a'.repeat(32), ev: 'feature', t: '2026-10-19T10:00:00.000Z', kit: 'v1', name: 'loop' };
   assert.deepEqual(checkIncoming(ALLOW, ok, 'ws-test'), ok);
   assert.equal(checkIncoming(ALLOW, { ...ok, ws: 'other' }, 'ws-test'), null);
   assert.equal(checkIncoming(ALLOW, { ...ok, prompt: 'x' }, 'ws-test'), null);
   assert.equal(checkIncoming(ALLOW, { ...ok, name: 'not_a_feature' }, 'ws-test'), null);
   assert.equal(checkIncoming(ALLOW, { ...ok, ev: 'tests_run', green: 1, red: 0, name: undefined }, 'ws-test'), null);
-  assert.equal(checkIncoming(ALLOW, { ...ok, room: 'C' }, 'ws-test'), null);
+  assert.deepEqual(checkIncoming(ALLOW, { ...ok, room: 'C' }, 'ws-test'), ok, 'an old kit\'s room is dropped, never stored (D-34: no rooms)');
   assert.equal(checkIncoming(ALLOW, { ...ok, p: 'Ana' }, 'ws-test'), null);
   assert.deepEqual(sanitize(ALLOW, 'cost', { cost_usd: 0.123456789, model: 'sonnet', block: 'p1' }).fields, { cost_usd: 0.123457, model: 'sonnet', block: 'p1' });
   assert.deepEqual(sanitize(ALLOW, 'cost', { cost_usd: -1, model: 'gpt', block: 'x' }).fields, {});

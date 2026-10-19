@@ -9,17 +9,21 @@
 //                        is stored.
 //   GET  /state          the aggregate state (panel/aggregate.mjs)
 //   GET  /stream         the same state as Server-Sent Events, at most 2 per second (?lite=1: 1 per second)
-//   POST /admin/phase    {phase}, header X-Admin-Token: the view both rooms see
+//   POST /admin/phase    {phase}, header X-Admin-Token: the view every screen shows
 //   POST /admin/hide     {nickname, on}: hide a nickname from the feed (key H on the page)
-//   POST /admin/reset    clears the workshop's events
-//   POST /admin/register {name, room, p?}: registers a person without GitHub (the simulator, a rehearsal, someone the
+//   POST /admin/reset    deletes everything: events, registrations and the signing secret (the old credentials stop working)
+//   POST /admin/register {name, p?}: registers a person without GitHub (the simulator, a rehearsal, someone the
 //                        organizer lets in by hand); answers {p, name, credential}
-//   POST /register       {name, room, account}: registers a person (D-34). No token and no email ever reach the
+//   POST /register       {name, account}: registers a person (D-34). No token and no email ever reach the
 //                        server: telemetry/ctl.mjs checks on the laptop, with gh, that the GitHub account has a verified
-//                        email of the company domain, and sends only the name, the room and "account", a SHA-256 of the
+//                        email of the company domain, and sends only the name and "account", a SHA-256 of the
 //                        workshop code and the GitHub account id (the same account keeps its participant id). Answers
 //                        {p, name, credential}: the credential (an HMAC) is all that goes with the events afterwards.
 //   GET  /health
+//
+// Every day is wiped (D-34, the organizer's decision): when the day changes in dayTz (the Worker's DAY_TZ, from
+// repos.conf PANEL_TIMEZONE), the first request — or the Durable Object's alarm at midnight, panel/worker/ — deletes
+// all of it, as /admin/reset does. Nothing of one day's workshop is left for the next.
 //
 // store: { append(event, key) → seq | null (duplicate), since(seq) → [{seq, e}], getMeta(k), setMeta(k, v), reset() }
 // (sync or async). The aggregate is rebuilt from the last snapshot plus the events after it.
@@ -34,14 +38,42 @@ const KEEPALIVE_MS = 15000;
 
 const enc = new TextEncoder();
 
+// The calendar day (YYYY-MM-DD) of an instant in a time zone; an unknown zone falls back to UTC.
+export function dayOf(t, tz = 'UTC') {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t));
+  } catch {
+    return new Date(t).toISOString().slice(0, 10);
+  }
+}
+
+// The next midnight in the time zone after t (the first millisecond whose day differs), for the Durable Object's alarm.
+export function nextMidnight(t, tz = 'UTC') {
+  const today = dayOf(t, tz);
+  let lo = t;
+  let hi = t + 26 * 3600 * 1000;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (dayOf(mid, tz) === today) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}
+
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 async function hmac(secret, text) {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
 }
 
-export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500 }) {
+export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500, dayTz = 'UTC' }) {
   if (!wsCode) throw new Error('createApi: wsCode is required');
+  // a store from another day is wiped before anything is read from it; so is one without a day at all (made before
+  // the daily wipe existed: nobody can tell which day its data is from)
+  if ((await store.getMeta('day')) !== dayOf(now(), dayTz)) {
+    await store.reset();
+    await store.setMeta('day', dayOf(now(), dayTz));
+  }
   let agg = Aggregate.fromJSON(JSON.parse((await store.getMeta('snapshot')) || 'null'));
   agg.ws = wsCode;
   let lastSeq = Number((await store.getMeta('snapshot_seq')) || 0);
@@ -51,10 +83,11 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
   }
   // The signing secret of the credentials: created once and kept in the store (never leaves the server).
   let secret = await store.getMeta('secret');
-  if (!secret) {
+  const newSecret = async () => {
     secret = hex(crypto.getRandomValues(new Uint8Array(32)));
     await store.setMeta('secret', secret);
-  }
+  };
+  if (!secret) await newSecret();
   const credential = (p) => hmac(secret, `${wsCode}:${p}`);
   const rate = new Map();
   const subs = new Set();
@@ -133,6 +166,27 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     }
   }
 
+  // Deletes everything (the daily wipe and /admin/reset): events, snapshot, registrations, and a new signing secret.
+  async function wipe() {
+    if (snapTimer) clearTimeout(snapTimer);
+    snapTimer = null;
+    await store.reset();
+    await store.setMeta('day', dayOf(now(), dayTz));
+    await newSecret();
+    agg = new Aggregate({ ws: wsCode });
+    lastSeq = 0;
+    rate.clear();
+    registrations = [];
+    await snapshot();
+    changed();
+  }
+  // true when the day changed and everything was deleted
+  async function rollover() {
+    if ((await store.getMeta('day')) === dayOf(now(), dayTz)) return false;
+    await wipe();
+    return true;
+  }
+
   async function postEvents(req) {
     if (req.headers.get('X-Workshop-Code') !== wsCode) return json(req, 403, { error: 'workshop code' });
     const [who, sig] = String(req.headers.get('X-Participant') || '').split('.');
@@ -174,24 +228,24 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     registrations.push(t);
     const { body, error } = await readBody(req);
     if (error) return json(req, error, { error: 'body' });
-    const room = body?.room;
+    // only these two fields are read (an old kit still sends a room: ignored)
     const account = String(body?.account || '');
-    if (!['A', 'B'].includes(room) || !/^[0-9a-f]{64}$/.test(account) || typeof body?.name !== 'string' || !body.name.trim() || body.name.length > 100) {
-      return json(req, 400, { error: 'name, room and account' });
+    if (!/^[0-9a-f]{64}$/.test(account) || typeof body?.name !== 'string' || !body.name.trim() || body.name.length > 100) {
+      return json(req, 400, { error: 'name and account' });
     }
     // the same GitHub account (the same hash) keeps its participant id: a second laptop, a re-run of the setup
     const known = JSON.parse((await store.getMeta('participants')) || '{}');
     const p = known[account] || hex(crypto.getRandomValues(new Uint8Array(16)));
     known[account] = p;
     await store.setMeta('participants', JSON.stringify(known));
-    return json(req, 200, await enrol(p, body.name, room, t));
+    return json(req, 200, await enrol(p, body.name, t));
   }
 
   // Records a registration (an internal "register" event: the name reaches the leaderboard and the replays).
-  async function enrol(p, rawName, room, t = now()) {
+  async function enrol(p, rawName, t = now()) {
     const name = String(rawName || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 60) || 'GitHub';
-    const e = { v: 1, ws: wsCode, room, p, ev: 'register', t: new Date(t).toISOString(), kit: 'panel', name };
-    const seq = await store.append(e, `register:${p}:${room}:${name}`);
+    const e = { v: 1, ws: wsCode, p, ev: 'register', t: new Date(t).toISOString(), kit: 'panel', name };
+    const seq = await store.append(e, `register:${p}:${name}`);
     if (seq !== null && seq !== undefined) lastSeq = Math.max(lastSeq, seq);
     agg.apply(e);
     changed();
@@ -205,8 +259,8 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     if (error) return json(req, error, { error: 'body' });
     if (what === 'register') {
       const p = /^[0-9a-f]{32}$/.test(body?.p || '') ? body.p : hex(crypto.getRandomValues(new Uint8Array(16)));
-      if (!['A', 'B'].includes(body?.room) || typeof body?.name !== 'string' || !body.name.trim()) return json(req, 400, { error: 'name and room' });
-      return json(req, 200, await enrol(p, body.name, body.room));
+      if (typeof body?.name !== 'string' || !body.name.trim()) return json(req, 400, { error: 'name' });
+      return json(req, 200, await enrol(p, body.name));
     }
     if (what === 'phase') {
       if (!PHASES.includes(body?.phase)) return json(req, 400, { error: `phase: ${PHASES.join('|')}` });
@@ -214,10 +268,7 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     } else if (what === 'hide') {
       if (!agg.hide(body?.name ?? body?.nickname, body?.on !== false)) return json(req, 400, { error: 'name' });
     } else if (what === 'reset') {
-      await store.reset();
-      agg = new Aggregate({ ws: wsCode });
-      lastSeq = 0;
-      rate.clear();
+      await wipe();
     }
     await snapshot();
     changed();
@@ -257,6 +308,8 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
       return agg;
     },
     subscribers: () => subs.size,
+    rollover,
+    nextWipe: () => nextMidnight(now(), dayTz),
     flush: async () => {
       if (timer) {
         clearTimeout(timer);
@@ -285,6 +338,7 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
       const path = url.pathname.replace(/\/+$/, '') || '/';
       try {
         if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req) });
+        await rollover();
         if (req.method === 'POST' && path === '/e') return await postEvents(req);
         if (req.method === 'POST' && path === '/register') return await register(req);
         if (req.method === 'GET' && path === '/state') return json(req, 200, agg.state(now()));

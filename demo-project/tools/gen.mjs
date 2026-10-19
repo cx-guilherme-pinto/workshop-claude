@@ -599,7 +599,7 @@ if (CHECK && changed) {
   console.error(M.outOfDateN(changed));
   process.exit(1);
 }
-// The workshop panel counts the cards the room invented (only the template; spec 6.4, p1_tool_created).
+// The workshop panel counts the cards people invented (only the template; spec 6.4, p1_tool_created).
 if (!CHECK && freshMine) {
   try {
     const { emit } = await import('./workshop/orchestrator/lib/telemetry.mjs');

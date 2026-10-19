@@ -94,19 +94,6 @@ h2, h3, p, figure, ol { margin: 0; }
 [data-tone='yellow'] .fill { background: var(--status-yellow); }
 [data-tone='red'] .fill { background: var(--status-red); }
 
-/* a room, as a small tag next to a name */
-.room-tag {
-  flex: none;
-  min-width: 1.6em;
-  padding: 0 6px;
-  font-size: var(--t-text);
-  font-weight: 600;
-  line-height: 1.3;
-  text-align: center;
-  color: var(--muted);
-  background: var(--surface-2);
-}
-
 /* ---------- the top strip ---------- */
 
 .strip {
@@ -236,7 +223,6 @@ h2, h3, p, figure, ol { margin: 0; }
 .feed { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .feed li { font-size: var(--t-text); line-height: 1.25; }
 .feed .who { font-weight: 700; }
-.feed .room-tag { display: inline-block; }
 .nick {
   font: inherit;
   font-weight: 700;

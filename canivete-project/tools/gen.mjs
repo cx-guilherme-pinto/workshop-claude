@@ -386,7 +386,7 @@ if (CHECK && changed) {
   console.error(M.outOfDateN(changed));
   process.exit(1);
 }
-// Your tool, generated for the first time: the panel counts the tools the room invented (only the template).
+// Your tool, generated for the first time: the panel counts the tools people invented (only the template).
 if (!CHECK && freshMine) {
   try {
     const { emit } = await import('./workshop/orchestrator/lib/telemetry.mjs');

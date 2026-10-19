@@ -125,11 +125,9 @@ export function telemetryExpiry(date, prev, now = new Date()) {
 }
 
 // O config.json da telemetria (docs/pt/WORKSHOP-V2-SPEC.md, seccao 6; D-34). A participacao no painel e obrigatoria
-// e faz-se com o registo (telemetry/ctl.mjs register, depois do login do GitHub): o registo anterior e a sala ficam
-// de uma instalacao para a outra. --room muda a sala (o registo seguinte usa-a).
+// e faz-se com o registo (telemetry/ctl.mjs register, depois do login do GitHub): o registo anterior fica de uma
+// instalacao para a outra. Nao ha salas (D-34): um --room de um setup antigo e ignorado.
 export function telemetryConfig(flags, prev, { conf = {}, versao, lingua, home, now = new Date(), env = process.env }) {
-  const r = String(typeof flags.room === 'string' ? flags.room : prev?.room || '').toUpperCase();
-  const room = ['A', 'B'].includes(r) ? r : null;
   const val = (k) => (env[k] !== undefined && env[k] !== '' ? env[k] : conf[k]);
   const code = String(val('WORKSHOP_CODE') || prev?.workshop || 'dev');
   const workshop = /^[A-Za-z0-9_-]{1,40}$/.test(code) ? code : 'dev';
@@ -139,7 +137,6 @@ export function telemetryConfig(flags, prev, { conf = {}, versao, lingua, home, 
   return {
     v: 1,
     enabled: !!participant,
-    room,
     workshop,
     panel_url: panel,
     email_domain: val('PANEL_EMAIL_DOMAIN') || '',
@@ -370,7 +367,7 @@ export function instalar(flags, env = process.env) {
   out('agentes', novosAgentes.length);
   out('kit', fwd(P.kitDir));
   out('settings', fwd(P.settings));
-  out('painel', tel.participant ? `on ${tel.room}` : 'off');
+  out('painel', tel.participant ? 'on' : 'off');
   if (lm) saidaLingua(lm, linguaKitInstalada(P), merged.settings.language, merged.record);
   for (const w of merged.warnings) out('aviso', w);
   saidaRetirados(retirados);

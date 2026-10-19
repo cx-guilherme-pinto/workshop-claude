@@ -52,16 +52,17 @@ O painel é uma página projetada ao lado dos slides, alimentada por eventos an�
   2. Corre `tools/deploy-panel.sh --dry-run` e depois `tools/deploy-panel.sh`. O script pergunta antes de cada passo: a Worker, o token de admin (pedido pelo wrangler; nunca vai para a linha de comandos) e a página.
   3. Põe no `repos.conf` os dois endereços que o script mostra (`PANEL_URL` e `PANEL_PAGE_URL`), corre `node tools/render.mjs` e volta a construir a release, para os portáteis enviarem para o painel.
   4. Corre outra vez `tools/deploy-panel.sh`: a Worker passa a aceitar o endereço da página (CORS).
-- **Ensaiar:** `node panel/simulate.mjs --people 100 --rooms 2 --speed 10 --url <PANEL_URL> --ws <código>` (com `PANEL_ADMIN_TOKEN` no ambiente, também muda as vistas). Ou corre tudo localmente com `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` e abre `http://127.0.0.1:8787/?room=A`.
+- **Ensaiar:** `node panel/simulate.mjs --people 100 --speed 10 --url <PANEL_URL> --ws <código>` (com `PANEL_ADMIN_TOKEN` no ambiente, também muda as vistas). Ou corre tudo localmente com `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` e abre `http://127.0.0.1:8787/`.
 - **No dia:**
-  - Cada sala abre `<página>/?room=A` ou `?room=B`; o fecho usa `?room=all`.
-  - O apresentador acrescenta `#admin=<token>` uma vez: o token fica no browser e as teclas 1 a 5 mudam a vista nas duas salas (Abertura, Missões, Projeto 1, Projeto 2, Fecho).
+  - Todos os ecrãs abrem a mesma `<página>/`: um só board e os mesmos números para toda a gente, sem salas (D-34).
+  - O apresentador acrescenta `#admin=<token>` uma vez: o token fica no browser e as teclas 1 a 5 mudam a vista em todos os ecrãs (Abertura, Missões, Projeto 1, Projeto 2, Fecho).
   - Para esconder uma alcunha do feed, carrega em `H` e clica nela.
   - Num projetor lento, usa `?lite=1`.
 - **Plano B:**
   - Sem rede ou sem a Worker, usa `<página>/?replay=simulated&x=10`. Depois do ensaio, usa `?replay=rehearsal`, a partir de `panel/replays/rehearsal.jsonl`.
   - Os portáteis guardam os eventos na fila e enviam-nos depois. A caderneta continua a funcionar.
-- **Depois:** apaga os eventos do workshop até 7 dias depois: `POST <PANEL_URL>/admin/reset` com o cabeçalho `X-Admin-Token`. Depois muda o `WORKSHOP_CODE` e o token antes do workshop seguinte.
+- **Depois:** não há nada a apagar. À meia-noite (`PANEL_TIMEZONE` no `repos.conf`), o painel apaga tudo sozinho: eventos, nomes, hashes das contas e o segredo das assinaturas (D-34). Para apagar tudo mais cedo (depois de um ensaio, por exemplo): `POST <PANEL_URL>/admin/reset` com o cabeçalho `X-Admin-Token`; quem já se registou tem de voltar a correr o setup (ou `ctl.mjs register`). Muda o `WORKSHOP_CODE` e o token antes do workshop seguinte.
+- **Ensaia na véspera, não na manhã do próprio dia:** um ensaio com registos reais no próprio dia fica no board até à meia-noite, a não ser que faças o reset.
 
 ## Depois
 

@@ -4,7 +4,7 @@
 // telemetry/schema.mjs (checkIncoming); anything unexpected here is ignored, never thrown.
 //
 // It measures coverage and quality, never volume (principle 2.3.2): each person counts once per mission or
-// decision. The leaderboard (D-34, the organizer's decision: one board of people, not of rooms) ranks the registered
+// decision. The leaderboard (D-34, the organizer's decision: one board of people for the whole workshop, no rooms) ranks the registered
 // people by points for coverage and quality — never by spend — with the name the Worker took from their GitHub
 // account at registration (names never come from the laptops' events). The Project 1 scatter stays anonymous.
 
@@ -20,7 +20,6 @@ export const AGENDA = [
   ['p2', 47],
   ['closing', 87],
 ];
-export const ROOMS = ['A', 'B'];
 export const ACTIVE_MS = 10 * 60 * 1000;
 export const BUDGET_USD = 5;
 const FUNNEL = ['intake', 'plan', 'swarm', 'gate', 'report'];
@@ -38,9 +37,8 @@ const median = (xs) => {
 const round = (x, d = 4) => (x === null || x === undefined || !Number.isFinite(x) ? null : Math.round(x * 10 ** d) / 10 ** d);
 const pct = (a, b) => (b > 0 ? Math.min(100, Math.round((100 * a) / b)) : 0);
 
-function person(room) {
+function person() {
   return {
-    room,
     name: null,
     points: 0,
     pointsT: null,
@@ -80,13 +78,12 @@ export class Aggregate {
 
   // One event (an object as checkIncoming returns it). Returns true if it changed the state.
   apply(e) {
-    if (!e || typeof e !== 'object' || typeof e.p !== 'string' || !ROOMS.includes(e.room)) return false;
+    if (!e || typeof e !== 'object' || typeof e.p !== 'string') return false;
     let p = this.people.get(e.p);
     if (!p) {
-      p = person(e.room);
+      p = person();
       this.people.set(e.p, p);
     }
-    p.room = e.room;
     const t = Date.parse(e.t);
     if (Number.isFinite(t)) {
       p.first = p.first === null ? t : Math.min(p.first, t);
@@ -99,7 +96,7 @@ export class Aggregate {
         break;
       // the Worker's registration (D-34): the name from the GitHub account; never accepted from a laptop
       case 'register':
-        if (typeof e.name === 'string') this.setName(e.p, e.name, e.room);
+        if (typeof e.name === 'string') this.setName(e.p, e.name);
         break;
       case 'check_ok':
         p.ready = true;
@@ -159,27 +156,24 @@ export class Aggregate {
   }
 
   // The name of a registered person (from the Worker's registration, never from an event).
-  setName(id, name, room) {
+  setName(id, name) {
     if (typeof id !== 'string' || typeof name !== 'string') return false;
     let p = this.people.get(id);
     if (!p) {
-      if (!ROOMS.includes(room)) return false;
-      p = person(room);
+      p = person();
       this.people.set(id, p);
     }
     p.name = name.slice(0, 60);
     p.registeredSeq = ++this.regSeq;
-    if (ROOMS.includes(room)) p.room = room;
     this.ids.set(p, id);
     return true;
   }
 
-  // The first person of a room to reach a milestone goes to the feed ("first" milestones, never a ranking).
+  // The first person to reach a milestone goes to the feed ("first" milestones, never a ranking).
   first(key, e, p, item) {
-    const k = `${p.room}:${key}`;
-    if (this.firsts.has(k)) return;
-    this.firsts.add(k);
-    this.feed.push({ t: e.t, room: p.room, id: e.p, ...item });
+    if (this.firsts.has(key)) return;
+    this.firsts.add(key);
+    this.feed.push({ t: e.t, id: e.p, ...item });
     if (this.feed.length > 50) this.feed.splice(0, this.feed.length - 50);
   }
 
@@ -197,30 +191,29 @@ export class Aggregate {
     return true;
   }
 
-  // The registrations of a room (or both): how many, how many of them are ready, the most recent ones (Opening view).
-  registrations(room = null) {
-    const ps = [...this.people.values()].filter((p) => p.name && (room === null || p.room === room));
+  // The registrations: how many, how many of them are ready, the most recent ones (Opening view).
+  registrations() {
+    const ps = [...this.people.values()].filter((p) => p.name);
     return {
       people: ps.length,
       ready: ps.filter((p) => p.ready).length,
       recent: ps
         .sort((a, b) => (b.registeredSeq || 0) - (a.registeredSeq || 0))
         .slice(0, 42)
-        .map((p) => ({ name: this.hidden.has(p.name) ? null : p.name, room: p.room })),
+        .map((p) => ({ name: this.hidden.has(p.name) ? null : p.name })),
     };
   }
 
-  // The leaderboard: registered people by points, ties broken by who got there first. room = null for both rooms.
-  board(room = null) {
+  // The leaderboard: registered people by points, ties broken by who got there first.
+  board() {
     const rows = [...this.people.values()]
-      .filter((p) => p.name && (room === null || p.room === room))
+      .filter((p) => p.name)
       .sort((a, b) => b.points - a.points || (a.pointsT ?? Infinity) - (b.pointsT ?? Infinity) || a.name.localeCompare(b.name));
     return {
       people: rows.length,
       top: rows.slice(0, BOARD_MAX).map((p, i) => ({
         rank: i + 1,
         name: this.hidden.has(p.name) ? null : p.name,
-        room: p.room,
         points: p.points,
         missions: MISSIONS.filter((m) => p.missions.has(m)),
         p1: p.p1.gate ? (p.p1.gate === 'APPROVED' ? 'approved' : 'gate') : p.p1.swarm ? 'swarm' : p.p1.plan ? 'plan' : null,
@@ -230,9 +223,9 @@ export class Aggregate {
     };
   }
 
-  // The summary of one room (or of both, room = null).
-  room(room, now) {
-    const ps = [...this.people.values()].filter((p) => room === null || p.room === room);
+  // The summary of everybody.
+  summary(now) {
+    const ps = [...this.people.values()];
     const active = ps.filter((p) => p.last !== null && now - p.last <= ACTIVE_MS);
     const withCost = ps.filter((p) => p.cost.total > 0);
     const costTotal = withCost.reduce((a, p) => a + p.cost.total, 0);
@@ -305,19 +298,14 @@ export class Aggregate {
       events: this.count,
       budget_usd: BUDGET_USD,
       missions: MISSIONS,
-      rooms: { A: this.room('A', now), B: this.room('B', now), all: this.room(null, now) },
+      summary: this.summary(now),
       // hidden nicknames are not listed: /state is public, and a hidden nickname must not be readable there
       feed: this.feed.slice(-FEED_MAX).map(({ id, ...f }) => {
         const name = id ? this.people.get(id)?.name : null;
         return { ...f, name: name && !this.hidden.has(name) ? name : null };
       }),
-      // the feed of one room (the page filters by ?room=)
-      feed_rooms: Object.fromEntries(ROOMS.map((r) => [r, this.feed.filter((f) => f.room === r).slice(-FEED_MAX).map(({ id, ...f }) => {
-        const name = id ? this.people.get(id)?.name : null;
-        return { ...f, name: name && !this.hidden.has(name) ? name : null };
-      })])),
-      board: { all: this.board(null), A: this.board('A'), B: this.board('B') },
-      registrations: { all: this.registrations(null), A: this.registrations('A'), B: this.registrations('B') },
+      board: this.board(),
+      registrations: this.registrations(),
       max_points: MAX_POINTS,
     };
   }
@@ -345,11 +333,13 @@ export class Aggregate {
     a.count = j.count || 0;
     a.lastT = j.lastT ?? null;
     a.regSeq = j.regSeq || 0;
-    a.feed = Array.isArray(j.feed) ? j.feed : [];
+    a.feed = Array.isArray(j.feed) ? j.feed.map(({ room: _r, ...f }) => f) : [];
     a.hidden = new Set(j.hidden || []);
-    a.firsts = new Set(j.firsts || []);
+    // before the rooms were dropped (D-34) the firsts were "A:mission:M1": keep only the key
+    a.firsts = new Set((j.firsts || []).map((k) => String(k).replace(/^[AB]:/, '')));
     for (const [id, p] of j.people || []) {
-      const q = { ...person(p.room), ...p, missions: new Set(p.missions || []) };
+      const { room: _old, ...rest } = p;
+      const q = { ...person(), ...rest, missions: new Set(p.missions || []) };
       a.people.set(id, q);
       a.ids.set(q, id);
     }

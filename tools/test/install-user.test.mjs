@@ -497,14 +497,15 @@ test('workshop v2: config.json da telemetria (sala, pasta, codigo, painel, domin
     assert.equal(r.status, 0, r.stderr);
     assert.deepEqual(r.get('painel'), ['off'], 'not registered yet');
     let c = cfg();
-    assert.deepEqual([c.room, c.workshop, c.panel_url, c.email_domain, c.kit, c.participant], ['B', 'lisboa-1', 'https://panel.example', 'checkmarx.com', 'v9.9.9-teste', null]);
+    assert.equal('room' in c, false, 'no rooms (D-34): an old --room is ignored');
+    assert.deepEqual([c.workshop, c.panel_url, c.email_domain, c.kit, c.participant], ['lisboa-1', 'https://panel.example', 'checkmarx.com', 'v9.9.9-teste', null]);
     assert.equal(c.expires_at, '2026-11-22T00:00:00.000Z', 'fim do dia seguinte ao workshop');
     assert.equal(c.projects_dir, join(base, 'proj').replace(/\\/g, '/'));
     assert.ok(existsSync(join(home, '.workshop-claude', 'kit', 'telemetry', 'ctl.mjs')));
     // the registration (ctl.mjs register) stays from one install to the next
     writeFileSync(join(tel, 'config.json'), JSON.stringify({ ...c, enabled: true, participant: { p: 'a'.repeat(32), credential: 'c', name: 'Ana' } }));
     r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
-    assert.deepEqual(r.get('painel'), ['on B']);
+    assert.deepEqual(r.get('painel'), ['on']);
     assert.equal(cfg().participant.name, 'Ana');
     // another workshop code: the registration is for another panel and is dropped
     writeFileSync(join(kit, 'repos.conf'), 'WORKSHOP_VERSION=v9.9.9-teste\nWORKSHOP_CODE=porto-2\nPANEL_URL=https://panel.example\n');

@@ -6,7 +6,11 @@
 // wrangler.toml; the events are the allowlisted ones only (telemetry/schema.mjs, checked again in api.mjs).
 //
 // Environment (wrangler.toml and secrets): WORKSHOP_CODE (var, from repos.conf), ALLOWED_ORIGINS (var: the Pages
-// address, comma separated), ADMIN_TOKEN (secret: `wrangler secret put ADMIN_TOKEN`, typed by the organizer).
+// address, comma separated), DAY_TZ (var: the time zone of the daily wipe, repos.conf PANEL_TIMEZONE), ADMIN_TOKEN
+// (secret: `wrangler secret put ADMIN_TOKEN`, typed by the organizer).
+//
+// The daily wipe (D-34): an alarm at each midnight of DAY_TZ deletes every event, registration and the signing secret,
+// even if nobody calls the panel that night (api.mjs also checks the day on every request).
 import allow from '../../telemetry/allowlist.json' with { type: 'json' };
 import { createApi } from '../api.mjs';
 
@@ -49,7 +53,7 @@ export class PanelRoom {
     this.api = null;
   }
 
-  async fetch(request) {
+  async ready() {
     if (!this.api) {
       this.api = await createApi({
         allow,
@@ -57,9 +61,21 @@ export class PanelRoom {
         adminToken: this.env.ADMIN_TOKEN || '',
         store: sqlStore(this.ctx.storage.sql),
         allowedOrigins: origins(this.env),
+        dayTz: this.env.DAY_TZ || 'UTC',
       });
     }
-    return this.api.fetch(request);
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(this.api.nextWipe() + 5000);
+    return this.api;
+  }
+
+  async fetch(request) {
+    return (await this.ready()).fetch(request);
+  }
+
+  async alarm() {
+    const api = await this.ready();
+    await api.rollover();
+    await this.ctx.storage.setAlarm(api.nextWipe() + 5000);
   }
 }
 

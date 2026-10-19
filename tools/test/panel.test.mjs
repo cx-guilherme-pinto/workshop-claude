@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Aggregate, MISSIONS, ACTIVE_MS } from '../../panel/aggregate.mjs';
-import { createApi, RATE_PER_MIN } from '../../panel/api.mjs';
+import { createApi, dayOf, nextMidnight, RATE_PER_MIN } from '../../panel/api.mjs';
 import { memoryStore } from '../../panel/store-file.mjs';
 import { startServer } from '../../panel/server.mjs';
 import { simulate } from '../../panel/simulate.mjs';
@@ -22,58 +22,58 @@ const ALLOW = JSON.parse(readFileSync(join(ROOT, 'telemetry', 'allowlist.json'),
 const T0 = Date.parse('2026-11-20T09:00:00.000Z');
 const id = (n) => n.toString(16).padStart(32, '0');
 const at = (min) => new Date(T0 + min * 60000).toISOString();
-const ev = (n, room, ev, min, f = {}) => ({ v: 1, ws: 'ws-t', room, p: id(n), ev, t: at(min), kit: 'v2', ...f });
+const ev = (n, ev, min, f = {}) => ({ v: 1, ws: 'ws-t', p: id(n), ev, t: at(min), kit: 'v2', ...f });
 
 test('MISSIONS is the list of validated missions of missions/rules.json', () => {
   const rules = JSON.parse(readFileSync(join(ROOT, 'missions', 'rules.json'), 'utf8'));
   assert.deepEqual(MISSIONS, rules.missions.filter((m) => m.validated !== false).map((m) => m.id));
 });
 
-test('aggregate: every metric of spec 6.3, per room and for both', () => {
+test('aggregate: every metric of spec 6.3, for everybody (no rooms, D-34)', () => {
   const a = new Aggregate({ ws: 'ws-t' });
   const list = [
-    ev(1, 'A', 'register', 0, { name: 'Ana Silva' }),
-    ev(2, 'A', 'register', 0, { name: 'Rui Costa' }),
-    ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' }),
-    ev(1, 'A', 'check_ok', 1),
-    ev(2, 'A', 'join', 0, { lang: 'en', os: 'win' }),
-    ev(3, 'B', 'join', 0, { lang: 'pt', os: 'mac' }),
-    ev(3, 'B', 'check_ok', 2),
-    ev(1, 'A', 'mission_done', 10, { mission: 'M1' }),
-    ev(1, 'A', 'mission_done', 10.5, { mission: 'M1' }),
-    ev(2, 'A', 'mission_done', 11, { mission: 'M1' }),
-    ev(2, 'A', 'mission_done', 12, { mission: 'M2' }),
-    ev(1, 'A', 'cost', 20, { cost_usd: 0.5, model: 'sonnet', block: 'missions' }),
-    ev(1, 'A', 'cost', 30, { cost_usd: 1, model: 'haiku', block: 'p1' }),
-    ev(2, 'A', 'cost', 30, { cost_usd: 0.5, model: 'sonnet', block: 'p1' }),
-    ev(1, 'A', 'p1_tool_created', 26, { tool_template: 'calc' }),
-    ev(1, 'A', 'p1_plan', 31, { parallel: 8, model: 'haiku', forecast_min: 5, tasks: 31 }),
-    ev(2, 'A', 'p1_plan', 31, { parallel: 12, model: 'sonnet', forecast_min: null, tasks: 31 }),
-    ev(1, 'A', 'p1_swarm_done', 35, { duration_s: 240, green: 28, red: 3, green_first: 27 }),
-    ev(2, 'A', 'p1_swarm_done', 34, { duration_s: 180, green: 31, red: 0, green_first: 29 }),
-    ev(1, 'A', 'p1_retry_green', 40, { tool: 'nm-03' }),
-    ev(1, 'A', 'p1_gate', 44, { verdict: 'APPROVED' }),
-    ev(3, 'B', 'p2_intake', 50, { origin: 'practice', issue: 'EX-1' }),
-    ev(3, 'B', 'p2_plan', 55, { n_agents: 4 }),
-    ev(1, 'A', 'p2_intake', 50, { origin: 'practice', issue: 'EX-1' }),
-    ev(1, 'A', 'p2_plan', 55, { n_agents: 4 }),
-    ev(1, 'A', 'p2_swarm_done', 65, { duration_s: 200, green: 4, red: 0, green_first: 4 }),
-    ev(1, 'A', 'p2_gate', 72, { verdict: 'APPROVED' }),
-    ev(1, 'A', 'p2_report', 78, { destination: 'file' }),
+    ev(1, 'register', 0, { name: 'Ana Silva' }),
+    ev(2, 'register', 0, { name: 'Rui Costa' }),
+    ev(1, 'join', 0, { lang: 'pt', os: 'mac' }),
+    ev(1, 'check_ok', 1),
+    ev(2, 'join', 0, { lang: 'en', os: 'win' }),
+    ev(3, 'join', 0, { lang: 'pt', os: 'mac' }),
+    ev(3, 'check_ok', 2),
+    ev(1, 'mission_done', 10, { mission: 'M1' }),
+    ev(1, 'mission_done', 10.5, { mission: 'M1' }),
+    ev(2, 'mission_done', 11, { mission: 'M1' }),
+    ev(2, 'mission_done', 12, { mission: 'M2' }),
+    ev(1, 'cost', 20, { cost_usd: 0.5, model: 'sonnet', block: 'missions' }),
+    ev(1, 'cost', 30, { cost_usd: 1, model: 'haiku', block: 'p1' }),
+    ev(2, 'cost', 30, { cost_usd: 0.5, model: 'sonnet', block: 'p1' }),
+    ev(1, 'p1_tool_created', 26, { tool_template: 'calc' }),
+    ev(1, 'p1_plan', 31, { parallel: 8, model: 'haiku', forecast_min: 5, tasks: 31 }),
+    ev(2, 'p1_plan', 31, { parallel: 12, model: 'sonnet', forecast_min: null, tasks: 31 }),
+    ev(1, 'p1_swarm_done', 35, { duration_s: 240, green: 28, red: 3, green_first: 27 }),
+    ev(2, 'p1_swarm_done', 34, { duration_s: 180, green: 31, red: 0, green_first: 29 }),
+    ev(1, 'p1_retry_green', 40, { tool: 'nm-03' }),
+    ev(1, 'p1_gate', 44, { verdict: 'APPROVED' }),
+    ev(3, 'p2_intake', 50, { origin: 'practice', issue: 'EX-1' }),
+    ev(3, 'p2_plan', 55, { n_agents: 4 }),
+    ev(1, 'p2_intake', 50, { origin: 'practice', issue: 'EX-1' }),
+    ev(1, 'p2_plan', 55, { n_agents: 4 }),
+    ev(1, 'p2_swarm_done', 65, { duration_s: 200, green: 4, red: 0, green_first: 4 }),
+    ev(1, 'p2_gate', 72, { verdict: 'APPROVED' }),
+    ev(1, 'p2_report', 78, { destination: 'file' }),
   ];
   for (const e of list) a.apply(e);
   const now = T0 + 80 * 60000;
   const s = a.state(now);
-  const A = s.rooms.A;
-  const B = s.rooms.B;
-  assert.equal(A.people, 2);
-  assert.equal(A.ready, 1);
-  assert.equal(A.active, 1, 'events in the last 10 min (person 2 went quiet after the swarm)');
-  assert.equal(a.state(now + ACTIVE_MS + 60000).rooms.A.active, 0);
+  const A = s.summary;
+  assert.equal(s.rooms, undefined, 'no rooms');
+  assert.equal(A.people, 3);
+  assert.equal(A.ready, 2);
+  assert.equal(A.active, 1, 'events in the last 10 min (person 2 went quiet after the swarm, person 3 after the plan)');
+  assert.equal(a.state(now + ACTIVE_MS + 60000).summary.active, 0);
   assert.equal(A.cost_avg_usd, 1);
   assert.deepEqual([A.missions.M1.done, A.missions.M1.pct, A.missions.M2.pct], [2, 100, 50]);
   assert.equal(A.least_done, 'M3');
-  assert.equal(A.coverage_avg, 0.167);
+  assert.equal(A.coverage_avg, 0.111);
   assert.deepEqual(A.p1.points.sort((x, y) => x.duration_s - y.duration_s), [
     { duration_s: 180, cost_usd: 0.5, parallel: 12, model: 'sonnet' },
     { duration_s: 240, cost_usd: 1, parallel: 8, model: 'haiku' },
@@ -81,40 +81,34 @@ test('aggregate: every metric of spec 6.3, per room and for both', () => {
   assert.equal(A.p1.forecast_median_min, 5);
   assert.equal(A.p1.actual_median_min, 3.5);
   assert.deepEqual([A.p1.specs_fixed, A.p1.swarm_done, A.p1.tools_invented, A.p1.gates_approved], [1, 2, 1, 1]);
-  assert.deepEqual(A.p2.funnel, { intake: 0, plan: 0, swarm: 0, gate: 0, report: 1 });
-  assert.deepEqual(A.p2.agents_hist, { 4: 1 });
-  assert.deepEqual(s.rooms.all.p2.agents_hist, { 4: 2 });
+  assert.deepEqual(A.p2.funnel, { intake: 0, plan: 1, swarm: 0, gate: 0, report: 1 });
+  assert.deepEqual(A.p2.agents_hist, { 4: 2 });
   assert.equal(A.p2.closed, 1);
   assert.equal(A.closing.cost_per_green_usd, round4(1.5 / 63));
   assert.equal(A.closing.green_first_pct, Math.round((100 * 60) / 66));
   assert.equal(A.closing.haiku_pct, 50);
-  assert.equal(A.closing.agents_launched, 31 + 31 + 4);
-  assert.equal(B.people, 1);
-  assert.deepEqual(B.p2.funnel.plan, 1);
-  assert.equal(s.rooms.all.people, 3);
-  // the feed: the first of each room, never a ranking; a hidden nickname is not shown
-  assert.deepEqual(s.feed.map((f) => [f.room, f.kind, f.mission ?? f.project ?? null, f.name]), [
-    ['A', 'mission', 'M1', 'Ana Silva'],
-    ['A', 'mission', 'M2', 'Rui Costa'],
-    ['A', 'tool', null, 'Ana Silva'],
-    ['A', 'swarm', 'p1', 'Ana Silva'],
-    ['A', 'report', null, 'Ana Silva'],
+  assert.equal(A.closing.agents_launched, 31 + 31 + 4 + 4);
+  // the feed: the first to reach each milestone, never a ranking; a hidden nickname is not shown
+  assert.deepEqual(s.feed.map((f) => [f.kind, f.mission ?? f.project ?? null, f.name]), [
+    ['mission', 'M1', 'Ana Silva'],
+    ['mission', 'M2', 'Rui Costa'],
+    ['tool', null, 'Ana Silva'],
+    ['swarm', 'p1', 'Ana Silva'],
+    ['report', null, 'Ana Silva'],
   ]);
+  assert.ok(s.feed.every((f) => !('room' in f)));
   // the leaderboard (D-34): registered people by points (coverage and quality), ties by who got there first
-  assert.deepEqual(s.board.all.top.map((r) => [r.rank, r.name, r.room, r.points, r.missions.join(','), r.p1, r.p2]), [
-    [1, 'Ana Silva', 'A', 1 + 1 + 1 + 2 + 1 + 2 + 1, 'M1', 'approved', 'report'],
-    [2, 'Rui Costa', 'A', 2 + 1, 'M1,M2', 'swarm', null],
+  assert.deepEqual(s.board.top.map((r) => [r.rank, r.name, r.points, r.missions.join(','), r.p1, r.p2]), [
+    [1, 'Ana Silva', 1 + 1 + 1 + 2 + 1 + 2 + 1, 'M1', 'approved', 'report'],
+    [2, 'Rui Costa', 2 + 1, 'M1,M2', 'swarm', null],
   ]);
-  assert.equal(s.board.all.people, 2, 'person 3 never registered: not on the board');
-  assert.deepEqual(s.registrations.all, { people: 2, ready: 1, recent: [{ name: 'Rui Costa', room: 'A' }, { name: 'Ana Silva', room: 'A' }] });
-  assert.deepEqual(s.registrations.B, { people: 0, ready: 0, recent: [] }, 'person 3 is ready but not registered');
-  assert.deepEqual(s.feed_rooms.B, []);
-  assert.equal(s.feed_rooms.A.length, 5);
-  assert.equal(s.board.B.people, 0);
+  assert.equal(s.board.people, 2, 'person 3 never registered: not on the board');
+  assert.deepEqual(s.registrations, { people: 2, ready: 1, recent: [{ name: 'Rui Costa' }, { name: 'Ana Silva' }] }, 'person 3 is ready but not registered');
+  assert.equal(s.feed_rooms, undefined);
   a.hide('Ana Silva');
   const hidden = a.state(now);
   assert.ok(hidden.feed.every((f) => f.name !== 'Ana Silva'));
-  assert.equal(hidden.board.all.top[0].name, null, 'hidden: still ranked, without the name');
+  assert.equal(hidden.board.top[0].name, null, 'hidden: still ranked, without the name');
   // no person ids in the state
   assert.ok(!JSON.stringify(a.state(now)).includes(id(1)) && !JSON.stringify(a.state(now)).includes(id(2)));
   // snapshot round trip
@@ -133,8 +127,8 @@ async function api(opts = {}) {
 }
 // A registered person: the credential comes from /admin/register (the GitHub registration has its own test).
 const creds = new Map();
-async function reg(x, n, room = 'A', name = `Pessoa ${n}`) {
-  const r = await (await x.fetch(new Request('http://p/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm-secret' }, body: JSON.stringify({ p: id(n), room, name }) }))).json();
+async function reg(x, n, name = `Pessoa ${n}`) {
+  const r = await (await x.fetch(new Request('http://p/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm-secret' }, body: JSON.stringify({ p: id(n), name }) }))).json();
   creds.set(id(n), r.credential);
   return `${id(n)}.${r.credential}`;
 }
@@ -149,28 +143,28 @@ const admin = (x, what, body, token = 'adm-secret') => x.fetch(new Request(`http
 test('API: workshop code, participant credential, allowlist, limits, duplicates and the rate limit', async () => {
   const { x, store } = await api();
   try {
-    for (const n of [1, 2, 3]) await reg(x, n, n === 3 ? 'B' : 'A');
+    for (const n of [1, 2, 3]) await reg(x, n);
     const regs = store.rows.length;
-    assert.equal((await post(x, [ev(1, 'A', 'check_ok', 0)], { 'X-Participant': '' })).status, 401, 'no credential');
-    assert.equal((await post(x, [ev(1, 'A', 'check_ok', 0)], { 'X-Participant': `${id(1)}.${'0'.repeat(64)}` })).status, 401, 'a forged credential');
-    assert.equal((await post(x, [ev(2, 'A', 'check_ok', 0)], { 'X-Participant': `${id(1)}.${creds.get(id(1))}` })).status, 204);
+    assert.equal((await post(x, [ev(1, 'check_ok', 0)], { 'X-Participant': '' })).status, 401, 'no credential');
+    assert.equal((await post(x, [ev(1, 'check_ok', 0)], { 'X-Participant': `${id(1)}.${'0'.repeat(64)}` })).status, 401, 'a forged credential');
+    assert.equal((await post(x, [ev(2, 'check_ok', 0)], { 'X-Participant': `${id(1)}.${creds.get(id(1))}` })).status, 204);
     assert.equal(store.rows.length, regs, "someone else's events are dropped");
-    assert.equal((await post(x, [ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' })], { 'X-Workshop-Code': 'other' })).status, 403);
-    const good = ev(1, 'A', 'mission_done', 10, { mission: 'M1' });
+    assert.equal((await post(x, [ev(1, 'join', 0, { lang: 'pt', os: 'mac' })], { 'X-Workshop-Code': 'other' })).status, 403);
+    const good = ev(1, 'mission_done', 10, { mission: 'M1' });
     const bad = [{ ...good, prompt: 'secret' }, { ...good, ev: 'tests_run', green: 1, red: 0 }, { ...good, ws: 'other' }, { ...good, mission: 'M99' }, 'x', null];
     assert.equal((await post(x, [good, ...bad])).status, 204);
     assert.equal(store.rows.length, regs + 1, 'only the valid event is stored');
     assert.equal((await post(x, [good])).status, 204);
     assert.equal(store.rows.length, regs + 1, 'a duplicate (a sender retry) is ignored');
-    assert.equal((await get(x, '/state')).rooms.A.missions.M1.done, 1);
-    assert.equal((await post(x, Array.from({ length: 51 }, (_, i) => ev(2, 'A', 'cost', i, { cost_usd: 0.01, model: 'haiku', block: 'p1' })))).status, 413);
+    assert.equal((await get(x, '/state')).summary.missions.M1.done, 1);
+    assert.equal((await post(x, Array.from({ length: 51 }, (_, i) => ev(2, 'cost', i, { cost_usd: 0.01, model: 'haiku', block: 'p1' })))).status, 413);
     const ana = { 'X-Participant': `${id(1)}.${creds.get(id(1))}` };
     assert.equal((await post(x, 'x'.repeat(70000), ana)).status, 413);
     assert.equal((await post(x, '{not json', ana)).status, 400);
     // 120 events per minute per participant: the 121st stops the batch and says how many were processed
     let processed = 0;
     for (let b = 0; b < 3; b++) {
-      const r = await post(x, Array.from({ length: 50 }, (_, i) => ev(3, 'B', 'cost', b + i / 100, { cost_usd: 0.001, model: 'haiku', block: 'p1' })));
+      const r = await post(x, Array.from({ length: 50 }, (_, i) => ev(3, 'cost', b + i / 100, { cost_usd: 0.001, model: 'haiku', block: 'p1' })));
       if (r.status === 429) {
         processed = (await r.json()).processed;
         break;
@@ -189,20 +183,20 @@ test('API: admin needs the token; phase, hide and reset; the snapshot survives a
     assert.equal((await admin(x, 'phase', { phase: 'p1' }, 'wrong')).status, 403);
     assert.equal((await admin(x, 'phase', { phase: 'nope' })).status, 400);
     assert.equal((await admin(x, 'phase', { phase: 'p1' })).status, 200);
-    await reg(x, 1, 'A', 'Rui Costa');
-    await post(x, [ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' }), ev(1, 'A', 'mission_done', 10, { mission: 'M3' })]);
+    await reg(x, 1, 'Rui Costa');
+    await post(x, [ev(1, 'join', 0, { lang: 'pt', os: 'mac' }), ev(1, 'mission_done', 10, { mission: 'M3' })]);
     assert.equal((await admin(x, 'hide', { nickname: 'Rui Costa' })).status, 200);
     await x.flush();
     const y = (await api({ store })).x;
     const s = await get(y, '/state');
     assert.equal(s.phase, 'p1');
-    assert.equal(s.rooms.A.missions.M3.done, 1);
+    assert.equal(s.summary.missions.M3.done, 1);
     assert.equal(s.hidden, undefined, 'hidden nicknames are not listed in the public state');
     assert.ok(s.feed.every((f) => f.name !== 'Rui Costa'));
     assert.ok(!JSON.stringify(s).includes('Rui'));
-    assert.equal(s.board.all.top[0].name, null);
+    assert.equal(s.board.top[0].name, null);
     assert.equal((await admin(y, 'reset', {})).status, 200);
-    assert.equal((await get(y, '/state')).rooms.all.people, 0);
+    assert.equal((await get(y, '/state')).summary.people, 0);
     y.close();
     // without any token configured, admin is closed
     const z = (await api({ adminToken: '' })).x;
@@ -237,15 +231,15 @@ async function readSse(res, until, timeoutMs = 3000) {
 test('SSE: the state at once, then an update after a change (throttled)', async () => {
   const { x } = await api();
   try {
-    await reg(x, 9, 'B');
+    await reg(x, 9);
     const res = await x.fetch(new Request('http://p/stream'));
     assert.equal(res.headers.get('Content-Type'), 'text/event-stream');
-    const p = readSse(res, (m) => m.some((x) => x.rooms.B.ready === 1));
+    const p = readSse(res, (m) => m.some((x) => x.summary.ready === 1));
     await new Promise((ok) => setTimeout(ok, 30));
-    await post(x, [ev(9, 'B', 'check_ok', 1)]);
+    await post(x, [ev(9, 'check_ok', 1)]);
     const msgs = await p;
-    assert.equal(msgs[0].rooms.B.ready, 0);
-    assert.equal(msgs.at(-1).rooms.B.ready, 1);
+    assert.equal(msgs[0].summary.ready, 0);
+    assert.equal(msgs.at(-1).summary.ready, 1);
   } finally {
     x.close();
   }
@@ -273,19 +267,99 @@ test('the Durable Object store on SQLite (node:sqlite stands in for ctx.storage.
   assert.deepEqual(s.since(0), []);
   // the Worker sends API paths to the workshop's object and only the headers the API needs
   const env = { WORKSHOP_CODE: 'ws-t', ADMIN_TOKEN: 'adm', ALLOWED_ORIGINS: 'https://panel.pages.dev' };
-  const room = new PanelRoom({ storage: { sql } }, env);
+  let alarm = null;
+  const storage = { sql, getAlarm: async () => alarm, setAlarm: async (t) => (alarm = t) };
+  const room = new PanelRoom({ storage }, env);
   let seen = null;
   env.PANEL = { idFromName: (n) => `id:${n}`, get: (i) => ({ fetch: (r) => ((seen = { i, r }), room.fetch(r)) }) };
-  const cred = await (await worker.fetch(new Request('https://w.example/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(1), room: 'A', name: 'Ana' }) }), env)).json();
-  const r = await worker.fetch(new Request('https://w.example/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${id(1)}.${cred.credential}`, 'User-Agent': 'secret-agent', Cookie: 'c=1' }, body: JSON.stringify([ev(1, 'A', 'check_ok', 1)]) }), env);
+  const cred = await (await worker.fetch(new Request('https://w.example/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(1), name: 'Ana' }) }), env)).json();
+  const r = await worker.fetch(new Request('https://w.example/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${id(1)}.${cred.credential}`, 'User-Agent': 'secret-agent', Cookie: 'c=1' }, body: JSON.stringify([ev(1, 'check_ok', 1)]) }), env);
   assert.equal(r.status, 204);
   assert.equal(seen.i, 'id:ws-t');
   assert.equal(seen.r.headers.get('User-Agent'), null);
   assert.equal(seen.r.headers.get('Cookie'), null);
   const st = await (await worker.fetch(new Request('https://w.example/state', { headers: { Origin: 'https://panel.pages.dev' } }), env)).json();
-  assert.equal(st.rooms.A.ready, 1);
+  assert.equal(st.summary.ready, 1);
   assert.equal((await worker.fetch(new Request('https://w.example/'), env)).status, 404);
+  // the daily wipe has its alarm at the next midnight (DAY_TZ; UTC without it)
+  assert.ok(alarm > Date.now() && alarm - nextMidnight(Date.now(), 'UTC') === 5000, 'alarm at midnight + 5 s');
+  alarm = null;
+  await room.alarm();
+  assert.ok(alarm > Date.now(), 'the alarm sets the next one');
   room.api.close();
+});
+
+test('daily wipe: dayOf and nextMidnight follow the time zone, summer time included', () => {
+  assert.equal(dayOf(Date.parse('2026-11-20T23:30:00Z'), 'Europe/Lisbon'), '2026-11-20');
+  assert.equal(dayOf(Date.parse('2026-07-20T23:30:00Z'), 'Europe/Lisbon'), '2026-07-21', 'summer: UTC+1');
+  assert.equal(dayOf(Date.parse('2026-11-21T01:00:00Z'), 'America/Sao_Paulo'), '2026-11-20');
+  assert.equal(dayOf(0, 'Not/AZone'), '1970-01-01', 'an unknown zone falls back to UTC');
+  assert.equal(new Date(nextMidnight(Date.parse('2026-11-20T09:00:00Z'), 'Europe/Lisbon')).toISOString(), '2026-11-21T00:00:00.000Z');
+  assert.equal(new Date(nextMidnight(Date.parse('2026-07-20T09:00:00Z'), 'Europe/Lisbon')).toISOString(), '2026-07-20T23:00:00.000Z');
+  assert.equal(new Date(nextMidnight(Date.parse('2026-03-28T12:00:00Z'), 'Europe/Lisbon')).toISOString(), '2026-03-29T00:00:00.000Z', 'the night the clocks change');
+});
+
+test('daily wipe: at midnight everything is deleted (events, names, registrations, credentials); a store of another day too', async () => {
+  const { x, store, tick } = await api({ dayTz: 'Europe/Lisbon' });
+  const register = (body) => x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t' }, body: JSON.stringify(body) }));
+  try {
+    const ana = await (await register({ name: 'Ana Silva', account: 'a'.repeat(64) })).json();
+    const h = { 'X-Participant': `${ana.p}.${ana.credential}` };
+    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', p: ana.p, ev: 'mission_done', mission: 'M1', t: at(1), kit: 'v2' }], h)).status, 204);
+    assert.equal((await admin(x, 'phase', { phase: 'p2' })).status, 200);
+    assert.equal((await get(x, '/state')).board.top[0].name, 'Ana Silva');
+    // the same day, later: all still there
+    tick(14 * 3600 * 1000 - 60000); // 23:59 in Lisbon (November: UTC)
+    assert.equal((await get(x, '/state')).summary.people, 1);
+    tick(2 * 60000); // 00:01 the next day
+    const s = await get(x, '/state');
+    assert.deepEqual([s.summary.people, s.board.people, s.registrations.people, s.events, s.feed.length, s.phase], [0, 0, 0, 0, 0, 'opening']);
+    assert.equal(store.rows.length, 0, 'no event is kept');
+    assert.equal(store.getMeta('participants'), null, 'no account hash is kept');
+    assert.ok(!JSON.stringify(store.getMeta('snapshot')).includes('Ana'));
+    assert.equal(store.getMeta('day'), '2026-11-21');
+    // yesterday's credential no longer works; the same account registers again with a new id
+    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', p: ana.p, ev: 'check_ok', t: at(2), kit: 'v2' }], h)).status, 401);
+    const again = await (await register({ name: 'Ana Silva', account: 'a'.repeat(64) })).json();
+    assert.notEqual(again.p, ana.p);
+    assert.notEqual(again.credential, ana.credential);
+  } finally {
+    x.close();
+  }
+  // a server that was off at midnight wipes the old day's store when it starts
+  const old = memoryStore();
+  old.setMeta('day', '2026-11-19');
+  old.setMeta('participants', JSON.stringify({ ['b'.repeat(64)]: id(5) }));
+  old.append({ v: 1, ws: 'ws-t', p: id(5), ev: 'register', t: at(0), kit: 'panel', name: 'Rui' }, 'r');
+  const y = (await api({ store: old, dayTz: 'Europe/Lisbon' })).x;
+  assert.deepEqual([old.rows.length, old.getMeta('participants'), (await get(y, '/state')).board.people], [0, null, 0]);
+  y.close();
+  // a store from before the daily wipe (no day at all) is wiped too
+  const legacy = memoryStore();
+  legacy.setMeta('participants', JSON.stringify({ ['c'.repeat(64)]: id(6) }));
+  legacy.append({ v: 1, ws: 'ws-t', p: id(6), ev: 'register', t: at(0), kit: 'panel', name: 'Eva' }, 'e');
+  const z = (await api({ store: legacy })).x;
+  assert.deepEqual([legacy.rows.length, legacy.getMeta('participants'), (await get(z, '/state')).board.people], [0, null, 0]);
+  z.close();
+});
+
+test('daily wipe on the laptop: a credential the panel no longer knows (401) ends the registration and empties the queue', async () => {
+  const data = mkdtempSync(join(tmpdir(), 'ws-401-'));
+  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
+  const t = await telemetryHome(srv.url);
+  try {
+    queue(t.P, [ev(1, 'check_ok', 1)]);
+    assert.equal((await sendQueue({ P: t.P })).sent, 1);
+    assert.equal((await admin({ fetch: (r) => fetch(srv.url + new URL(r.url).pathname, { method: r.method, headers: r.headers, body: r.body, duplex: 'half' }) }, 'reset', {}, 'adm')).status, 200);
+    queue(t.P, [ev(1, 'mission_done', 2, { mission: 'M1' })]);
+    assert.deepEqual(await sendQueue({ P: t.P }), { sent: 0, left: 0 });
+    const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    assert.deepEqual([c.enabled, c.participant], [false, null]);
+  } finally {
+    await srv.close();
+    rmSync(t.base, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
 });
 
 // A laptop registered on the panel (the credential from /admin/register; the GitHub one has its own test).
@@ -295,10 +369,10 @@ async function telemetryHome(url, { registered = true, n = 1 } = {}) {
   mkdirSync(dir, { recursive: true });
   let participant = null;
   if (registered) {
-    const r = await (await fetch(`${url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(n), room: 'A', name: 'Ana' }) })).json();
+    const r = await (await fetch(`${url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(n), name: 'Ana' }) })).json();
     participant = { p: r.p, credential: r.credential, name: r.name };
   }
-  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled: registered, room: 'A', workshop: 'ws-t', kit: 'v2', panel_url: url, expires_at: '2099-01-01T00:00:00.000Z', participant }));
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled: registered, workshop: 'ws-t', kit: 'v2', panel_url: url, expires_at: '2099-01-01T00:00:00.000Z', participant }));
   return { base, P: paths(dir) };
 }
 const queue = (P, list) => writeFileSync(P.queue, list.map((e) => JSON.stringify(e)).join('\n') + '\n');
@@ -309,7 +383,7 @@ test('sender: the queue goes in batches of 50, only confirmed events leave it; o
   const port = new URL(srv.url).port;
   const t = await telemetryHome(srv.url);
   try {
-    const list = Array.from({ length: 120 }, (_, i) => ev(1, 'A', 'cost', i / 10, { cost_usd: 0.001, model: 'haiku', block: 'p1' }));
+    const list = Array.from({ length: 120 }, (_, i) => ev(1, 'cost', i / 10, { cost_usd: 0.001, model: 'haiku', block: 'p1' }));
     queue(t.P, list.slice(0, 70));
     let r = await sendQueue({ P: t.P });
     assert.deepEqual(r, { sent: 70, left: 0 });
@@ -346,11 +420,11 @@ test('end to end: record() queues the event and starts the sender, which posts i
   try {
     assert.deepEqual(record('mission_done', { mission: 'M4' }, { P: t.P }), { recorded: true, queued: true });
     let s = null;
-    for (let i = 0; i < 60 && !s?.rooms.A.missions.M4.done; i++) {
+    for (let i = 0; i < 60 && !s?.summary.missions.M4.done; i++) {
       await new Promise((ok) => setTimeout(ok, 100));
       s = await (await fetch(`${srv.url}/state`)).json();
     }
-    assert.equal(s.rooms.A.missions.M4.done, 1);
+    assert.equal(s.summary.missions.M4.done, 1);
     assert.equal(readLines(t.P.sent).at(-1).mission, 'M4');
   } finally {
     await srv.close();
@@ -359,18 +433,18 @@ test('end to end: record() queues the event and starts the sender, which posts i
   }
 });
 
-test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no errors; the panel updates within 2 s', async () => {
+test('load: 250 people (the whole agenda, ~7500 events) with no errors; the panel updates within 2 s', async () => {
   const data = mkdtempSync(join(tmpdir(), 'ws-load-'));
   const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 500 });
   try {
-    const events = simulate({ people: 250, rooms: 2, ws: 'ws-t', start: Date.now() - 95 * 60000 });
+    const events = simulate({ people: 250, ws: 'ws-t', start: Date.now() - 95 * 60000 });
     const byPerson = new Map();
     for (const e of events) (byPerson.get(e.p) || byPerson.set(e.p, []).get(e.p)).push(e);
     let errors = 0;
     const people = [...byPerson.values()];
     const cred = new Map();
     for (const list of people) {
-      const r = await (await fetch(`${srv.url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: list[0].p, room: list[0].room, name: `P ${cred.size}` }) })).json();
+      const r = await (await fetch(`${srv.url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: list[0].p, name: `P ${cred.size}` }) })).json();
       cred.set(list[0].p, r.credential);
     }
     for (let i = 0; i < people.length; i += 25) {
@@ -386,15 +460,15 @@ test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no error
     }
     assert.equal(errors, 0);
     const s = await (await fetch(`${srv.url}/state`)).json();
-    assert.equal(s.rooms.all.people, 250);
+    assert.equal(s.summary.people, 250);
     assert.equal(s.events, events.length + 250, 'the events and the 250 registrations');
-    assert.equal(s.board.all.people, 250);
+    assert.equal(s.board.people, 250);
     // latency: one more event → the SSE message that shows it
     const res = await fetch(`${srv.url}/stream`);
     const t0 = Date.now();
     const p = readSse(res, (m) => m.some((x) => x.events > s.events), 3000);
     const extra = people[0][0];
-    await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${extra.p}.${cred.get(extra.p)}` }, body: JSON.stringify([{ v: 1, ws: 'ws-t', room: extra.room, p: extra.p, ev: 'check_ok', t: new Date().toISOString(), kit: 'v2' }]) });
+    await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${extra.p}.${cred.get(extra.p)}` }, body: JSON.stringify([{ v: 1, ws: 'ws-t', p: extra.p, ev: 'check_ok', t: new Date().toISOString(), kit: 'v2' }]) });
     const msgs = await p;
     assert.ok(msgs.some((x) => x.events === s.events + 1), 'no update');
     assert.ok(Date.now() - t0 <= 2000, `update after ${Date.now() - t0} ms`);
@@ -404,33 +478,36 @@ test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no error
   }
 });
 
-test('registration: only name, room and an account hash reach the server; the same account keeps its id; bad bodies refused', async () => {
+test('registration: only the name and an account hash reach the server; the same account keeps its id; bad bodies refused', async () => {
   const { x, store } = await api();
   const register = (body, code = 'ws-t') => x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': code }, body: JSON.stringify(body) }));
   const acc = (n) => String(n).padStart(64, 'a');
   try {
-    let r = await register({ name: 'Ana Silva', room: 'A', account: acc(1) });
+    let r = await register({ name: 'Ana Silva', account: acc(1) });
     assert.equal(r.status, 200);
     const ana = await r.json();
     assert.equal(ana.name, 'Ana Silva');
     assert.match(ana.p, /^[0-9a-f]{32}$/);
     assert.match(ana.credential, /^[0-9a-f]{64}$/, 'the credential is an HMAC signature');
-    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', room: 'A', p: ana.p, ev: 'check_ok', t: at(1), kit: 'v2' }], { 'X-Participant': `${ana.p}.${ana.credential}` })).status, 204);
-    assert.equal((await (await register({ name: 'Ana Silva', room: 'B', account: acc(1) })).json()).p, ana.p, 'same account, same id');
-    for (const bad of [{ name: 'X', room: 'A' }, { name: 'X', room: 'C', account: acc(2) }, { name: '', room: 'A', account: acc(2) }, { name: 'X', room: 'A', account: 'not-a-hash' }, { name: 'X'.repeat(101), room: 'A', account: acc(2) }]) {
+    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', p: ana.p, ev: 'check_ok', t: at(1), kit: 'v2' }], { 'X-Participant': `${ana.p}.${ana.credential}` })).status, 204);
+    assert.equal((await (await register({ name: 'Ana Silva', room: 'B', account: acc(1) })).json()).p, ana.p, 'same account, same id (an old kit still sends a room: ignored)');
+    // an old kit's event with a room is taken, and stored without it
+    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', room: 'A', p: ana.p, ev: 'mission_done', mission: 'M2', t: at(2), kit: 'v2' }], { 'X-Participant': `${ana.p}.${ana.credential}` })).status, 204);
+    assert.ok(store.rows.at(-1).e.mission === 'M2' && !('room' in store.rows.at(-1).e));
+    for (const bad of [{ name: 'X' }, { name: '', account: acc(2) }, { name: 'X', account: 'not-a-hash' }, { name: 'X'.repeat(101), account: acc(2) }]) {
       assert.equal((await register(bad)).status, 400, JSON.stringify(bad).slice(0, 60));
     }
-    assert.equal((await register({ name: 'X', room: 'A', account: acc(3) }, 'other')).status, 403);
-    // the server keeps the name, the room and the hash: nothing else of the registration
+    assert.equal((await register({ name: 'X', account: acc(3) }, 'other')).status, 403);
+    // the server keeps the name and the hash: nothing else of the registration
     await x.flush();
     assert.deepEqual(Object.keys(JSON.parse(store.getMeta('participants'))), [acc(1)]);
-    assert.equal((await get(x, '/state')).board.all.top[0].name, 'Ana Silva');
+    assert.equal((await get(x, '/state')).board.top[0].name, 'Ana Silva');
   } finally {
     x.close();
   }
 });
 
-test('ctl.mjs register: the account checked on the laptop; only name, room and the account hash are sent; clear errors', async () => {
+test('ctl.mjs register: the account checked on the laptop; only the name and the account hash are sent; clear errors', async () => {
   const { register } = await import('../../telemetry/ctl.mjs');
   const data = mkdtempSync(join(tmpdir(), 'ws-reg-'));
   const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
@@ -442,29 +519,28 @@ test('ctl.mjs register: the account checked on the laptop; only name, room and t
   try {
     const cfg = JSON.parse(readFileSync(t.P.config, 'utf8'));
     writeFileSync(t.P.config, JSON.stringify({ ...cfg, email_domain: 'checkmarx.com' }));
-    const reg = (room, account) => register(room, { P: t.P, print: (m) => out.push(m), fetchImpl: spy, account: () => account });
-    assert.equal(await reg('A', { error: 'gh' }), 4);
+    const reg = (account, room) => register(room, { P: t.P, print: (m) => out.push(m), fetchImpl: spy, account: () => account });
+    assert.equal(await reg({ error: 'gh' }), 4);
     assert.match(out.at(-1), /gh auth login/);
-    assert.equal(await reg('A', { error: 'scope' }), 4);
+    assert.equal(await reg({ error: 'scope' }), 4);
     assert.match(out.at(-1), /gh auth refresh -h github\.com -s user:email/);
-    assert.equal(await reg('A', { id: 8, name: 'X', emails: [{ email: 'x@example.com', verified: true }] }), 3);
-    assert.equal(await reg('A', { id: 9, name: 'Y', emails: [{ email: 'y@checkmarx.com', verified: false }] }), 3, 'an unverified company email does not count');
+    assert.equal(await reg({ id: 8, name: 'X', emails: [{ email: 'x@example.com', verified: true }] }), 3);
+    assert.equal(await reg({ id: 9, name: 'Y', emails: [{ email: 'y@checkmarx.com', verified: false }] }), 3, 'an unverified company email does not count');
     assert.match(out.at(-1), /@checkmarx\.com/);
     assert.equal(sent.length, 0, 'nothing is sent before the account is checked');
-    assert.equal(await reg('Z', marta), 2);
-    assert.equal(await reg('b', marta), 0);
+    assert.equal(await reg(marta, 'b'), 0, 'an old room argument is ignored');
     assert.match(out.at(-1), /Marta Reis/);
     assert.equal(sent.length, 1);
     const body = JSON.parse(sent[0]);
-    assert.deepEqual(Object.keys(body).sort(), ['account', 'name', 'room']);
+    assert.deepEqual(Object.keys(body).sort(), ['account', 'name']);
     assert.match(body.account, /^[0-9a-f]{64}$/);
     assert.ok(!sent[0].includes('checkmarx') && !sent[0].includes('gmail') && !sent[0].includes('"7"') && !sent[0].includes(':7'), 'no email and no raw account id leave the laptop');
     const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
-    assert.equal(c.room, 'B');
+    assert.equal(c.room, undefined);
     assert.match(c.participant.credential, /^[0-9a-f]{64}$/);
     await sendQueue({ P: t.P });
     const s = await (await fetch(`${srv.url}/state`)).json();
-    assert.deepEqual(s.board.B.top.map((r) => r.name), ['Marta Reis']);
+    assert.deepEqual(s.board.top.map((r) => r.name), ['Marta Reis']);
   } finally {
     await srv.close();
     rmSync(t.base, { recursive: true, force: true });
