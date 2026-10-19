@@ -555,3 +555,60 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - O `frame-ancestors` para o `palco.html` (Fase 5).
   - Não se sabe se o plano grátis da Workers aguenta o limite de CPU por pedido; o snapshot foi pensado para isso.
   - Os proxies das empresas podem bloquear `*.workers.dev`; o `--check` do pré-trabalho avisa (`E-TEL-01`).
+
+## D-33 · Workshop v2, Fase 3: o Canivete (Projeto 1) e as skills genéricas (19 out. 2026)
+
+- **Entregue:**
+  - `canivete-project/`, em pt e en: as 30 ferramentas da secção 5.4 em `specs/tools.json`; os 4 modelos (`calc`, `convert`, `text`, `generate`, sobre `templates/common.js`, que lê as entradas como a pessoa as escreve, por exemplo `1,5` ou `1.5`); o contrato; o `gen.mjs`, que gera a spec e o teste por exemplos; a ferramenta da pessoa (`specs/my-tool.json` → `my-01`); o `plan.mjs` com `--parallel 4|8|12`, `--model haiku|sonnet` e `--forecast`; a casca, com pesquisa, o painel de cada ferramenta e "Correr testes"; o servidor endurecido como o da Arena; o `/status`; e o `check-integration`, o `review-digest` e o `reset`.
+  - As 30 soluções de referência em `dev/solutions/canivete/` e `tools/dev/check-canivete.mjs` + `check-canivete-app.mjs` (no `test-all`).
+  - `installer/assemble-canivete.mjs` e o setup (passo 9): o Canivete é o Projeto 1 por defeito; a Arena só com `WORKSHOP_P1=arena`.
+  - As skills `/demo-*` genéricas: leem o `workshop.project.json` do projeto (nome, unidade, decisões, gate, prompt do revisor, memória, app), por isso uma só versão serve o Canivete e a Arena. A Arena ganhou o `workshop.project.json`, as mesmas decisões (`--parallel`, `--model`, `--forecast`) e os mesmos eventos.
+  - Os eventos `p1_*`: `p1_tool_created` (gen), `p1_plan` (plan), `p1_swarm_done`/`p2_swarm_done` e `p1_retry_green` (next-wave), `p1_gate`/`p2_gate` (gate.mjs, que também põe P1 ✓ / P2 ✓ na caderneta), através de uma ponte (`orchestrator/lib/telemetry.mjs`) que encontra a telemetria no kit ou, numa cópia do motor dentro de um projeto, no kit instalado. Os custos do Projeto 1 também chegam ao painel.
+- **Decisões:**
+  - **As 3 ambíguas** (nm-03, dn-01, tx-02) seguem a secção 5.3. O teste guarda só hashes, e a mensagem diz o que a ferramenta devolveu e que regra a spec não decide. Ao montar o projeto, o instalador tira do `tools.json` a regra, os resultados e as respostas óbvias (`tools/gaps.mjs`), para nenhum agente as encontrar no disco.
+  - **O planner Opus é opcional por projeto** (`plan.planner`): ligado na Arena e desligado no Canivete. O slot de 1 min do "Planeia" e o custo-alvo de US$ 1,30 não deixam espaço para ele.
+  - **A previsão (D4)** é perguntada pela `/demo-plan` com o `AskUserQuestion` (3, 5, 8 e 12 min, ou não prever).
+  - **No plano, as ferramentas usam `group_type: card`**, a unidade da onda 1 do orquestrador, que é refeita em Sonnet na última tentativa.
+  - **O `p1_tool_created` aceita também os modelos da Arena** (choice, spot-the-flaw, order, answer).
+  - **O modelo de datas aceita os anos 0 a 99** (`setUTCFullYear`).
+- **Testes:**
+  - `canivete.test.mjs` (6: montagem pt/en sem respostas, as respostas óbvias recusadas sem revelar a certa, a ferramenta da pessoa e o seu evento, as decisões do plano e o `p1_plan`);
+  - `orchestrator/test/panel-events.test.mjs`;
+  - as 30 soluções verdes em pt e en, com e sem `--no-gaps`;
+  - a app, o servidor e o `/status` verdes nas duas línguas;
+  - a Arena continua verde;
+  - `test-all` verde.
+- **Por medir (Fase 6):** o tempo e o custo reais do swarm com 4, 8 e 12 agentes; e se pelo menos 2 das 3 ambíguas falham à primeira com Haiku.
+
+## D-34 · Painel: board de liderança por pessoa e registo obrigatório com o GitHub (19 out. 2026)
+
+- **Pedido do organizador:**
+  - o board é por pessoa e não por sala, porque as salas têm 70 e 30 pessoas;
+  - usar o `gh` do setup para registar as pessoas, e só quem tem email `@checkmarx.com` entra;
+  - o nome aparece no board de liderança;
+  - a participação não é opcional.
+- **Isto muda** o princípio 2.3.3 ("sem ranking de pessoas") e a secção 6.6 (participação opcional e anónima, alcunhas). A especificação ganhou a secção 12 com estas alterações, e os `PRIVACY.md` foram reescritos.
+- **O registo** (`telemetry/ctl.mjs register`, corrido pelo setup a seguir ao login do `gh`):
+  1. o `ctl.mjs` lê o token com `gh auth token`, só em memória, e envia-o uma vez por HTTPS para `/register`;
+  2. a Worker faz duas leituras da API do GitHub (`/user` e `/user/emails`) e exige um email **verificado** do domínio `PANEL_EMAIL_DOMAIN` (checkmarx.com);
+  3. guarda só o nome do GitHub, um hash do id da conta (a mesma conta mantém o mesmo id noutro portátil) e a sala, e deita o token fora;
+  4. devolve uma credencial HMAC, com o segredo criado e guardado no Durable Object.
+  - Os eventos só são aceites com a credencial (`X-Participant`), e os de outro participante são descartados.
+  - O scope `user:email` passa a ser pedido no login do `gh`.
+- **O aviso de segurança dado ao organizador:** o token do `gh` tem o scope `repo` e passa uma vez pela Worker. A Worker não tem logs e o token não é guardado. A alternativa mais segura, o device flow com uma OAuth App só com `user:email`, foi proposta; o organizador escolheu o `gh`.
+- **`/admin/register`** (com o token de admin) regista pessoas sem GitHub: o simulador, os ensaios, ou alguém que o organizador deixe entrar à mão.
+- **Pontos do board:** cobertura e qualidade, nunca gasto.
+  - missão validada: 1;
+  - swarm acabado: 1 por projeto;
+  - spec corrigida: 1;
+  - gate aprovado: 2 por projeto;
+  - relatório do Projeto 2: 1;
+  - no máximo 17 pontos; em caso de empate, ganha quem chegou primeiro.
+  - O apresentador esconde um nome com H e clique: a pessoa continua no board, como "—".
+- **A página:** o board é o elemento principal de cada vista. `?room=A|B` filtra o board, os números e o feed. A abertura mostra os registos recentes e os prontos entre os registados.
+- **As alcunhas (A3) deixam de existir;** o `ctl.mjs` passa a ter `register`, `status` e `show`.
+- **Testes:** `panel.test.mjs` (11, com o registo por uma API do GitHub falsa: o domínio, um email não verificado, o scope em falta, o mesmo id para a mesma conta, e nenhum token nem email guardado; e o `ctl.mjs register` de ponta a ponta) e `panel-page.test.mjs`. As capturas foram refeitas.
+- **Por fazer:**
+  - o setup do registo e o `--cleanup` (com um agente);
+  - o deploy desta versão da Worker e da página (com o "sim" do organizador);
+  - os replays de ensaio da Fase 6 com nomes reais têm de ser anonimizados antes de entrarem no repositório.
