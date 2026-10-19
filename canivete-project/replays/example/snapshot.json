@@ -1,0 +1,718 @@
+{
+  "description": "Execução sintética das 30 ferramentas com 8 em paralelo em Haiku, para ensaiar o /status. Não é uma gravação real.",
+  "synthetic": true,
+  "generated_at": "2026-10-19T10:09:02.000Z",
+  "mode": "participant",
+  "start": "2026-10-19T10:00:00.000Z",
+  "end": "2026-10-19T10:09:00.000Z",
+  "total": 33,
+  "counts": {
+    "todo": 0,
+    "working": 0,
+    "green": 30,
+    "red": 0,
+    "failed": 3
+  },
+  "cost": {
+    "total": 0.6671,
+    "main": 0.1308,
+    "subagents": 0.5363
+  },
+  "budget": {
+    "target_usd": 5,
+    "cap_usd": 10
+  },
+  "tasks": [
+    {
+      "id": "tx-01",
+      "title": "Contar palavras e tempo de leitura",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 48,
+      "cost_usd": 0.0052,
+      "test": {
+        "command": "node --test tools/tx-01/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 80
+      }
+    },
+    {
+      "id": "tx-02",
+      "title": "Maiúsculas de título",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 64,
+      "cost_usd": 0.014,
+      "test": {
+        "command": "node --test tools/tx-02/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "para {\"text\":\"a casa de papel\"} a ferramenta devolveu \"A Casa De Papel\", mas não é esse o resultado que o teste espera.",
+        "ms": 111
+      }
+    },
+    {
+      "id": "tx-03",
+      "title": "Slug para URL",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-03",
+      "model": "claude-haiku-5-5",
+      "seconds": 55,
+      "cost_usd": 0.0038,
+      "test": {
+        "command": "node --test tools/tx-03/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 66
+      }
+    },
+    {
+      "id": "tx-04",
+      "title": "Remover acentos",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 29,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/tx-04/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 69
+      }
+    },
+    {
+      "id": "tx-05",
+      "title": "Contar ocorrências de uma palavra",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 28,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/tx-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 68
+      }
+    },
+    {
+      "id": "nm-01",
+      "title": "X % de Y e Y é que % de X",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 23,
+      "cost_usd": 0.005,
+      "test": {
+        "command": "node --test tools/nm-01/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 92
+      }
+    },
+    {
+      "id": "nm-02",
+      "title": "Regra de três simples",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 32,
+      "cost_usd": 0.0041,
+      "test": {
+        "command": "node --test tools/nm-02/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 122
+      }
+    },
+    {
+      "id": "nm-03",
+      "title": "Arredondar com casas decimais",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 59,
+      "cost_usd": 0.0078,
+      "test": {
+        "command": "node --test tools/nm-03/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "para {\"value\":\"1,005\",\"places\":\"2\"} a ferramenta devolveu 1, mas não é esse o resultado que o teste espera.",
+        "ms": 128
+      }
+    },
+    {
+      "id": "nm-04",
+      "title": "Média e mediana de uma lista",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 47,
+      "cost_usd": 0.0045,
+      "test": {
+        "command": "node --test tools/nm-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 118
+      }
+    },
+    {
+      "id": "nm-05",
+      "title": "Numeração romana ↔ árabe",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 26,
+      "cost_usd": 0.0026,
+      "test": {
+        "command": "node --test tools/nm-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 91
+      }
+    },
+    {
+      "id": "dt-01",
+      "title": "Dias entre duas datas",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0048,
+      "test": {
+        "command": "node --test tools/dt-01/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 66
+      }
+    },
+    {
+      "id": "dt-02",
+      "title": "Idade numa data",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0018,
+      "test": {
+        "command": "node --test tools/dt-02/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 84
+      }
+    },
+    {
+      "id": "dt-03",
+      "title": "Dia da semana de uma data",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 20,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dt-03/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 119
+      }
+    },
+    {
+      "id": "dt-04",
+      "title": "Somar dias a uma data",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 33,
+      "cost_usd": 0.0021,
+      "test": {
+        "command": "node --test tools/dt-04/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 62
+      }
+    },
+    {
+      "id": "dt-05",
+      "title": "Hora noutro fuso (offset fixo)",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 38,
+      "cost_usd": 0.0047,
+      "test": {
+        "command": "node --test tools/dt-05/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 91
+      }
+    },
+    {
+      "id": "dn-01",
+      "title": "Gorjeta e divisão da conta",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 41,
+      "cost_usd": 0.0132,
+      "test": {
+        "command": "node --test tools/dn-01/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "para {\"total\":\"100\",\"tip\":\"0\",\"people\":\"3\"} a ferramenta devolveu {\"tip\":0,\"total\":100,\"per_person\":33.33}, mas não é esse o resultado que o teste espera.",
+        "ms": 122
+      }
+    },
+    {
+      "id": "dn-02",
+      "title": "IVA: com e sem (23 %, 13 %, 6 %)",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 50,
+      "cost_usd": 0.0046,
+      "test": {
+        "command": "node --test tools/dn-02/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 107
+      }
+    },
+    {
+      "id": "dn-03",
+      "title": "Juros compostos",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 29,
+      "cost_usd": 0.0038,
+      "test": {
+        "command": "node --test tools/dn-03/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 79
+      }
+    },
+    {
+      "id": "dn-04",
+      "title": "Prestação de um empréstimo",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 27,
+      "cost_usd": 0.0052,
+      "test": {
+        "command": "node --test tools/dn-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 66
+      }
+    },
+    {
+      "id": "dn-05",
+      "title": "Descontos em cascata",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 36,
+      "cost_usd": 0.0033,
+      "test": {
+        "command": "node --test tools/dn-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 135
+      }
+    },
+    {
+      "id": "dv-01",
+      "title": "Formatar JSON",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 43,
+      "cost_usd": 0.0037,
+      "test": {
+        "command": "node --test tools/dv-01/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 76
+      }
+    },
+    {
+      "id": "dv-02",
+      "title": "Base64 codificar e descodificar",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 31,
+      "cost_usd": 0.0034,
+      "test": {
+        "command": "node --test tools/dv-02/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 117
+      }
+    },
+    {
+      "id": "dv-03",
+      "title": "Gerar UUID v4",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dv-03/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 125
+      }
+    },
+    {
+      "id": "dv-04",
+      "title": "Cor HEX ↔ RGB",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 51,
+      "cost_usd": 0.002,
+      "test": {
+        "command": "node --test tools/dv-04/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 129
+      }
+    },
+    {
+      "id": "dv-05",
+      "title": "Validar um email (regras simples)",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-03",
+      "model": "claude-haiku-5-5",
+      "seconds": 38,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/dv-05/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 106
+      }
+    },
+    {
+      "id": "dd-01",
+      "title": "Medidas de cozinha (chávena, colher, g)",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 25,
+      "cost_usd": 0.0041,
+      "test": {
+        "command": "node --test tools/dd-01/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 96
+      }
+    },
+    {
+      "id": "dd-02",
+      "title": "Consumo de combustível (l/100 km)",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 50,
+      "cost_usd": 0.0021,
+      "test": {
+        "command": "node --test tools/dd-02/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 110
+      }
+    },
+    {
+      "id": "dd-03",
+      "title": "Gerador de password",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 53,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dd-03/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 132
+      }
+    },
+    {
+      "id": "dd-04",
+      "title": "Celsius ↔ Fahrenheit",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 32,
+      "cost_usd": 0.002,
+      "test": {
+        "command": "node --test tools/dd-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 102
+      }
+    },
+    {
+      "id": "dd-05",
+      "title": "Sorteio de nomes",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 28,
+      "cost_usd": 0.0049,
+      "test": {
+        "command": "node --test tools/dd-05/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 138
+      }
+    },
+    {
+      "id": "index-page",
+      "title": "Página de pesquisa e categorias",
+      "group": "page",
+      "group_type": "page",
+      "wave": 2,
+      "state": "green",
+      "attempt": 1,
+      "agent": "implementer-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 74,
+      "cost_usd": 0.0612,
+      "test": {
+        "command": "node --test pages/catalog.test.js",
+        "code": 0,
+        "passed": 20,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 449
+      }
+    },
+    {
+      "id": "integration",
+      "title": "Integração e suite completa",
+      "group": "integration",
+      "group_type": "integration",
+      "wave": 3,
+      "state": "green",
+      "attempt": 1,
+      "agent": "integrator-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 52,
+      "cost_usd": 0.0488,
+      "test": {
+        "command": "node tools/check-integration.mjs",
+        "code": 0,
+        "passed": 163,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 2294
+      }
+    },
+    {
+      "id": "review",
+      "title": "Revisão de segurança e qualidade",
+      "group": "review",
+      "group_type": "review",
+      "wave": 4,
+      "state": "green",
+      "attempt": 1,
+      "agent": "reviewer-01",
+      "model": "claude-opus-5-5",
+      "seconds": 96,
+      "cost_usd": 0.2914,
+      "test": {
+        "file": ".workshop/verdict.json",
+        "value": "approved_with_reservations",
+        "excerpt": "",
+        "ms": 9
+      }
+    }
+  ]
+}
