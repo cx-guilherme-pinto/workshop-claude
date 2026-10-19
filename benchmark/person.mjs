@@ -71,11 +71,12 @@ export function expectedBroken(arena) {
   return specs.cards.filter((c) => (c.spec_gaps || []).length).map((c) => c.id).sort();
 }
 
-// The complete spec.md of one card: gen --no-gaps in a temporary copy (only tools/ and specs/: gen writes the rest).
+// The complete spec.md of one card: gen --no-gaps in a temporary copy (what gen reads: tools/, specs/, templates/
+// and lib/; gen writes the rest).
 export function completeSpec(arena, id) {
   const tmp = mkdtempSync(join(resolve(arena, '..'), '.person-'));
   try {
-    for (const d of ['tools', 'specs']) cpSync(join(arena, d), join(tmp, d), { recursive: true });
+    for (const d of ['tools', 'specs', 'templates', 'lib']) if (existsSync(join(arena, d))) cpSync(join(arena, d), join(tmp, d), { recursive: true });
     const r = spawnSync(process.execPath, [join(tmp, 'tools', 'gen.mjs'), '--no-gaps'], { cwd: tmp, encoding: 'utf8' });
     const f = join(tmp, 'cards', id, 'spec.md');
     if (r.status !== 0 || !existsSync(f)) throw new Error(`gen --no-gaps failed for ${id}: ${(r.stderr || r.stdout || '').trim().slice(0, 300)}`);

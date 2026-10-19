@@ -1,6 +1,6 @@
 // Tests of the benchmark helpers that run without Claude (benchmark/):
 //   - person.mjs: the "person" that completes the spec.md of the cards broken on purpose (D-28), from the complete
-//     spec of `gen.mjs --no-gaps`, so that the card's spec check passes and gen keeps the completed spec;
+//     spec of `gen.mjs --no-gaps` (the test keeps only a hash of the answer), and gen keeps the completed spec;
 //   - collect.mjs: the results.csv with the old header is rewritten with the new columns; 429s in transcripts;
 //   - report.mjs: the full-day rows, the P1/P2 split and the comparison with the target and the cap.
 import { test } from 'node:test';
@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { montar } from '../../installer/assemble-demo.mjs';
-import { mergeMissing, expectedBroken, failedForSpec, fix } from '../../benchmark/person.mjs';
+import { mergeMissing, expectedBroken, failedForSpec, fix, completeSpec } from '../../benchmark/person.mjs';
 import { COLUNAS, gravarCsv, lerCsv, contar429 } from '../../benchmark/collect.mjs';
 import { gerar } from '../../benchmark/report.mjs';
 
@@ -34,7 +34,7 @@ test('mergeMissing inserts only the missing lines, in place, and keeps the perso
 });
 
 for (const l of ['pt', 'en']) {
-  test(`person.mjs completes the 4 broken cards (${l}): the spec check passes and gen --check keeps them`, () => {
+  test(`person.mjs completes the 4 broken cards (${l}): the spec gets every line of the complete spec and gen --check keeps it`, () => {
     const base = mkdtempSync(join(tmpdir(), `bench-person-${l}-`));
     try {
       const dest = join(base, 'arena');
@@ -47,14 +47,13 @@ for (const l of ['pt', 'en']) {
       writeFileSync(join(dest, '.workshop', 'status', 'pv-01.json'), JSON.stringify({ tarefa: 'pv-01', estado: 'falhou', tentativa: 3 }));
       assert.deepEqual(failedForSpec(dest), ids);
       for (const id of ids) {
-        const before = spawnSync(process.execPath, ['--test', `cards/${id}/card.test.js`], { cwd: dest, encoding: 'utf8', env: env() });
         const added = fix(dest, id);
         assert.ok(added.length >= 1, `${id}: no line added`);
         assert.deepEqual(fix(dest, id), [], `${id}: a second fix must add nothing`);
-        const after = spawnSync(process.execPath, ['--test', `cards/${id}/card.test.js`], { cwd: dest, encoding: 'utf8', env: env() });
-        // Without card.js the card still fails; only the spec test changes from failing to passing.
-        const failed = (out) => Number((/ℹ fail (\d+)/.exec(out) || [])[1] || 0);
-        assert.equal(failed(after.stdout), failed(before.stdout) - 1, `${id}: the spec test still fails\n${after.stdout.slice(-800)}`);
+        // The test keeps only a hash of the answer, so the check is on the spec: after the fix it has every line
+        // of the complete spec (gen --no-gaps), the right answer included.
+        const spec = readFileSync(join(dest, 'cards', id, 'spec.md'), 'utf8');
+        for (const line of completeSpec(dest, id).split('\n').filter((x) => x.trim())) assert.ok(spec.includes(line), `${id}: missing ${line}`);
       }
       const check = spawnSync(process.execPath, ['tools/gen.mjs', '--check'], { cwd: dest, encoding: 'utf8', env: env() });
       assert.equal(check.status, 0, check.stderr);
