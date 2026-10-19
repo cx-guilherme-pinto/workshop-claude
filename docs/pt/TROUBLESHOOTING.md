@@ -84,6 +84,9 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-KIT-02` | O arquivo do kit não confere (SHA-256) | [macOS](#mac-e-kit-02) · [Windows](#windows-e-kit-02) |
 | `E-KIT-03` | A instalação das skills e dos hooks falhou | [macOS](#mac-e-kit-03) · [Windows](#windows-e-kit-03) |
 | `E-TEL-01` | Não é possível chegar ao painel do workshop a partir desta rede | [macOS](#mac-e-tel-01) · [Windows](#windows-e-tel-01) |
+| `E-TEL-02` | A tua conta GitHub não tem um email da empresa verificado | [macOS](#mac-e-tel-02) · [Windows](#windows-e-tel-02) |
+| `E-TEL-03` | O gh não consegue ler o email da tua conta GitHub | [macOS](#mac-e-tel-03) · [Windows](#windows-e-tel-03) |
+| `E-TEL-04` | Ainda não estás registado no painel do workshop | [macOS](#mac-e-tel-04) · [Windows](#windows-e-tel-04) |
 | `E-DEMO-01` | Não consegui montar os projetos do workshop | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | Os testes da app da Arena falharam | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | A pasta do projeto já existe e não é do kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
@@ -869,7 +872,7 @@ brew install gh
 Comando (macOS):
 
 ```
-gh auth login --hostname github.com --git-protocol https --web
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
 ```
 
 <a id="mac-e-gh-03"></a>
@@ -993,16 +996,63 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 ### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
 
-- **Porquê:** A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.
+- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
 - **O que fazer:**
-  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).
-  - Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora.
+  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.
+  - Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado.
 
 Comandos (macOS):
 
 ```
-node ~/.workshop-claude/kit/telemetry/ctl.mjs off
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
 node ~/.workshop-claude/kit/telemetry/ctl.mjs status
+```
+
+<a id="mac-e-tel-02"></a>
+
+### E-TEL-02 · A tua conta GitHub não tem um email da empresa verificado
+
+- **Porquê:** Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @checkmarx.com verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.
+- **O que fazer:**
+  - Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.
+  - Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel.
+
+Comandos (macOS):
+
+```
+open https://github.com/settings/emails
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+```
+
+<a id="mac-e-tel-03"></a>
+
+### E-TEL-03 · O gh não consegue ler o email da tua conta GitHub
+
+- **Porquê:** O painel do workshop regista-te com a tua conta GitHub (através do gh), e para isso o gh precisa de autorização para ler os emails da tua conta (o scope user:email). O gh não tem sessão iniciada no github.com, ou fez o login sem essa autorização (antes de o workshop a pedir). É só um aviso: o gh funciona igual para o Projeto 2; só ainda não apareces no board.
+- **O que fazer:**
+  - Corre o primeiro comando: abre o browser para autorizares a nova permissão (se o gh não tiver login nenhum, corre antes o segundo).
+  - Depois volta a correr o setup: ele regista-te no painel.
+
+Comandos (macOS):
+
+```
+gh auth refresh -h github.com -s user:email
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
+```
+
+<a id="mac-e-tel-04"></a>
+
+### E-TEL-04 · Ainda não estás registado no painel do workshop
+
+- **Porquê:** O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.
+- **O que fazer:**
+  - Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.
+  - Ou corre o comando indicado acima (A ou B: a tua sala).
+
+Comando (macOS):
+
+```
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
 ```
 
 <a id="mac-e-demo-01"></a>
@@ -2177,7 +2227,7 @@ winget install --id GitHub.cli -e --scope user --source winget
 Comando (Windows):
 
 ```
-gh auth login --hostname github.com --git-protocol https --web
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
 ```
 
 <a id="windows-e-gh-03"></a>
@@ -2301,16 +2351,63 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 ### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
 
-- **Porquê:** A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.
+- **Porquê:** O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).
 - **O que fazer:**
-  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).
-  - Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora.
+  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.
+  - Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado.
 
 Comandos (Windows):
 
 ```
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" off
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
 node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
+```
+
+<a id="windows-e-tel-02"></a>
+
+### E-TEL-02 · A tua conta GitHub não tem um email da empresa verificado
+
+- **Porquê:** Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @checkmarx.com verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.
+- **O que fazer:**
+  - Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.
+  - Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel.
+
+Comandos (Windows):
+
+```
+Start-Process https://github.com/settings/emails
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+```
+
+<a id="windows-e-tel-03"></a>
+
+### E-TEL-03 · O gh não consegue ler o email da tua conta GitHub
+
+- **Porquê:** O painel do workshop regista-te com a tua conta GitHub (através do gh), e para isso o gh precisa de autorização para ler os emails da tua conta (o scope user:email). O gh não tem sessão iniciada no github.com, ou fez o login sem essa autorização (antes de o workshop a pedir). É só um aviso: o gh funciona igual para o Projeto 2; só ainda não apareces no board.
+- **O que fazer:**
+  - Corre o primeiro comando: abre o browser para autorizares a nova permissão (se o gh não tiver login nenhum, corre antes o segundo).
+  - Depois volta a correr o setup: ele regista-te no painel.
+
+Comandos (Windows):
+
+```
+gh auth refresh -h github.com -s user:email
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
+```
+
+<a id="windows-e-tel-04"></a>
+
+### E-TEL-04 · Ainda não estás registado no painel do workshop
+
+- **Porquê:** O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.
+- **O que fazer:**
+  - Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.
+  - Ou corre o comando indicado acima (A ou B: a tua sala).
+
+Comando (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-demo-01"></a>

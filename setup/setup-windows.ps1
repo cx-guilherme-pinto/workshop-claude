@@ -22,6 +22,9 @@
   Check everything and, if something fails, ask Claude for a full diagnosis.
 .PARAMETER Uninstall
   Undo what the setup installed (manifest.json): settings, MCP, agents, skills, kit, app and shortcut. Alias: -Desinstalar.
+.PARAMETER Cleanup
+  Remove the workshop's data (the exercise projects, the mission book, the panel registration and the Agent Memory
+  notes of those projects) and keep the practice project and the tools. Asks first (y/N; -Yes answers yes). Alias: -Limpar.
 .PARAMETER NoDesktop
   Do not install Claude Desktop (optional). Alias: -SemDesktop.
 .PARAMETER Yes
@@ -36,13 +39,14 @@ param(
   [switch]$Check,
   [switch]$Doctor,
   [Alias('Desinstalar')][switch]$Uninstall,
+  [Alias('Limpar')][switch]$Cleanup,
   [Alias('SemDesktop')][switch]$NoDesktop,
   [Alias('Sim')][switch]$Yes,
   [Alias('SubstituirStatusline')][switch]$ReplaceStatusline,
   [Alias('Ajuda')][switch]$Help
 )
 
-$script:Params = @{ Check = [bool]$Check; Doctor = [bool]$Doctor; Desinstalar = [bool]$Uninstall; SemDesktop = [bool]$NoDesktop; Sim = [bool]$Yes; SubstituirStatusline = [bool]$ReplaceStatusline; Ajuda = [bool]$Help }
+$script:Params = @{ Check = [bool]$Check; Doctor = [bool]$Doctor; Desinstalar = [bool]$Uninstall; Limpar = [bool]$Cleanup; SemDesktop = [bool]$NoDesktop; Sim = [bool]$Yes; SubstituirStatusline = [bool]$ReplaceStatusline; Ajuda = [bool]$Help }
 
 # >>> WS-INJETADO >>>
 # Na fonte este bloco esta vazio. tools/build-release.sh injeta aqui (em base64) o repos.conf,
@@ -744,7 +748,7 @@ function Get-WsRelaunchReason {
 function Get-WsSelfArgs {
   # As opcoes desta execucao (nomes ingleses), para voltar a chamar o setup noutra janela ou noutro PowerShell.
   param([hashtable]$Params)
-  $map = [ordered]@{ Check = '-Check'; Doctor = '-Doctor'; Desinstalar = '-Uninstall'; SemDesktop = '-NoDesktop'; Sim = '-Yes'; SubstituirStatusline = '-ReplaceStatusline'; Ajuda = '-Help' }
+  $map = [ordered]@{ Check = '-Check'; Doctor = '-Doctor'; Desinstalar = '-Uninstall'; Limpar = '-Cleanup'; SemDesktop = '-NoDesktop'; Sim = '-Yes'; SubstituirStatusline = '-ReplaceStatusline'; Ajuda = '-Help' }
   $out = @()
   foreach ($k in $map.Keys) { if ($Params -and $Params[$k]) { $out += $map[$k] } }
   return , $out
@@ -2894,7 +2898,7 @@ function Test-WsStep4 {
   }
   Sync-WsExtras
   # O -Uninstall so precisa do $script:NodeExe.
-  if ($script:Mode -eq 'uninstall') { return $true }
+  if ($script:Mode -eq 'uninstall' -or $script:Mode -eq 'cleanup') { return $true }
   $fresh = Get-WsFreshNodeMajor
   Write-WsLog ('node in a new terminal: {0}' -f (Format-WsFreshNode $fresh))
   if ($fresh -ge 0 -and $fresh -lt [int]$script:C.NODE_MIN_MAJOR -and $script:Mode -eq 'install') {
@@ -3041,16 +3045,19 @@ function Test-WsStep6 {
   $script:GhExe = $exe
   $script:GhVer = Get-WsVersionOf $r.StdOut
   Set-WsDetail (M 's6_ja' @{ VERSAO = $script:GhVer })
-  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh). O "gh auth status" fala com cada
-  # servidor do hosts.yml: com limite de tempo, e -2 (sem resposta) e a rede, nao o login.
-  $rc = (Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
+  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh; o registo no painel, D-34, le o email
+  # verificado da conta: daqui o scope user:email). O "gh auth status" fala com cada servidor do hosts.yml: com
+  # limite de tempo, e -2 (sem resposta) e a rede, nao o login.
+  $st = Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh
+  $rc = $st.ExitCode
   if ($rc -ne 0 -and $rc -ne -2 -and $script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhAsked -and (Test-WsInteractive)) {
     $script:GhAsked = $true
     if (Read-WsYesNo (M 's6_pergunta_login') $true) {
-      Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web (interactive)'
+      Write-WsLog '$ gh auth login --hostname github.com --git-protocol https --web --scopes user:email (interactive)'
       Clear-WsTypeAhead
-      Invoke-WsLogin $exe @('auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web') -CancelCodes @(2)
-      $rc = (Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh).ExitCode
+      Invoke-WsLogin $exe @('auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web', '--scopes', 'user:email') -CancelCodes @(2)
+      $st = Invoke-WsProcess $exe @('auth', 'status') -TimeoutSec $script:TmoGh
+      $rc = $st.ExitCode
     }
   }
   if ($rc -eq -2) {
@@ -3068,9 +3075,66 @@ function Test-WsStep6 {
     return $false
   }
   $script:GhSemLogin = $false; $script:GhSemRede = $false
+  $null = Test-WsStep6Scope $exe ([string]$st.StdOut + "`n" + [string]$st.StdErr)
   # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
   if ($script:Mode -eq 'install') { $null = Invoke-WsProcess $exe @('auth', 'setup-git') -TimeoutSec $script:TmoGh }
   return $true
+}
+
+function Get-WsGhScopes {
+  # Os scopes do token da conta ativa no github.com, da saida do "gh auth status" ('-' se nao se sabe: sem a linha
+  # "Token scopes", ex.: um token fine-grained ou o GH_TOKEN). Com varias contas no github.com conta a ativa
+  # ("Active account: true"; um gh antigo so tem uma). Ver ws_gh_scopes no setup-mac.sh.
+  param([string]$Text)
+  $sec = $false; $n = 0; $act = @{}; $sc = @{}
+  foreach ($line in ([string]$Text -split "`r?`n")) {
+    if ($line -match '^[^ \t]') { $sec = ($line -match '^github\.com[ \t]*$'); continue }
+    if (-not $sec) { continue }
+    if ($line -match 'Logged in to github\.com') { $n++; $act[$n] = $false; $sc[$n] = '-'; continue }
+    if ($line -match 'Active account:[ \t]*true') { if ($n) { $act[$n] = $true }; continue }
+    if ($line -match 'Token scopes:[ \t]*(.*)$') {
+      $v = $Matches[1]
+      if (-not $n) { $n = 1; $act[$n] = $false }
+      $sc[$n] = $v
+    }
+  }
+  if (-not $n) { return '-' }
+  $k = 1
+  for ($i = 1; $i -le $n; $i++) { if ($act[$i]) { $k = $i; break } }
+  return [string]$sc[$k]
+}
+
+function Test-WsGhEmailScope {
+  # $true se o token pode ler os emails da conta (scope user:email ou user), ou se nao se sabe ('-'): o registo no
+  # painel (passo 8, D-34) precisa dele. "none" (um token sem scopes) nao pode.
+  param([string]$Scopes)
+  $s = (([string]$Scopes -replace "['`"]", '') -replace ',', ' ').Trim()
+  if (-not $s -or $s -eq '-') { return $true }
+  foreach ($w in ($s -split '\s+')) { if ($w -ceq 'user' -or $w -ceq 'user:email') { return $true } }
+  return $false
+}
+
+function Test-WsStep6Scope {
+  # O login sem o scope user:email (feito antes do workshop v2): ao instalar, com consola, pergunta e corre o
+  # "gh auth refresh" (abre o browser, como o login). Sem consola, com -Yes ou no -Check: so o aviso E-TEL-03 com o
+  # comando. Nunca falha o passo: o gh serve na mesma para o Projeto 2. Ver ws_s6_scope no setup-mac.sh.
+  param([string]$Exe, [string]$Text)
+  $script:GhScopeWarn = $false
+  $scopes = Get-WsGhScopes $Text
+  if (Test-WsGhEmailScope $scopes) { return }
+  Write-WsLog ('gh: the github.com token has no user:email scope (' + $scopes + ')')
+  if ($script:Mode -eq 'install' -and -not $script:Sim -and -not $script:GhScopeAsked -and (Test-WsInteractive)) {
+    $script:GhScopeAsked = $true
+    if (Read-WsYesNo (M 's6_pergunta_scope') $true) {
+      Write-WsLog '$ gh auth refresh -h github.com -s user:email (interactive)'
+      Clear-WsTypeAhead
+      Invoke-WsLogin $Exe @('auth', 'refresh', '-h', 'github.com', '-s', 'user:email') -CancelCodes @(2)
+      $r = Invoke-WsProcess $Exe @('auth', 'status') -TimeoutSec $script:TmoGh
+      if (Test-WsGhEmailScope (Get-WsGhScopes ([string]$r.StdOut + "`n" + [string]$r.StdErr))) { return }
+    }
+  }
+  $script:GhScopeWarn = $true
+  Set-WsWarn 'E-TEL-03' 'gh auth refresh -h github.com -s user:email'
 }
 
 function Install-WsStep6 {
@@ -3310,18 +3374,10 @@ function Invoke-WsInstallUser {
   return (Invoke-WsProcess $script:NodeExe $a -TimeoutSec 600)
 }
 
-# Participacao no painel do workshop (spec 6.6): opt-in, "nao" por defeito. O install-user grava a escolha em
-# %USERPROFILE%\.workshop-claude\telemetry\config.json; sem --telemetry/--room mantem a que la esta (sem ficheiro:
-# desligada). Ver ws_part_flags no setup-mac.sh.
-function ConvertTo-WsOnOff {
-  # WORKSHOP_TELEMETRY: on/off, yes/no, 1/0 ou true/false (maiusculas ou minusculas) -> on|off ('' se nao for nada disso)
-  param([string]$Text)
-  $t = ([string]$Text).Trim().ToLowerInvariant()
-  if (@('on', 'yes', '1', 'true') -contains $t) { return 'on' }
-  if (@('off', 'no', '0', 'false') -contains $t) { return 'off' }
-  return ''
-}
-
+# Painel do workshop (D-34): a participacao e obrigatoria e faz-se com o registo pelo GitHub. O passo 8 escolhe a
+# sala (o install-user grava-a em %USERPROFILE%\.workshop-claude\telemetry\config.json) e depois regista a pessoa
+# com telemetry\ctl.mjs register <sala> (o token do gh vai uma vez para o painel, que confirma o email da empresa).
+# Ver ws_room_pick e ws_s8_register no setup-mac.sh.
 function ConvertTo-WsRoom {
   # Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B ('' se nao for nenhuma)
   param([string]$Text)
@@ -3331,29 +3387,21 @@ function ConvertTo-WsRoom {
   return ''
 }
 
-function Get-WsParticipationArgs {
-  # Flags do install-user para a participacao. Funcao pura: as perguntas sao o Read-WsParticipation e o Read-WsRoom
-  # (os testes trocam-nas). -Mode: so o install decide (o -Check, o -Doctor e o -Uninstall nunca perguntam).
-  # -HasConfig: ja ha config.json (nada a perguntar nem a passar: o install-user mantem-na). -CanAsk: ha consola e nao
-  # e -Yes (a participacao nunca se liga sozinha). -Telemetry/-Room: WORKSHOP_TELEMETRY e WORKSHOP_ROOM (ganham a
-  # pergunta). Devolve @() (manter), --telemetry off ou --telemetry on --room A|B. Ligada sem sala valida pergunta a
-  # sala (ate 3 vezes); sem consola, ou sem resposta valida, fica desligada.
-  param([string]$Mode, [bool]$HasConfig, [bool]$CanAsk, [string]$Telemetry, [string]$Room)
-  if ($Mode -ne 'install' -or $HasConfig) { return @() }
-  $off = @('--telemetry', 'off')
-  $t = ConvertTo-WsOnOff $Telemetry
+function Get-WsRoomPick {
+  # A sala para o instalar. Funcao pura: a pergunta e o Read-WsRoom (os testes trocam-no). -Mode: so o install
+  # pergunta (o -Check, o -Doctor e o -Uninstall nunca). -CanAsk: ha consola e nao e -Yes. -Room: WORKSHOP_ROOM (ganha
+  # tudo). -Saved: a sala do config.json que ja existe. Devolve A ou B: WORKSHOP_ROOM valido; senao, sem sala gravada
+  # e com consola, a resposta a pergunta (ate 3 vezes); senao a sala gravada; senao A.
+  param([string]$Mode, [bool]$CanAsk, [string]$Room, [string]$Saved)
   $r = ConvertTo-WsRoom $Room
-  if ($t -eq 'off') { return $off }
-  if ($t -ne 'on') {
-    if (-not $CanAsk) { return $off }
-    if (-not (Read-WsParticipation)) { return $off }
+  $prev = ConvertTo-WsRoom $Saved
+  if (-not $r -and -not $prev -and $Mode -eq 'install' -and $CanAsk) {
+    for ($i = 1; (-not $r) -and $i -le 3; $i++) { $r = ConvertTo-WsRoom (Read-WsRoom $i) }
   }
-  for ($i = 1; (-not $r) -and $CanAsk -and $i -le 3; $i++) { $r = ConvertTo-WsRoom (Read-WsRoom $i) }
-  if ($r) { return @('--telemetry', 'on', '--room', $r) }
-  return $off
+  if (-not $r) { $r = $prev }
+  if (-not $r) { $r = 'A' }
+  return $r
 }
-
-function Read-WsParticipation { return (Read-WsYesNoCore (M 's8_painel_pergunta') $false -NeverSim) }
 
 function Read-WsRoom {
   # Tentativa -> o que a pessoa escreveu (a partir da segunda, diz antes o que se espera).
@@ -3367,46 +3415,138 @@ function Read-WsRoom {
   return $ans
 }
 
-# A telemetria so existe nos kits que a trazem (a pasta telemetry): sem ela, nem pergunta nem flags.
+# O painel so existe nos kits que o trazem (a pasta telemetry): sem ela, nem sala nem registo.
 function Test-WsTelemetryKit { return [bool]($script:KitSrc -and (Test-Path -LiteralPath (Join-Path $script:KitSrc 'telemetry') -PathType Container)) }
 function Test-WsTelemetryConfig { return [bool]($script:WsHome -and (Test-Path -LiteralPath (Join-Path $script:WsHome 'telemetry\config.json') -PathType Leaf)) }
 
-function Get-WsStep8Participation {
-  # Decide a participacao para o instalar: as flags, e $script:S8Telem (on|off|'' = manter) e $script:S8Room (A|B).
-  $script:S8Telem = ''; $script:S8Room = ''
-  if (-not (Test-WsTelemetryKit)) { return @() }
-  $cfg = Test-WsTelemetryConfig
-  $ask = (-not $script:Sim) -and (Test-WsInteractive)
-  # A pergunta fica sozinha na ultima linha (sem o spinner), como no Read-WsYesNo.
-  $hide = $ask -and -not $cfg
-  $live = $script:Live.On
-  if ($hide) { Hide-WsLive }
-  try { $f = @(Get-WsParticipationArgs -Mode $script:Mode -HasConfig $cfg -CanAsk $ask -Telemetry $env:WORKSHOP_TELEMETRY -Room $env:WORKSHOP_ROOM) } finally { if ($hide -and $live) { Show-WsLive } }
-  $shown = $f -join ' '
-  if (-not $shown) { $shown = 'kept' }
-  Write-WsLog ('participation: ' + $shown)
-  if ($f.Count -ge 2) { $script:S8Telem = $f[1] }
-  if ($f.Count -ge 4) { $script:S8Room = $f[3] }
-  return $f
+function Read-WsTelemetryConfig {
+  # O config.json da telemetria (objeto), ou $null.
+  if (-not (Test-WsTelemetryConfig)) { return $null }
+  try { return (([IO.File]::ReadAllText((Join-Path $script:WsHome 'telemetry\config.json'), [Text.Encoding]::UTF8)).TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop) } catch { return $null }
 }
 
-function Add-WsStep8ParticipationNote {
-  # A escolha, como nota do passo 8 (com o comando para a mudar). O estado e o que o instalar escreveu (a linha
-  # "painel", $script:S8Panel: "on A" ou "off"), tambem quando ficou a escolha de antes; um install-user sem essa
-  # linha fica pela escolha desta vez (ou "como escolheste antes"). Ver ws_s8_part_note no setup-mac.sh.
-  if (-not (Test-WsTelemetryKit)) { return }
-  $ctl = 'node ' + (Format-WsShowPath (Join-Path $script:WsHome 'kit\telemetry\ctl.mjs'))
-  $st = [string]$script:S8Panel
-  if (-not $st) {
-    if ($script:S8Telem -eq 'on') { $st = 'on ' + $script:S8Room } elseif ($script:S8Telem -eq 'off') { $st = 'off' }
+function Get-WsTelParticipant {
+  # O registo no config.json: o id do participante (32 hex) que o painel deu, ou ''.
+  param($Config)
+  if (-not $Config -or -not $Config.participant) { return '' }
+  $p = [string]$Config.participant.p
+  if ($p -cmatch '^[0-9a-f]{32}$') { return $p }
+  return ''
+}
+
+function Test-WsTelActive {
+  # A config em vigor: expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar). $true tambem
+  # sem expires_at. O PowerShell 7 ja le o expires_at como data; o 5.1 deixa o texto.
+  param($Config, [datetime]$Now = [datetime]::UtcNow)
+  if (-not $Config) { return $false }
+  $exp = $Config.expires_at
+  $when = $null
+  if ($exp -is [datetime]) { $when = $exp.ToUniversalTime() }
+  elseif ($exp) {
+    $d = [datetime]::MinValue
+    $sty = [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal
+    if ([datetime]::TryParse([string]$exp, [Globalization.CultureInfo]::InvariantCulture, $sty, [ref]$d)) { $when = $d }
   }
-  if ($st -cmatch '^on ([AB])$') { Add-WsNote (M 's8_painel_on' @{ SALA = $Matches[1] }) }
-  elseif ($st -eq 'off') { Add-WsNote (M 's8_painel_off' @{ CMD = ($ctl + ' on A') }) }
-  else { Add-WsNote (M 's8_painel_mantido' @{ CMD = ($ctl + ' status') }) }
+  return -not ($null -ne $when -and $Now.ToUniversalTime() -ge $when)
+}
+
+function Initialize-WsStep8Room {
+  # Decide a sala para o instalar: $script:S8Room (A|B; '' num kit sem o painel). Uma vez por execucao (o Test e o
+  # Install do passo 8 usam a mesma; a pergunta nunca se repete).
+  if ($script:S8RoomPicked) { $script:S8Room = $script:S8RoomPicked; return }
+  $script:S8Room = ''
+  if (-not (Test-WsTelemetryKit)) { return }
+  $cfg = Read-WsTelemetryConfig
+  $saved = ''
+  if ($cfg) { $saved = [string]$cfg.room }
+  $ask = (-not $script:Sim) -and (Test-WsInteractive)
+  # A pergunta fica sozinha na ultima linha (sem o spinner), como no Read-WsYesNo.
+  $hide = $ask -and $script:Mode -eq 'install' -and -not (ConvertTo-WsRoom $env:WORKSHOP_ROOM) -and -not (ConvertTo-WsRoom $saved)
+  $live = $script:Live.On
+  if ($hide) { Hide-WsLive }
+  try { $script:S8Room = Get-WsRoomPick -Mode $script:Mode -CanAsk $ask -Room $env:WORKSHOP_ROOM -Saved $saved } finally { if ($hide -and $live) { Show-WsLive } }
+  $script:S8RoomPicked = $script:S8Room
+  $w = $env:WORKSHOP_ROOM; if (-not $w) { $w = '-' }
+  $s = $saved; if (-not $s) { $s = '-' }
+  Write-WsLog ('room: ' + $script:S8Room + ' (WORKSHOP_ROOM ' + $w + ' - saved ' + $s + ')')
+}
+
+function Get-WsStep8RegisterCmd {
+  # O comando de registo que se mostra (no -Check e nas notas), pronto a colar no PowerShell ($env:USERPROFILE, nao
+  # %USERPROFILE%).
+  param([string]$Room)
+  if (-not $Room) { $Room = 'A' }
+  $p = (Format-WsShowPath (Join-Path $script:WsHome 'kit\telemetry\ctl.mjs')) -replace '^%USERPROFILE%', '$env:USERPROFILE'
+  return ('node "' + $p + '" register ' + $Room)
+}
+
+function Add-WsStep8RegisteredNote {
+  param($Config)
+  $nome = [string]$Config.participant.name; if (-not $nome) { $nome = '?' }
+  $sala = [string]$Config.room; if (-not $sala) { $sala = '?' }
+  Add-WsNote (M 's8_painel_registado' @{ NOME = $nome; SALA = $sala })
+}
+
+function Set-WsStep8RegisterResult {
+  # O resultado do ctl.mjs register -> nota ou aviso. Nunca falha o passo (o workshop faz-se igual sem o painel).
+  #   0 registado (nota com o nome) - 3 sem email verificado da empresa (E-TEL-02) - 4 gh sem login ou sem o scope
+  #   user:email (E-TEL-03; se o passo 6 ja o disse, so uma nota) - 5 ou sem resposta a tempo (-2): painel
+  #   inacessivel (E-TEL-01) - outro (1 sem config ou expirada, 2 sala): so no log. Ver ws_s8_register_result.
+  param([int]$Code, $Config, [string]$Room)
+  if ($Code -eq 0) { Add-WsStep8RegisteredNote $Config; return }
+  if ($Code -eq 3) {
+    $d = ''
+    if ($Config) { $d = [string]$Config.email_domain }
+    if (-not $d) { $d = 'checkmarx.com' }
+    Set-WsWarn 'E-TEL-02' ('@' + $d); return
+  }
+  if ($Code -eq 4) {
+    if ($script:GhScopeWarn) { Add-WsNote (M 's8_painel_ver_gh' @{ CMD = (Get-WsStep8RegisterCmd $Room) }) }
+    else { Set-WsWarn 'E-TEL-03' 'gh auth refresh -h github.com -s user:email' }
+    return
+  }
+  if ($Code -eq 5 -or $Code -eq -2) {
+    $u = ''
+    if ($Config) { $u = ([string]$Config.panel_url).Trim() }
+    if ($u) { Set-WsWarn 'E-TEL-01' ((Get-WsGatewayShow $u) + ' - register') } else { Write-WsLog 'panel: no panel_url in this kit' }
+    return
+  }
+  Write-WsLog ('panel: register exit ' + $Code)
+}
+
+function Invoke-WsStep8Register {
+  # Regista a pessoa no painel (so ao instalar): node <kit instalado>\telemetry\ctl.mjs register <sala>, com o node do
+  # kit e o gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Ja
+  # registada nesta sala: nada a pedir, so a nota.
+  param([string]$Room)
+  if ($script:Mode -ne 'install' -or -not $Room) { return }
+  $ctl = Join-Path $script:WsHome 'kit\telemetry\ctl.mjs'
+  $cfg = Read-WsTelemetryConfig
+  if (-not $cfg -or -not (Test-Path -LiteralPath $ctl -PathType Leaf)) { return }
+  if ((Get-WsTelParticipant $cfg) -and ([string]$cfg.room -ceq $Room)) {
+    Write-WsLog ('panel: already registered (room ' + $Room + ')')
+    Add-WsStep8RegisteredNote $cfg
+    return
+  }
+  $envs = @{}
+  $gh = [string]$script:GhExe
+  if ($gh) { $envs['WORKSHOP_GH'] = $gh; $envs['PATH'] = (Split-Path $gh -Parent) + ';' + $env:PATH }
+  $r = Invoke-WsProcess $script:NodeExe @($ctl, 'register', $Room) -TimeoutSec 60 -Environment $envs
+  Write-WsLog ('  -> exit ' + $r.ExitCode)
+  Set-WsStep8RegisterResult ([int]$r.ExitCode) (Read-WsTelemetryConfig) $Room
+}
+
+function Test-WsStep8Register {
+  # No -Check e no -Doctor: sem registo (config.json sem "participant"), um aviso com o comando. So com a config em
+  # vigor (depois do workshop nao ha nada a pedir).
+  if ($script:Mode -eq 'install' -or -not (Test-WsTelemetryKit)) { return }
+  $cfg = Read-WsTelemetryConfig
+  if (-not $cfg -or -not (Test-WsTelActive $cfg) -or (Get-WsTelParticipant $cfg)) { return }
+  Set-WsWarn 'E-TEL-04' (Get-WsStep8RegisterCmd (ConvertTo-WsRoom ([string]$cfg.room)))
 }
 
 # O painel no -Check (spec 6.8): o setup pede GET <panel_url>/health, para quem esta numa rede que o bloqueia saber
-# no dia anterior. So com a participacao ligada (enabled: true), um panel_url e a config em vigor (expires_at ainda no
+# no dia anterior. So com o registo feito (enabled: true), um panel_url e a config em vigor (expires_at ainda no
 # futuro). Nunca falha nem bloqueia: o E-TEL-01 e um aviso (a caderneta de missoes funciona sem o painel). Ver
 # ws_tel_panel_url e ws_s8_panel_check no setup-mac.sh.
 function Get-WsPanelTarget {
@@ -3417,17 +3557,8 @@ function Get-WsPanelTarget {
   if (-not $j -or $j.enabled -isnot [bool] -or -not $j.enabled) { return $null }
   $u = ([string]$j.panel_url).Trim()
   if ($u -notmatch '^https?://.') { return $null }
-  # A config expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar): nada a testar. O
-  # PowerShell 7 ja le o expires_at como data; o 5.1 deixa o texto.
-  $exp = $j.expires_at
-  $when = $null
-  if ($exp -is [datetime]) { $when = $exp.ToUniversalTime() }
-  elseif ($exp) {
-    $d = [datetime]::MinValue
-    $sty = [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal
-    if ([datetime]::TryParse([string]$exp, [Globalization.CultureInfo]::InvariantCulture, $sty, [ref]$d)) { $when = $d }
-  }
-  if ($null -ne $when -and $Now.ToUniversalTime() -ge $when) { return $null }
+  # A config expirada (o kit deixa de gravar e de enviar): nada a testar.
+  if (-not (Test-WsTelActive $j $Now)) { return $null }
   return @{ Url = $u.TrimEnd('/'); Room = [string]$j.room }
 }
 
@@ -3472,7 +3603,7 @@ function Test-WsStep8Panel {
   $f = Join-Path (Join-Path $script:WsHome 'telemetry') 'config.json'
   $t = $null
   if (Test-Path -LiteralPath $f -PathType Leaf) { try { $t = Get-WsPanelTarget ([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)) } catch { $t = $null } }
-  if (-not $t) { Write-WsLog 'panel: nothing to test (participation off, expired or no panel_url)'; return }
+  if (-not $t) { Write-WsLog 'panel: nothing to test (not registered, expired or no panel_url)'; return }
   $why = Get-WsPanelReach $t.Url
   $room = $t.Room; if (-not $room) { $room = '?' }
   if (-not $why) { Add-WsNote (M 's8_painel_acessivel' @{ SALA = $room }); return }
@@ -3574,12 +3705,23 @@ function Test-WsStep8 {
     # -ReplaceStatusline (o comando do E-CFG-06): uma statusline alheia conta como em falta, para o passo 8 instalar com
     # a opcao. Sem isto o passo ficava "ja feito" e o mesmo aviso voltava.
     if ($script:Mode -eq 'install' -and $script:SubstSl -and ([string]$r.StdOut -match '(?m)^statusline\talheia')) { return $false }
-    # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
+    # Sem o config.json do painel (kit novo numa instalacao antiga): o passo 8 corre para escolher a sala.
     if ($script:Mode -eq 'install' -and (Test-WsTelemetryKit) -and -not (Test-WsTelemetryConfig)) { Write-WsLog 'missing: telemetry config'; return $false }
-    Test-WsClaudeConfigDir; Test-WsStep8Panel; return $true
+    # Ao instalar, o registo no painel tambem se faz (ou refaz) com o passo ja feito: um registo que falhou da ultima
+    # vez (rede, email, scope) tenta-se outra vez; ja registado, so a nota. Uma sala diferente da gravada
+    # (WORKSHOP_ROOM, ou a resposta numa config sem sala): o passo 8 corre para a gravar.
+    if ($script:Mode -eq 'install' -and (Test-WsTelemetryKit)) {
+      Initialize-WsStep8Room
+      $cfg = Read-WsTelemetryConfig
+      $saved = ''
+      if ($cfg) { $saved = [string]$cfg.room }
+      if ($script:S8Room -cne $saved) { Write-WsLog ('room changes: ' + $script:S8Room); return $false }
+      $null = Invoke-WsStep8Register $script:S8Room
+    }
+    Test-WsClaudeConfigDir; Test-WsStep8Register; Test-WsStep8Panel; return $true
   }
   # -Check/-Doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
-  if ($script:Mode -ne 'install' -and $script:S8SoLingua) { Test-WsStep8Panel; return $true }
+  if ($script:Mode -ne 'install' -and $script:S8SoLingua) { Test-WsStep8Register; Test-WsStep8Panel; return $true }
   return $false
 }
 
@@ -3604,8 +3746,10 @@ function Install-WsStep8 {
   $script:T['8'].Detalhe = ''; $script:T['8'].Notas = @()
   # a mudanca de lingua que o Test viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
   $de = $script:S8De; $para = $script:S8Para
-  # A pasta dos projetos vai sempre; a participacao so quando ha uma escolha nova (sem ela o install-user mantem a que tem).
-  $extra = @('--projects-dir', $script:Proj) + @(Get-WsStep8Participation)
+  # A pasta dos projetos e a sala vao sempre (num kit sem o painel, so a pasta).
+  Initialize-WsStep8Room
+  $extra = @('--projects-dir', $script:Proj)
+  if ($script:S8Room) { $extra += @('--room', $script:S8Room) }
   $r = Invoke-WsInstallUser 'instalar' $extra
   Read-WsInstallUserOutput $r.StdOut
   # Numa falha o detalhe ("0 skills, 0 agents") e as notas da lingua nao valem: fica o titulo do codigo.
@@ -3613,7 +3757,7 @@ function Install-WsStep8 {
   if ($r.ExitCode -eq 3) { if (-not $script:T['8'].Falha) { Set-WsFail 'E-CFG-05' (Join-Path $script:ClaudeDir 'settings.json') }; return $false }
   if ($r.ExitCode -ne 0) { Set-WsFail 'E-KIT-03' ('install-user ({0})' -f $r.ExitCode); return $false }
   if ($de) { Add-WsNote (M 's8_lingua_mudou' @{ DE = $de; PARA = $para }) }
-  Add-WsStep8ParticipationNote
+  $null = Invoke-WsStep8Register $script:S8Room
   Sync-WsExtras
   Test-WsClaudeConfigDir
   return $true
@@ -3712,10 +3856,43 @@ function Select-WsP1 {
 }
 
 function Initialize-WsP1 {
-  $script:P1 = Select-WsP1 $env:WORKSHOP_P1 $script:KitSrc
+  # Sem WORKSHOP_P1, o -Check e o -Doctor usam a escolha gravada na ultima instalacao (Get-WsP1Saved): assim veem o
+  # Projeto 1 instalado com WORKSHOP_P1=arena. Ao instalar, vazio continua a ser o Canivete (A4). Ver ws_p1_pick.
+  $v = $env:WORKSHOP_P1
+  $src = ''
+  if (-not ([string]$v).Trim() -and $script:Mode -ne 'install') { $v = Get-WsP1Saved; if ($v) { $src = ' (saved)' } }
+  $script:P1 = Select-WsP1 $v $script:KitSrc
   $ig = ''
   if ($script:P1Ignored) { $ig = ' (WORKSHOP_P1 ignored: ' + $script:P1Ignored + ')' }
-  Write-WsLog ('project 1: ' + $script:P1 + $ig)
+  Write-WsLog ('project 1: ' + $script:P1 + $src + $ig)
+}
+
+function Get-WsP1Saved {
+  # A escolha do Projeto 1 gravada ao instalar (o extra "opcao p1" do manifest: canivete|arena), ou ''. Primeiro o
+  # que ainda esta por registar (extras-pendentes.tsv), depois o manifest.json. Ver ws_p1_saved no setup-mac.sh.
+  if (-not $script:WsHome) { return '' }
+  $v = ''
+  $p = Join-Path $script:WsHome 'extras-pendentes.tsv'
+  if (Test-Path -LiteralPath $p -PathType Leaf) {
+    try { foreach ($l in [IO.File]::ReadAllLines($p, $script:Utf8NoBom)) { $f = $l.Split("`t"); if ($f.Count -gt 3 -and $f[0] -ceq 'opcao' -and $f[1] -ceq 'p1') { $v = $f[3] } } } catch { $v = '' }
+  }
+  $m = Join-Path $script:WsHome 'manifest.json'
+  if (-not $v -and (Test-Path -LiteralPath $m -PathType Leaf)) {
+    try {
+      $j = ([IO.File]::ReadAllText($m, [Text.Encoding]::UTF8)).TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop
+      foreach ($x in @($j.extras)) { if ($x -and [string]$x.tipo -ceq 'opcao' -and [string]$x.nome -ceq 'p1') { $v = [string]$x.valor } }
+    } catch { $v = '' }
+  }
+  if ($v -ceq 'canivete' -or $v -ceq 'arena') { return $v }
+  return ''
+}
+
+function Save-WsP1 {
+  # Grava a escolha do Projeto 1 no manifest (so ao instalar, e so nos kits com o Canivete): o -Check le-a.
+  if ($script:Mode -ne 'install' -or -not $script:WsHome -or -not $script:KitSrc) { return }
+  if (-not (Test-Path -LiteralPath $script:WsHome -PathType Container)) { return }
+  if (-not (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-canivete.mjs') -PathType Leaf)) { return }
+  Register-WsExtra 'opcao' 'p1' '' $script:P1 ''
 }
 
 # A pasta e a marca do Projeto 1 escolhido ($script:P1).
@@ -3788,6 +3965,7 @@ function Test-WsStep9 {
     $mp = Join-Path $script:Proj $script:MissionsDir
     if ((Get-WsProjState $mp '.missions-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $mp; return $false }
   }
+  if ($script:Mode -eq 'install') { $null = Save-WsP1 }
   Set-WsStep9Detail
   Add-WsStep9LangNote
   if ($script:Mode -ne 'install') { return (Test-WsAppTests) }
@@ -3894,6 +4072,7 @@ function Install-WsStep9 {
   } else {
     if (-not (Invoke-WsAssemble 'assemble-canivete.mjs' (Join-Path $script:Proj $script:CaniveteDir) '.canivete-kit.json' 'refs/tags/canivete-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
   }
+  $null = Save-WsP1
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' 'HEAD' @('--language', $script:LangKit))) { return $false }
   }
@@ -4818,6 +4997,70 @@ function Invoke-WsUninstall {
   return 0
 }
 
+# =============================================================== limpar (-Cleanup, D-34)
+
+function Write-WsCleanupLines {
+  # As linhas do install-user limpar: removido <caminho> <tipo> - backup <caminho> <destino> <tipo> - mantido
+  # <caminho> - nada 1 - erro <texto> (tipo: projeto, telemetria ou memoria). -Done: depois de limpar (o que foi
+  # feito); sem ele, a lista do --dry-run (o que vai fazer). Ver ws_limpar_show no setup-mac.sh.
+  param([string]$Text, [switch]$Done)
+  foreach ($l in ([string]$Text -split "`r?`n")) {
+    if (-not $l) { continue }
+    $f = $l.Split("`t")
+    while ($f.Count -lt 4) { $f += '' }
+    $c = Format-WsShowPath ($f[1] -replace '/', '\')
+    switch ($f[0]) {
+      'removido' {
+        if ($Done) { Write-WsSay ('  ' + (M 'limpar_removido' @{ CAMINHO = $c })) }
+        else { $k = 'limpar_apagar'; if ($f[2] -eq 'telemetria') { $k = 'limpar_apagar_tel' }; Write-WsSay ('  - ' + (M $k @{ CAMINHO = $c })) }
+      }
+      'backup' {
+        if ($Done) { Write-WsSay ('  ' + (M 'limpar_backup' @{ CAMINHO = $c; DESTINO = (Format-WsShowPath ($f[2] -replace '/', '\')) })) }
+        else { $k = 'limpar_mover'; if ($f[3] -eq 'memoria') { $k = 'limpar_mover_mem' }; Write-WsSay ('  - ' + (M $k @{ CAMINHO = $c })) }
+      }
+      'mantido' { if (-not $Done) { Write-WsSay ('  - ' + (M 'limpar_mantido' @{ CAMINHO = $c })) } }
+      'erro' { Write-WsSay ('  ' + $f[1]) 'Red' }
+    }
+  }
+}
+
+function Invoke-WsCleanup {
+  # Tira os dados do workshop e deixa o projeto do Projeto 2 e as ferramentas: a logica e a do install-user limpar
+  # (igual no Mac). Primeiro a lista (--dry-run), depois a confirmacao (y/N; -Yes responde sim), depois a serio.
+  $man = Join-Path $script:WsHome 'manifest.json'
+  $script:Cur = '4'
+  [void](Test-WsStep4)
+  if (-not $script:NodeExe -and (Test-Path -LiteralPath $man)) {
+    try { $script:NodeExe = ([IO.File]::ReadAllText($man, [Text.Encoding]::UTF8) | ConvertFrom-Json).node } catch { }
+  }
+  if (-not $script:NodeExe -or -not (Test-Path -LiteralPath $script:NodeExe)) { Write-WsCode 'E-NODE-01' '' '  '; return 1 }
+  [void](Initialize-WsKit)
+  $iu = ''
+  if ($script:KitSrc) { $iu = Join-Path $script:KitSrc 'installer\install-user.mjs' }
+  if (-not $iu -or -not (Test-Path -LiteralPath $iu)) { Write-WsCode 'E-KIT-01' '' '  '; return 1 }
+  $r = Invoke-WsProcess $script:NodeExe @($iu, 'limpar', '--dry-run', '--projects-dir', $script:Proj)
+  Write-WsLog ([string]$r.StdOut)
+  if ($r.ExitCode -ne 0) { Write-WsSay ''; Write-WsSay (M 'limpar_incompleto' @{ LOG = $script:LogFile }) 'Red'; return 1 }
+  if ([string]$r.StdOut -match "(?m)^nada`t") {
+    Write-WsCleanupLines $r.StdOut
+    Write-WsSay ''; Write-WsSay (M 'limpar_nada'); return 0
+  }
+  Write-WsSay ''
+  Write-WsSay (M 'limpar_lista')
+  Write-WsCleanupLines $r.StdOut
+  Write-WsSay ''
+  if (-not (Read-WsYesNo (M 'limpar_pergunta') $false)) { Write-WsSay ''; Write-WsSay (M 'limpar_cancelado'); return 0 }
+  $r = Invoke-WsProcess $script:NodeExe @($iu, 'limpar', '--projects-dir', $script:Proj)
+  Write-WsLog ([string]$r.StdOut)
+  Write-WsSay ''
+  Write-WsCleanupLines $r.StdOut -Done
+  Write-WsSay ''
+  if ($r.ExitCode -ne 0) { Write-WsSay (M 'limpar_incompleto' @{ LOG = $script:LogFile }) 'Red'; return 1 }
+  $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File "' + (Format-WsShowPath (Join-Path $script:WsHome 'setup-windows.ps1')) + '"'
+  Write-WsSay (M 'limpar_fim' @{ BACKUP = (Format-WsShowPath (Join-Path $script:WsHome 'backup')); CMD = $cmd })
+  return 0
+}
+
 # =============================================================== arranque
 
 function Get-WsB64Text { param([string]$B64) return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($B64)) }
@@ -5120,6 +5363,7 @@ function Invoke-WsMain {
   if ($o.Check) { $script:Mode = 'check' }
   if ($o.Doctor) { $script:Mode = 'doctor' }
   if ($o.Desinstalar) { $script:Mode = 'uninstall' }
+  if ($o.Limpar) { $script:Mode = 'cleanup' }
   $script:Sim = $o.Sim
   $script:SemDesktop = $o.SemDesktop
   $script:SubstSl = $o.SubstituirStatusline
@@ -5209,6 +5453,7 @@ function Invoke-WsMain {
     if ($script:Ui -ne 'plain') { $ind = '  ' }
     switch ($script:Mode) {
       'uninstall' { Write-WsSay ($ind + (M 'modo_desinstalar' @{ MANIFEST = (Join-Path $script:WsHome 'manifest.json') })); return (Invoke-WsUninstall) }
+      'cleanup' { Write-WsSay ($ind + (M 'modo_limpar' @{ PROJETO = ($script:ProjShow + '\' + $script:PracticeDir) })); return (Invoke-WsCleanup) }
       'check' { Write-WsSay ($ind + (M 'tempo_check')) }
       'doctor' { Write-WsSay ($ind + (M 'modo_doctor')); Write-WsSay ($ind + (M 'tempo_check')) }
       default {

@@ -17,6 +17,7 @@
     "tempo_check": "Modo verificação: não instalo nada, só verifico. Demora 2 a 3 minutos.",
     "modo_doctor": "Modo diagnóstico: verifico tudo e, se algo falhar, peço ao Claude uma explicação.",
     "modo_desinstalar": "Modo desinstalar: desfaço o que este setup instalou, com base em {MANIFEST}.",
+    "modo_limpar": "Modo limpeza: tiro os dados do workshop (os projetos de exercício, a caderneta de missões, o registo no painel e as notas da Agent Memory desses projetos) e deixo o teu projeto principal, {PROJETO}, e as ferramentas.",
     "modo_sim": "Modo --yes: respondo «sim» às perguntas simples. Logins e comandos sugeridos não correm sozinhos.",
     "log_em": "Log completo (sem segredos): {LOG}",
     "passo": "Passo {N}/12 · {TITULO}",
@@ -92,6 +93,19 @@
     "desinst_fim": "Desinstalação concluída. Ficaram o git, o Claude Code, o Node, o uv, o gh e os backups em {BACKUP}.",
     "desinst_incompleto": "A desinstalação parou antes do fim, por isso deixei o resto como estava (kit, skills, manifest.json). Vê {LOG}, corrige o problema e corre o mesmo comando outra vez.",
     "desinst_sem_manifest": "Não encontrei {MANIFEST}. Não há nada do workshop para desfazer.",
+    "limpar_lista": "É isto que a limpeza vai fazer:",
+    "limpar_apagar": "apagar (intacto, só a cópia do kit): {CAMINHO}",
+    "limpar_mover": "mover para o backup (tem trabalho teu): {CAMINHO}",
+    "limpar_apagar_tel": "apagar a caderneta de missões e o registo no painel: {CAMINHO}",
+    "limpar_mover_mem": "mover para o backup as notas da Agent Memory deste exercício: {CAMINHO}",
+    "limpar_mantido": "manter: {CAMINHO}",
+    "limpar_pergunta": "Limpar agora?",
+    "limpar_cancelado": "Não mudei nada.",
+    "limpar_nada": "Não há nada para limpar: os dados do workshop já não estão cá.",
+    "limpar_removido": "Apagado: {CAMINHO}",
+    "limpar_backup": "Movido para o backup: {CAMINHO} -> {DESTINO}",
+    "limpar_fim": "Limpeza concluída. O que tinha trabalho teu está em {BACKUP}. Ficaram instalados o projeto de treino, o kit (skills, agentes, hooks, statusline), o Claude Code, o gh, o Node, o uv e a app Agent Memory. Para voltares a ter os projetos de exercício, corre outra vez o setup ({CMD}).",
+    "limpar_incompleto": "A limpeza parou antes do fim (vê {LOG}). O que ainda não tinha feito ficou como estava: corrige o problema e corre o mesmo comando outra vez.",
     "s0_so": "Sistema: {SO}",
     "s0_lingua": "Língua: {LINGUA}",
     "s0_lingua_ignorada": "WORKSHOP_LANG={VALOR} não é uma das línguas do workshop (pt-BR, pt-PT, en, hi ou he): ignorei-o e usei {LINGUA}.",
@@ -123,6 +137,7 @@
     "s5_ja": "uv {VERSAO}",
     "s6_ja": "gh {VERSAO}",
     "s6_pergunta_login": "Fazer agora o login no GitHub? (abre o browser)",
+    "s6_pergunta_scope": "O teu login no GitHub ainda não pode ler o email da tua conta (o painel do workshop precisa dele). Autorizar agora? (abre o browser)",
     "s6_sem_login": "gh instalado, sem login no GitHub.",
     "s7_ja": "atlassian (âmbito utilizador)",
     "s7_oauth": "Para terminar: abre o Claude Code, escreve /mcp, escolhe atlassian e faz o login no browser.",
@@ -141,12 +156,10 @@
     "s8_anteriores": "As versões anteriores das skills e dos agentes do kit ficaram guardadas em {PASTA}, caso tenhas alterado alguma.",
     "s8_claude_dir": "Pasta do Claude Code (CLAUDE_CONFIG_DIR): {CAMINHO}",
     "s8_alheio": "O teu {NOME} tem o mesmo nome que um do kit: ficou guardado em {PASTA} e volta se desinstalares o kit.",
-    "s8_painel_pergunta": "Queres que o teu kit envie eventos anónimos para o painel do workshop? Só o nome da funcionalidade do Claude Code que usaste, nunca o que escreves.",
     "s8_painel_sala": "Em que sala estás? (A ou B)",
     "s8_painel_sala_repetir": "Responde A ou B.",
-    "s8_painel_on": "Painel do workshop: ligado (sala {SALA}).",
-    "s8_painel_off": "Painel do workshop: desligado. Para o ligares, corre: {CMD} (A ou B: a tua sala)",
-    "s8_painel_mantido": "Painel do workshop: fica como escolheste antes. Para o veres: {CMD}",
+    "s8_painel_registado": "Painel do workshop: registado como {NOME} (sala {SALA}).",
+    "s8_painel_ver_gh": "Painel do workshop: ainda sem registo. Resolve o aviso do GitHub no passo 6 e volta a correr o setup (ou {CMD}).",
     "s8_painel_acessivel": "Painel do workshop: ligado (sala {SALA}) e responde a partir desta rede.",
     "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
@@ -1087,10 +1100,10 @@
         "Depois volta a correr o setup."
       ],
       "mac": [
-        "gh auth login --hostname github.com --git-protocol https --web"
+        "gh auth login --hostname github.com --git-protocol https --web --scopes user:email"
       ],
       "windows": [
-        "gh auth login --hostname github.com --git-protocol https --web"
+        "gh auth login --hostname github.com --git-protocol https --web --scopes user:email"
       ]
     },
     "E-GH-03": {
@@ -1216,18 +1229,67 @@
     "E-TEL-01": {
       "titulo": "Não é possível chegar ao painel do workshop a partir desta rede",
       "so": "todos",
-      "causa": "A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.",
+      "causa": "O servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. Fazes o workshop igual, e a tua caderneta de missões (/missions e a statusline) funciona sem o painel. Só o board de liderança na sala é que não vê o teu progresso (nem o teu registo, se ainda não estava feito).",
       "fazer": [
-        "No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).",
-        "Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora."
+        "No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr o setup: ele regista-te no painel.",
+        "Ou corre o primeiro comando (A ou B: a tua sala) nessa rede. O segundo comando mostra se estás registado."
       ],
       "mac": [
-        "node ~/.workshop-claude/kit/telemetry/ctl.mjs off",
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A",
         "node ~/.workshop-claude/kit/telemetry/ctl.mjs status"
       ],
       "windows": [
-        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" off",
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A",
         "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" status"
+      ]
+    },
+    "E-TEL-02": {
+      "titulo": "A tua conta GitHub não tem um email da empresa verificado",
+      "so": "todos",
+      "causa": "Para apareceres no board de liderança do workshop, o painel confirma que a tua conta GitHub tem um email @{PANEL_EMAIL_DOMAIN} verificado (indicado acima), e esta conta não tem. É só um aviso: fazes o workshop igual, só não apareces no board.",
+      "fazer": [
+        "Junta o email da empresa à tua conta GitHub e confirma-o (o GitHub envia um link): abre a página com o primeiro comando.",
+        "Depois volta a correr o setup (ou o segundo comando, A ou B: a tua sala): ele regista-te no painel."
+      ],
+      "mac": [
+        "open https://github.com/settings/emails",
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs register A"
+      ],
+      "windows": [
+        "Start-Process https://github.com/settings/emails",
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" register A"
+      ]
+    },
+    "E-TEL-03": {
+      "titulo": "O gh não consegue ler o email da tua conta GitHub",
+      "so": "todos",
+      "causa": "O painel do workshop regista-te com a tua conta GitHub (através do gh), e para isso o gh precisa de autorização para ler os emails da tua conta (o scope user:email). O gh não tem sessão iniciada no github.com, ou fez o login sem essa autorização (antes de o workshop a pedir). É só um aviso: o gh funciona igual para o Projeto 2; só ainda não apareces no board.",
+      "fazer": [
+        "Corre o primeiro comando: abre o browser para autorizares a nova permissão (se o gh não tiver login nenhum, corre antes o segundo).",
+        "Depois volta a correr o setup: ele regista-te no painel."
+      ],
+      "mac": [
+        "gh auth refresh -h github.com -s user:email",
+        "gh auth login --hostname github.com --git-protocol https --web --scopes user:email"
+      ],
+      "windows": [
+        "gh auth refresh -h github.com -s user:email",
+        "gh auth login --hostname github.com --git-protocol https --web --scopes user:email"
+      ]
+    },
+    "E-TEL-04": {
+      "titulo": "Ainda não estás registado no painel do workshop",
+      "so": "todos",
+      "causa": "O registo no painel (com a tua conta GitHub) ainda não foi feito neste computador, ou não resultou da última vez (rede, email da empresa ou autorização do GitHub). É só um aviso: fazes o workshop igual; só não apareces no board de liderança.",
+      "fazer": [
+        "Volta a correr o setup (sem --check): ele regista-te e diz o que falta, se faltar alguma coisa.",
+        "Ou corre o comando indicado acima (A ou B: a tua sala)."
+      ],
+      "mac": [
+        "{ONE_LINER_MAC}"
+      ],
+      "windows": [
+        "{ONE_LINER_WINDOWS}"
       ]
     },
     "E-DEMO-01": {

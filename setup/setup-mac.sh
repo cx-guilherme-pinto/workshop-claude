@@ -10,7 +10,7 @@
 #   bash <(curl -fsSL <url>/setup-mac.sh) --check           alternativa
 #   bash ~/.workshop-claude/setup-mac.sh --check            depois da primeira vez
 #
-# Opcoes: --check  --doctor  --uninstall  --no-desktop  --yes  --replace-statusline  --help
+# Opcoes: --check  --doctor  --uninstall  --cleanup  --no-desktop  --yes  --replace-statusline  --help
 #   (as antigas --desinstalar --sem-desktop --sim --substituir-statusline --ajuda continuam a funcionar)
 #
 # Todo o codigo esta dentro de main(), chamado na ultima linha: um download incompleto nao executa nada.
@@ -1360,10 +1360,13 @@ ws_registar() { # tipo nome [caminho] [valor] [anterior]
   ws_registar_flush
 }
 ws_registar_flush() {
-  local p="$WS_HOME/extras-pendentes.tsv" t n c v a
+  local p="$WS_HOME/extras-pendentes.tsv" t n c v a l
   [ -s "$p" ] || return 0
   [ -n "${WS_NODE:-}" ] && [ -n "${KIT_SRC:-}" ] && [ -f "$KIT_SRC/installer/install-user.mjs" ] || return 0
-  while IFS="$WS_TAB" read -r t n c v a; do
+  # Campo a campo (o read com IFS=TAB juntava os separadores: um caminho vazio passava o valor para o caminho).
+  while IFS= read -r l; do
+    t=${l%%"$WS_TAB"*}; l=${l#*"$WS_TAB"}; n=${l%%"$WS_TAB"*}; l=${l#*"$WS_TAB"}
+    c=${l%%"$WS_TAB"*}; l=${l#*"$WS_TAB"}; v=${l%%"$WS_TAB"*}; l=${l#*"$WS_TAB"}; a=${l%%"$WS_TAB"*}
     [ -n "$t" ] || continue
     "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" registar --tipo "$t" --nome "$n" ${c:+--caminho "$c"} ${v:+--valor "$v"} ${a:+--anterior "$a"} >/dev/null 2>>"$WS_LOG" || return 0
   done < "$p"
@@ -2100,8 +2103,8 @@ EOF
     ws_warn E-NODE-03 "NODE_OPTIONS=$WS_NODE_OPTIONS0"
   fi
   ws_registar_flush
-  # O --uninstall so precisa do WS_NODE: nao corre o perfil da pessoa.
-  [ "$WS_MODE" = uninstall ] && return 0
+  # O --uninstall e o --cleanup so precisam do WS_NODE: nao correm o perfil da pessoa.
+  case "$WS_MODE" in uninstall|cleanup) return 0 ;; esac
   m=$(ws_login_node_major)
   ws_log "node in a new login shell: $m"
   if [ "$m" != unknown ] && ! [ "$m" -ge "$C_NODE_MIN_MAJOR" ] 2>/dev/null && [ "$WS_MODE" = install ]; then
@@ -2204,21 +2207,45 @@ ws_gh_hosts() {
   h=$(ws_trim "${GH_HOST:+$GH_HOST }$h")
   printf '%s' "${h:-github.com}"
 }
+# Os scopes do token da conta ativa no github.com, da saida do "gh auth status" ("-" se nao se sabe: sem a linha
+# "Token scopes", ex.: um token fine-grained ou o GH_TOKEN). Com varias contas no github.com conta a ativa
+# ("Active account: true"; um gh antigo so tem uma).
+ws_gh_scopes() { # saida
+  printf '%s\n' "$1" | LC_ALL=C awk '
+    /^[^ \t]/ { sec = ($0 ~ /^github\.com[ \t]*$/); next }
+    !sec { next }
+    /Logged in to github\.com/ { n++; act[n] = 0; sc[n] = "-"; next }
+    /Active account:[ \t]*true/ { if (n) act[n] = 1; next }
+    /Token scopes:/ { if (!n) { n = 1; act[n] = 0 } s = $0; sub(/.*Token scopes:[ \t]*/, "", s); sc[n] = s; next }
+    END { if (!n) { print "-"; exit } k = 1; for (i = 1; i <= n; i++) if (act[i]) { k = i; break } print sc[k] }'
+}
+# 0 se o token pode ler os emails da conta (scope user:email ou user), ou se nao se sabe ("-"): o registo no painel
+# (passo 8, D-34) precisa dele. "none" (um token sem scopes) nao pode.
+ws_gh_email_scope() { # scopes
+  local s w
+  s=$(ws_trim "$(printf '%s' "$1" | tr -d "'\"" | tr ',' ' ')")
+  if [ -z "$s" ] || [ "$s" = - ]; then return 0; fi
+  for w in $s; do case "$w" in user|user:email) return 0 ;; esac; done
+  return 1
+}
 ws_s6_detect() { # [caminho do gh] (depois de instalar: o que o setup acabou de por, nao o primeiro do PATH)
-  local g=${1:-gh} v rc
+  local g=${1:-gh} v rc out
   v=$(ws_timeout 15 "$g" --version 2>/dev/null </dev/null | head -n 1)
   [ -n "$v" ] || return 1
   WS_GH_VER=$(ws_ver_of "$v")
+  # O gh deste passo, para o registo no painel (passo 8: o ctl.mjs le o token com ele).
+  WS_GH_EXE=$(command -v "$g" 2>/dev/null || printf '%s' "$g")
   ws_detail "$(ws_msg s6_ja VERSAO="$WS_GH_VER")"
-  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh).
+  # O login no GitHub e obrigatorio (o Projeto 2 le issues e abre PRs com o gh; o registo no painel, D-34, le o
+  # email verificado da conta: daqui o scope user:email).
   # O "gh auth status" fala com cada servidor do hosts.yml: sem VPN ou com um proxy parado nunca acabaria.
-  ws_timeout "$WS_TMO_GH" "$g" auth status >/dev/null 2>&1 </dev/null; rc=$?
+  out=$(ws_timeout "$WS_TMO_GH" "$g" auth status 2>&1 </dev/null); rc=$?
   if [ "$rc" != 0 ] && [ "$rc" != 124 ] && [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_GH_ASKED:-}" ] && ws_has_tty; then
     WS_GH_ASKED=1
     if ws_ask "$(ws_m s6_pergunta_login)" s; then
-      ws_log "\$ gh auth login --hostname github.com --git-protocol https --web (interativo)"
-      ws_run_login "$g" auth login --hostname github.com --git-protocol https --web
-      ws_timeout "$WS_TMO_GH" "$g" auth status >/dev/null 2>&1 </dev/null; rc=$?
+      ws_log "\$ gh auth login --hostname github.com --git-protocol https --web --scopes user:email (interativo)"
+      ws_run_login "$g" auth login --hostname github.com --git-protocol https --web --scopes user:email
+      out=$(ws_timeout "$WS_TMO_GH" "$g" auth status 2>&1 </dev/null); rc=$?
     fi
   fi
   if [ "$rc" = 124 ]; then
@@ -2235,8 +2262,30 @@ ws_s6_detect() { # [caminho do gh] (depois de instalar: o que o setup acabou de 
     return 1
   fi
   WS_GH_SEM_LOGIN=0; WS_GH_SEM_REDE=0
+  ws_s6_scope "$g" "$out"
   # O git passa a usar as credenciais do gh (push e PR no /task-report sem pedir password).
   [ "$WS_MODE" = install ] && ws_timeout "$WS_TMO_GH" "$g" auth setup-git >>"$WS_STEP_LOG" 2>&1 </dev/null
+  return 0
+}
+# O login sem o scope user:email (feito antes do workshop v2): ao instalar, com terminal, pergunta e corre o
+# "gh auth refresh" (abre o browser, como o login). Sem terminal, com --yes ou no --check: so o aviso E-TEL-03 com o
+# comando. Nunca falha o passo: o gh serve na mesma para o Projeto 2; so o registo no painel (passo 8) precisa dele.
+ws_s6_scope() { # gh saida-do-auth-status
+  local g=$1 out=$2
+  WS_GH_SCOPE_WARN=0
+  ws_gh_email_scope "$(ws_gh_scopes "$out")" && return 0
+  ws_log "gh: the github.com token has no user:email scope ($(ws_gh_scopes "$out"))"
+  if [ "$WS_MODE" = install ] && [ "$WS_SIM" != 1 ] && [ -z "${WS_GH_SCOPE_ASKED:-}" ] && ws_has_tty; then
+    WS_GH_SCOPE_ASKED=1
+    if ws_ask "$(ws_m s6_pergunta_scope)" s; then
+      ws_log "\$ gh auth refresh -h github.com -s user:email (interativo)"
+      ws_run_login "$g" auth refresh -h github.com -s user:email
+      out=$(ws_timeout "$WS_TMO_GH" "$g" auth status 2>&1 </dev/null)
+      ws_gh_email_scope "$(ws_gh_scopes "$out")" && return 0
+    fi
+  fi
+  WS_GH_SCOPE_WARN=1
+  ws_warn E-TEL-03 "gh auth refresh -h github.com -s user:email"
   return 0
 }
 ws_s6_install() {
@@ -2426,40 +2475,30 @@ ws_iu() { # subcomando [extra]
   { [ -n "${WS_CA_PEM:-}" ] || [ -n "${WS_PROXY:-}" ]; } && set -- "$@" --no-proxy "$(ws_no_proxy)"
   "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" "$sub" "$@" 2>>"$WS_STEP_LOG" </dev/null
 }
-# Participacao no painel do workshop (spec 6.6): opt-in, "nao" por defeito. O install-user grava a escolha em
-# ~/.workshop-claude/telemetry/config.json; sem --telemetry/--room mantem a que la esta (sem ficheiro: desligada).
-# WORKSHOP_TELEMETRY: on/off, yes/no, 1/0 ou true/false (maiusculas ou minusculas) -> on|off (vazio se nao for nada disso).
-ws_part_onoff() {
-  case "$(ws_trim "$1" | tr '[:upper:]' '[:lower:]')" in
-    on|yes|1|true) printf on ;;
-    off|no|0|false) printf off ;;
-  esac
-}
+# Painel do workshop (D-34): a participacao e obrigatoria e faz-se com o registo pelo GitHub. O passo 8 escolhe a
+# sala (o install-user grava-a em ~/.workshop-claude/telemetry/config.json) e depois regista a pessoa com
+# telemetry/ctl.mjs register <sala> (o token do gh vai uma vez para o painel, que confirma o email da empresa).
 # Sala: A ou B (maiuscula ou minuscula, com espacos a volta) -> A|B (vazio se nao for nenhuma).
 ws_part_room() { case "$(ws_trim "$1")" in a|A) printf A ;; b|B) printf B ;; esac; }
-# Flags do install-user para a participacao. Funcao pura: as entradas vem nas variaveis e as perguntas sao o
-# ws_part_ask_yn e o ws_part_ask_room (os testes trocam-nas).
-#   WS_PART_MODE  modo do setup: so o install decide (o --check, o --doctor e o --uninstall nunca perguntam)
-#   WS_PART_CFG   1 = ja ha config.json da telemetria: nada a perguntar nem a passar (o install-user mantem-na)
-#   WS_PART_TTY   1 = pode perguntar (ha terminal e nao e --yes: a participacao nunca se liga sozinha)
-#   WS_PART_T     WORKSHOP_TELEMETRY;  WS_PART_R  WORKSHOP_ROOM (ganham a pergunta)
-# Escreve "" (manter), "--telemetry off" ou "--telemetry on --room A|B". Ligada sem sala valida pergunta a sala (ate
-# 3 vezes); sem terminal, ou sem resposta valida, fica desligada.
-ws_part_flags() {
-  local t r i=0
-  [ "${WS_PART_MODE:-}" = install ] || return 0
-  [ "${WS_PART_CFG:-0}" = 1 ] && return 0
-  t=$(ws_part_onoff "${WS_PART_T:-}"); r=$(ws_part_room "${WS_PART_R:-}")
-  if [ "$t" = off ]; then printf '%s' '--telemetry off'; return 0; fi
-  if [ "$t" != on ]; then
-    if [ "${WS_PART_TTY:-0}" != 1 ] || ! ws_part_ask_yn; then printf '%s' '--telemetry off'; return 0; fi
+# A sala para o instalar. Funcao pura: as entradas vem nas variaveis e a pergunta e o ws_part_ask_room (os testes
+# trocam-na).
+#   WS_PART_MODE  modo do setup: so o install pergunta (o --check, o --doctor e o --uninstall nunca)
+#   WS_PART_TTY   1 = pode perguntar (ha terminal e nao e --yes)
+#   WS_PART_R     WORKSHOP_ROOM (ganha tudo)
+#   WS_PART_PREV  a sala do config.json que ja existe (vazio = nenhuma)
+# Escreve A ou B: WORKSHOP_ROOM valido; senao, sem sala guardada e com terminal, a resposta a pergunta (ate 3
+# vezes); senao a sala guardada; senao A.
+ws_room_pick() {
+  local r i=0
+  r=$(ws_part_room "${WS_PART_R:-}")
+  if [ -z "$r" ] && [ -z "$(ws_part_room "${WS_PART_PREV:-}")" ] && [ "${WS_PART_MODE:-}" = install ] && [ "${WS_PART_TTY:-0}" = 1 ]; then
+    while [ -z "$r" ] && [ "$i" -lt 3 ]; do
+      i=$((i + 1)); r=$(ws_part_room "$(ws_part_ask_room "$i")")
+    done
   fi
-  while [ -z "$r" ] && [ "${WS_PART_TTY:-0}" = 1 ] && [ "$i" -lt 3 ]; do
-    i=$((i + 1)); r=$(ws_part_room "$(ws_part_ask_room "$i")")
-  done
-  if [ -n "$r" ]; then printf '%s' "--telemetry on --room $r"; else printf '%s' '--telemetry off'; fi
+  [ -n "$r" ] || r=$(ws_part_room "${WS_PART_PREV:-}")
+  printf '%s' "${r:-A}"
 }
-ws_part_ask_yn() { ws_ask_q "$(ws_m s8_painel_pergunta)" n nunca-sim; }
 ws_part_ask_room() { # tentativa -> o que a pessoa escreveu (a partir da segunda, diz antes o que se espera)
   local ans
   [ "$1" -gt 1 ] && printf '  %s\n' "$(ws_m s8_painel_sala_repetir)" > /dev/tty
@@ -2468,58 +2507,106 @@ ws_part_ask_room() { # tentativa -> o que a pessoa escreveu (a partir da segunda
   ws_log "question: room -> ${ans:-<enter>}"
   printf '%s' "$ans"
 }
-# A telemetria so existe nos kits que a trazem (a pasta telemetry/): sem ela, nem pergunta nem flags.
+# O painel so existe nos kits que o trazem (a pasta telemetry/): sem ela, nem sala nem registo.
 ws_part_kit() { [ -n "${KIT_SRC:-}" ] && [ -d "$KIT_SRC/telemetry" ]; }
 ws_part_cfg() { [ -f "$WS_HOME/telemetry/config.json" ]; }
-# Decide a participacao para o instalar: WS_S8_TELEM (on|off|vazio = manter) e WS_S8_ROOM (A|B).
-ws_s8_part() {
-  local tty=0 cfg=0 flags
-  WS_S8_TELEM=""; WS_S8_ROOM=""
+# Decide a sala para o instalar: WS_S8_ROOM (A|B; vazio num kit sem o painel). Uma vez por execucao (o detect e o
+# install do passo 8 usam a mesma; a pergunta nunca se repete).
+ws_s8_room() {
+  local tty=0 prev ask=0
+  if [ -n "${WS_S8_ROOM_PICKED:-}" ]; then WS_S8_ROOM=$WS_S8_ROOM_PICKED; return 0; fi
+  WS_S8_ROOM=""
   ws_part_kit || return 0
-  ws_part_cfg && cfg=1
+  prev=$(ws_json_field "$WS_HOME/telemetry/config.json" room)
   [ "$WS_SIM" != 1 ] && ws_has_tty && tty=1
   # A pergunta fica sozinha na ultima linha (sem o spinner), como no ws_ask.
-  [ "$tty" = 1 ] && [ "$cfg" = 0 ] && ws_ui_hide
-  flags=$(WS_PART_MODE=$WS_MODE WS_PART_CFG=$cfg WS_PART_TTY=$tty WS_PART_T=${WORKSHOP_TELEMETRY:-} WS_PART_R=${WORKSHOP_ROOM:-} ws_part_flags)
-  [ "$tty" = 1 ] && [ "$cfg" = 0 ] && ws_ui_show
-  ws_log "participation: ${flags:-kept}"
-  case "$flags" in
-    "--telemetry on --room "?) WS_S8_TELEM=on; WS_S8_ROOM=${flags##* } ;;
-    "--telemetry off") WS_S8_TELEM=off ;;
+  [ "$tty" = 1 ] && [ "$WS_MODE" = install ] && [ -z "$(ws_part_room "${WORKSHOP_ROOM:-}")" ] && [ -z "$(ws_part_room "$prev")" ] && ask=1
+  [ "$ask" = 1 ] && ws_ui_hide
+  WS_S8_ROOM=$(WS_PART_MODE=$WS_MODE WS_PART_TTY=$tty WS_PART_R=${WORKSHOP_ROOM:-} WS_PART_PREV=$prev ws_room_pick)
+  [ "$ask" = 1 ] && ws_ui_show
+  WS_S8_ROOM_PICKED=$WS_S8_ROOM
+  ws_log "room: $WS_S8_ROOM (WORKSHOP_ROOM ${WORKSHOP_ROOM:--} · saved ${prev:--})"
+  return 0
+}
+# O registo no config.json: o id do participante (32 hex) que o painel deu, ou nada.
+ws_tel_participant() { # config.json
+  local p
+  p=$(ws_json_field "$1" p)
+  case "$p" in *[!0-9a-f]*|'') return 0 ;; esac
+  [ "${#p}" = 32 ] && printf '%s' "$p"
+  return 0
+}
+ws_s8_registered_note() { # config.json
+  local nome sala
+  nome=$(ws_json_field "$1" name); sala=$(ws_json_field "$1" room)
+  ws_note "$(ws_msg s8_painel_registado NOME="${nome:-?}" SALA="${sala:-?}")"
+}
+# O comando de registo que se mostra (no --check e nos avisos).
+ws_s8_register_cmd() { printf 'node %s register %s' "$(ws_tilde "$WS_HOME/kit/telemetry/ctl.mjs")" "${1:-A}"; }
+# O resultado do ctl.mjs register -> nota ou aviso. Nunca falha o passo (o workshop faz-se igual sem o painel).
+#   0 registado (nota com o nome) · 3 sem email verificado da empresa (E-TEL-02) · 4 gh sem login ou sem o scope
+#   user:email (E-TEL-03; se o passo 6 ja o disse, so uma nota) · 5 ou sem resposta a tempo: painel inacessivel
+#   (E-TEL-01) · outro (1 sem config ou expirada, 2 sala): so no log.
+ws_s8_register_result() { # codigo config.json sala
+  local rc=$1 cfg=$2 room=$3 dom u
+  case "$rc" in
+    0) ws_s8_registered_note "$cfg" ;;
+    3) dom=$(ws_json_field "$cfg" email_domain); ws_warn E-TEL-02 "@${dom:-checkmarx.com}" ;;
+    4) if [ "${WS_GH_SCOPE_WARN:-0}" = 1 ]; then ws_note "$(ws_msg s8_painel_ver_gh CMD="$(ws_s8_register_cmd "$room")")"
+       else ws_warn E-TEL-03 "gh auth refresh -h github.com -s user:email"; fi ;;
+    5|124)
+      u=$(ws_trim "$(ws_json_field "$cfg" panel_url)")
+      if [ -n "$u" ]; then ws_warn E-TEL-01 "$(ws_url_base "$u") · register"; else ws_log "panel: no panel_url in this kit"; fi ;;
+    *) ws_log "panel: register exit $rc" ;;
   esac
   return 0
 }
-# A escolha, como nota do passo 8 (com o comando para a mudar). O estado e o que o instalar escreveu (a linha
-# "painel", WS_S8_PAINEL: "on A" ou "off"), tambem quando ficou a escolha de antes; um install-user sem essa linha
-# fica pela escolha desta vez (ou "como escolheste antes").
-ws_s8_part_note() {
-  ws_part_kit || return 0
-  local ctl st=${WS_S8_PAINEL:-}
-  ctl="node $(ws_tilde "$WS_HOME/kit/telemetry/ctl.mjs")"
-  if [ -z "$st" ]; then
-    case "${WS_S8_TELEM:-}" in on) st="on ${WS_S8_ROOM:-}" ;; off) st=off ;; esac
+# Regista a pessoa no painel (so ao instalar): node <kit instalado>/telemetry/ctl.mjs register <sala>, com o node do
+# kit e o gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Ja
+# registada nesta sala: nada a pedir, so a nota.
+ws_s8_register() { # sala
+  local room=$1 ctl="$WS_HOME/kit/telemetry/ctl.mjs" cfg="$WS_HOME/telemetry/config.json" out rc gh
+  [ "$WS_MODE" = install ] && [ -n "$room" ] && [ -f "$ctl" ] && [ -f "$cfg" ] || return 0
+  if [ -n "$(ws_tel_participant "$cfg")" ] && [ "$(ws_json_field "$cfg" room)" = "$room" ]; then
+    ws_log "panel: already registered (room $room)"; ws_s8_registered_note "$cfg"; return 0
   fi
-  case "$st" in
-    "on "[AB]) ws_note "$(ws_msg s8_painel_on SALA="${st#on }")" ;;
-    off) ws_note "$(ws_msg s8_painel_off CMD="$ctl on A")" ;;
-    *) ws_note "$(ws_msg s8_painel_mantido CMD="$ctl status")" ;;
-  esac
+  gh=${WS_GH_EXE:-$(command -v gh 2>/dev/null)}
+  ws_log "\$ $WS_NODE $ctl register $room"
+  out=$(PATH="${gh:+$(dirname "$gh"):}$PATH" WORKSHOP_GH="${gh:-gh}" ws_timeout 60 "$WS_NODE" "$ctl" register "$room" 2>&1 </dev/null); rc=$?
+  printf '%s\n' "$out" | ws_redact >> "$WS_STEP_LOG"
+  ws_log "  -> exit $rc"
+  ws_s8_register_result "$rc" "$cfg" "$room"
+}
+# No --check e no --doctor: sem registo (config.json sem "participant"), um aviso com o comando. So com a config em
+# vigor (depois do workshop nao ha nada a pedir).
+ws_s8_register_check() {
+  local cfg="$WS_HOME/telemetry/config.json"
+  [ "${WS_MODE:-}" = install ] && return 0
+  ws_part_kit && [ -f "$cfg" ] && ws_tel_active "$cfg" || return 0
+  [ -n "$(ws_tel_participant "$cfg")" ] && return 0
+  ws_warn E-TEL-04 "$(ws_s8_register_cmd "$(ws_part_room "$(ws_json_field "$cfg" room)")")"
+}
+# A config em vigor: expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar). 0 = em vigor
+# (tambem sem expires_at).
+ws_tel_active() { # config.json [agora: AAAA-MM-DDTHH:MM:SSZ]
+  local exp now=${2:-}
+  exp=$(ws_json_field "$1" expires_at)
+  [ -n "$now" ] || now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  case "$exp" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) [[ "$now" < "$exp" ]] || return 1 ;; esac
+  return 0
 }
 # O painel no --check (spec 6.8): o setup pede GET <panel_url>/health, para quem esta numa rede que o bloqueia saber
-# no dia anterior. So com a participacao ligada (enabled: true), um panel_url e a config em vigor (expires_at ainda
-# no futuro): sem isso nao ha nada a testar. Nunca falha nem bloqueia: o E-TEL-01 e um aviso (a caderneta de missoes
+# no dia anterior. So com o registo feito (enabled: true), um panel_url e a config em vigor (expires_at ainda no
+# futuro): sem isso nao ha nada a testar. Nunca falha nem bloqueia: o E-TEL-01 e um aviso (a caderneta de missoes
 # funciona sem o painel).
 # O URL a testar (sem a "/" do fim), do config.json da telemetria; vazio = nada a testar.
 ws_tel_panel_url() { # config.json [agora: AAAA-MM-DDTHH:MM:SSZ]
-  local f=$1 now=${2:-} u exp
+  local f=$1 u
   [ -f "$f" ] || return 0
   LC_ALL=C grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true([^a-z]|$)' "$f" 2>/dev/null || return 0
   u=$(ws_trim "$(ws_json_field "$f" panel_url)")
   case "$u" in http://?*|https://?*) ;; *) return 0 ;; esac
-  # A config expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar): nada a testar.
-  exp=$(ws_json_field "$f" expires_at)
-  [ -n "$now" ] || now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-  case "$exp" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) [[ "$now" < "$exp" ]] || return 0 ;; esac
+  ws_tel_active "$f" "${2:-}" || return 0
   printf '%s' "${u%/}"
 }
 # A resposta do /health: {"ok":true} (com ou sem espacos e outros campos) -> 0.
@@ -2551,7 +2638,7 @@ ws_s8_panel_check() {
   [ "${WS_MODE:-}" = install ] && return 0
   local cfg="$WS_HOME/telemetry/config.json" u room
   u=$(ws_tel_panel_url "$cfg")
-  if [ -z "$u" ]; then ws_log "panel: nothing to test (participation off, expired or no panel_url)"; return 0; fi
+  if [ -z "$u" ]; then ws_log "panel: nothing to test (not registered, expired or no panel_url)"; return 0; fi
   room=$(ws_json_field "$cfg" room)
   if ws_tel_probe "$u"; then ws_note "$(ws_msg s8_painel_acessivel SALA="${room:-?}")"
   else ws_warn E-TEL-01 "$(ws_url_base "$u") · $WS_TEL_WHY"; fi
@@ -2638,12 +2725,20 @@ ws_s8_detect() {
     if [ "$WS_MODE" = install ] && [ "$WS_SUBST_SL" = 1 ]; then
       case "$out" in *"statusline${WS_TAB}alheia"*) return 1 ;; esac
     fi
-    # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
+    # Sem o config.json do painel (kit novo numa instalacao antiga): o passo 8 corre para escolher a sala.
     if [ "$WS_MODE" = install ] && ws_part_kit && ! ws_part_cfg; then ws_log "missing: telemetry config"; return 1; fi
-    ws_s8_config_dir; ws_s8_panel_check; return 0
+    # Ao instalar, o registo no painel tambem se faz (ou refaz) com o passo ja feito: um registo que falhou da ultima
+    # vez (rede, email, scope) tenta-se outra vez; ja registado, so a nota. A sala nova (WORKSHOP_ROOM) vai no registo.
+    # Uma sala diferente da gravada (WORKSHOP_ROOM, ou a resposta numa config sem sala): o passo 8 corre para a gravar.
+    if [ "$WS_MODE" = install ] && ws_part_kit; then
+      ws_s8_room
+      if [ "$WS_S8_ROOM" != "$(ws_json_field "$WS_HOME/telemetry/config.json" room)" ]; then ws_log "room changes: $WS_S8_ROOM"; return 1; fi
+      ws_s8_register "$WS_S8_ROOM"
+    fi
+    ws_s8_config_dir; ws_s8_register_check; ws_s8_panel_check; return 0
   fi
   # --check/--doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
-  [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && { ws_s8_panel_check; return 0; }
+  [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && { ws_s8_register_check; ws_s8_panel_check; return 0; }
   return 1
 }
 ws_s8_install() {
@@ -2651,11 +2746,10 @@ ws_s8_install() {
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   # a mudanca de lingua que o detect viu (a saida do instalar nao a diz): no fim, uma nota a dizer qual foi
   local out rc de=${WS_S8_DE:-} para=${WS_S8_PARA:-} extra
-  # A pasta dos projetos vai sempre; a participacao so quando ha uma escolha nova (sem ela o install-user mantem a que tem).
+  # A pasta dos projetos e a sala vao sempre (num kit sem o painel, so a pasta).
   extra=(--projects-dir "$WS_PROJ")
   [ "$WS_SUBST_SL" = 1 ] && extra+=(--substituir-statusline)
-  ws_s8_part
-  [ -n "$WS_S8_TELEM" ] && extra+=(--telemetry "$WS_S8_TELEM")
+  ws_s8_room
   [ -n "$WS_S8_ROOM" ] && extra+=(--room "$WS_S8_ROOM")
   out=$(ws_iu instalar "${extra[@]}")
   rc=$?
@@ -2665,7 +2759,7 @@ ws_s8_install() {
   [ "$rc" = 0 ] || { ws_set SD 8 ""; ws_set SN 8 ""; }
   case "$rc" in 0) ;; 3) [ -n "${SF_8:-}" ] || ws_fail E-CFG-05 "$CLAUDE_DIR/settings.json"; return 1 ;; *) ws_fail E-KIT-03 "install-user ($rc)"; return 1 ;; esac
   [ -n "$de" ] && ws_note "$(ws_msg s8_lingua_mudou DE="$de" PARA="$para")"
-  ws_s8_part_note
+  ws_s8_register "$WS_S8_ROOM"
   ws_registar_flush
   ws_s8_config_dir
   return 0
@@ -2684,18 +2778,36 @@ WS_MISSIONS=missions-project
 # apagada): com o Canivete, monta-se ao lado dela.
 WS_CANIVETE=canivete-project
 # WORKSHOP_P1 (maiusculas ou minusculas, espacos a volta nao contam) -> WS_P1 canivete|arena.
-#   vazio ou canivete -> canivete; arena -> arena; outra coisa -> canivete e WS_P1_IGNORADO (para a nota do passo 9).
+#   vazio -> canivete (no --check e no --doctor: a escolha gravada na ultima instalacao, ws_p1_saved);
+#   canivete -> canivete; arena -> arena; outra coisa -> canivete e WS_P1_IGNORADO (para a nota do passo 9).
+# Assim o --check sem a variavel ve o Projeto 1 que foi instalado com WORKSHOP_P1=arena. Ao instalar, vazio continua
+# a ser o Canivete (A4), e a escolha gravada passa a ser a desta instalacao.
 # Um kit sem o installer/assemble-canivete.mjs (anterior ao v2) monta a Arena, como antes.
 ws_p1_pick() {
   local v
   WS_P1_IGNORADO=""
   if [ ! -f "${KIT_SRC:-}/installer/assemble-canivete.mjs" ]; then WS_P1=arena; return 0; fi
   v=$(printf '%s' "${WORKSHOP_P1:-}" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  [ -n "$v" ] || [ "${WS_MODE:-}" = install ] || v=$(ws_p1_saved)
   case "$v" in
     ''|canivete) WS_P1=canivete ;;
     arena) WS_P1=arena ;;
     *) WS_P1=canivete; WS_P1_IGNORADO=$(printf '%s' "${WORKSHOP_P1:0:40}" | LC_ALL=C tr -d '\000-\037\177') ;;
   esac
+  return 0
+}
+# A escolha do Projeto 1 gravada ao instalar (o extra "opcao p1" do manifest: canivete|arena), ou nada. Primeiro o
+# que ainda esta por registar (extras-pendentes.tsv), depois o manifest (install-user extras, com o HOME do setup).
+ws_p1_saved() {
+  local p v=""
+  [ -n "${WS_HOME:-}" ] || return 0
+  p="$WS_HOME/extras-pendentes.tsv"
+  [ -f "$p" ] && v=$(LC_ALL=C awk -F '\t' '$1 == "opcao" && $2 == "p1" { v = $4 } END { print v }' "$p" 2>/dev/null)
+  if [ -z "$v" ] && [ -f "$WS_HOME/manifest.json" ] && [ -n "${WS_NODE:-}" ] && [ -x "$WS_NODE" ] && [ -f "${KIT_SRC:-}/installer/install-user.mjs" ]; then
+    v=$(WS_HOME_OVERRIDE="$(dirname "$WS_HOME")" "$WS_NODE" "$KIT_SRC/installer/install-user.mjs" extras 2>/dev/null </dev/null |
+      LC_ALL=C awk -F '\t' '$1 == "opcao" && $2 == "p1" { v = $4 } END { print v }')
+  fi
+  case "$v" in canivete|arena) printf '%s' "$v" ;; esac
   return 0
 }
 # A pasta e a marca do Projeto 1 escolhido (WS_P1).
@@ -2774,10 +2886,16 @@ ws_s9_detect() {
   if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
     [ "$(ws_proj_state "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$WS_PROJ/$WS_MISSIONS"; return 1; }
   fi
+  [ "$WS_MODE" = install ] && ws_p1_save
   ws_s9_detail
   ws_s9_lang_check
   [ "$WS_MODE" = install ] || ws_s9_tests
   return 0
+}
+# Grava a escolha do Projeto 1 no manifest (so ao instalar, e so nos kits com o Canivete): o --check le-a (ws_p1_saved).
+ws_p1_save() {
+  [ "${WS_MODE:-}" = install ] && [ -n "${WS_HOME:-}" ] && [ -f "${KIT_SRC:-}/installer/assemble-canivete.mjs" ] || return 0
+  ws_registar opcao p1 "" "$WS_P1"
 }
 # Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
 # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado. Do Projeto 1 so conta o
@@ -2856,6 +2974,7 @@ ws_s9_install() {
   else
     ws_assemble assemble-canivete.mjs "$WS_PROJ/$WS_CANIVETE" .canivete-kit.json refs/tags/canivete-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
   fi
+  ws_p1_save
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json HEAD --language "${WS_LANG_KIT:-en}" || return 1
   fi
@@ -3621,6 +3740,60 @@ EOF
   ws_say "$(ws_msg desinst_fim BACKUP="$WS_HOME/backup")"
 }
 
+# ================================================================= limpar (--cleanup, D-34)
+# Tira os dados do workshop e deixa o projeto do Projeto 2 e as ferramentas: a logica e a do install-user limpar
+# (igual no Windows). Primeiro a lista (--dry-run), depois a confirmacao (y/N; --yes responde sim), depois a serio.
+# As linhas do install-user: removido <caminho> <tipo> · backup <caminho> <destino> <tipo> · mantido <caminho> ·
+# nada 1 · erro <texto> (tipo: projeto, telemetria ou memoria).
+ws_limpar_show() { # saida-do-install-user real(0|1)
+  local k v w x key
+  while IFS="$WS_TAB" read -r k v w x; do
+    case "$k" in
+      removido)
+        if [ "$2" = 1 ]; then ws_say "  $(ws_msg limpar_removido CAMINHO="$(ws_tilde "$v")")"
+        else key=limpar_apagar; [ "$w" = telemetria ] && key=limpar_apagar_tel; ws_say "  • $(ws_msg "$key" CAMINHO="$(ws_tilde "$v")")"; fi ;;
+      backup)
+        if [ "$2" = 1 ]; then ws_say "  $(ws_msg limpar_backup CAMINHO="$(ws_tilde "$v")" DESTINO="$(ws_tilde "$w")")"
+        else key=limpar_mover; [ "$x" = memoria ] && key=limpar_mover_mem; ws_say "  • $(ws_msg "$key" CAMINHO="$(ws_tilde "$v")")"; fi ;;
+      mantido) ws_say "  • $(ws_msg limpar_mantido CAMINHO="$(ws_tilde "$v")")" ;;
+      erro) ws_say "  $(ws_c r ✖) $v" ;;
+    esac
+  done <<EOF
+$1
+EOF
+}
+ws_limpar() {
+  local man="$WS_HOME/manifest.json" iu out rc=0
+  ws_s4_detect >/dev/null 2>&1 || true
+  if [ -z "${WS_NODE:-}" ] && [ -f "$man" ]; then WS_NODE=$(sed -n 's/.*"node": *"\([^"]*\)".*/\1/p' "$man" | head -n 1); fi
+  [ -x "${WS_NODE:-}" ] || { ws_print_code E-NODE-01 "" "  "; return 1; }
+  ws_kit_ensure || KIT_SRC=""
+  iu="$KIT_SRC/installer/install-user.mjs"
+  [ -f "$iu" ] || iu="$WS_HOME/kit-src/$C_WORKSHOP_VERSION/installer/install-user.mjs"
+  [ -f "$iu" ] || { ws_print_code E-KIT-01 "" "  "; return 1; }
+  ws_log "\$ $WS_NODE $iu limpar --dry-run --projects-dir $WS_PROJ"
+  out=$("$WS_NODE" "$iu" limpar --dry-run --projects-dir "$WS_PROJ" 2>>"$WS_LOG" </dev/null) || rc=$?
+  printf '%s\n' "$out" >> "$WS_LOG"
+  if [ "$rc" != 0 ]; then ws_say ""; ws_say "$(ws_msg limpar_incompleto LOG="$WS_LOG")"; return 1; fi
+  if printf '%s\n' "$out" | grep -q "^nada$WS_TAB"; then
+    ws_limpar_show "$out" 0
+    ws_say ""; ws_say "$(ws_m limpar_nada)"; return 0
+  fi
+  ws_say ""
+  ws_say "$(ws_m limpar_lista)"
+  ws_limpar_show "$out" 0
+  ws_say ""
+  if ! ws_ask "$(ws_m limpar_pergunta)" n; then ws_say ""; ws_say "$(ws_m limpar_cancelado)"; return 0; fi
+  ws_log "\$ $WS_NODE $iu limpar --projects-dir $WS_PROJ"
+  out=$("$WS_NODE" "$iu" limpar --projects-dir "$WS_PROJ" 2>>"$WS_LOG" </dev/null) || rc=$?
+  printf '%s\n' "$out" >> "$WS_LOG"
+  ws_say ""
+  ws_limpar_show "$(printf '%s\n' "$out" | grep -v "^mantido$WS_TAB")" 1
+  ws_say ""
+  if [ "$rc" != 0 ]; then ws_say "$(ws_msg limpar_incompleto LOG="$WS_LOG")"; return 1; fi
+  ws_say "$(ws_msg limpar_fim BACKUP="$(ws_tilde "$WS_HOME/backup")" CMD="bash $(ws_tilde "$WS_HOME/setup-mac.sh")")"
+}
+
 # ================================================================= arranque
 ws_usage() {
   cat <<'__WS_USO__'
@@ -3632,6 +3805,8 @@ Options:
   --check                  check only (2 to 3 minutes), installs nothing
   --doctor                 check and, if something fails, ask Claude for a diagnosis
   --uninstall              undo what the setup installed (manifest.json)
+  --cleanup                remove the workshop's data (exercise projects, mission book, panel
+                           registration, their memory notes) and keep the practice project and the tools
   --no-desktop             do not install Claude Desktop
   --yes                    answer yes to simple questions (tests)
   --replace-statusline     use the workshop statusline instead of yours
@@ -3717,7 +3892,7 @@ ws_load_messages() {
 
 ws_save_self() { # guarda uma copia local do script (para "bash ~/.workshop-claude/setup-mac.sh --check")
   local dst="$WS_HOME/setup-mac.sh" src=${BASH_SOURCE[0]:-} sums url
-  [ "$WS_MODE" = uninstall ] && return 0
+  case "$WS_MODE" in uninstall|cleanup) return 0 ;; esac
   if [ "$WS_DEV" = 1 ]; then
     printf '#!/usr/bin/env bash\n# Development copy: runs the script in the repository.\nexec bash "%s" "$@"\n' "$WS_DEV_ROOT/setup/setup-mac.sh" > "$dst.tmp" && mv -f "$dst.tmp" "$dst"
     return 0
@@ -3827,6 +4002,7 @@ ws_main() {
       --check|-check|--verificar) WS_MODE=check ;;
       --doctor|-doctor|--diagnostico) WS_MODE=doctor ;;
       --desinstalar|--uninstall) WS_MODE=uninstall ;;
+      --limpar|--cleanup) WS_MODE=cleanup ;;
       --sem-desktop|--no-desktop) WS_SEM_DESKTOP=1 ;;
       --sim|--yes|-y) WS_SIM=1 ;;
       --substituir-statusline|--replace-statusline) WS_SUBST_SL=1 ;;
@@ -3925,6 +4101,7 @@ EOF
   [ "${WS_UI:-plain}" = fancy ] && ind="  "
   case "$WS_MODE" in
     uninstall) ws_say "$ind$(ws_msg modo_desinstalar MANIFEST="$WS_HOME/manifest.json")"; ws_uninstall; return $? ;;
+    cleanup) ws_say "$ind$(ws_msg modo_limpar PROJETO="$WS_PROJ_SHOW/$WS_PRACTICE")"; ws_limpar; return $? ;;
     check) ws_say "$ind$(ws_m tempo_check)" ;;
     doctor) ws_say "$ind$(ws_m modo_doctor)"; ws_say "$ind$(ws_m tempo_check)" ;;
     install)

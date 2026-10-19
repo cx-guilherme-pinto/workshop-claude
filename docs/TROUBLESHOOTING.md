@@ -84,6 +84,9 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-KIT-02` | The kit archive does not match (SHA-256) | [macOS](#mac-e-kit-02) · [Windows](#windows-e-kit-02) |
 | `E-KIT-03` | Installing the skills and hooks failed | [macOS](#mac-e-kit-03) · [Windows](#windows-e-kit-03) |
 | `E-TEL-01` | The workshop panel can't be reached from this network | [macOS](#mac-e-tel-01) · [Windows](#windows-e-tel-01) |
+| `E-TEL-02` | Your GitHub account has no verified company email | [macOS](#mac-e-tel-02) · [Windows](#windows-e-tel-02) |
+| `E-TEL-03` | gh can't read your GitHub account's email | [macOS](#mac-e-tel-03) · [Windows](#windows-e-tel-03) |
+| `E-TEL-04` | You are not registered on the workshop panel yet | [macOS](#mac-e-tel-04) · [Windows](#windows-e-tel-04) |
 | `E-DEMO-01` | I couldn't set up the workshop projects | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | The Arena app tests failed | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | The project folder already exists and is not from the kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
@@ -869,7 +872,7 @@ brew install gh
 Command (macOS):
 
 ```
-gh auth login --hostname github.com --git-protocol https --web
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
 ```
 
 <a id="mac-e-gh-03"></a>
@@ -993,16 +996,63 @@ ls -la ~/.claude ~/.workshop-claude/backup
 
 ### E-TEL-01 · The workshop panel can't be reached from this network
 
-- **Why:** Your participation in the workshop panel is on, but the panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. Your mission book (/missions and the statusline) works without the panel; only the live panel in the room won't see your progress.
+- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the leaderboard in the room won't see your progress (or your registration, if it was not done yet).
 - **What to do:**
-  - On the workshop day, connect to the event network or to your phone's hotspot and run the check (--check) again.
-  - If you'd rather not send anything to the panel, turn participation off with the first command (you can turn it on again later with "on A" or "on B"). The second command shows how it is set now.
+  - On the workshop day, connect to the event network or to your phone's hotspot and run the setup again: it registers you on the panel.
+  - Or run the first command (A or B: your room) on that network. The second command shows whether you are registered.
 
 Commands (macOS):
 
 ```
-node ~/.workshop-claude/kit/telemetry/ctl.mjs off
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
 node ~/.workshop-claude/kit/telemetry/ctl.mjs status
+```
+
+<a id="mac-e-tel-02"></a>
+
+### E-TEL-02 · Your GitHub account has no verified company email
+
+- **Why:** To appear on the workshop leaderboard, the panel checks that your GitHub account has a verified @checkmarx.com email (shown above), and this account does not. This is only a warning: you do the workshop all the same, you just do not appear on the leaderboard.
+- **What to do:**
+  - Add your company email to your GitHub account and confirm it (GitHub sends a link): open the page with the first command.
+  - Then run the setup again (or the second command, A or B: your room): it registers you on the panel.
+
+Commands (macOS):
+
+```
+open https://github.com/settings/emails
+node ~/.workshop-claude/kit/telemetry/ctl.mjs register A
+```
+
+<a id="mac-e-tel-03"></a>
+
+### E-TEL-03 · gh can't read your GitHub account's email
+
+- **Why:** The workshop panel registers you with your GitHub account (through gh), and for that gh needs permission to read your account's emails (the user:email scope). gh is not logged in to github.com, or it was logged in without that permission (before the workshop asked for it). This is only a warning: gh works for Project 2 all the same; you just do not appear on the leaderboard yet.
+- **What to do:**
+  - Run the first command: it opens the browser so you can allow the new permission (if gh is not logged in at all, run the second one instead).
+  - Then run the setup again: it registers you on the panel.
+
+Commands (macOS):
+
+```
+gh auth refresh -h github.com -s user:email
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
+```
+
+<a id="mac-e-tel-04"></a>
+
+### E-TEL-04 · You are not registered on the workshop panel yet
+
+- **Why:** The panel registration (with your GitHub account) has not been done on this computer yet, or it did not work the last time (network, company email or GitHub permission). This is only a warning: the workshop works the same; you just do not appear on the leaderboard.
+- **What to do:**
+  - Run the setup again (without --check): it registers you and says what is missing, if anything.
+  - Or run the command shown above (A or B: your room).
+
+Command (macOS):
+
+```
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
 ```
 
 <a id="mac-e-demo-01"></a>
@@ -2177,7 +2227,7 @@ winget install --id GitHub.cli -e --scope user --source winget
 Command (Windows):
 
 ```
-gh auth login --hostname github.com --git-protocol https --web
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
 ```
 
 <a id="windows-e-gh-03"></a>
@@ -2301,16 +2351,63 @@ Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\bac
 
 ### E-TEL-01 · The workshop panel can't be reached from this network
 
-- **Why:** Your participation in the workshop panel is on, but the panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. Your mission book (/missions and the statusline) works without the panel; only the live panel in the room won't see your progress.
+- **Why:** The panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. The workshop works the same, and your mission book (/missions and the statusline) works without the panel. Only the leaderboard in the room won't see your progress (or your registration, if it was not done yet).
 - **What to do:**
-  - On the workshop day, connect to the event network or to your phone's hotspot and run the check (--check) again.
-  - If you'd rather not send anything to the panel, turn participation off with the first command (you can turn it on again later with "on A" or "on B"). The second command shows how it is set now.
+  - On the workshop day, connect to the event network or to your phone's hotspot and run the setup again: it registers you on the panel.
+  - Or run the first command (A or B: your room) on that network. The second command shows whether you are registered.
 
 Commands (Windows):
 
 ```
-node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" off
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
 node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
+```
+
+<a id="windows-e-tel-02"></a>
+
+### E-TEL-02 · Your GitHub account has no verified company email
+
+- **Why:** To appear on the workshop leaderboard, the panel checks that your GitHub account has a verified @checkmarx.com email (shown above), and this account does not. This is only a warning: you do the workshop all the same, you just do not appear on the leaderboard.
+- **What to do:**
+  - Add your company email to your GitHub account and confirm it (GitHub sends a link): open the page with the first command.
+  - Then run the setup again (or the second command, A or B: your room): it registers you on the panel.
+
+Commands (Windows):
+
+```
+Start-Process https://github.com/settings/emails
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register A
+```
+
+<a id="windows-e-tel-03"></a>
+
+### E-TEL-03 · gh can't read your GitHub account's email
+
+- **Why:** The workshop panel registers you with your GitHub account (through gh), and for that gh needs permission to read your account's emails (the user:email scope). gh is not logged in to github.com, or it was logged in without that permission (before the workshop asked for it). This is only a warning: gh works for Project 2 all the same; you just do not appear on the leaderboard yet.
+- **What to do:**
+  - Run the first command: it opens the browser so you can allow the new permission (if gh is not logged in at all, run the second one instead).
+  - Then run the setup again: it registers you on the panel.
+
+Commands (Windows):
+
+```
+gh auth refresh -h github.com -s user:email
+gh auth login --hostname github.com --git-protocol https --web --scopes user:email
+```
+
+<a id="windows-e-tel-04"></a>
+
+### E-TEL-04 · You are not registered on the workshop panel yet
+
+- **Why:** The panel registration (with your GitHub account) has not been done on this computer yet, or it did not work the last time (network, company email or GitHub permission). This is only a warning: the workshop works the same; you just do not appear on the leaderboard.
+- **What to do:**
+  - Run the setup again (without --check): it registers you and says what is missing, if anything.
+  - Or run the command shown above (A or B: your room).
+
+Command (Windows):
+
+```
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-demo-01"></a>
