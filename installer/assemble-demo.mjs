@@ -99,7 +99,20 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
         'mcp__agent-memory__memory_related',
         'mcp__agent-memory__memory_add',
       ],
-      deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)'],
+      // The cards' specs and tests are the contract: no agent changes them. A person completes a broken card's
+      // spec.md by hand (specs/cards.json "spec_gaps") and runs the card again with /demo-swarm --retry <id>.
+      deny: [
+        'Read(.env)',
+        'Read(.env.*)',
+        'Bash(curl *)',
+        'Bash(wget *)',
+        'Bash(rm -rf *)',
+        'Bash(git push*)',
+        'Edit(cards/*/spec.md)',
+        'Write(cards/*/spec.md)',
+        'Edit(cards/*/card.test.js)',
+        'Write(cards/*/card.test.js)',
+      ],
     },
     // The parallelism comes from plan.json (8 participant, 16 presenter); ARENA_MAX_PARALLEL in the environment overrides it.
     hooks: {

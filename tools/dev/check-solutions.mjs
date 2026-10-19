@@ -8,6 +8,7 @@
 // With --lang en it assembles the English Arena like the installer (installer/assemble-demo.mjs: demo-project/
 // without i18n/, with i18n/en/ on top and the cards generated again), adds dev/solutions and, on top,
 // dev/solutions/i18n/en/ (the solutions that change in English: free answers and pages).
+// The cards broken on purpose get their complete spec.md (tools/gen.mjs --no-gaps), as a person would fix them.
 import { cpSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
@@ -36,6 +37,10 @@ try {
   }
   if (existsSync(SOLUTIONS)) cpSync(SOLUTIONS, tmp, { recursive: true, filter: (p) => resolve(p) !== resolve(SOLUTIONS, 'i18n') });
   if (existsSync(join(SOLUTIONS, 'i18n', lang))) cpSync(join(SOLUTIONS, 'i18n', lang), tmp, { recursive: true });
+  // The cards broken on purpose ("spec_gaps" in specs/cards.json) are solved by a person completing their spec.md:
+  // the complete specs are part of the solution.
+  const gen = spawnSync(process.execPath, [join('tools', 'gen.mjs'), '--no-gaps'], { cwd: tmp, encoding: 'utf8' });
+  if (gen.status !== 0) throw new Error(`tools/gen.mjs --no-gaps failed: ${gen.stderr || gen.stdout}`);
   const r = spawnSync(process.execPath, ['--test', '--test-timeout=10000'], { cwd: tmp, stdio: 'inherit', env: { ...process.env, WORKSHOP_LANG: lang } });
   process.exitCode = r.status ?? 1;
 } finally {

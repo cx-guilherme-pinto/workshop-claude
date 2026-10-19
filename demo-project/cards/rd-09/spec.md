@@ -28,8 +28,6 @@ Campo `segments` (índices a partir de 0):
 ]
 ```
 
-Campo `answer` (índices inseguros): `[1,3]`
-
 ## Explicação (campo `explanation`)
 
 O WEP parte-se em minutos e o PIN do WPS adivinha-se por força bruta. Usa WPA3 (ou WPA2) e desliga o WPS.

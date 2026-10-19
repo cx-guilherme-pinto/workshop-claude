@@ -1,9 +1,19 @@
 // GERADO por tools/gen.mjs a partir de specs/cards.json. Não editar à mão.
 // Cartão sc-08: A conta root da cloud
-import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
+import { test, assert, readSource, newContainer, environment } from '../../lib/testkit.js';
 import { cardProblems } from '../../lib/security.js';
 
 const SPEC = {"id":"sc-08","category":"cloud-secrets","template":"answer","answer":"MFA","wrong":["VPN","antivírus",""],"depends":[]};
+
+const GAPS = [{"field":"accept","value":"[\"MFA\",\"2FA\",\"autenticação multifator\",\"autenticação de dois fatores\",\"dois fatores\"]","message":"falta em cards/sc-08/spec.md um detalhe que o teste verifica: as respostas aceites. Uma pessoa acrescenta à spec esta linha: Campo `accept`: `[\"MFA\",\"2FA\",\"autenticação multifator\",\"autenticação de dois fatores\",\"dois fatores\"]` — e depois corre /demo-swarm --retry sc-08 (os agentes não mudam specs)."}];
+const flat = (s) => String(s).replace(/[\s`]/g, '').replace(/'/g, '"').toLowerCase();
+
+if (environment === 'node') {
+  test('sc-08: a spec.md tem todos os detalhes que o teste verifica', async () => {
+    const lines = (await readSource('./spec.md', import.meta.url)).split('\n').map(flat);
+    for (const g of GAPS) assert.ok(lines.some((l) => l.includes(g.field) && l.includes(flat(g.value))), g.message);
+  });
+}
 
 let card = null;
 let loadError = null;

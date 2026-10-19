@@ -23,8 +23,6 @@ Campo `options` (mantém os ids):
 | c | O Wi-Fi contou ao site |
 | d | Foi coincidência |
 
-Campo `answer`: `"a"`
-
 ## Explicação (campo `explanation`)
 
 A combinação de pequenos detalhes do browser é quase única. Usa um browser com proteção contra fingerprinting e poucas extensões.

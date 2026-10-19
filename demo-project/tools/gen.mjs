@@ -3,12 +3,23 @@
 //   cards/<id>/spec.md, cards/<id>/card.test.js and TASKS.md.
 // Run it when you change specs/cards.json:  node tools/gen.mjs   (--check only checks)
 // The language of the generated files comes from specs/cards.json ("lang": "pt" or "en"; no field, pt).
+//
+// "Your card": with specs/my-card.json (a copy of specs/my-card.example.json) it also validates that file and
+// generates the card my-01 (tools/my-card.mjs). Without that file nothing changes.
+//
+// Cards broken on purpose: a card with "spec_gaps": ["answer"] (or ["accept"]) in specs/cards.json gets a spec.md
+// WITHOUT that detail, and its card.test.js checks that the spec has it. No agent can make it green: a person
+// adds the line the failing test names to cards/<id>/spec.md and runs the card again (/demo-swarm --retry <id>).
+// A spec.md completed that way (every generated line still there, in order) is kept, also by --check.
+// --no-gaps writes the complete specs (the reference solutions use it: tools/dev/check-solutions.mjs).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readMyCard, myCardReport, MY_CARD_ID } from './my-card.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
+const NO_GAPS = process.argv.includes('--no-gaps');
 
 const specs = JSON.parse(readFileSync(join(ROOT, 'specs/cards.json'), 'utf8'));
 const extra = JSON.parse(readFileSync(join(ROOT, 'specs/tasks.json'), 'utf8'));
@@ -59,7 +70,10 @@ const TEXTS = {
       returns: 'a interação devia devolver a resposta certa',
       safeSource: 'fonte segura',
       usesHash: 'este cartão tem de usar ../../lib/hash.js',
+      specComplete: 'a spec.md tem todos os detalhes que o teste verifica',
+      specGap: (id, what, line) => `falta em cards/${id}/spec.md um detalhe que o teste verifica: ${what}. Uma pessoa acrescenta à spec esta linha: ${line} — e depois corre /demo-swarm --retry ${id} (os agentes não mudam specs).`,
     },
+    gaps: { answer: { choice: 'a resposta certa', 'spot-the-flaw': 'os bocados inseguros', order: 'a ordem certa' }, accept: 'as respostas aceites' },
     tasks: {
       title: '# TASKS — Arena de Segurança',
       intro: 'Cada tarefa é feita por um agente. **Este ficheiro é gerado** por `node tools/gen.mjs` a partir de `specs/cards.json` e `specs/tasks.json`.',
@@ -77,6 +91,8 @@ const TEXTS = {
       mode: (id) => `${id}: modo inválido`,
       wrong: (id) => `${id}: precisa de respostas erradas`,
       dependency: (id, d) => `${id}: dependência desconhecida ${d}`,
+      gap: (id, g, t) => `${id}: spec_gaps "${g}" não serve para o modelo ${t} (usa "answer" em choice, spot-the-flaw e order, e "accept" em answer com accept)`,
+      reserved: (id) => `${id}: este id está reservado para o cartão do participante (specs/my-card.json)`,
       problems: 'specs/cards.json tem problemas:',
       outOfDate: (rel) => `desatualizado: ${rel}`,
       outOfDateN: (n) => `${n} ficheiro(s) desatualizados. Corre: node tools/gen.mjs`,
@@ -127,7 +143,10 @@ const TEXTS = {
       returns: 'the interaction should return the right answer',
       safeSource: 'safe source',
       usesHash: 'this card must use ../../lib/hash.js',
+      specComplete: 'spec.md has every detail the test checks',
+      specGap: (id, what, line) => `cards/${id}/spec.md is missing a detail the test checks: ${what}. A person adds this line to the spec: ${line} — then runs /demo-swarm --retry ${id} (agents do not change specs).`,
     },
+    gaps: { answer: { choice: 'the right answer', 'spot-the-flaw': 'the unsafe pieces', order: 'the right order' }, accept: 'the accepted answers' },
     tasks: {
       title: '# TASKS — Security Arena',
       intro: 'Each task is done by one agent. **This file is generated** by `node tools/gen.mjs` from `specs/cards.json` and `specs/tasks.json`.',
@@ -145,6 +164,8 @@ const TEXTS = {
       mode: (id) => `${id}: invalid mode`,
       wrong: (id) => `${id}: needs wrong answers`,
       dependency: (id, d) => `${id}: unknown dependency ${d}`,
+      gap: (id, g, t) => `${id}: spec_gaps "${g}" does not fit the template ${t} (use "answer" with choice, spot-the-flaw and order, and "accept" with answer and accept)`,
+      reserved: (id) => `${id}: this id is reserved for the participant's card (specs/my-card.json)`,
       problems: 'specs/cards.json has problems:',
       outOfDate: (rel) => `out of date: ${rel}`,
       outOfDateN: (n) => `${n} file(s) out of date. Run: node tools/gen.mjs`,
@@ -173,20 +194,47 @@ for (const c of specs.cards) {
   if (!['participant', 'presenter'].includes(c.mode)) errors.push(M.mode(c.id));
   if (!Array.isArray(c.wrong) || c.wrong.length === 0) errors.push(M.wrong(c.id));
   for (const d of c.depends || []) if (!extra.lib.some((l) => l.id === d) && !specs.cards.some((x) => x.id === d)) errors.push(M.dependency(c.id, d));
+  if (c.id === MY_CARD_ID) errors.push(M.reserved(c.id));
+  for (const g of c.spec_gaps || []) {
+    const fits = g === 'answer' ? ['choice', 'spot-the-flaw', 'order'].includes(c.template) : g === 'accept' && c.template === 'answer' && Array.isArray(c.accept);
+    if (!fits) errors.push(M.gap(c.id, g, c.template));
+  }
 }
 if (errors.length) {
   console.error(M.problems + '\n- ' + errors.join('\n- '));
   process.exit(1);
 }
 
+// The participant's card (specs/my-card.json), if there is one.
+const mine = readMyCard(ROOT, specs);
+if (mine.errors.length) {
+  console.error(myCardReport(mine.errors, LANG));
+  process.exit(1);
+}
+const cards = mine.card ? [...specs.cards, mine.card] : specs.cards;
+// The details left out of a broken card's spec.md (none with --no-gaps).
+const gapsOf = (c) => (NO_GAPS ? [] : c.spec_gaps || []);
+
 const j = (v) => JSON.stringify(v);
 const code = (s) => '`' + String(s).replace(/`/g, "'") + '`';
 const tableRow = (cols) => '| ' + cols.map((x) => String(x).replace(/\|/g, '\\|').replace(/\n/g, ' ')).join(' | ') + ' |';
+
+// The spec.md line of a detail that a broken card can leave out ("answer" or "accept"), as gen writes it.
+function detailLine(c, gap) {
+  const X = TEXTS;
+  if (gap === 'accept') return `${X.field('accept')}: \`${j(c.accept)}\``;
+  if (c.template === 'spot-the-flaw') return `${X.unsafeAnswer}: \`${j(c.answer)}\``;
+  if (c.template === 'order') return `${X.orderAnswer}: \`${j(c.answer)}\``;
+  return `${X.field('answer')}: \`${j(c.answer)}\``;
+}
+// What the test looks for in spec.md: a line with the field name and the value (spaces and backticks ignored).
+const gapCheck = (c, gap) => ({ field: gap, value: j(gap === 'accept' ? c.accept : c.answer) });
 
 function specMd(c) {
   const t = TEMPLATES[c.template];
   const L = [];
   const X = TEXTS;
+  const gaps = gapsOf(c);
   L.push(`# ${X.card} ${c.id} — ${c.title}`, '');
   L.push(`- **${X.category}:** ${c.category}`);
   L.push(`- **${X.difficulty}:** ${c.difficulty}`);
@@ -200,20 +248,23 @@ function specMd(c) {
   if (c.template === 'choice') {
     L.push(X.options, '', tableRow(['id', 'text']), tableRow(['---', '---']));
     for (const o of c.options) L.push(tableRow([o.id, o.text]));
-    L.push('', `${X.field('answer')}: \`${j(c.answer)}\``);
+    if (!gaps.includes('answer')) L.push('', detailLine(c, 'answer'));
   } else if (c.template === 'spot-the-flaw') {
     L.push(`${X.field('language')}: \`${j(c.language || 'text')}\``, '', X.segments, '');
-    L.push('```json', JSON.stringify(c.segments, null, 2), '```', '');
-    L.push(`${X.unsafeAnswer}: \`${j(c.answer)}\``);
+    L.push('```json', JSON.stringify(c.segments, null, 2), '```');
+    if (!gaps.includes('answer')) L.push('', detailLine(c, 'answer'));
   } else if (c.template === 'order') {
     L.push(X.items, '', tableRow(['id', 'text']), tableRow(['---', '---']));
     for (const o of c.items) L.push(tableRow([o.id, o.text]));
-    L.push('', `${X.orderAnswer}: \`${j(c.answer)}\``);
+    if (!gaps.includes('answer')) L.push('', detailLine(c, 'answer'));
   } else if (c.template === 'answer') {
-    if (c.placeholder) L.push(`${X.field('placeholder')}: ${code(c.placeholder)}`, '');
-    if (c.accept) L.push(`${X.field('accept')}: \`${j(c.accept)}\``, '');
-    if (c.check) L.push(X.checkLogic, '', c.check, '');
-    L.push(`${X.example}: ${code(c.answer)}`);
+    const P = [];
+    if (c.placeholder) P.push(`${X.field('placeholder')}: ${code(c.placeholder)}`);
+    // Without the accepted answers, the example would give them away: both stay out.
+    if (c.accept && !gaps.includes('accept')) P.push(detailLine(c, 'accept'));
+    if (c.check) P.push([X.checkLogic, '', c.check].join('\n'));
+    if (!gaps.includes('accept')) P.push(`${X.example}: ${code(c.answer)}`);
+    L.push(P.join('\n\n'));
   }
   L.push('', `## ${X.explanation}`, '', c.explanation, '');
   L.push(`## ${X.doneWhen}`, '', '```', `node --test cards/${c.id}/card.test.js`, '```', '', X.passes, '');
@@ -248,13 +299,29 @@ function testJs(c) {
   const cmp = c.template === 'choice' || c.template === 'answer' ? 'equal' : 'deepEqual';
   const X = TEXTS.test;
   const q = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  // A broken card: the test also checks that spec.md has the details gen left out (only in Node: the server
+  // does not serve .md files to the browser).
+  const gaps = (c.spec_gaps || []).map((g) => ({ ...gapCheck(c, g), message: X.specGap(c.id, g === 'accept' ? TEXTS.gaps.accept : TEXTS.gaps.answer[c.template], detailLine(c, g)) }));
+  const gapTest = gaps.length
+    ? `
+const GAPS = ${JSON.stringify(gaps)};
+const flat = (s) => String(s).replace(/[\\s\`]/g, '').replace(/'/g, '"').toLowerCase();
+
+if (environment === 'node') {
+  test('${c.id}: ${q(X.specComplete)}', async () => {
+    const lines = (await readSource('./spec.md', import.meta.url)).split('\\n').map(flat);
+    for (const g of GAPS) assert.ok(lines.some((l) => l.includes(g.field) && l.includes(flat(g.value))), g.message);
+  });
+}
+`
+    : '';
   return `${X.generated}
 // ${X.card} ${c.id}: ${c.title}
-import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
+import { test, assert, readSource, newContainer${gaps.length ? ', environment' : ''} } from '../../lib/testkit.js';
 import { cardProblems } from '../../lib/security.js';
 
 const SPEC = ${JSON.stringify(spec)};
-
+${gapTest}
 let card = null;
 let loadError = null;
 try {
@@ -310,8 +377,8 @@ function tasksMd() {
   const X = TEXTS.tasks;
   const L = [X.title, ''];
   L.push(X.intro, '');
-  L.push(X.participant(specs.cards.length));
-  L.push(X.presenter(specs.cards.length), '');
+  L.push(X.participant(cards.length));
+  L.push(X.presenter(cards.length), '');
   L.push(X.support, '', tableRow(X.supportColumns), tableRow(['---', '---', '---', '---', '---']));
   const dep = (d) => (d === '*cards' ? X.allCards : d);
   for (const t of [...extra.lib, ...extra.pages, extra.integration, extra.review]) {
@@ -319,7 +386,7 @@ function tasksMd() {
   }
   L.push('');
   for (const cat of specs.categories) {
-    const cs = specs.cards.filter((c) => c.category === cat.id);
+    const cs = cards.filter((c) => c.category === cat.id);
     if (!cs.length) continue;
     L.push(`## ${cat.name}`, '', tableRow(X.cardColumns), tableRow(['---', '---', '---', '---', '---']));
     for (const c of cs) L.push(tableRow([c.id, c.template, c.title, c.concept, (c.depends || []).join(', ') || '—']));
@@ -328,11 +395,25 @@ function tasksMd() {
   return L.join('\n');
 }
 
+// Whether `current` has every line of `generated`, in the same order (a person only added lines to it).
+function extends_(current, generated) {
+  const have = current.split('\n');
+  let i = 0;
+  for (const line of generated.split('\n')) {
+    while (i < have.length && have[i] !== line) i++;
+    if (i === have.length) return false;
+    i++;
+  }
+  return true;
+}
+
 let changed = 0;
-function write(rel, content) {
+function write(rel, content, { keepCompleted = false } = {}) {
   const p = join(ROOT, rel);
-  const current = existsSync(p) ? readFileSync(p, 'utf8') : null;
+  const current = existsSync(p) ? readFileSync(p, 'utf8').replace(/\r\n/g, '\n') : null;
   if (current === content) return;
+  // The spec of a broken card that a person completed: kept (re-running gen does not undo the fix).
+  if (keepCompleted && current !== null && extends_(current, content)) return;
   changed++;
   if (CHECK) {
     console.error(M.outOfDate(rel));
@@ -342,8 +423,8 @@ function write(rel, content) {
   writeFileSync(p, content, 'utf8');
 }
 
-for (const c of specs.cards) {
-  write(`cards/${c.id}/spec.md`, specMd(c));
+for (const c of cards) {
+  write(`cards/${c.id}/spec.md`, specMd(c), { keepCompleted: gapsOf(c).length > 0 });
   write(`cards/${c.id}/card.test.js`, testJs(c));
 }
 write('TASKS.md', tasksMd());
@@ -352,4 +433,4 @@ if (CHECK && changed) {
   console.error(M.outOfDateN(changed));
   process.exit(1);
 }
-console.log(CHECK ? M.upToDate : M.written(specs.cards.length, changed));
+console.log(CHECK ? M.upToDate : M.written(cards.length, changed));

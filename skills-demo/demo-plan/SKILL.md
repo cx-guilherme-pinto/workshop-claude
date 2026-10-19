@@ -1,7 +1,7 @@
 ---
 name: demo-plan
 description: Plans the Security Arena swarm. Reads TASKS.md, generates the dependency graph (plan.json + PLAN.md with a Mermaid diagram), shows the waves and the cost estimate. First step of Project 1 of the workshop.
-argument-hint: "[--mode participant|presenter] [--auto]"
+argument-hint: "[--mode participant|presenter] [--crypto sonnet|haiku] [--auto]"
 model: sonnet
 disable-model-invocation: true
 allowed-tools:
@@ -19,18 +19,26 @@ allowed-tools:
 
 Arguments: `$ARGUMENTS`. With `--auto` you ask no questions, because it is the benchmark mode. The default mode is `participant`.
 
+**The cost decision (`--crypto`).** `lib-hash` and the cryptography cards that depend on it are the riskiest tasks of wave 1. The participant decides which model builds them:
+- `--crypto sonnet` (the default): Sonnet, safer and more expensive;
+- `--crypto haiku`: Haiku, cheaper; then the planner cannot promote them to Sonnet either.
+The other cards always start on Haiku. Only pass `--crypto` when the participant gave it; never choose for them.
+
+**Your card.** If the participant created `specs/my-card.json` and ran `node tools/gen.mjs`, the plan has one more card, `my-01`, built with Haiku like the others. If `plan.mjs` shows problems in `specs/my-card.json`, show them as they are and stop: the participant fixes the file and runs `node tools/gen.mjs` again.
+
 Do these steps in order, without exploring the project beyond what is asked:
 
 1. **Memory.** If the `memory_search` tool exists, call it with `text: "arena swarm"` and `project: "security-arena"`. Keep the lessons (up to 5, one line each). If it does not exist, say in one line that the memory app is not installed and continue.
-2. **Generate the graph.** Run `node tools/plan.mjs --mode <mode>`. The DAG comes from the specs and is deterministic.
+2. **Generate the graph.** Run `node tools/plan.mjs --mode <mode>`, or `node tools/plan.mjs --mode <mode> --crypto <sonnet|haiku>` when the participant gave `--crypto`. The DAG comes from the specs and is deterministic.
 3. **Planner (Opus).** Launch **one** `planner` subagent with this prompt:
    > Review the Arena plan. Read .workshop/plan-summary.md. Lessons from memory: <the lessons, or "none">. Write .workshop/planner.json.
 4. **Apply.** Run `node tools/plan.mjs --apply .workshop/planner.json`.
 5. **Show** the participant, in compact form:
    - the table of the 4 waves;
    - the Mermaid block from `PLAN.md`, copied exactly as it is;
+   - the cryptography line from `PLAN.md` (the model chosen and how to change it), exactly as it is;
    - the cost estimate table, with the US$ 5 target and the US$ 10 cap;
    - the planner's adjustments, in one or two lines.
-6. Without `--auto`, end with: "Plan ready. To run it: `/demo-swarm`". With `--auto`, end only with `PLAN OK`.
+6. Without `--auto`, end with: "Plan ready. To run it: `/demo-swarm`". If the participant did not choose `--crypto`, add in one line that cryptography is on Sonnet and that `/demo-plan --crypto haiku` makes it cheaper. With `--auto`, end only with `PLAN OK`.
 
 Do not read the whole `TASKS.md`: `plan.mjs` already summarises it.

@@ -72,7 +72,7 @@ Yes: `/btw <question>`. The answer does not go into the main conversation. It op
 - In another terminal: `node tools/workshop/orchestrator/dashboard.mjs`.
 
 **A card turned red. Now what?**
-The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, `/demo-review` shows why. To keep going until everything is green: `/loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green`.
+The orchestrator retries it by itself, first with Haiku and the error message, then with Sonnet. If it still fails, ask "why did this card fail?": the card's test message says what is wrong (on `/status`, or with `node --test cards/<id>/card.test.js`). Four cards are broken on purpose: their `spec.md` is missing a detail and no agent may change a spec. Add the line the message gives to `cards/<id>/spec.md` and run only that card again with `/demo-swarm --retry <id>`.
 
 **I got "Is this a project you created or one you trust?" (or "Do you trust the files in this folder?").**
 That is Claude Code asking if you trust the folder. In the Arena, answer yes: without it, the project permissions (`.claude/settings.json`) stay off and the swarm stops to ask for permission. Careful: because the Arena pre-approves some permissions, recent versions of Claude Code open this dialog with **No, exit** selected. Press the down arrow to pick **Yes, I trust this folder** and then Enter. If Claude Code closed, run `claude` again in the same folder.

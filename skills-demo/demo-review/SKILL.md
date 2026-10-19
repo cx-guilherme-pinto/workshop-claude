@@ -33,7 +33,7 @@ Arguments: `$ARGUMENTS`. With `--auto` you ask no questions.
    - XSS and CSP (A03/A05);
    - secrets (A02/A07);
    - dependencies (A06).
-4. If the verdict has issues, list them with severity, file and suggested fix. Do not fix anything on your own. Without `--auto`, suggest `/loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green`.
+4. If the verdict has issues, list them with severity, file and suggested fix. Do not fix anything on your own. Without `--auto`, if some cards failed, suggest asking "why did this card fail?" for one of them: its test message says what is wrong (on `/status` or with `node --test cards/<id>/card.test.js`). When a card's `spec.md` is missing a detail, the participant adds the line the message gives (agents never change specs) and runs `/demo-swarm --retry <id>`.
 5. End with `GATE: APPROVED` or `GATE: REJECTED`, as the script said.
 
 A security game with security flaws would be the worst possible example. That is why this gate is mandatory before playing.

@@ -5,7 +5,7 @@
 //
 // Serves only the folders on a list (public/ at the root, cards/, templates/, lib/, pages/, replays/),
 // with strict headers (CSP with no inline code) on every response, and the API of /status:
-//   /api/cards            the cards that exist + the metadata from specs/cards.json
+//   /api/cards            the cards that exist + the metadata from specs/cards.json (and specs/my-card.json)
 //   /api/status           the swarm snapshot (tools/workshop/orchestrator/lib/state.mjs)
 //   /api/events           the same, by SSE, whenever .workshop/ changes (checked every 1 s)
 //   /api/replay/<name>    replays/<name>/events.jsonl + snapshot.json for the replay mode
@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { T } from './lib/texts.js';
 import { normalizeEvent, normalizeSnapshot } from './tools/snapshot.mjs';
 import { enginePath, planMode, planTasks } from './tools/engine.mjs';
+import { readMyCard } from './tools/my-card.mjs';
 
 const S = T.server;
 
@@ -232,7 +233,9 @@ export function listCards(root = ROOT) {
   };
   const seen = new Set();
   const cards = [];
-  for (const c of Array.isArray(specs.cards) ? specs.cards : []) {
+  // "Your card" (specs/my-card.json) comes after the others, like in TASKS.md and in the plan.
+  const mine = readMyCard(root, specs).card;
+  for (const c of [...(Array.isArray(specs.cards) ? specs.cards : []), ...(mine ? [mine] : [])]) {
     if (!c || !ID.test(String(c.id)) || seen.has(c.id)) continue;
     seen.add(c.id);
     cards.push({

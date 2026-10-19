@@ -23,8 +23,6 @@ Campo `items` (já baralhados; mantém esta ordem):
 | c | Sair sem deixar rasto |
 | d | Criar confiança com uma história credível |
 
-Campo `answer` (ordem certa): `["a","d","b","c"]`
-
 ## Explicação (campo `explanation`)
 
 Quanto mais o atacante sabe sobre ti, mais credível é a história. Partilha menos detalhes do trabalho em público.
