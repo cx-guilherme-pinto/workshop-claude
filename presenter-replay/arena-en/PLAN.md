@@ -2,14 +2,16 @@
 
 | wave | model | what | in parallel |
 |---|---|---|---|
-| 1 | Haiku | `lib-hash` + 100 cards (cr-01, cr-02, cr-03, cr-04, cr-06 wait for `lib-hash`) | up to 8 |
+| 1 | Haiku + Sonnet | `lib-hash` + 100 cards (cr-01, cr-02, cr-03, cr-04, cr-06 wait for `lib-hash`) | up to 8 |
 | 2 | Sonnet | category page + score table | 2 |
 | 3 | Sonnet | integration and full suite; cards that fail twice are redone in Sonnet | 1+ |
 | 4 | Opus | security and quality review, final verdict | 1 |
 
+Cryptography (`lib-hash` + cr-01, cr-02, cr-03, cr-04, cr-06): **Sonnet**. To change it: `/demo-plan --crypto haiku`.
+
 ```mermaid
 flowchart LR
-  hash["lib-hash<br/>Haiku"]
+  hash["lib-hash<br/>Sonnet"]
   pw_01["pw-01<br/>Haiku"]
   pw_01 --> pages
   pw_02["pw-02<br/>Haiku"]
@@ -130,21 +132,21 @@ flowchart LR
   es_09 --> pages
   es_10["es-10<br/>Haiku"]
   es_10 --> pages
-  cr_01["cr-01<br/>Haiku"]
+  cr_01["cr-01<br/>Sonnet"]
   hash --> cr_01
   cr_01 --> pages
-  cr_02["cr-02<br/>Haiku"]
+  cr_02["cr-02<br/>Sonnet"]
   hash --> cr_02
   cr_02 --> pages
-  cr_03["cr-03<br/>Haiku"]
+  cr_03["cr-03<br/>Sonnet"]
   hash --> cr_03
   cr_03 --> pages
-  cr_04["cr-04<br/>Haiku"]
+  cr_04["cr-04<br/>Sonnet"]
   hash --> cr_04
   cr_04 --> pages
   cr_05["cr-05<br/>Haiku"]
   cr_05 --> pages
-  cr_06["cr-06<br/>Haiku"]
+  cr_06["cr-06<br/>Sonnet"]
   hash --> cr_06
   cr_06 --> pages
   cr_07["cr-07<br/>Haiku"]
@@ -224,15 +226,15 @@ flowchart LR
 
 | type | model | agents | cost per agent | subtotal |
 |---|---|---|---|---|
-| worker | Haiku 5.5 | 101 (+11 retries) | US$ 0.0017 | US$ 0.19 |
-| implementer | Sonnet 5.5 | 2 | US$ 0.0411 | US$ 0.0821 |
+| implementer | Sonnet 5.5 | 8 (+1 retry) | US$ 0.0411 | US$ 0.37 |
+| worker | Haiku 5.5 | 95 (+10 retries) | US$ 0.0017 | US$ 0.18 |
 | integrator | Sonnet 5.5 | 1 | US$ 0.0247 | US$ 0.0247 |
 | reviewer | Opus 5.5 | 1 | US$ 0.30 | US$ 0.30 |
 | planner | Opus 5.5 | 1 | US$ 0.0310 | US$ 0.0310 |
 | memory-extractor | Haiku 5.5 | 1 | US$ 0.0020 | US$ 0.0020 |
 | main session | Sonnet 5.5 | 1 | US$ 0.13 | US$ 2.56 |
-| safety margin (15%) | — | — | — | US$ 0.48 |
-| **estimated total** | | | | **US$ 3.66** |
+| safety margin (15%) | — | — | — | US$ 0.52 |
+| **estimated total** | | | | **US$ 3.98** |
 
 Target: US$ 5.00 · cap: US$ 10.00. Within the target. The run is never stopped because of cost.
 

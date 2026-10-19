@@ -27,6 +27,7 @@ The server only accepts connections from this computer (127.0.0.1).
 | Folder or file | Contents |
 |---|---|
 | `specs/cards.json` | The cards and the categories. `node tools/gen.mjs` generates the specs, the tests and `TASKS.md` from it |
+| `specs/my-card.example.json` | The example of your card (see "Your decisions") |
 | `cards/<id>/` | `spec.md` and `card.test.js` come ready-made; `card.js` is written by an agent (see `cards/CONTRACT.md`) |
 | `templates/` | The 4 card templates: choice, spot-the-flaw, order and answer |
 | `lib/` | Tests that run in Node and in the browser (`testkit.js`, `fakedom.js`), security checks (`security.js`), the texts (`texts.js`) and `hash.js` (wave 1) |
@@ -36,7 +37,7 @@ The server only accepts connections from this computer (127.0.0.1).
 | `test/app.test.js` | Security tests for the app: headers, refused paths and source code without dangerous patterns |
 | `replays/` | Replays for `/status` (format in `replays/README.md`) |
 | `specs/tasks.json` and `specs/*.md` | The support tasks: `lib-hash`, `category-page`, `score-table`, `integration` and `review` |
-| `tools/` | `gen.mjs`, `plan.mjs` (swarm plan), `check-integration.mjs`, `review-digest.mjs`, `reset.mjs` and `routine.mjs` |
+| `tools/` | `gen.mjs` (and `my-card.mjs`), `plan.mjs` (swarm plan), `check-integration.mjs`, `review-digest.mjs`, `reset.mjs` and `routine.mjs` |
 | `DESIGN.md` | The design system, on one page |
 
 ## The swarm
@@ -52,3 +53,14 @@ In Claude Code, inside this folder:
 3. `/demo-reset` goes back to the start with `node tools/reset.mjs`. The history of each run is kept in `.workshop/history/`.
 
 The results of each task are in `.workshop/status/` and the costs in `.workshop/usage.jsonl`. `/status` reads both.
+
+## Your decisions
+
+- **Your card.** Copy the example and change it: title, concept, prompt, `template` (`spot-the-flaw`, `choice`, `order` or `answer`) and that template's fields (`category` is optional; without it, `secure-code`).
+  ```
+  cp specs/my-card.example.json specs/my-card.json          # Windows: Copy-Item specs\my-card.example.json specs\my-card.json
+  node tools/gen.mjs
+  ```
+  `gen.mjs` says which field is wrong and gives an example. It generates the card `my-01`, which goes into the plan (101 cards), the gallery and `/status`, and the swarm builds it with Haiku. Without `specs/my-card.json` nothing changes.
+- **The cards broken on purpose.** The `spec.md` of four cards is missing a detail that the test checks, and no agent may change a spec. When one turns red, ask why it failed: the test message says which line is missing. Add it to `cards/<id>/spec.md` and run only that card again: `/demo-swarm --retry <id>` (or `node tools/workshop/orchestrator/next-wave.mjs --retry <id>`).
+- **The cost of cryptography.** `lib-hash` and the cards that depend on it go to Sonnet by default. `/demo-plan --crypto haiku` (or `node tools/plan.mjs --crypto haiku`) keeps them on Haiku, which is cheaper; `--crypto sonnet` goes back to Sonnet.

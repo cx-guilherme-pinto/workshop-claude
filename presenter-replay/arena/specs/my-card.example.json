@@ -1,0 +1,17 @@
+{
+  "_help": "O teu cartão. Copia este ficheiro para specs/my-card.json, muda os textos e corre: node tools/gen.mjs. O template é um destes: spot-the-flaw, choice, order ou answer. Exemplos de cada um em specs/cards.json.",
+  "title": "O token no ecrã partilhado",
+  "category": "secure-code",
+  "difficulty": 1,
+  "template": "choice",
+  "concept": "Um segredo que apareceu num ecrã partilhado já não é segredo: revoga-o e cria outro.",
+  "prompt": "Numa videochamada partilhaste o ecrã com o ficheiro .env aberto e o token da API ficou à vista. O que fazes primeiro?",
+  "options": [
+    { "id": "a", "text": "Fecho o ficheiro e espero que ninguém tenha reparado" },
+    { "id": "b", "text": "Revogo o token e crio um novo" },
+    { "id": "c", "text": "Peço a todos que apaguem a gravação da chamada" },
+    { "id": "d", "text": "Mudo o nome da variável no .env" }
+  ],
+  "answer": "b",
+  "explanation": "Quem viu o ecrã, ou vê a gravação, pode ter copiado o token. Só revogá-lo o torna inútil. Guarda o novo num gestor de segredos, fora do ecrã."
+}

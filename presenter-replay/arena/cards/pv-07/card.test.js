@@ -1,9 +1,19 @@
 // GERADO por tools/gen.mjs a partir de specs/cards.json. Não editar à mão.
 // Cartão pv-07: Sem cookies e ainda te reconhecem
-import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
+import { test, assert, readSource, newContainer, environment } from '../../lib/testkit.js';
 import { cardProblems } from '../../lib/security.js';
 
 const SPEC = {"id":"pv-07","category":"privacy","template":"choice","answer":"a","wrong":["b","c","d"],"depends":[]};
+
+const GAPS = [{"field":"answer","value":"\"a\"","message":"falta em cards/pv-07/spec.md um detalhe que o teste verifica: a resposta certa. Uma pessoa acrescenta à spec esta linha: Campo `answer`: `\"a\"` — e depois corre /demo-swarm --retry pv-07 (os agentes não mudam specs)."}];
+const flat = (s) => String(s).replace(/[\s`]/g, '').replace(/'/g, '"').toLowerCase();
+
+if (environment === 'node') {
+  test('pv-07: a spec.md tem todos os detalhes que o teste verifica', async () => {
+    const lines = (await readSource('./spec.md', import.meta.url)).split('\n').map(flat);
+    for (const g of GAPS) assert.ok(lines.some((l) => l.includes(g.field) && l.includes(flat(g.value))), g.message);
+  });
+}
 
 let card = null;
 let loadError = null;

@@ -1,0 +1,17 @@
+{
+  "_help": "Your card. Copy this file to specs/my-card.json, change the texts and run: node tools/gen.mjs. The template is one of: spot-the-flaw, choice, order or answer. There are examples of each one in specs/cards.json.",
+  "title": "The token on the shared screen",
+  "category": "secure-code",
+  "difficulty": 1,
+  "template": "choice",
+  "concept": "A secret that showed up on a shared screen is no longer a secret: revoke it and create a new one.",
+  "prompt": "In a video call you shared your screen with the .env file open, and the API token was visible. What do you do first?",
+  "options": [
+    { "id": "a", "text": "Close the file and hope nobody noticed" },
+    { "id": "b", "text": "Revoke the token and create a new one" },
+    { "id": "c", "text": "Ask everyone to delete the call recording" },
+    { "id": "d", "text": "Rename the variable in .env" }
+  ],
+  "answer": "b",
+  "explanation": "Anyone who saw the screen, or watches the recording, may have copied the token. Only revoking it makes it useless. Keep the new one in a secrets manager, off the screen."
+}

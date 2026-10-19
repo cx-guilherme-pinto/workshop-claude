@@ -243,12 +243,12 @@ Answer in the participant's language.`,
   {
     seccao: 'Projeto 1', tipo: 'faca', min: 2,
     titulo: 'Solta o swarm',
-    passos: ['Corre /demo-swarm', 'Abre um segundo terminal', 'Arranca o servidor e abre a página /status no browser'],
+    passos: ['Corre /demo-swarm', 'Abre um segundo terminal', 'Arranca o servidor e abre o endereço /status que ele mostra'],
     comandos: [
       { rotulo: 'Terminal 1', cmd: '/demo-swarm' },
       { rotulo: 'Terminal 2', cmd: 'cd ~/workshop-claude/demo-project\nnode server.js' },
     ],
-    esperado: 'http://localhost:3000/status: os quadrados ficam amarelos e depois verdes',
+    esperado: 'Em /status (normalmente http://localhost:3000/status; se a porta estiver ocupada, o node server.js mostra outra): os quadrados ficam amarelos e depois verdes',
     notas: 'Previsão, antes de carregar em Enter: cada pessoa escreve no Teams quanto acha que vai custar e quantos cartões vão ficar vermelhos. A partir daqui o swarm trabalha alguns minutos ({{P1_SWARM}} na execução de referência; mais com contas novas). Os próximos quatro slides (9 minutos) fazem-se durante essa espera; quem acabar primeiro joga a Arena.',
   },
   {

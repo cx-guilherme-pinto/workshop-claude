@@ -243,12 +243,12 @@ Answer in the participant's language.`,
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,
     titulo: 'Release the swarm',
-    passos: ['Run /demo-swarm', 'Open a second terminal', 'Start the server and open the /status page in the browser'],
+    passos: ['Run /demo-swarm', 'Open a second terminal', 'Start the server and open the /status address it prints'],
     comandos: [
       { rotulo: 'Terminal 1', cmd: '/demo-swarm' },
       { rotulo: 'Terminal 2', cmd: 'cd ~/workshop-claude/demo-project\nnode server.js' },
     ],
-    esperado: 'http://localhost:3000/status: the squares turn yellow and then green',
+    esperado: 'On /status (usually http://localhost:3000/status; if the port is busy, node server.js prints another one): the squares turn yellow and then green',
     notas: 'Prediction, before pressing Enter: each person writes in Teams how much they think it will cost and how many cards will end up red. From here the swarm works for a few minutes ({{P1_SWARM}} in the reference run; longer with new accounts). The next four slides (9 minutes) happen during that wait; whoever finishes first plays the Arena.',
   },
   {

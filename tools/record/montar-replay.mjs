@@ -58,6 +58,8 @@ rmSync(join(dest, '.arena-kit.json'), { force: true });
 const SOL = join(KIT, 'dev', 'solutions');
 cpSync(SOL, dest, { recursive: true, filter: (p) => resolve(p) !== resolve(SOL, 'i18n') });
 if (existsSync(join(SOL, 'i18n', lingua))) cpSync(join(SOL, 'i18n', lingua), dest, { recursive: true });
+// Os cartoes partidos de proposito (spec sem um detalhe) ficam completos: o replay e o jogo do plano B.
+spawnSync(process.execPath, ['tools/gen.mjs', '--no-gaps'], { cwd: dest, encoding: 'utf8', env: { ...process.env, WORKSHOP_LANG: lingua } });
 const plano = spawnSync(process.execPath, ['tools/plan.mjs', '--mode', modoPlano], { cwd: dest, encoding: 'utf8', env: { ...process.env, WORKSHOP_LANG: lingua } });
 if (plano.status !== 0) { console.error(plano.stderr || plano.stdout); process.exit(1); }
 

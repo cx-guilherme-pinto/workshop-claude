@@ -1,9 +1,19 @@
 // GERADO por tools/gen.mjs a partir de specs/cards.json. Não editar à mão.
 // Cartão rd-09: O router mal configurado
-import { test, assert, readSource, newContainer } from '../../lib/testkit.js';
+import { test, assert, readSource, newContainer, environment } from '../../lib/testkit.js';
 import { cardProblems } from '../../lib/security.js';
 
 const SPEC = {"id":"rd-09","category":"networks","template":"spot-the-flaw","answer":[1,3],"wrong":[[1],[3],[0],[2,4]],"depends":[]};
+
+const GAPS = [{"field":"answer","value":"[1,3]","message":"falta em cards/rd-09/spec.md um detalhe que o teste verifica: os bocados inseguros. Uma pessoa acrescenta à spec esta linha: Campo `answer` (índices inseguros): `[1,3]` — e depois corre /demo-swarm --retry rd-09 (os agentes não mudam specs)."}];
+const flat = (s) => String(s).replace(/[\s`]/g, '').replace(/'/g, '"').toLowerCase();
+
+if (environment === 'node') {
+  test('rd-09: a spec.md tem todos os detalhes que o teste verifica', async () => {
+    const lines = (await readSource('./spec.md', import.meta.url)).split('\n').map(flat);
+    for (const g of GAPS) assert.ok(lines.some((l) => l.includes(g.field) && l.includes(flat(g.value))), g.message);
+  });
+}
 
 let card = null;
 let loadError = null;

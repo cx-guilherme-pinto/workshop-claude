@@ -3,6 +3,7 @@
 // The model does not decide the graph: it only launches exactly the calls this script returns.
 //
 //   node next-wave.mjs [--project <dir>] [--plan <plan.json>] [--max <n>]
+//   node next-wave.mjs --retry <id>      runs ONLY that task again (repeat the same command until STATE: DONE)
 //
 // On each call:
 //   1. grades the tasks of the previous batch;
@@ -10,6 +11,12 @@
 //   3. picks the ready tasks (dependencies finished), up to the parallel maximum;
 //   4. prints the previous batch's table and the CALLS block with the next batch.
 // When there is nothing left to do, it prints STATE: DONE.
+//
+// --retry <id>: the first call puts that task back to "to do" (attempts from zero, so the plan's agent first,
+// usually Haiku) and returns a batch with only that task. Nothing else changes: the other tasks, the spend and
+// the files (a spec.md the participant completed stays as it is). The next calls with the same --retry grade it
+// and, while it is red and has attempts left, launch it again (the last attempt on Sonnet, as usual). When it is
+// green or failed for good, it prints the usual STATE: DONE line.
 // The texts (table, warnings, subagent prompts) are in the kit language; the markers
 // (STATE: ..., <<<CALLS, TASK:/AGENT:/ATTEMPT:) are English in both languages.
 import { fileURLToPath } from 'node:url';
@@ -20,7 +27,7 @@ import { caminhos, garantirPastas, lerPlano, todosEstados, gravarEstado, lerJson
 import { avaliarVarias } from './grade.mjs';
 import { tabelaMarkdown, linhaResumo, usd, tempo } from './lib/table.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { opt } from './lib/args.mjs';
+import { opt, flag } from './lib/args.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -41,6 +48,10 @@ const TEXTOS = {
     semTarefas: 'O plano não tem tarefas: volta a planear (/demo-plan ou /task-plan).',
     ocupado: (pid) => `outro next-wave já está a correr neste projeto (pid ${pid}): espera que termine e volta a correr este comando. Se nenhum estiver a correr, apaga .workshop/next-wave.lock.`,
     corrupto: (fs) => `ficheiro(s) de estado ilegível(is): ${fs}. Apaga-o(s) para refazer essa(s) tarefa(s), ou recomeça (/demo-reset na Arena).`,
+    semRetry: (id) => `a tarefa ${id} não está no plano. Os ids estão no /status e no PLAN.md (por exemplo: --retry pw-01).`,
+    faltaId: 'falta o id da tarefa: --retry <id> (por exemplo: --retry pw-01).',
+    retryEspera: (id, deps) => `${id} ainda espera por ${deps}: corre primeiro o swarm (/demo-swarm) e repete depois.`,
+    retryFim: (id, e) => `Repetição de ${id}: ${e === 'verde' ? 'verde' : 'falhou outra vez (vê o motivo no /status)'}.`,
   },
   en: {
     falhou: (n) => `Attempt ${n} failed. Test excerpt:`,
@@ -56,12 +67,19 @@ const TEXTOS = {
     semTarefas: 'The plan has no tasks: plan again (/demo-plan or /task-plan).',
     ocupado: (pid) => `another next-wave is already running in this project (pid ${pid}): wait for it to finish, then run this command again. If none is running, delete .workshop/next-wave.lock.`,
     corrupto: (fs) => `unreadable state file(s): ${fs}. Delete it to redo that task, or start over (/demo-reset in the Arena).`,
+    semRetry: (id) => `the task ${id} is not in the plan. The ids are in /status and in PLAN.md (for example: --retry pw-01).`,
+    faltaId: 'the task id is missing: --retry <id> (for example: --retry pw-01).',
+    retryEspera: (id, deps) => `${id} still waits for ${deps}: run the swarm first (/demo-swarm), then retry.`,
+    retryFim: (id, e) => `Retry of ${id}: ${e === 'verde' ? 'green' : 'failed again (see why in /status)'}.`,
   },
 };
 
 function args(argv) {
-  const o = { projeto: opt(argv, '--project', process.cwd()), plano: opt(argv, '--plan'), max: opt(argv, '--max') };
+  const o = { projeto: opt(argv, '--project', process.cwd()), plano: opt(argv, '--plan'), max: opt(argv, '--max'), retry: opt(argv, '--retry') };
   o.max = o.max === null ? null : Number(o.max);
+  // "--retry" with no id (or followed by another option) is an error, not a normal run.
+  if (flag(argv, '--retry') && (!o.retry || o.retry.startsWith('--'))) o.retry = '';
+  o.retry = o.retry === null ? null : o.retry.trim();
   o.plano ||= resolverNoProjeto(o.projeto, 'plan.json');
   return o;
 }
@@ -161,13 +179,17 @@ export async function proximaOnda(o) {
   }
 }
 
-async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l }) {
+async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry = null }) {
   const c = caminhos(projeto);
   const T = textos(TEXTOS, l);
   const plano = lerPlano(caminhoPlano, l);
   const cfg = plano.config || {};
   const maxTent = cfg.max_tentativas ?? 3;
   const escalar = cfg.escalar_para || null;
+  // --retry <id>: only that task (see the header).
+  if (retry === '') throw new Error(T.faltaId);
+  const repetir = retry ? plano.tarefas.find((t) => t.id === retry) : null;
+  if (retry && !repetir) throw new Error(T.semRetry(retry));
 
   // Pointer, so the hooks know how to grade this project's tasks.
   escreverJson(c.ponteiro, { plan: caminhoPlano, grade: join(AQUI, 'grade.mjs'), node: process.execPath });
@@ -192,12 +214,25 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l }) {
   // A status file that cannot be read: stop and name it, instead of relaunching that task as attempt 1.
   const maus = [...estados.values()].filter((s) => s.corrupto).map((s) => s.corrupto);
   if (maus.length) throw new Error(T.corrupto(maus.join(', ')));
+  // A retry whose task is not running yet starts here; one whose task is running is a later call of the same retry.
+  const comecaRetry = !!repetir && estados.get(repetir.id).estado !== 'em_curso';
+  if (comecaRetry) {
+    const espera = (repetir.depende || []).filter((d) => !TERMINAL_OK.has(estados.get(d)?.estado));
+    if (espera.length) throw new Error(T.retryEspera(repetir.id, espera.join(', ')));
+  }
   const loteAnterior = plano.tarefas.filter((t) => estados.get(t.id).estado === 'em_curso');
   if (loteAnterior.length) await avaliarVarias(projeto, plano, loteAnterior);
+  if (comecaRetry) {
+    // Back to "to do", attempts from zero; the previous result goes to the events log.
+    const antes = estados.get(repetir.id);
+    gravarEstado(c, { tarefa: repetir.id, estado: 'por_fazer', tentativa: 0, repeticoes: (antes.repeticoes || 0) + 1 });
+    evento(c, { tipo: 'retry', tarefa: repetir.id, antes: antes.estado, tentativa: antes.tentativa || 0 });
+  }
   estados = todosEstados(c, plano);
 
-  // 2. Pick the ready tasks.
+  // 2. Pick the ready tasks (with --retry, only that one).
   const prontas = plano.tarefas.filter((t) => {
+    if (repetir && t.id !== repetir.id) return false;
     const st = estados.get(t.id);
     const podeTentar = st.estado === 'por_fazer' || (st.estado === 'vermelho' && (st.tentativa || 0) < maxTent);
     return podeTentar && (t.depende || []).every((d) => TERMINAL_OK.has(estados.get(d)?.estado));
@@ -242,11 +277,12 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l }) {
     evento(c, { tipo: 'fim', contagem: f.contagem, custo: f.custo });
   }
   escreverJson(c.run, run);
-  return { plano, f, loteAnterior, lote, chamadas, pendentes, run };
+  return { plano, f, loteAnterior, lote, chamadas, pendentes, run, retry: repetir?.id ?? null };
 }
 
 // Text the skill reads: the previous batch's table, the progress line and the STATE marker.
-export function textoOnda({ f, loteAnterior, lote, chamadas, pendentes, run }, l = lingua()) {
+// With --retry, the run ends (STATE: DONE) when that task is green or failed for good, even if others are pending.
+export function textoOnda({ f, loteAnterior, lote, chamadas, pendentes, run, retry = null }, l = lingua()) {
   const T = textos(TEXTOS, l);
   const out = [];
   if (loteAnterior.length) {
@@ -260,9 +296,10 @@ export function textoOnda({ f, loteAnterior, lote, chamadas, pendentes, run }, l
     out.push(...T.cabecalho, ...chamadas.map((ch) => `| ${ch.description.split(' · ')[0]} | ${ch.description.split(' · ')[1]} | ${ch.subagent_type} |`), '');
     out.push(T.lanca, '');
     out.push('<<<CALLS', JSON.stringify(chamadas, null, 2), 'CALLS>>>');
-  } else if (pendentes > 0) {
+  } else if (pendentes > 0 && !retry) {
     out.push(T.bloqueado);
   } else {
+    if (retry) out.push(T.retryFim(retry, f.tarefas.find((t) => t.id === retry)?.estado), '');
     if (f.total === 0) out.push(T.semTarefas, '');
     const dur = run.inicio && run.fim ? (Date.parse(run.fim) - Date.parse(run.inicio)) / 1000 : null;
     out.push(T.fim(f.contagem.verde, f.contagem.falhou, tempo(dur), usd(f.custo.total, l)));
