@@ -168,7 +168,19 @@
     "s1_portatil": "git {VERSAO} (portátil do workshop, sem as ferramentas da Apple)",
     "lingua_pt": "português",
     "lingua_en": "inglês",
-    "s12_cloud": "O Claude Code usa a {CLOUD} e não o Console. Faz o login nessa cloud neste terminal (no Bedrock: aws sso login, ou define AWS_PROFILE e AWS_REGION), confirma que os modelos Haiku, Sonnet e Opus estão ativos lá e volta a correr o setup."
+    "s12_cloud": "O Claude Code usa a {CLOUD} e não o Console. Faz o login nessa cloud neste terminal (no Bedrock: aws sso login, ou define AWS_PROFILE e AWS_REGION), confirma que os modelos Haiku, Sonnet e Opus estão ativos lá e volta a correr o setup.",
+    "card_titulo": "Workshop Claude · Orquestração de Agentes",
+    "card_sub": "Setup {WORKSHOP_VERSION} · {SO} · {LINGUA}",
+    "progresso": "{N} de 12",
+    "a_trabalhar": "a trabalhar…",
+    "a_verificar": "a verificar…",
+    "a_esperar_login": "à espera da janela do login…",
+    "ja_sufixo": "já estava feito",
+    "decorrido": "{S} s",
+    "mb": "{MB} MB",
+    "resumo_prontos": "{N} prontos",
+    "resumo_com_avisos": "{N} com avisos",
+    "resumo_por_fazer": "{N} por fazer"
   },
   "passos": {
     "0": "Deteção do ambiente",
@@ -183,6 +195,21 @@
     "9": "Projetos do workshop",
     "10": "App Agent Memory",
     "11": "Claude Desktop (opcional)",
+    "12": "Teste final"
+  },
+  "passos_curtos": {
+    "0": "Ambiente",
+    "1": "Git",
+    "2": "Claude Code",
+    "3": "Login do Claude",
+    "4": "Node.js",
+    "5": "uv (Python)",
+    "6": "GitHub CLI",
+    "7": "Jira (Atlassian)",
+    "8": "Skills e agentes",
+    "9": "Projetos",
+    "10": "Agent Memory",
+    "11": "Claude Desktop",
     "12": "Teste final"
   },
   "erros": {

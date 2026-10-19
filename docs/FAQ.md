@@ -13,7 +13,7 @@ The script installs everything in your profile and does not need admin rights. R
 Run the script with `--check` (Windows: `-Check`). It takes 2 to 3 minutes, installs nothing and ends with "Check complete: everything is ready for the workshop." or with the list of what is missing. The summary is saved in `~/.workshop-claude/summary.txt`, and you can show it to whoever helps you.
 
 **Can I run the script twice?**
-Yes. It detects what is already done and skips those steps (⏭️). If it failed halfway, running it again continues from there.
+Yes. It detects what is already done and skips those steps (✔ Already done). If it failed halfway, running it again continues from there.
 
 **The setup says it is already running.**
 Another window is running it, or it is paused there (someone pressed Ctrl+Z and the window shows "suspended"). The message says which. Wait for it to finish, type `fg` and press Enter in the paused window, or close that window, then run the same command again. A setup that was killed (for example, when the laptop shut down) does not block the next one.

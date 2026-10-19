@@ -346,6 +346,9 @@ ws_msg() { local key=$1; shift; ws_fill "$(ws_m "$key")" "$@"; }
 
 # Caminho para mostrar: o HOME como ~.
 ws_tilde() { case "$1" in "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
+# Num texto para mostrar, cada "$HOME/" passa a "~/" (o aspeto fancy: linhas mais curtas).
+# shellcheck disable=SC2088  # texto para mostrar, nao e um caminho a expandir
+ws_tilde_all() { local t=$1 h="$HOME/" r='~/'; printf '%s' "${t//"$h"/$r}"; }
 
 ws_err_field() { # codigo campo
   local c=${1//-/_} n; n="M_erros_${c}_$2"; printf '%s' "${!n:-}"
@@ -358,7 +361,14 @@ ws_err_list() { # codigo campo (fazer|mac) [CHAVE=valor...] -> uma linha por ite
 
 # ---------------------------------------------------------------- saida e log
 ws_log() { printf '%s %s\n' "$(date '+%H:%M:%S')" "$*" | ws_redact 2>/dev/null >> "$WS_LOG" || true; }
-ws_say() { printf '%s\n' "$*"; printf '%s\n' "$*" | ws_redact 2>/dev/null >> "$WS_LOG" || true; }
+# Uma linha no ecra e no log (no log sem as cores). Com a zona viva (spinner) no ecra, tira-a primeiro e volta a
+# po-la depois, para a linha nunca ficar no meio dela.
+ws_say() {
+  if [ "${WS_UI_ON:-0}" = 1 ] && [ "${BASH_SUBSHELL:-0}" = 0 ]; then ws_ui_hide; printf '%s\n' "$*"; ws_ui_show
+  else printf '%s\n' "$*"; fi
+  if [ "${WS_COLOR:-0}" = 1 ]; then printf '%s\n' "$*" | LC_ALL=C sed $'s/\033\\[[0-9;]*m//g' | ws_redact 2>/dev/null >> "$WS_LOG" || true
+  else printf '%s\n' "$*" | ws_redact 2>/dev/null >> "$WS_LOG" || true; fi
+}
 ws_bold() { if [ "$WS_COLOR" = 1 ]; then printf '\033[1m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 ws_dim() { if [ "$WS_COLOR" = 1 ]; then printf '\033[2m%s\033[0m' "$1"; else printf '%s' "$1"; fi; }
 # Negrito e cinzento so num terminal que os mostra (TERM=dumb e NO_COLOR desligam).
@@ -396,7 +406,9 @@ ws_tty_drain() {
 }
 
 # Pergunta sim/nao. $1 texto, $2 defeito (s|n), $3 "nunca-sim" para nao aceitar o --sim.
-ws_ask() {
+# O spinner para antes da pergunta (a pergunta fica sozinha na ultima linha, "? <pergunta> [Y/n]") e volta depois.
+ws_ask() { local rc; ws_ui_hide; ws_ask_q "$@"; rc=$?; ws_ui_show; return "$rc"; }
+ws_ask_q() {
   local q=$1 def=${2:-n} nosim=${3:-} ans hint tries=0
   if [ "$def" = s ]; then hint=$(ws_m sn); else hint=$(ws_m ns); fi
   if [ "$WS_SIM" = 1 ] && [ "$nosim" != nunca-sim ]; then ws_say "  ? $q $hint y (--yes)"; return 0; fi
@@ -451,6 +463,7 @@ ws_timeout() { # segundos comando [args...]
 # com "curl | bash" o Ctrl-C chega tambem ao bash do setup, que sem isto saia logo, sem os outros passos nem o resumo.
 # A trap tem de ser um comando (nao ''): assim o login recebe o SIGINT normal e termina.
 ws_run_login() {
+  ws_ui_hide    # o login fica com o terminal: sem spinner por cima
   ws_tty_drain  # teclas escritas antes (G1): nao respondem ao login
   WS_LOGIN_INT=0
   trap 'WS_LOGIN_INT=1' INT
@@ -460,12 +473,191 @@ ws_run_login() {
     { printf '\n' > /dev/tty; } 2>/dev/null
     ws_log "login cancelled (Ctrl-C)"; ws_note "$(ws_m login_cancelado)"
   fi
+  ws_ui_show
   return 0
 }
 
 ws_flush_step_log() {
   [ -s "$WS_STEP_LOG" ] || return 0
   { printf -- '--- command output (step %s) ---\n' "$WS_CUR"; cat "$WS_STEP_LOG"; printf -- '--- end ---\n'; } | ws_redact 2>/dev/null >> "$WS_LOG" || true
+}
+
+# ---------------------------------------------------------------- aspeto: cartao, lista de passos e spinner
+# Dois aspetos (WS_UI):
+#  - fancy: um cartao no inicio e no fim, uma linha por passo (simbolo, nome curto, detalhe) e, enquanto o passo corre,
+#    uma zona viva no fim do ecra: o passo com um spinner e o que esta a fazer (com os MB ja descarregados), os passos
+#    por fazer e a barra "N of 12". So num terminal a serio: o stdout e um terminal, TERM nao e dumb, sem NO_COLOR, e o
+#    tamanho conhecido, com pelo menos 70 colunas e 12 linhas;
+#  - plain: as linhas de sempre ("Step N/12 · ..." e o resultado), sem \r nem movimentos do cursor (um log, um agente
+#    de IA, "| tee", TERM=dumb, NO_COLOR, um terminal estreito).
+# O spinner e um processo em segundo plano que so escreve no terminal (stdin /dev/null, nunca le o terminal). So
+# arranca no processo principal (nunca dentro de $( ), de um pipe ou de um subshell) com o stdout no terminal, e para
+# (kill + wait) antes de cada linha, pergunta, login e no fim de cada passo, no Ctrl-C e no fim do setup. Se o setup
+# desaparecer (kill -9) o spinner acaba sozinho: confirma em cada imagem que o setup ainda existe.
+ws_ui_detect() {
+  local sz r c
+  WS_UI=plain; WS_COLS=0; WS_ROWS=0; WS_UI_ON=0; WS_UI_STEP=""; WS_UI_SPIN=""
+  WS_UI_CA=""; WS_UI_CD=""; WS_UI_C0=""
+  ws_color_detect
+  [ "$WS_COLOR" = 1 ] || return 0
+  # O tamanho do terminal do stdout (fd 4 = o stdout de fora do $( )): so o ioctl, nada e lido do terminal.
+  { sz=$(stty size 0<&4 2>/dev/null); } 4>&1
+  r=${sz%% *}; c=${sz##* }
+  case "$r" in ''|*[!0-9]*) return 0 ;; esac
+  case "$c" in ''|*[!0-9]*) return 0 ;; esac
+  WS_ROWS=$r; WS_COLS=$c
+  [ "$c" -ge 70 ] && [ "$r" -ge 12 ] || return 0
+  WS_UI=fancy
+  case "${TERM:-}:${COLORTERM:-}" in *256color*|*:truecolor|*:24bit) WS_UI_CA=$'\033[38;5;173m' ;; *) WS_UI_CA=$'\033[35m' ;; esac
+  WS_UI_CD=$'\033[2m'; WS_UI_C0=$'\033[0m'
+}
+# Texto com cor (so com WS_COLOR=1): g verde, y amarelo, r vermelho, c ciano, d cinzento, b negrito, a destaque.
+ws_c() {
+  [ "${WS_COLOR:-0}" = 1 ] || { printf '%s' "$2"; return 0; }
+  local s
+  case "$1" in g) s='32' ;; y) s='33' ;; r) s='31' ;; c) s='36' ;; d) s='2' ;; b) s='1' ;; rb) s='1;31' ;; yb) s='1;33' ;; gb) s='1;32' ;; a) printf '%s%s\033[0m' "${WS_UI_CA:-$'\033[35m'}" "$2"; return 0 ;; *) s='0' ;; esac
+  printf '\033[%sm%s\033[0m' "$s" "$2"
+}
+# Simbolo do estado com a cor dele.
+ws_sym_c() {
+  local g; g=$(ws_sym "$1")
+  case "$1" in feito|ok|ja) ws_c g "$g" ;; aviso) ws_c y "$g" ;; falhou|falta) ws_c r "$g" ;; *) ws_c d "$g" ;; esac
+}
+# Texto cortado a N caracteres (conta caracteres, nao bytes), com "…" no fim se foi cortado.
+ws_cut() {
+  local LC_ALL=en_US.UTF-8 s=$1 m=$2
+  [ "$m" -gt 1 ] || { printf ''; return 0; }
+  if [ "${#s}" -le "$m" ]; then printf '%s' "$s"; else printf '%s…' "${s:0:$((m - 1))}"; fi
+}
+ws_rep() { local i=0 o=""; while [ "$i" -lt "$2" ]; do o="$o$1"; i=$((i + 1)); done; printf '%s' "$o"; }
+# Nome curto de um passo (para a lista de passos).
+ws_step_name() { local n="M_passos_curtos_$1" t="M_passos_$1"; printf '%s' "${!n:-${!t:-$1}}"; }
+
+# Cartao: ws_card linha-sem-cores linha-com-cores [linha-sem-cores linha-com-cores ...]. A largura vem do texto sem
+# cores (no minimo 58, no maximo a largura do terminal); uma linha mais comprida e cortada.
+ws_card() {
+  local LC_ALL=en_US.UTF-8 w=58 a plain col max
+  # so as linhas sem cores (os argumentos impares) contam para a largura
+  a=1; for plain in "$@"; do [ "$a" = 1 ] && [ "$((${#plain} + 4))" -gt "$w" ] && w=$((${#plain} + 4)); a=$((1 - a)); done
+  max=$((WS_COLS - 4)); [ "$max" -ge 20 ] || max=76
+  [ "$w" -gt "$max" ] && w=$max
+  ws_say "$(ws_c d "╭$(ws_rep ─ "$w")╮")"
+  while [ "$#" -ge 2 ]; do
+    plain=$1; col=$2; shift 2
+    if [ "${#plain}" -gt "$((w - 4))" ]; then plain=$(ws_cut "$plain" "$((w - 4))"); col=$plain; fi
+    ws_say "$(ws_c d "│")  $col$(ws_rep ' ' "$((w - 4 - ${#plain}))")  $(ws_c d "│")"
+  done
+  ws_say "$(ws_c d "╰$(ws_rep ─ "$w")╯")"
+}
+
+ws_ui_can() { [ "${WS_UI:-plain}" = fancy ] && [ "${BASH_SUBSHELL:-0}" = 0 ] && [ -t 1 ]; }
+# Barra do passo N: ▰ ate ao passo atual, ▱ depois, e "N of 12".
+ws_ui_bar() {
+  local i=1 on="" off=""
+  while [ "$i" -le 12 ]; do if [ "$i" -le "$1" ]; then on="${on}▰"; else off="${off}▱"; fi; i=$((i + 1)); done
+  printf '  %s%s  %s' "$(ws_c a "$on")" "$(ws_c d "$off")" "$(ws_c d "$(ws_msg progresso N="$1")")"
+}
+# Comeca a zona viva do passo N (fancy); ws_ui_end tira-a.
+ws_ui_begin() {
+  WS_UI_STEP=$1; WS_UI_PATHS=(); WS_UI_S0=$SECONDS
+  if [ "$WS_MODE" = install ]; then WS_UI_TEXT=$(ws_m a_trabalhar); else WS_UI_TEXT=$(ws_m a_verificar); fi
+  WS_UI_TEXT=${WS_UI_TEXT%…}
+  WS_UI_NAME=$(ws_pad "$(ws_step_name "$1")" 19)
+  WS_UI_BAR=$(ws_ui_bar "$1")
+  ws_ui_show
+}
+ws_ui_end() { ws_ui_hide; WS_UI_STEP=""; WS_UI_PATHS=(); }
+# Desenha a zona viva (se o passo esta a correr e o ecra a pode ter) e arranca o spinner.
+ws_ui_show() {
+  [ -n "${WS_UI_STEP:-}" ] && [ "${WS_UI_ON:-0}" = 0 ] && ws_ui_can || return 0
+  local i nm lines="" h=3 LC_ALL=en_US.UTF-8
+  # Os passos por fazer so se o ecra tiver altura para eles (a zona tem de caber inteira no ecra).
+  if [ "$WS_ROWS" -ge 26 ]; then
+    i=$((WS_UI_STEP + 1))
+    while [ "$i" -le 12 ]; do nm=$(ws_step_name "$i"); lines="$lines$WS_NL  ${WS_UI_CD}○ ${nm}${WS_UI_C0}"; h=$((h + 1)); i=$((i + 1)); done
+  fi
+  WS_UI_H=$h; WS_UI_ON=1
+  printf '  %s⠋%s %s%s%s\n\n%s' "$WS_UI_CA" "$WS_UI_C0" "$WS_UI_NAME" "$(ws_cut "${WS_UI_TEXT}…" $((WS_COLS - 26)))" "$lines" "$WS_UI_BAR"
+  ws_ui_spin_start
+}
+# Tira a zona viva do ecra (o cursor volta ao inicio dela) e para o spinner.
+ws_ui_hide() {
+  [ "${BASH_SUBSHELL:-0}" = 0 ] || return 0
+  ws_ui_spin_stop
+  [ "${WS_UI_ON:-0}" = 1 ] || return 0
+  WS_UI_ON=0
+  if [ -t 1 ]; then printf '\r\033[%dA\033[J' $((WS_UI_H - 1))
+  else { printf '\r\033[%dA\033[J' $((WS_UI_H - 1)) > /dev/tty; } 2>/dev/null; fi
+  return 0
+}
+ws_ui_spin_start() {
+  ws_ui_spin_stop
+  [ "${WS_UI_ON:-0}" = 1 ] && ws_ui_can || return 0
+  ws_ui_spinner "$$" </dev/null 2>/dev/null &
+  WS_UI_SPIN=$!
+}
+ws_ui_spin_stop() {
+  [ -n "${WS_UI_SPIN:-}" ] && [ "${BASH_SUBSHELL:-0}" = 0 ] || return 0
+  kill -TERM "$WS_UI_SPIN" 2>/dev/null
+  wait "$WS_UI_SPIN" 2>/dev/null
+  WS_UI_SPIN=""
+  return 0
+}
+# O processo do spinner: reescreve a linha do passo (2 linhas acima da barra, mais os passos por fazer) 8 vezes por
+# segundo, com os MB das pastas do download e o tempo do passo. Acaba com TERM/HUP, se o setup ja nao existir, se o
+# terminal deixar de aceitar escrita, ou ao fim de 3 horas.
+ws_ui_spinner() { # pid-do-setup
+  trap 'exit 0' TERM HUP PIPE
+  trap - EXIT
+  local main=$1 up=$((WS_UI_H - 1)) i=0 f mb="" el="" s last=-1 ex t max sl=/bin/sleep LC_ALL=en_US.UTF-8
+  [ -x "$sl" ] || sl="sleep"
+  while kill -0 "$main" 2>/dev/null; do
+    s=$((SECONDS - ${WS_UI_S0:-0}))
+    [ "$s" -lt 10800 ] || exit 0
+    if [ "${#WS_UI_PATHS[@]}" -gt 0 ] && [ $((i % 8)) = 0 ]; then mb=$(ws_msg mb MB="$(ws_mb_of "${WS_UI_PATHS[@]}")"); fi
+    if [ "$s" != "$last" ]; then last=$s; if [ "$s" -ge 3 ]; then el=$(ws_msg decorrido S="$s"); else el=""; fi; fi
+    case $((i % 10)) in 0) f=⠋ ;; 1) f=⠙ ;; 2) f=⠹ ;; 3) f=⠸ ;; 4) f=⠼ ;; 5) f=⠴ ;; 6) f=⠦ ;; 7) f=⠧ ;; 8) f=⠇ ;; *) f=⠏ ;; esac
+    ex="$mb${mb:+${el:+ · }}$el"
+    max=$((WS_COLS - 26 - ${#ex}))
+    t="${WS_UI_TEXT}…"
+    if [ "$max" -lt 4 ]; then t=""; elif [ "${#t}" -gt "$max" ]; then t="${t:0:$((max - 1))}…"; fi
+    printf '\r\033[%dA  %s%s%s %s%s  %s%s%s\033[K\r\033[%dB%s\033[K' "$up" "$WS_UI_CA" "$f" "$WS_UI_C0" "$WS_UI_NAME" "$t" "$WS_UI_CD" "$ex" "$WS_UI_C0" "$up" "$WS_UI_BAR" 2>/dev/null || exit 0
+    "$sl" 0.12 2>/dev/null || "$sl" 1 2>/dev/null || exit 0
+    i=$((i + 1))
+  done
+  exit 0
+}
+# O que o passo esta a fazer ("Downloading X…"): no fancy vai para a linha do spinner, no plain e uma linha como
+# sempre. Com "manter" fica tambem como nota debaixo do resultado do passo (no fancy a linha do spinner desaparece).
+ws_activity() { # texto [manter]
+  if [ -n "${WS_UI_STEP:-}" ] && [ "${WS_UI_ON:-0}" = 1 ] && [ "${BASH_SUBSHELL:-0}" = 0 ]; then
+    WS_UI_TEXT=${1%…}; WS_UI_PATHS=()
+    ws_log "  $1"
+    [ "${2:-}" = manter ] && ws_note "$1"
+    ws_ui_spin_start
+  else
+    ws_say "  $1"
+  fi
+}
+# MB que ja ocupam as pastas ou ficheiros dados (o que ja chegou de um download).
+ws_mb_of() { du -skc "$@" 2>/dev/null | tail -n 1 | LC_ALL=C awk '{ m = $1 / 1024; if (m < 10) printf "%.1f", m; else printf "%d", m }'; }
+
+# Linha de um passo na lista (fancy): simbolo, nome curto alinhado e o detalhe.
+ws_step_line() { # passo estado detalhe
+  local sfx=""
+  [ "$2" = ja ] && sfx=$(ws_c d "${3:+ · }$(ws_m ja_sufixo)")
+  ws_say "  $(ws_sym_c "$2") $(ws_pad "$(ws_step_name "$1")" 19)$3$sfx"
+}
+
+# Cabecalho: no fancy um cartao (titulo, versao, sistema, lingua); no plain a linha de sempre.
+ws_header() {
+  if [ "${WS_UI:-plain}" != fancy ]; then ws_say "$(ws_bold "$(ws_msg titulo)")"; return 0; fi
+  local t s lang
+  case "${WS_LANG:-en}" in en|en-*) lang=$(ws_m lingua_en) ;; pt|pt-*) lang="$(ws_m lingua_pt) ($WS_LANG)" ;; *) lang=$WS_LANG ;; esac
+  t=$(ws_m card_titulo); s=$(ws_msg card_sub SO="${WS_OS:-macOS}" LINGUA="$lang")
+  ws_say ""
+  ws_card "◆ $t" "$(ws_c a ◆) $(ws_c b "$t")" "  $s" "  $(ws_c d "$s")"
+  ws_say ""
 }
 
 # ---------------------------------------------------------------- rede e ficheiros
@@ -503,15 +695,23 @@ ws_is_html() {
 }
 
 # Enquanto um download corre, mostra de 30 em 30 s quanto ja chegou (nunca mais de um minuto sem nada no ecra).
+# No aspeto fancy os MB vao para a linha do spinner (atualizados a cada segundo), sem linhas novas.
 ws_heartbeat() { # ficheiros ou pastas a medir
   local mb
   while sleep "${WS_HB_EVERY:-30}" >/dev/null 2>&1; do
-    mb=$(du -skc "$@" 2>/dev/null | tail -n 1 | LC_ALL=C awk '{ m = $1 / 1024; if (m < 10) printf "%.1f", m; else printf "%d", m }')
+    mb=$(ws_mb_of "$@")
     printf '  %s\n' "$(ws_msg a_descarregar_mb MB="${mb:-0}")"
   done
 }
-ws_hb_start() { ws_hb_stop; ws_heartbeat "$@" & WS_HB=$!; }
-ws_hb_stop() { [ -n "${WS_HB:-}" ] || return 0; kill "$WS_HB" 2>/dev/null; wait "$WS_HB" 2>/dev/null; WS_HB=""; }
+ws_hb_start() {
+  ws_hb_stop
+  if [ -n "${WS_UI_STEP:-}" ] && [ "${WS_UI_ON:-0}" = 1 ] && [ "${BASH_SUBSHELL:-0}" = 0 ]; then WS_UI_PATHS=("$@"); ws_ui_spin_start; return 0; fi
+  ws_heartbeat "$@" </dev/null & WS_HB=$!
+}
+ws_hb_stop() {
+  [ "${BASH_SUBSHELL:-0}" = 0 ] && WS_UI_PATHS=()
+  [ -n "${WS_HB:-}" ] || return 0; kill "$WS_HB" 2>/dev/null; wait "$WS_HB" 2>/dev/null; WS_HB=""
+}
 
 # Pasta para CURL_HOME dos instaladores oficiais (install.sh do Claude Code e do uv), que chamam o curl sem limites
 # (o curl so le o primeiro curlrc, e o $CURL_HOME/.curlrc vem antes do ~/.curlrc): so os limites do setup, sem o
@@ -655,10 +855,11 @@ ws_fail() { # codigo [detalhe]
 ws_detail() { printf -v "SD_$WS_CUR" '%s' "$*"; }
 ws_note() { local n="SN_$WS_CUR" cur; cur=${!n:-}; printf -v "$n" '%s%s\n' "$cur" "$*"; }
 
+# Simbolos de uma coluna (nao emoji: a largura e a mesma em todos os terminais).
 ws_sym() {
   case "$1" in
-    feito|ok) printf '✅' ;; ja) printf '⏭️ ' ;; aviso) printf '⚠️ ' ;; falhou|falta) printf '❌' ;;
-    naoexec) printf '⛔' ;; saltado) printf '➖' ;; *) printf '•' ;;
+    feito|ok|ja) printf '✔' ;; aviso) printf '▲' ;; falhou|falta) printf '✖' ;;
+    naoexec) printf '○' ;; saltado) printf '–' ;; *) printf '•' ;;
   esac
 }
 ws_state_label() {
@@ -668,25 +869,57 @@ ws_state_label() {
   esac
 }
 
-ws_print_code() { # codigo detalhe indent [prefixo do titulo]
-  local c=$1 d=$2 ind=$3 pre=${4:-} line fic
+ws_print_code() { # codigo detalhe indent [prefixo do titulo] [indent a mais do resto]
+  local c=$1 d=$2 ind=$3 pre=${4:-} sub=${5:-} line fic t
   # nos comandos: o servidor que falhou (E-NET-01/02), o ficheiro de perfil (E-PROF-01/02) e a pasta do projeto
   # (E-DEMO-03), tirados do detalhe
   fic=${d:-"~/.zshrc"}; fic=${fic/#"~"/$HOME}; fic=$(ws_show_path "$fic")
-  ws_say "${ind}${pre}$(ws_bold "$(ws_fill "$(ws_err_field "$c" titulo)")")"
+  t=$(ws_fill "$(ws_err_field "$c" titulo)")
+  ws_say "${ind}${pre}$(ws_bold "$t")"
+  ind="$ind$sub"
   ws_say "${ind}$(ws_m porque): $(ws_fill "$(ws_err_field "$c" causa)")${d:+ ($d)}"
   ws_say "${ind}$(ws_m fazer):"
   while IFS= read -r line; do [ -n "$line" ] && ws_say "${ind}  - $line"; done <<EOF
 $(ws_err_list "$c" fazer)
 EOF
-  while IFS= read -r line; do [ -n "$line" ] && ws_say "${ind}    \$ $line"; done <<EOF
+  while IFS= read -r line; do [ -n "$line" ] && ws_say "${ind}    $(ws_c c "\$ $line")"; done <<EOF
 $(ws_err_list "$c" mac HOST="$(ws_hint_host "$d")" URL="$(ws_hint_url "$d")" FICHEIRO="$fic" NOME="${d##*/}")
 EOF
   ws_say "${ind}$(ws_dim "$(ws_msg codigo CODIGO="$c")")"
 }
 
+# Resultado de um passo no aspeto fancy: a linha do passo (simbolo, nome, detalhe), as notas em cinzento e, debaixo,
+# a explicacao de cada falha ou aviso (o porque, o que fazer, os comandos e o codigo), como no plain.
+ws_print_result_fancy() {
+  local n=$1 st d w f line any=0
+  ws_ui_end
+  st=$(ws_st "$n"); d="SD_$n"; d=${!d:-}; w="SW_$n"; w=${!w:-}; f="SF_$n"; f=${!f:-}
+  # Sem detalhe, a linha (e o resumo) mostra o titulo do codigo (da falha ou do primeiro aviso).
+  if [ -z "$d" ] && [ -n "$f" ]; then ws_set SD "$n" "$(ws_fill "$(ws_err_field "${f%%|*}" titulo)") (${f%%|*})"
+  elif [ -z "$d" ] && [ -n "$w" ]; then line=${w%%$'\n'*}; ws_set SD "$n" "$(ws_fill "$(ws_err_field "${line%%|*}" titulo)") (${line%%|*})"; fi
+  d="SD_$n"; d=${!d:-}
+  ws_step_line "$n" "$st" "$d"
+  line="SN_$n"
+  if [ -n "${!line:-}" ]; then while IFS= read -r line; do [ -n "$line" ] && ws_say "    $(ws_dim "$line")"; done <<EOF
+${!line}
+EOF
+  fi
+  if [ -n "$f" ] && { [ "$st" = falhou ] || [ "$st" = falta ]; }; then ws_print_code "${f%%|*}" "${f#*|}" "    " "$(ws_c r ✖) " "  "; any=1; fi
+  if [ -n "$w" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      ws_print_code "${line%%|*}" "${line#*|}" "    " "$(ws_c y ▲) " "  "; any=1
+    done <<EOF
+$w
+EOF
+  fi
+  [ "$any" = 1 ] && ws_say ""
+  return 0
+}
+
 ws_print_result() {
   local n=$1 st d w f line
+  if [ "${WS_UI:-plain}" = fancy ]; then ws_print_result_fancy "$n"; return 0; fi
   st=$(ws_st "$n"); d="SD_$n"; d=${!d:-}; w="SW_$n"; w=${!w:-}; f="SF_$n"; f=${!f:-}
   ws_say "  $(ws_sym "$st") $(ws_bold "$(ws_state_label "$st")")${d:+ · $d}"
   line="SN_$n"
@@ -701,7 +934,7 @@ EOF
   if [ -n "$w" ]; then
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      ws_print_code "${line%%|*}" "${line#*|}" "     " "⚠️  "
+      ws_print_code "${line%%|*}" "${line#*|}" "     " "▲ "
     done <<EOF
 $w
 EOF
@@ -718,8 +951,12 @@ ws_step() { # numero deps...
   WS_STEP_LOG="$WS_TMP/passo-$n.log"; { : > "$WS_STEP_LOG"; } 2>/dev/null || WS_STEP_LOG=/dev/null
   ws_set SD "$n" ""; ws_set SW "$n" ""; ws_set SF "$n" ""; ws_set SN "$n" ""
   local title="M_passos_$n"; title=${!title}
-  ws_say ""
-  ws_say "$(ws_bold "$(ws_msg passo N="$n" TITULO="$title")")"
+  # fancy: a zona viva com o spinner (a linha do passo so aparece no fim); plain: o cabecalho "Step N/12 · ...".
+  if [ "${WS_UI:-plain}" = fancy ]; then ws_ui_begin "$n"
+  else
+    ws_say ""
+    ws_say "$(ws_bold "$(ws_msg passo N="$n" TITULO="$title")")"
+  fi
   ws_log "=== step $n: $title (mode $WS_MODE)"
   for d in "$@"; do
     case "$(ws_st "$d")" in falhou|naoexec|falta)
@@ -1077,7 +1314,7 @@ ws_profile_warn() { # codigo ficheiro
   WS_PERFIL_AVISADOS="${WS_PERFIL_AVISADOS:-}|$2|"
   if [ -n "${WS_CUR:-}" ] && [ -z "$(ws_st "$WS_CUR")" ]; then ws_warn "$1" "${2/#"$HOME"/~}"
   else
-    ws_print_code "$1" "${2/#"$HOME"/~}" "     " "⚠️  "
+    if [ "${WS_UI:-plain}" = fancy ]; then ws_print_code "$1" "${2/#"$HOME"/~}" "    " "$(ws_c y ▲) " "  "; else ws_print_code "$1" "${2/#"$HOME"/~}" "     " "▲ "; fi
     if [ -n "${WS_CUR:-}" ]; then
       ws_warn "$1" "${2/#"$HOME"/~}"
       case "$(ws_st "$WS_CUR")" in feito|ja|ok) ws_set ST "$WS_CUR" aviso ;; esac
@@ -1114,7 +1351,7 @@ ws_profile_remove() { # ficheiro [criado]
     if [ -w "$f" ] && ws_profile_write "$f" "$tmp"; then rm -f "$tmp"; ws_say "  $(ws_msg desinst_perfil FICHEIRO="$f")"; return 0; fi
   fi
   rm -f "$tmp"
-  ws_say "  ⚠️  $(ws_msg desinst_perfil_falhou FICHEIRO="$f")"
+  ws_say "  $(ws_c y ▲) $(ws_msg desinst_perfil_falhou FICHEIRO="$f")"
 }
 
 # Regista no manifest (via install-user.mjs) ou guarda para registar quando houver Node e kit.
@@ -1148,7 +1385,7 @@ ws_kit_ensure() {
   local name="workshop-kit-$C_WORKSHOP_VERSION.tar.gz" url tmpd rc sum
   url=$(ws_release_url workshop "$name")
   tmpd="$WS_TMP/kit"; rm -rf "$tmpd"; mkdir -p "$tmpd/x" 2>>"$WS_STEP_LOG" || return 1
-  ws_say "  $(ws_msg a_descarregar O_QUE="$name")"
+  ws_activity "$(ws_msg a_descarregar O_QUE="$name")"
   # Com o SHA-256 injetado (release), um arquivo truncado ou alterado e descarregado uma segunda vez.
   if [ -n "$WS_INJ_KIT_SHA256" ]; then ws_dl_check "$url" "$tmpd/$name" "$WS_INJ_KIT_SHA256" auth; else ws_dl "$url" "$tmpd/$name" auth; fi
   rc=$?
@@ -1200,13 +1437,17 @@ ws_s0_lang_notes() {
   fi
   return 0
 }
-ws_s0_detect() {
-  local ver arch extra f
-  ver=$(sw_vers -productVersion 2>/dev/null)
-  if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; then arch=arm64; else arch=x64; fi
-  WS_ARCH=$arch
+# Sistema e arquitetura (WS_OS, WS_ARCH, WS_OS_VER): para o cartao do inicio e para o passo 0.
+ws_os_detect() {
+  local extra=""
+  WS_OS_VER=$(sw_vers -productVersion 2>/dev/null </dev/null)
+  if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; then WS_ARCH=arm64; else WS_ARCH=x64; fi
   [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = 1 ] && extra=" (Rosetta)"
-  WS_OS="macOS $ver $arch${extra:-}"
+  WS_OS="macOS $WS_OS_VER $WS_ARCH$extra"
+}
+ws_s0_detect() {
+  local ver f
+  ws_os_detect; ver=$WS_OS_VER
   ws_note "$(ws_msg s0_so SO="$WS_OS")"
   ws_s0_lang_notes
   ws_ver_ge "$ver" 13 || ws_warn E-SO-04 "macOS $ver"
@@ -1543,7 +1784,7 @@ ws_detect_tls() {
 }
 
 ws_check_network() {
-  local hosts h u i=0 dir="$WS_TMP/rede" base fails="" rc code conn redir rh blocked cprobe=$C_CLAUDE_INSTALL_SH_URL
+  local hosts h u i=0 pids="" dir="$WS_TMP/rede" base fails="" rc code conn redir rh blocked cprobe=$C_CLAUDE_INSTALL_SH_URL
   mkdir -p "$dir"; rm -f "$dir/codes"
   hosts=""
   for h in $C_NET_CHECK_HOSTS "$D_REPO_HOST" "$D_MEMORY_HOST"; do
@@ -1557,12 +1798,15 @@ ws_check_network() {
   case " $hosts " in *" $base "*) ;; *) hosts="$hosts $base" ;; esac
   WS_NET_TOTAL=0
   for h in $hosts; do WS_NET_TOTAL=$((WS_NET_TOTAL + 1)); done
-  ws_say "  $(ws_msg a_verificar_rede N="$WS_NET_TOTAL")"
+  ws_activity "$(ws_msg a_verificar_rede N="$WS_NET_TOTAL")"
   for h in $hosts; do
     i=$((i + 1))
     ( code=$(curl -q -sS -o /dev/null --connect-timeout 8 -m 12 -A "$WS_UA" -w '%{http_code} %{http_connect} r=%{redirect_url}' "$h" 2>"$dir/$i.err" </dev/null); printf '%s %s %s\n' "$?" "$code" "$h" > "$dir/$i.res" ) &
+    pids="$pids $!"
   done
-  wait
+  # So os testes de rede: um "wait" sem nada esperava tambem pelo spinner, que so acaba no fim do passo.
+  # shellcheck disable=SC2086  # um PID por palavra
+  wait $pids
   WS_NET_OK=0; WS_NET_API_OK=1
   i=0
   for h in $hosts; do
@@ -1674,7 +1918,7 @@ ws_s2_install() {
   local f="$WS_TMP/claude-install.sh" v
   ws_claude_json_ok || return 1
   ws_perm_blocked "$HOME/.claude/downloads" "$HOME/.local/bin/claude" "$HOME/.local/share/claude" && return 1
-  ws_say "  $(ws_m a_instalar)"
+  ws_activity "$(ws_m a_instalar)"
   if ! ws_dl "$C_CLAUDE_INSTALL_SH_URL" "$f"; then ws_dl_fail "$C_CLAUDE_INSTALL_SH_URL"; return 1; fi
   # O install.sh chama o curl sem limites: com o curlrc do setup (ws_curl_home) uma transferencia parada falha em vez
   # de esperar para sempre. O progresso vai aparecendo enquanto descarrega (sao mais de 200 MB).
@@ -1881,19 +2125,19 @@ ws_s4_install() {
   major=${C_NODE_VERSION%%.*}
   brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
-    ws_say "  $(ws_m a_instalar) (brew install node@$major)"
+    ws_activity "$(ws_m a_instalar) (brew install node@$major)"
     if HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install "node@$major"; then
       local n; n="$("$brew" --prefix 2>/dev/null)/opt/node@$major/bin/node"
       if [ -x "$n" ]; then WS_NODE=$n; WS_NODE_BIN_DIR=$(dirname "$n"); fi
     fi
     # O brew falhou (Command Line Tools antigas, sem rede): diz que segue pelo download oficial.
-    [ -n "${WS_NODE:-}" ] || ws_say "  $(ws_m brew_falhou)"
+    [ -n "${WS_NODE:-}" ] || ws_activity "$(ws_m brew_falhou)" manter
   fi
   if [ -z "${WS_NODE:-}" ]; then
     local file="node-v$C_NODE_VERSION-darwin-$WS_ARCH.tar.xz" url sums want got d="$WS_TMP/node"
     rm -rf "$d"; mkdir -p "$d/x"
     url=$(ws_expand "$C_NODE_DIST_URL" "" "" "" "" "$C_NODE_VERSION" "$file" "")
-    ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
+    ws_activity "$(ws_msg a_descarregar O_QUE="$file")"
     sums=$(ws_expand "$C_NODE_DIST_URL" "" "" "" "" "$C_NODE_VERSION" SHASUMS256.txt "")
     ws_dl "$sums" "$d/SHASUMS256.txt" || { ws_dl_fail "$sums"; return 1; }
     want=$(ws_sum_for "$d/SHASUMS256.txt" "$file")
@@ -2002,16 +2246,16 @@ ws_s6_install() {
   if [ "${WS_GH_SEM_LOGIN:-}" = 1 ] && command -v gh >/dev/null 2>&1; then ws_fail E-GH-02 ""; return 1; fi
   local brew; brew=$(command -v brew 2>/dev/null)
   if [ -n "$brew" ] && [ -w "$("$brew" --prefix 2>/dev/null)/bin" ]; then
-    ws_say "  $(ws_m a_instalar) (brew install gh)"
+    ws_activity "$(ws_m a_instalar) (brew install gh)"
     HOMEBREW_NO_AUTO_UPDATE=1 ws_run "$brew" install gh && { ws_s6_detect "$("$brew" --prefix 2>/dev/null)/bin/gh"; return $?; }
-    ws_say "  $(ws_m brew_falhou)"
+    ws_activity "$(ws_m brew_falhou)" manter
   fi
   local a=arm64 file sums url d="$WS_TMP/gh" want got
   [ "$WS_ARCH" = x64 ] && a=amd64
   file="gh_${C_GH_VERSION}_macOS_$a.zip"
   rm -rf "$d"; mkdir -p "$d/x"
   url=$(ws_expand "$C_GH_RELEASE_URL" "" "" "" "" "$C_GH_VERSION" "$file" "")
-  ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
+  ws_activity "$(ws_msg a_descarregar O_QUE="$file")"
   sums=$(ws_expand "$C_GH_RELEASE_URL" "" "" "" "" "$C_GH_VERSION" "gh_${C_GH_VERSION}_checksums.txt" "")
   ws_dl "$sums" "$d/sums" || { ws_dl_fail "$sums"; return 1; }
   want=$(ws_sum_for "$d/sums" "$file")
@@ -2137,7 +2381,7 @@ ws_s7_acli_install() { # falhar aqui so deixa um aviso (WS_ACLI_ERR)
   if [ "$WS_ARCH" = arm64 ]; then file=$C_ACLI_MAC_FILE_ARM64; sha=$C_ACLI_MAC_SHA256_ARM64; else file=$C_ACLI_MAC_FILE_X64; sha=$C_ACLI_MAC_SHA256_X64; fi
   url=$(ws_expand "$C_ACLI_MAC_URL" "" "" "" "" "$C_ACLI_VERSION" "$file" "")
   rm -rf "$d"; mkdir -p "$d/x" "$WS_HOME/bin" || { WS_ACLI_ERR="$WS_HOME/bin"; return 1; }
-  ws_say "  $(ws_msg a_descarregar O_QUE="$file")"
+  ws_activity "$(ws_msg a_descarregar O_QUE="$file")"
   ws_dl_check "$url" "$d/$file" "$sha"
   case $? in
     1) WS_ACLI_ERR="$(ws_net_code "$WS_DL_RC" "$WS_DL_HTTP") ${WS_DL_HOST:+$WS_DL_HOST · }$url"; return 1 ;;
@@ -2557,7 +2801,7 @@ ws_s10_install() {
   whl=$(ws_memory_wheel "$ver" "$d/SHA256SUMS"); dist=${whl%%-*}
   # No ecra so o nome da app (o wheel ate a v0.5 chama-se "memoria-..."); o nome do ficheiro fica no log.
   ws_log "app wheel: $whl"
-  ws_say "  $(ws_m a_descarregar_app)"
+  ws_activity "$(ws_m a_descarregar_app)"
   for f in "$whl" constraints.txt; do
     ws_dl_check "$(ws_release_url memory "$f")" "$d/$f" "$(ws_sum_for "$d/SHA256SUMS" "$f")" auth
     case $? in
@@ -2565,7 +2809,7 @@ ws_s10_install() {
       2) ws_fail E-MEM-02 "$f"; return 1 ;;
     esac
   done
-  ws_say "  $(ws_m a_instalar)"
+  ws_activity "$(ws_m a_instalar)"
   if ! ws_uv_tool_install "$d/$whl" "$d/constraints.txt"; then
     # As definicoes do uv da pessoa (erro de sintaxe, mirror da empresa sem VPN) antes de tudo: com elas, nenhuma
     # nova tentativa resolve e o E-MEM-03 apontava para o pypi.org.
@@ -2774,7 +3018,7 @@ ws_s11_detect() {
 ws_s11_install() {
   local d="$WS_TMP/desktop" mnt
   rm -rf "$d"; mkdir -p "$d"
-  ws_say "  $(ws_msg a_descarregar O_QUE="Claude.dmg")"
+  ws_activity "$(ws_msg a_descarregar O_QUE="Claude.dmg")"
   ws_dl "$C_DESKTOP_MAC_URL" "$d/Claude.dmg" || { ws_fail E-DESK-02 "HTTP $WS_DL_HTTP"; ws_warn E-DESK-01 ""; return 1; }
   mnt="$d/mnt"; mkdir -p "$mnt"
   ws_run hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$d/Claude.dmg" || { ws_fail E-DESK-02 hdiutil; return 1; }
@@ -2842,7 +3086,7 @@ ws_s12_run() {
   gw=$(ws_gw_show)
   # O gateway da empresa nao respondeu no passo 0: o Claude ficaria minutos a tentar outra vez.
   if [ "${WS_GW_DOWN:-0}" = 1 ]; then ws_fail E-AUTH-05 "$gw"; return 1; fi
-  ws_say "  $(ws_msg s12_a_testar SEG="$WS_TMO_SMOKE")"
+  ws_activity "$(ws_msg s12_a_testar SEG="$WS_TMO_SMOKE")"
   t0=$(date +%s)
   # Com limite de tempo (sem resposta, o Claude Code tenta outra vez durante minutos) e sem servidores MCP
   # (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo.
@@ -2871,7 +3115,7 @@ ws_s12_run() {
     local hk; hk=$(ws_user_hooks)
     if [ -z "$gw" ] && [ -n "$hk" ]; then
       ws_log "final test: no answer in $WS_TMO_SMOKE s with the hooks of the settings ($hk): once more without them"
-      ws_say "  $(ws_msg s12_sem_hooks HOOKS="$hk")"
+      ws_activity "$(ws_msg s12_sem_hooks HOOKS="$hk")" manter
       ( cd "$WS_TMP" && ws_timeout "$WS_TMO_SMOKE" "$WS_CLAUDE" -p "$(ws_m s12_prompt)" --model "$(ws_smoke_model)" --output-format json --tools "" --strict-mcp-config --settings "$(ws_nohooks)" > "$out" 2> "$err" </dev/null )
       rc=$?
       { cat "$err"; head -c 4000 "$out"; printf '\n'; } >> "$WS_STEP_LOG"
@@ -3048,19 +3292,52 @@ ws_summary() {
     if [ "$avisos" = 1 ]; then printf '%s\n' "$(ws_m final_aviso1)"
     elif [ "$avisos" -gt 1 ]; then printf '%s\n' "$(ws_msg final_avisos N="$avisos")"; fi
   })
-  ws_say ""
-  ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
-  ws_say "$txt"
-  [ "$WS_MODE" = install ] && ws_need_reopen && ws_say "$(ws_m final_reiniciar)"
-  [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "$(ws_m s7_oauth)"
+  if [ "${WS_UI:-plain}" = fancy ]; then ws_summary_fancy "$faltam" "$avisos" "$lista"
+  else
+    ws_say ""
+    ws_say "$(ws_bold "────────────────────────────────────────────────────────────────")"
+    ws_say "$txt"
+    [ "$WS_MODE" = install ] && ws_need_reopen && ws_say "$(ws_m final_reiniciar)"
+    [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "$(ws_m s7_oauth)"
+  fi
   # O resumo antigo so e trocado se o novo ficou gravado inteiro (resumo.txt e o nome antigo).
   if { printf '%s\n' "$txt" > "$r" && mv -f "$r" "$WS_RESUMO"; } 2>/dev/null; then
     rm -f "$WS_HOME/resumo.txt"
-    ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"
+    if [ "${WS_UI:-plain}" = fancy ]; then ws_say "  $(ws_dim "$(ws_tilde_all "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")")"
+    else ws_say "$(ws_dim "$(ws_msg final_ficheiros RESUMO="$WS_RESUMO" LOG="$WS_LOG")")"; fi
   else
     rm -f "$r" 2>/dev/null
   fi
   WS_FALTAM=$faltam
+}
+# O resumo no aspeto fancy: um cartao ("Summary · data · sistema" e as contagens), a mesma tabela (passo, estado,
+# detalhe) e as frases do fim, cada uma com o seu simbolo. O summary.txt fica igual ao do plain.
+ws_summary_fancy() { # faltam avisos lista
+  local faltam=$1 avisos=$2 lista=$3 n st d prontos=0 t1 c1 t2 c2 pt ct
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do case "$(ws_st "$n")" in feito|ok|ja) prontos=$((prontos + 1)) ;; esac; done
+  t1="$(ws_m resumo) · $(date '+%Y-%m-%d %H:%M') · $WS_OS"; c1=$(ws_c b "$t1")
+  pt=$(ws_msg resumo_prontos N="$prontos"); t2="✔ $pt"; c2="$(ws_c g ✔) $pt"
+  if [ "$avisos" -gt 0 ]; then ct=$(ws_msg resumo_com_avisos N="$avisos"); t2="$t2   ▲ $ct"; c2="$c2   $(ws_c y ▲) $ct"; fi
+  if [ "$faltam" -gt 0 ]; then ct=$(ws_msg resumo_por_fazer N="$faltam"); t2="$t2   ✖ $ct"; c2="$c2   $(ws_c r ✖) $ct"; fi
+  ws_say ""
+  ws_card "$t1" "$c1" "$t2" "$c2"
+  ws_say "  $(ws_c d "$(ws_pad "$(ws_m resumo_cab_passo)" 24)$(ws_pad "$(ws_m resumo_cab_estado)" 20)$(ws_m resumo_cab_detalhe)")"
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do
+    st=$(ws_st "$n"); d="SD_$n"
+    ws_say "  $(ws_c d "$(ws_pad "$n" 4)")$(ws_pad "$(ws_step_name "$n")" 20)$(ws_sym_c "$st") $(ws_pad "$(ws_state_label "$st")" 19)${!d}"
+  done
+  ws_say ""
+  if [ "$faltam" = 0 ]; then
+    if [ "$WS_MODE" = install ]; then ws_say "  $(ws_c g ✔) $(ws_c gb "$(ws_m final_pronto)")"; else ws_say "  $(ws_c g ✔) $(ws_c gb "$(ws_m final_check_ok)")"; fi
+  else
+    if [ "$faltam" = 1 ]; then ws_say "  $(ws_c r ✖) $(ws_c b "$(ws_msg final_falta1 LISTA="$lista")")"; else ws_say "  $(ws_c r ✖) $(ws_c b "$(ws_msg final_faltam N="$faltam" LISTA="$lista")")"; fi
+    if [ "$WS_MODE" = install ]; then ws_say "  $(ws_c a →) $(ws_m final_voltar)"; else ws_say "  $(ws_c a →) $(ws_m final_voltar_check)"; fi
+  fi
+  if [ "$avisos" = 1 ]; then ws_say "  $(ws_c y ▲) $(ws_m final_aviso1)"
+  elif [ "$avisos" -gt 1 ]; then ws_say "  $(ws_c y ▲) $(ws_msg final_avisos N="$avisos")"; fi
+  [ "$WS_MODE" = install ] && ws_need_reopen && ws_say "  $(ws_c a →) $(ws_m final_reiniciar)"
+  [ "${WS_TODO_MCP:-0}" = 1 ] && ws_say "  $(ws_c a →) $(ws_m s7_oauth)"
+  return 0
 }
 # Reabrir o terminal so faz falta se esta execucao mudou o perfil, ou se o terminal onde o setup arrancou
 # (WS_PATH0, o PATH antes do ws_path_setup) ainda nao tem uma pasta do workshop com programas (ex.: a primeira
@@ -3108,7 +3385,7 @@ EOF
       projeto_mantido) ws_say "  $(ws_msg desinst_projeto_mantido CAMINHO="$v")" ;;
       editado) ws_say "  $(ws_msg desinst_editado NOME="${v##*/}" PASTA="$(ws_tilde "$v")")" ;;
       anteriores) ws_say "  $(ws_msg s8_anteriores PASTA="$(ws_tilde "$v")")" ;;
-      erro) ws_say "  ❌ $v" ;;
+      erro) ws_say "  $(ws_c r ✖) $v" ;;
     esac
   done <<EOF
 $iu_out
@@ -3251,6 +3528,7 @@ ws_self_update() {
   chmod +x "$new" && mv -f "$new" "$dst" || return 0
   ws_log "saved setup-mac.sh updated from the release ($sum): running the new copy"
   # O exec mantem o PID: a nova copia ve o .lock com o seu proprio PID e fica com ele (ws_lock_alive).
+  ws_ui_end
   trap - EXIT INT TERM HUP
   rm -rf "$WS_TMP"
   WS_REEXEC=1 WS_PATH0=$WS_PATH0 exec bash "$dst" ${WS_ARGS[@]+"${WS_ARGS[@]}"}
@@ -3298,6 +3576,8 @@ ws_lock() {
 # So apaga o .lock se for deste setup: um segundo terminal que foi recusado nao tira o lock ao primeiro.
 ws_cleanup() {
   [ -n "${WS_HB:-}" ] && kill "$WS_HB" 2>/dev/null
+  # O spinner para e a zona viva sai do ecra (no fim, num Ctrl-C ou quando a janela fecha).
+  ws_ui_end 2>/dev/null
   [ "$(sed -n 1p "$WS_HOME/.lock/pid" 2>/dev/null)" = "$$" ] && rm -rf "$WS_HOME/.lock" 2>/dev/null
   rm -rf "${WS_TMP:-/nonexistent}" 2>/dev/null
   return 0
@@ -3346,7 +3626,7 @@ ws_main() {
   ws_env_sanitize
   ws_tmp_make || return 1
   WS_STEP_LOG="$WS_TMP/inicio.log"
-  ws_color_detect
+  ws_ui_detect
   trap ws_interrupted INT TERM HUP
   trap ws_cleanup EXIT
 
@@ -3416,19 +3696,23 @@ EOF
   { printf '\n'; printf '=%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; printf ' %s · mode %s · %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$WS_MODE" "$C_WORKSHOP_VERSION"; } >> "$WS_LOG"
   ws_log "language: $WS_LANG (kit $WS_LANG_KIT) · saved ${WS_LANG_GUARDADA:--} · machine $WS_LANG_MAQUINA${WS_LANG_IGNORADA:+ · WORKSHOP_LANG ignored: $WS_LANG_IGNORADA}"
 
-  ws_say "$(ws_bold "$(ws_msg titulo)")"
+  ws_os_detect
+  ws_header
+  # No fancy o texto do inicio fica alinhado com o cartao, e a lista em cinzento.
+  local ind="" i=0 nn
+  [ "${WS_UI:-plain}" = fancy ] && ind="  "
   case "$WS_MODE" in
-    uninstall) ws_say "$(ws_msg modo_desinstalar MANIFEST="$WS_HOME/manifest.json")"; ws_uninstall; return $? ;;
-    check) ws_say "$(ws_m tempo_check)" ;;
-    doctor) ws_say "$(ws_m modo_doctor)"; ws_say "$(ws_m tempo_check)" ;;
+    uninstall) ws_say "$ind$(ws_msg modo_desinstalar MANIFEST="$WS_HOME/manifest.json")"; ws_uninstall; return $? ;;
+    check) ws_say "$ind$(ws_m tempo_check)" ;;
+    doctor) ws_say "$ind$(ws_m modo_doctor)"; ws_say "$ind$(ws_m tempo_check)" ;;
     install)
-      ws_say "$(ws_m instala)"
-      local i=0 nn
-      while [ "$i" -lt "${M_ui_instala_lista_n:-0}" ]; do nn="M_ui_instala_lista_$i"; ws_say "  • $(ws_fill "${!nn}")"; i=$((i + 1)); done
-      ws_say "$(ws_m tempo)"
-      [ "$WS_SIM" = 1 ] && ws_say "$(ws_m modo_sim)" ;;
+      ws_say "$ind$(ws_m instala)"
+      while [ "$i" -lt "${M_ui_instala_lista_n:-0}" ]; do nn="M_ui_instala_lista_$i"; ws_say "$ind  $(ws_dim "• $(ws_fill "${!nn}")")"; i=$((i + 1)); done
+      ws_say "$ind$(ws_m tempo)"
+      [ "$WS_SIM" = 1 ] && ws_say "$ind$(ws_m modo_sim)" ;;
   esac
-  ws_say "$(ws_dim "$(ws_msg log_em LOG="$WS_LOG")")"
+  if [ -n "$ind" ]; then ws_say "$ind$(ws_dim "$(ws_tilde_all "$(ws_msg log_em LOG="$WS_LOG")")")"; else ws_say "$(ws_dim "$(ws_msg log_em LOG="$WS_LOG")")"; fi
+  [ "${WS_UI:-plain}" = fancy ] && ws_say ""
   ws_save_self
 
   ws_step 0

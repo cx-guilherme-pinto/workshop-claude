@@ -39,7 +39,7 @@ If PowerShell blocks the command above, download [setup-windows.ps1]({{SETUP_WIN
 {{ONE_LINER_WINDOWS_FALLBACK}}
 ```
 
-The setup speaks English on every machine. It asks a few questions (for example, the Console login, which opens the browser). Each step ends with one of four states: ✅ Done · ⏭️ Already done · ⚠️ Done with warning · ❌ Failed. When something fails, the setup tells you why and what to do, with the exact command.
+The setup speaks English on every machine. It asks a few questions (for example, the Console login, which opens the browser). It shows one line per step, with a spinner while the step runs, and a summary at the end. Each step ends with one of four states: ✔ Done · ✔ Already done · ▲ Done with warning · ✖ Failed (in the old Windows console window: [OK] · [OK] · [!!] · [XX]). When something fails, the setup tells you why and what to do, with the exact command.
 
 The setup also detects the machine language. If you don't have Claude Code's `language` setting yet, it writes it (Portuguese, English, Hindi or Hebrew). The skills are written in English but answer in your language. The Arena, the orchestrator and the statusline are in Portuguese on a Portuguese machine and in English on all others.
 

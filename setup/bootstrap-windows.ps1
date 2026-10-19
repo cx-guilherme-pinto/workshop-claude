@@ -92,7 +92,11 @@ function Invoke-WsBootstrap {
   if ($m.Success) { $url = $url.Replace('{host}', $m.Groups[2].Value).Replace('{owner}', $m.Groups[3].Value).Replace('{name}', $m.Groups[4].Value) }
 
   $dest = Join-Path ([IO.Path]::GetTempPath()) ('workshop-setup-windows-' + $ver + '.ps1')
-  Write-Host ('Downloading the workshop setup (' + $ver + ')...')
+  # O mesmo aspeto do setup: o losango no Windows Terminal (Unicode), '*' na consola antiga; sem cores se NO_COLOR.
+  $mark = '*'
+  if ($env:WT_SESSION) { $mark = [string][char]0x25C6 }
+  if ($env:NO_COLOR) { Write-Host ('  ' + $mark + ' Claude Workshop - downloading the setup (' + $ver + ')...') }
+  else { Write-Host ('  ' + $mark + ' Claude Workshop - downloading the setup (' + $ver + ')...') -ForegroundColor DarkGray }
   $headers = @{}
   # REPO_TOKEN (so em desenvolvimento): vai so para o servidor do repositorio, nunca para o ecra.
   if ($env:REPO_TOKEN -and $m.Success -and ([Uri]$url).Authority -eq $m.Groups[2].Value) { $headers['Authorization'] = 'token ' + $env:REPO_TOKEN }
@@ -147,7 +151,7 @@ function Invoke-WsBootstrap {
   }
   # "| Out-Default": o setup fica com a consola (cores, perguntas sem fim de linha), nunca com a saida capturada.
   & $ps -NoProfile -ExecutionPolicy Bypass -File $dest @all | Out-Default
-  Write-Host ('(setup finished with exit code ' + $LASTEXITCODE + ')')
+  Write-Host ('  (setup finished with exit code ' + $LASTEXITCODE + ')')
 }
 
 # WS_NO_MAIN=1: so define as funcoes (testes Pester).

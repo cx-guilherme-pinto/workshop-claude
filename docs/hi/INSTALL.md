@@ -35,7 +35,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
-Setup हर machine पर English में ही बात करता है, इसलिए आपको सारे messages English में दिखेंगे। यह कुछ सवाल पूछता है (जैसे Console login, जो browser खोलता है)। हर step इन चार states में से किसी एक पर खत्म होता है: ✅ Done (हो गया) · ⏭️ Already done (पहले से हो चुका था) · ⚠️ Done with warning (हो गया, पर warning के साथ) · ❌ Failed (fail हो गया)। जब कुछ fail होता है, तो setup बताता है कि क्यों हुआ और अब क्या करना है, exact command के साथ।
+Setup हर machine पर English में ही बात करता है, इसलिए आपको सारे messages English में दिखेंगे। यह कुछ सवाल पूछता है (जैसे Console login, जो browser खोलता है)। हर step इन चार states में से किसी एक पर खत्म होता है: ✔ Done (हो गया) · ✔ Already done (पहले से हो चुका था) · ▲ Done with warning (हो गया, पर warning के साथ) · ✖ Failed (fail हो गया)। जब कुछ fail होता है, तो setup बताता है कि क्यों हुआ और अब क्या करना है, exact command के साथ।
 
 Setup machine की language भी detect करता है। अगर Claude Code की `language` setting अभी set नहीं है, तो वह उसे लिख देता है (Portuguese, English, Hindi या Hebrew)। Skills English में लिखी गई हैं, पर जवाब आपकी language में देती हैं। Arena, orchestrator और statusline Portuguese machine पर Portuguese में और बाकी सभी machines पर English में चलते हैं।
 

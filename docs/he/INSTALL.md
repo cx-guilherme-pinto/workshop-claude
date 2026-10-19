@@ -35,7 +35,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
-ה-setup מדבר אנגלית בכל מחשב, כך שכל ההודעות שתראו יהיו באנגלית. הוא שואל כמה שאלות (למשל ה-login ל-Console, שפותח את הדפדפן). כל שלב מסתיים באחד מארבעה מצבים: ✅ Done (בוצע) · ⏭️ Already done (כבר בוצע קודם) · ⚠️ Done with warning (בוצע, עם אזהרה) · ❌ Failed (נכשל). כשמשהו נכשל, ה-setup מסביר למה ומה לעשות, עם הפקודה המדויקת.
+ה-setup מדבר אנגלית בכל מחשב, כך שכל ההודעות שתראו יהיו באנגלית. הוא שואל כמה שאלות (למשל ה-login ל-Console, שפותח את הדפדפן). כל שלב מסתיים באחד מארבעה מצבים: ✔ Done (בוצע) · ✔ Already done (כבר בוצע קודם) · ▲ Done with warning (בוצע, עם אזהרה) · ✖ Failed (נכשל). כשמשהו נכשל, ה-setup מסביר למה ומה לעשות, עם הפקודה המדויקת.
 
 ה-setup גם מזהה את שפת המחשב. אם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills כתובים באנגלית, אבל עונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר.
 

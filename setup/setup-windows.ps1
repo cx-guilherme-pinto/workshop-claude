@@ -585,31 +585,48 @@ function New-WsStateTable {
 }
 
 function Get-WsSymbol {
+  # Unicode de uma coluna (nao emoji) no Windows Terminal; ASCII na consola antiga (conhost), que nao os desenha.
   param([string]$State, [bool]$Emoji)
   if ($Emoji) {
     switch ($State) {
-      'feito' { return [char]::ConvertFromUtf32(0x2705) }
-      'ok' { return [char]::ConvertFromUtf32(0x2705) }
-      'ja' { return ([char]::ConvertFromUtf32(0x23ED) + [char]0xFE0F) }
-      'aviso' { return ([char]::ConvertFromUtf32(0x26A0) + [char]0xFE0F) }
-      'falhou' { return [char]::ConvertFromUtf32(0x274C) }
-      'falta' { return [char]::ConvertFromUtf32(0x274C) }
-      'naoexec' { return [char]::ConvertFromUtf32(0x26D4) }
-      'saltado' { return [char]::ConvertFromUtf32(0x2796) }
+      'feito' { return [string][char]0x2714 }
+      'ok' { return [string][char]0x2714 }
+      'ja' { return [string][char]0x2714 }
+      'aviso' { return [string][char]0x25B2 }
+      'falhou' { return [string][char]0x2716 }
+      'falta' { return [string][char]0x2716 }
+      'naoexec' { return [string][char]0x25CB }
+      'saltado' { return [string][char]0x2013 }
     }
     return '-'
   }
   switch ($State) {
     'feito' { return '[OK]' }
     'ok' { return '[OK]' }
-    'ja' { return '[SKIP]' }
-    'aviso' { return '[WARN]' }
-    'falhou' { return '[FAIL]' }
-    'falta' { return '[FAIL]' }
+    'ja' { return '[OK]' }
+    'aviso' { return '[!!]' }
+    'falhou' { return '[XX]' }
+    'falta' { return '[XX]' }
     'naoexec' { return '[--]' }
     'saltado' { return '[--]' }
   }
-  return '[ ]'
+  return '[  ]'
+}
+
+function Get-WsStateColor {
+  param([string]$State)
+  switch ($State) { 'feito' { return 'Green' } 'ok' { return 'Green' } 'ja' { return 'Green' } 'aviso' { return 'Yellow' } 'falhou' { return 'Red' } 'falta' { return 'Red' } }
+  return 'DarkGray'
+}
+
+function Get-WsUiMode {
+  # Aspeto da saida: 'fancy' (Windows Terminal: cartoes, lista de passos, spinner e barra), 'ascii' (consola antiga,
+  # sem VT: cartoes +--+ e [OK] [!!] [XX], linhas como no plain, sem spinner) ou 'plain' (as linhas de sempre: saida
+  # redirecionada, NO_COLOR, TERM=dumb ou menos de 70 colunas).
+  param([bool]$Redirected, [int]$Width, [bool]$NoColor, [string]$Term, [bool]$Unicode)
+  if ($Redirected -or $NoColor -or $Term -eq 'dumb' -or $Width -lt 70) { return 'plain' }
+  if ($Unicode) { return 'fancy' }
+  return 'ascii'
 }
 
 function Get-WsSummary {
@@ -951,9 +968,200 @@ function Write-WsLog {
 
 function Write-WsSay {
   param([string]$Text, [string]$Color)
+  # Com a zona viva (spinner) na consola, tira-a primeiro e volta a po-la depois.
+  $live = $script:Live.On
+  if ($live) { Hide-WsLive }
   # NO_COLOR (no-color.org): sem cores, como no Mac.
   if ($Color -and -not $env:NO_COLOR) { Write-Host $Text -ForegroundColor $Color } else { Write-Host $Text }
   Write-WsLog $Text
+  if ($live) { Show-WsLive }
+}
+
+# =============================================================== aspeto: cartao, lista de passos e spinner
+# $script:Ui (Get-WsUiMode): 'fancy' no Windows Terminal, 'ascii' na consola antiga, 'plain' quando a saida esta
+# redirecionada. No fancy, enquanto um passo corre, o fim da consola tem a zona viva: o passo com um spinner e o que esta
+# a fazer (com os MB ja descarregados), os passos por fazer e a barra "N of 12". O spinner nao e outro processo: avanca
+# enquanto o setup espera por um programa (Invoke-WsProcess, Invoke-WsLogin). A zona sai antes de cada linha, pergunta
+# e login, no fim de cada passo e no finally do Invoke-WsMain (Ctrl-C). Os simbolos vem de [char] (o .ps1 e ASCII).
+$script:Ui = 'plain'
+$script:UiCols = 0
+$script:UiRows = 0
+$script:Live = @{ On = $false; Step = ''; Text = ''; H = 0; Name = ''; Bar = ''; Mb = ''; Frame = 0; T0 = (Get-Date); Last = [datetime]::MinValue }
+$script:G = @{ Ell = [string][char]0x2026; Dot = [string][char]0x00B7; Arrow = [string][char]0x2192; Diamond = [string][char]0x25C6
+  On = [string][char]0x25B0; Off = [string][char]0x25B1; NotRun = [string][char]0x25CB
+  Hz = [string][char]0x2500; Vt = [string][char]0x2502; TL = [string][char]0x256D; TR = [string][char]0x256E; BL = [string][char]0x2570; BR = [string][char]0x256F }
+$script:Frames = @(0x280B, 0x2819, 0x2839, 0x2838, 0x283C, 0x2834, 0x2826, 0x2827, 0x2807, 0x280F)
+
+function Initialize-WsUi {
+  $red = $true; $w = 0; $h = 0
+  try { $red = [Console]::IsOutputRedirected } catch { $red = $true }
+  try { $w = [Console]::WindowWidth; $h = [Console]::WindowHeight } catch { $w = 0; $h = 0 }
+  $script:UiCols = $w; $script:UiRows = $h
+  $script:Ui = Get-WsUiMode $red $w ([bool]$env:NO_COLOR) ([string]$env:TERM) $script:Emoji
+  Write-WsLog ('output: {0} ({1}x{2})' -f $script:Ui, $w, $h)
+}
+
+function Write-WsRaw {
+  # Escrita sem fim de linha (sequencias VT da zona viva). Uma consola que ja nao existe nunca para o setup.
+  param([string]$Text)
+  try { [Console]::Write($Text) } catch { }
+}
+
+function Write-WsParts {
+  # Uma linha com partes de cores diferentes: @(@(texto, cor), ...). No log vai o texto todo, sem cores.
+  param([object[]]$Parts)
+  $live = $script:Live.On
+  if ($live) { Hide-WsLive }
+  $all = ''
+  foreach ($p in $Parts) {
+    $t = [string]$p[0]
+    $c = $null
+    if ($p.Count -gt 1) { $c = $p[1] }
+    if ($c -and -not $env:NO_COLOR) { Write-Host $t -NoNewline -ForegroundColor $c } else { Write-Host $t -NoNewline }
+    $all += $t
+  }
+  Write-Host ''
+  Write-WsLog $all
+  if ($live) { Show-WsLive }
+}
+
+function Get-WsStepName {
+  # Nome curto do passo, para a lista de passos (o titulo inteiro se o catalogo nao o tiver).
+  param([string]$N)
+  # (PowerShell nao distingue maiusculas: uma variavel $n seria o proprio $N)
+  $name = $null
+  try { $name = $script:Msgs.passos_curtos.$N } catch { $name = $null }
+  if (-not $name -and $script:Titles) { $name = $script:Titles[$N] }
+  if (-not $name) { $name = $N }
+  return [string]$name
+}
+
+function Format-WsCut {
+  # Texto cortado a N caracteres, com reticencias no fim se foi cortado.
+  param([string]$Text, [int]$Max)
+  if ($Max -lt 2) { return '' }
+  if ($Text.Length -le $Max) { return $Text }
+  return ($Text.Substring(0, $Max - 1) + $script:G.Ell)
+}
+
+function Write-WsCard {
+  # Cartao com as linhas dadas, @(@(texto, cor), ...). Unicode no fancy, +--+ no ascii. Largura: o texto (no minimo
+  # 58, no maximo a consola).
+  param([object[]]$Lines)
+  $u = ($script:Ui -eq 'fancy')
+  $w = 58
+  foreach ($l in $Lines) { if (([string]$l[0]).Length + 4 -gt $w) { $w = ([string]$l[0]).Length + 4 } }
+  $max = $script:UiCols - 4
+  if ($max -lt 20) { $max = 76 }
+  if ($w -gt $max) { $w = $max }
+  if ($u) { $tl = $script:G.TL; $tr = $script:G.TR; $bl = $script:G.BL; $br = $script:G.BR; $hz = $script:G.Hz; $vt = $script:G.Vt }
+  else { $tl = '+'; $tr = '+'; $bl = '+'; $br = '+'; $hz = '-'; $vt = '|' }
+  Write-WsSay ($tl + ($hz * $w) + $tr) 'DarkGray'
+  foreach ($l in $Lines) {
+    $t = Format-WsCut ([string]$l[0]) ($w - 4)
+    $c = $null
+    if ($l.Count -gt 1) { $c = $l[1] }
+    Write-WsParts @(@(($vt + '  '), 'DarkGray'), @($t, $c), @(((' ' * ($w - 4 - $t.Length)) + '  ' + $vt), 'DarkGray'))
+  }
+  Write-WsSay ($bl + ($hz * $w) + $br) 'DarkGray'
+}
+
+function Write-WsHeader {
+  # Cartao do inicio (titulo, versao, sistema, lingua) no fancy e no ascii; a linha de sempre no plain.
+  if ($script:Ui -eq 'plain') { Write-WsSay (M 'titulo') 'White'; return }
+  $lang = [string]$script:Lang
+  if ($lang -match '^en(-|$)') { $lang = (M 'lingua_en') } elseif ($lang -match '^pt(-|$)') { $lang = (M 'lingua_pt') + ' (' + $script:Lang + ')' }
+  $mark = '*'
+  if ($script:Ui -eq 'fancy') { $mark = $script:G.Diamond }
+  Write-WsSay ''
+  Write-WsCard @(@(($mark + ' ' + (M 'card_titulo')), 'White'), @(('  ' + (M 'card_sub' @{ SO = $script:OsText; LINGUA = $lang })), 'DarkGray'))
+  Write-WsSay ''
+}
+
+function Get-WsLiveBar {
+  param([int]$N)
+  $e = [string][char]27
+  return ('  ' + $e + '[38;5;173m' + ($script:G.On * $N) + $e + '[0m' + $e + '[2m' + ($script:G.Off * (12 - $N)) + '  ' + (M 'progresso' @{ N = $N }) + $e + '[0m')
+}
+
+function Get-WsLiveLine {
+  # A linha do passo com o spinner: simbolo, nome, o que esta a fazer e, em cinzento, os MB e os segundos.
+  $L = $script:Live
+  $e = [string][char]27
+  $f = [string][char]$script:Frames[$L.Frame % $script:Frames.Count]
+  $ex = [string]$L.Mb
+  $s = [int]((Get-Date) - $L.T0).TotalSeconds
+  if ($s -ge 3) { if ($ex) { $ex += ' ' + $script:G.Dot + ' ' }; $ex += (M 'decorrido' @{ S = $s }) }
+  $t = Format-WsCut ([string]$L.Text + $script:G.Ell) ($script:UiCols - 26 - $ex.Length)
+  return ('  ' + $e + '[38;5;173m' + $f + $e + '[0m ' + $L.Name + $t + '  ' + $e + '[2m' + $ex + $e + '[0m')
+}
+
+function Start-WsLive {
+  # Comeca a zona viva do passo N (so no fancy).
+  param([string]$N)
+  if ($script:Ui -ne 'fancy') { return }
+  $L = $script:Live
+  $L.Step = $N; $L.Mb = ''; $L.Frame = 0; $L.T0 = Get-Date; $L.Last = [datetime]::MinValue
+  $t = (M 'a_trabalhar')
+  if ($script:Mode -ne 'install') { $t = (M 'a_verificar') }
+  $L.Text = $t.TrimEnd([char]0x2026)
+  $L.Name = (Get-WsStepName $N).PadRight(19)
+  $L.Bar = Get-WsLiveBar ([int]$N)
+  Show-WsLive
+}
+
+function Stop-WsLive { Hide-WsLive; $script:Live.Step = '' }
+
+function Show-WsLive {
+  $L = $script:Live
+  if ($script:Ui -ne 'fancy' -or -not $L.Step -or $L.On) { return }
+  $e = [string][char]27
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.Append((Get-WsLiveLine))
+  $h = 3
+  # Os passos por fazer so se a consola tiver altura para eles (a zona tem de caber inteira).
+  if ($script:UiRows -ge 26) {
+    for ($i = [int]$L.Step + 1; $i -le 12; $i++) { [void]$sb.Append("`r`n  " + $e + '[2m' + $script:G.NotRun + ' ' + (Get-WsStepName "$i") + $e + '[0m'); $h++ }
+  }
+  [void]$sb.Append("`r`n`r`n" + $L.Bar)
+  $L.H = $h; $L.On = $true
+  Write-WsRaw $sb.ToString()
+}
+
+function Hide-WsLive {
+  # Tira a zona viva da consola: o cursor volta ao inicio dela.
+  $L = $script:Live
+  if (-not $L.On) { return }
+  $L.On = $false
+  $e = [string][char]27
+  Write-WsRaw ("`r" + $e + '[' + ($L.H - 1) + 'A' + $e + '[J')
+}
+
+function Update-WsLive {
+  # Uma imagem do spinner (no maximo umas 8 por segundo): reescreve a linha do passo e a barra.
+  param([switch]$Force)
+  $L = $script:Live
+  if (-not $L.On) { return }
+  $now = Get-Date
+  if (-not $Force -and ($now - $L.Last).TotalMilliseconds -lt 110) { return }
+  $L.Last = $now; $L.Frame++
+  $e = [string][char]27
+  $up = $L.H - 1
+  Write-WsRaw ("`r" + $e + '[' + $up + 'A' + (Get-WsLiveLine) + $e + '[K' + "`r" + $e + '[' + $up + 'B' + $L.Bar + $e + '[K')
+}
+
+function Write-WsActivity {
+  # O que o passo esta a fazer ("Downloading X..."): no fancy vai para a linha do spinner, senao e uma linha como
+  # sempre. -Keep: fica tambem como nota debaixo do resultado do passo.
+  param([string]$Text, [switch]$Keep)
+  if ($script:Live.On) {
+    $script:Live.Text = $Text.TrimEnd([char]0x2026); $script:Live.Mb = ''
+    Write-WsLog ('  ' + $Text)
+    if ($Keep) { Add-WsNote $Text }
+    Update-WsLive -Force
+    return
+  }
+  Write-WsSay ('  ' + $Text)
 }
 
 function Test-WsInteractive {
@@ -972,7 +1180,15 @@ function Clear-WsTypeAhead {
 }
 
 function Read-WsYesNo {
-  # Pergunta sim/nao. -NeverSim: o -Sim nao responde por ti.
+  # Pergunta sim/nao. -NeverSim: o -Sim nao responde por ti. A zona viva (spinner) sai antes da pergunta, que fica
+  # sozinha na ultima linha ("? <pergunta> [Y/n]"), e volta depois.
+  param([string]$Question, [bool]$DefaultYes, [switch]$NeverSim)
+  $live = $script:Live.On
+  Hide-WsLive
+  try { return (Read-WsYesNoCore $Question $DefaultYes -NeverSim:$NeverSim) } finally { if ($live) { Show-WsLive } }
+}
+
+function Read-WsYesNoCore {
   param([string]$Question, [bool]$DefaultYes, [switch]$NeverSim)
   $hint = (M 'ns')
   if ($DefaultYes) { $hint = (M 'sn') }
@@ -1063,14 +1279,29 @@ function Invoke-WsProcess {
       $p.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
     }
     $p.StandardInput.Close()
-    while (-not $p.WaitForExit(500)) {
+    # Com a zona viva (fancy) espera-se aos bocados mais pequenos, para o spinner andar; os MB do download vao para a
+    # linha do spinner (de 2 em 2 s) em vez de uma linha nova de 30 em 30 s.
+    $tick = 500
+    if ($script:Live.On) { $tick = 120 }
+    $mbNext = Get-Date
+    while (-not $p.WaitForExit($tick)) {
       if ((Get-Date) -gt $deadline) {
         $done = $true
         Stop-WsProcessTree $p
         Write-WsLog '  -> timed out'
         return @{ ExitCode = -2; StdOut = ''; StdErr = 'timeout' }
       }
-      if ($hbNext -and (Get-Date) -gt $hbNext) {
+      if ($script:Live.On) {
+        if ($WatchPaths -and (Get-Date) -gt $mbNext) {
+          try {
+            $grow = [int64]0
+            foreach ($w in $WatchPaths) { $g = (Get-WsPathBytes $w) - $hbBase[$w]; if ($g -gt $grow) { $grow = $g } }
+            $script:Live.Mb = (M 'mb' @{ MB = (Format-WsMb $grow) })
+          } catch { }
+          $mbNext = (Get-Date).AddSeconds(2)
+        }
+        Update-WsLive
+      } elseif ($hbNext -and (Get-Date) -gt $hbNext) {
         # Um erro aqui nunca para o programa (o finally terminava-o): so se perde esta linha de progresso.
         try {
           $grow = [int64]0
@@ -1400,10 +1631,13 @@ function Get-WsHintUrl {
 }
 
 function Write-WsCode {
-  param([string]$Code, [string]$Detail, [string]$Indent)
+  # -Prefix (com -PrefixColor): simbolo antes do titulo; -Sub: indentacao a mais do resto (a lista de passos do fancy).
+  param([string]$Code, [string]$Detail, [string]$Indent, [string]$Prefix, [string]$PrefixColor, [string]$Sub)
   $e = Get-WsErr $Code
   if (-not $e) { Write-WsSay ($Indent + $Code); return }
-  Write-WsSay ($Indent + (Format-WsFill $e.titulo)) 'White'
+  if ($Prefix) { Write-WsParts @(@($Indent, $null), @($Prefix, $PrefixColor), @((Format-WsFill $e.titulo), 'White')) }
+  else { Write-WsSay ($Indent + (Format-WsFill $e.titulo)) 'White' }
+  $Indent = $Indent + $Sub
   $d = ''
   if ($Detail) { $d = ' (' + $Detail + ')' }
   Write-WsSay ($Indent + (M 'porque') + ': ' + (Format-WsFill $e.causa) + $d)
@@ -1419,8 +1653,40 @@ function Write-WsCode {
   Write-WsSay ($Indent + (M 'codigo' @{ CODIGO = $Code })) 'DarkGray'
 }
 
+function Write-WsResultFancy {
+  # Resultado de um passo no fancy: a linha do passo (simbolo, nome curto, detalhe), as notas em cinzento e, debaixo,
+  # a explicacao de cada falha ou aviso, como no plain.
+  param([string]$N)
+  Stop-WsLive
+  $s = $script:T[$N]
+  # Sem detalhe, a linha (e o resumo) mostra o titulo do codigo (da falha ou do primeiro aviso).
+  if (-not $s.Detalhe) {
+    $c = ''
+    if ($s.Falha -and ($s.Estado -eq 'falhou' -or $s.Estado -eq 'falta')) { $c = [string]$s.Falha[0] }
+    elseif ($s.Avisos.Count -gt 0) { $c = [string]$s.Avisos[0][0] }
+    $e = $null
+    if ($c) { $e = Get-WsErr $c }
+    if ($e) { $s.Detalhe = (Format-WsFill $e.titulo) + ' (' + $c + ')' }
+  }
+  $parts = @(@('  ', $null), @((Get-WsSymbol $s.Estado $true), (Get-WsStateColor $s.Estado)), @((' ' + (Get-WsStepName $N).PadRight(19) + $s.Detalhe), $null))
+  if ($s.Estado -eq 'ja') {
+    $sep = ''
+    if ($s.Detalhe) { $sep = ' ' + $script:G.Dot + ' ' }
+    $parts += , @(($sep + (M 'ja_sufixo')), 'DarkGray')
+  }
+  Write-WsParts $parts
+  foreach ($nt in $s.Notas) { Write-WsSay ('    ' + $nt) 'DarkGray' }
+  $any = $false
+  if ($s.Falha -and ($s.Estado -eq 'falhou' -or $s.Estado -eq 'falta')) {
+    Write-WsCode $s.Falha[0] $s.Falha[1] '    ' -Prefix ((Get-WsSymbol 'falhou' $true) + ' ') -PrefixColor 'Red' -Sub '  '; $any = $true
+  }
+  foreach ($w in $s.Avisos) { Write-WsCode $w[0] $w[1] '    ' -Prefix ((Get-WsSymbol 'aviso' $true) + ' ') -PrefixColor 'Yellow' -Sub '  '; $any = $true }
+  if ($any) { Write-WsSay '' }
+}
+
 function Write-WsResult {
   param([string]$N)
+  if ($script:Ui -eq 'fancy') { Write-WsResultFancy $N; return }
   $s = $script:T[$N]
   $line = '  ' + (Get-WsSymbol $s.Estado $script:Emoji) + ' ' + (Get-WsStateLabel $s.Estado)
   if ($s.Detalhe) { $line += ' - ' + $s.Detalhe }
@@ -1500,8 +1766,12 @@ function Invoke-WsStep {
   $script:Blocked = ''
   $script:T[$key] = @{ Estado = ''; Detalhe = ''; Avisos = @(); Falha = $null; Notas = @() }
   $title = $script:Titles[$key]
-  Write-WsSay ''
-  Write-WsSay (M 'passo' @{ N = $key; TITULO = $title }) 'White'
+  # fancy: a zona viva com o spinner (a linha do passo so aparece no fim); senao o cabecalho "Step N/12 . ...".
+  if ($script:Ui -eq 'fancy') { Start-WsLive $key }
+  else {
+    Write-WsSay ''
+    Write-WsSay (M 'passo' @{ N = $key; TITULO = $title }) 'White'
+  }
   Write-WsLog ('=== step {0}: {1} (mode {2})' -f $key, $title, $script:Mode)
   # Cada instalacao deixa "result step N: estado [codigo|detalhe]" no setup.log (ver Get-WsLastInstallResult).
   $failed = ''
@@ -1604,7 +1874,7 @@ function Initialize-WsKit {
   $tmpd = Join-Path $script:Tmp 'kit'
   Remove-Item -LiteralPath $tmpd -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Path (Join-Path $tmpd 'x') -Force | Out-Null
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $name }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $name })
   $zip = Join-Path $tmpd $name
   $kitUrl = Get-WsReleaseUrl 'workshop' $name
   # Com o SHA-256 injetado (release), um arquivo truncado ou alterado e descarregado uma segunda vez.
@@ -1719,7 +1989,8 @@ function Add-WsStep0LangNotes {
   if ($script:LangSaved -and $script:LangSaved -ne $script:LangMachine) { Add-WsNote (M 's0_lingua_guardada' @{ LINGUA = $script:LangSaved; MAQUINA = $script:LangMachine }) }
 }
 
-function Test-WsStep0 {
+function Set-WsOsInfo {
+  # Sistema e arquitetura ($script:OsText, $script:Arch, $script:OsBuild): para o cartao do inicio e para o passo 0.
   $v = [Environment]::OSVersion.Version
   $script:OsBuild = $v.Build
   # Arquitetura nativa, mesmo quando o PowerShell corre emulado (x64 num Windows ARM64).
@@ -1731,6 +2002,12 @@ function Test-WsStep0 {
   if ($oa -eq 'Arm64' -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_ARCHITEW6432 -eq 'ARM64' -or $regArch -eq 'ARM64') { $arch = 'arm64' }
   $script:Arch = $arch
   $script:OsText = ('Windows {0}.{1}.{2} {3} - PowerShell {4}' -f $v.Major, $v.Minor, $v.Build, $arch, $PSVersionTable.PSVersion)
+  return $v
+}
+
+function Test-WsStep0 {
+  $v = Set-WsOsInfo
+  $arch = $script:Arch
   Add-WsNote (M 's0_so' @{ SO = $script:OsText })
   Add-WsStep0LangNotes
   if ($v.Major -lt 10 -or $v.Build -lt 18362) { Set-WsWarn 'E-SO-01' ('{0}.{1}.{2}' -f $v.Major, $v.Minor, $v.Build) }
@@ -2161,7 +2438,7 @@ function Test-WsNetwork {
   $cprobe = [string]$script:C.CLAUDE_INSTALL_PS1_URL
   $hosts = Get-WsNetProbeUrls (@($script:C.NET_CHECK_HOSTS -split '\s+') + @($script:Fill.REPO_HOST, $script:Fill.MEMORY_HOST)) $script:Fill.KIT_URL_WINDOWS $cprobe
   $script:NetTotal = $hosts.Count
-  Write-WsSay ('  ' + (M 'a_verificar_rede' @{ N = $hosts.Count }))
+  Write-WsActivity (M 'a_verificar_rede' @{ N = $hosts.Count })
   $jobs = @()
   foreach ($h in $hosts) {
     $req = [System.Net.WebRequest]::Create($h)
@@ -2321,13 +2598,13 @@ function Install-WsStep1 {
 }
 
 function Install-WsGitForWindows {
-  Write-WsSay ('  ' + (M 'a_instalar'))
+  Write-WsActivity (M 'a_instalar')
   if ((Test-WsWinget) -and (Invoke-WsWinget 'Git.Git')) { if ((Test-WsStep1) -and -not $script:GitBashMissing) { return $true } }
   $file = $script:C.GIT_WINDOWS_FILE_X64; $want = $script:C.GIT_WINDOWS_SHA256_X64
   if ($script:Arch -eq 'arm64') { $file = $script:C.GIT_WINDOWS_FILE_ARM64; $want = $script:C.GIT_WINDOWS_SHA256_ARM64 }
   $url = Expand-WsPattern $script:C.GIT_WINDOWS_URL @{ version = $script:C.GIT_WINDOWS_VERSION; file = $file }
   $exe = Join-Path $script:Tmp $file
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $file })
   $rc = Invoke-WsDownloadChecked $url $exe $want
   if ($rc -eq 1) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $url); return $false }
   if ($rc -eq 2) { Set-WsFail 'E-GIT-02' ('SHA-256 ' + $file); return $false }
@@ -2403,7 +2680,7 @@ function Test-WsStep2 {
 function Install-WsStep2 {
   if (-not (Test-WsClaudeJson)) { return $false }
   if (Test-WsPermBlocked @((Join-Path $script:UserHome '.claude\downloads'), (Join-Path $script:UserHome '.local\bin\claude.exe'), (Join-Path $script:UserHome '.local\share\claude'))) { return $false }
-  Write-WsSay ('  ' + (M 'a_instalar'))
+  Write-WsActivity (M 'a_instalar')
   $f = Join-Path $script:Tmp 'claude-install.ps1'
   if (-not (Invoke-WsDownload $script:C.CLAUDE_INSTALL_PS1_URL $f)) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $script:C.CLAUDE_INSTALL_PS1_URL); return $false }
   # O install.ps1 descarrega mais de 200 MB sem mostrar nada: o progresso vai aparecendo enquanto descarrega.
@@ -2457,8 +2734,10 @@ function Invoke-WsLogin {
   if (-not $p) { Write-WsLog 'login did not start'; return }
   try { $null = $p.Handle } catch { }   # sem isto o ExitCode de um Start-Process -PassThru (sem -Wait) fica vazio
   $done = $false
+  # O login corre noutra janela: aqui o spinner diz que se esta a espera dela.
+  if ($script:Live.On) { Write-WsActivity (M 'a_esperar_login') }
   try {
-    try { while (-not $p.WaitForExit(500)) { } } catch { Write-WsLog ('login: ' + $_.Exception.Message) }
+    try { while (-not $p.WaitForExit(120)) { Update-WsLive } } catch { Write-WsLog ('login: ' + $_.Exception.Message) }
     $done = $true
   } finally {
     if (-not $done) { Stop-WsProcessTree $p; Write-WsLog '  -> login stopped (Ctrl-C in the setup window)' }
@@ -2643,7 +2922,7 @@ function Install-WsStep4 {
   New-Item -ItemType Directory -Path (Join-Path $d 'x') -Force | Out-Null
   $sumsUrl = Expand-WsPattern $script:C.NODE_DIST_URL @{ version = $script:C.NODE_VERSION; file = 'SHASUMS256.txt' }
   $url = Expand-WsPattern $script:C.NODE_DIST_URL @{ version = $script:C.NODE_VERSION; file = $file }
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $file })
   if (-not (Invoke-WsDownload $sumsUrl (Join-Path $d 'SHASUMS256.txt'))) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $sumsUrl); return $false }
   $want = Get-WsSumFor (Join-Path $d 'SHASUMS256.txt') $file
   $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
@@ -2813,7 +3092,7 @@ function Install-WsStep6 {
   New-Item -ItemType Directory -Path (Join-Path $d 'x') -Force | Out-Null
   $sums = Expand-WsPattern $script:C.GH_RELEASE_URL @{ version = $script:C.GH_VERSION; file = ('gh_{0}_checksums.txt' -f $script:C.GH_VERSION) }
   $url = Expand-WsPattern $script:C.GH_RELEASE_URL @{ version = $script:C.GH_VERSION; file = $file }
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $file })
   if (-not (Invoke-WsDownload $sums (Join-Path $d 'sums'))) { Set-WsFail (Get-WsDlCode) (Get-WsDlDetail $sums); return $false }
   $want = Get-WsSumFor (Join-Path $d 'sums') $file
   $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
@@ -2972,7 +3251,7 @@ function Install-WsAcli {
   $d = Join-Path $script:Tmp 'acli'
   Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
   New-Item -ItemType Directory -Path (Join-Path $d 'x') -Force | Out-Null
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $file }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $file })
   $rc = Invoke-WsDownloadChecked $url (Join-Path $d $file) $want
   if ($rc -eq 1) { $script:AcliErr = (Get-WsDlCode) + ' ' + (Get-WsDlDetail $url); return $false }
   if ($rc -eq 2) { $script:AcliErr = 'SHA-256 ' + $file; return $false }
@@ -3644,7 +3923,7 @@ function Install-WsStep10 {
   }
   $whl = Get-WsMemoryWheel (Join-Path $d 'SHA256SUMS') $ver
   $dist = $whl.Split('-')[0]
-  Write-WsSay ('  ' + (M 'a_descarregar' @{ O_QUE = $whl }))
+  Write-WsActivity (M 'a_descarregar' @{ O_QUE = $whl })
   foreach ($f in @($whl, 'constraints.txt')) {
     $rc = Invoke-WsDownloadChecked (Get-WsReleaseUrl 'memory' $f) (Join-Path $d $f) (Get-WsSumFor (Join-Path $d 'SHA256SUMS') $f) -Auth
     if ($rc -eq 1) {
@@ -3654,7 +3933,7 @@ function Install-WsStep10 {
     if ($rc -eq 2) { Set-WsFail 'E-MEM-02' $f; return $false }
   }
   if (-not (Install-WsWebView2)) { Set-WsWarn 'E-MEM-04' '' }
-  Write-WsSay ('  ' + (M 'a_instalar'))
+  Write-WsActivity (M 'a_instalar')
   # O uv traz o seu proprio Python (--managed-python): nao depende de nenhum Python do sistema.
   # As variaveis que o proibiriam sao retiradas so deste processo, nunca globalmente.
   $uvArgs = @('tool', 'install', '--managed-python', '--python', $script:C.PYTHON_VERSION, (Join-Path $d $whl), '--constraints', (Join-Path $d 'constraints.txt'), '--force')
@@ -3942,7 +4221,7 @@ function Invoke-WsStep12Run {
   $gw = Get-WsGatewayShow $script:GwUrl
   # O gateway da empresa nao respondeu no passo 0: o Claude ficaria minutos a tentar outra vez.
   if ($script:GwDown) { Set-WsFail 'E-AUTH-05' $gw; return $false }
-  Write-WsSay ('  ' + (M 's12_a_testar' @{ SEG = $script:TmoSmoke }))
+  Write-WsActivity (M 's12_a_testar' @{ SEG = $script:TmoSmoke })
   $t0 = Get-Date
   # Sem servidores MCP (--strict-mcp-config sem --mcp-config): o teste so fala com o modelo e nao espera por MCPs.
   $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', (Get-WsSmokeModel), '--output-format', 'json', '--tools', '', '--strict-mcp-config') -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
@@ -3968,7 +4247,7 @@ function Invoke-WsStep12Run {
     $hk = Get-WsUserHooks
     if (-not $gw -and $hk) {
       Write-WsLog ('final test: no answer in {0} s with the hooks of the settings ({1}): once more without them' -f $script:TmoSmoke, $hk)
-      Write-WsSay ('  ' + (M 's12_sem_hooks' @{ HOOKS = $hk }))
+      Write-WsActivity (M 's12_sem_hooks' @{ HOOKS = $hk }) -Keep
       $r = Invoke-WsProcess $script:ClaudeExe @('-p', (M 's12_prompt'), '--model', (Get-WsSmokeModel), '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--settings', $script:NoHooks) -WorkingDirectory $script:Tmp -TimeoutSec $script:TmoSmoke
       $o = Read-WsResult $r.StdOut
       Write-WsLog ('final test without the hooks: exit {0} error {1} cost {2}' -f $r.ExitCode, $o.Erro, $o.Custo.Texto)
@@ -4124,17 +4403,60 @@ function Write-WsSummary {
   # Os avisos contam-se sempre, tambem quando falta algum passo.
   if ($sum.Avisos -eq 1) { $lines += (M 'final_aviso1') }
   elseif ($sum.Avisos -gt 1) { $lines += (M 'final_avisos' @{ N = $sum.Avisos }) }
-  Write-WsSay ''
-  Write-WsSay ('-' * 64)
-  foreach ($l in $lines) { Write-WsSay $l }
-  if ($script:Mode -eq 'install') { Write-WsSay (M 'final_reiniciar') }
-  if ($script:TodoMcp) { Write-WsSay (M 's7_oauth') }
-  Write-WsSay (M 'final_ficheiros' @{ RESUMO = $script:Resumo; LOG = $script:LogFile }) 'DarkGray'
+  if ($script:Ui -eq 'plain') {
+    Write-WsSay ''
+    Write-WsSay ('-' * 64)
+    foreach ($l in $lines) { Write-WsSay $l }
+    if ($script:Mode -eq 'install') { Write-WsSay (M 'final_reiniciar') }
+    if ($script:TodoMcp) { Write-WsSay (M 's7_oauth') }
+    Write-WsSay (M 'final_ficheiros' @{ RESUMO = $script:Resumo; LOG = $script:LogFile }) 'DarkGray'
+  } else { Write-WsSummaryCard $sum }
   try {
     [IO.File]::WriteAllText($script:Resumo, (($lines -join "`r`n") + "`r`n"), $script:Utf8NoBom)
     Remove-Item -LiteralPath (Join-Path $script:WsHome 'resumo.txt') -Force -ErrorAction SilentlyContinue   # the summary's old name
   } catch { }
   return $sum.Faltam
+}
+
+function Write-WsSummaryCard {
+  # O resumo no fancy e no ascii: um cartao ("Summary - data - sistema" e as contagens), a mesma tabela (passo, estado,
+  # detalhe) e as frases do fim, cada uma com o seu simbolo. O summary.txt e o mesmo do plain.
+  param($Sum)
+  $u = ($script:Ui -eq 'fancy')
+  $ok = Get-WsSymbol 'feito' $u; $warn = Get-WsSymbol 'aviso' $u; $fail = Get-WsSymbol 'falhou' $u
+  $arrow = '->'
+  if ($u) { $arrow = $script:G.Arrow }
+  $dot = ' - '
+  if ($u) { $dot = ' ' + $script:G.Dot + ' ' }
+  $prontos = 0
+  foreach ($n in $script:T.Keys) { if (@('feito', 'ok', 'ja') -contains $script:T[$n].Estado) { $prontos++ } }
+  $count = $ok + ' ' + (M 'resumo_prontos' @{ N = $prontos })
+  if ($Sum.Avisos -gt 0) { $count += '   ' + $warn + ' ' + (M 'resumo_com_avisos' @{ N = $Sum.Avisos }) }
+  if ($Sum.Faltam -gt 0) { $count += '   ' + $fail + ' ' + (M 'resumo_por_fazer' @{ N = $Sum.Faltam }) }
+  Write-WsSay ''
+  Write-WsCard @(@(((M 'resumo') + $dot + (Get-Date -Format 'yyyy-MM-dd HH:mm') + $dot + $script:OsText), 'White'), @($count, $null))
+  Write-WsSay ('  ' + (M 'resumo_cab_passo').PadRight(24) + (M 'resumo_cab_estado').PadRight(21) + (M 'resumo_cab_detalhe')) 'DarkGray'
+  foreach ($n in $script:T.Keys) {
+    $s = $script:T[$n]
+    $g = Get-WsSymbol $s.Estado $u
+    Write-WsParts @(@(('  ' + $n.PadRight(4)), 'DarkGray'), @((Get-WsStepName $n).PadRight(20), $null), @($g, (Get-WsStateColor $s.Estado)), @((' ' + (Get-WsStateLabel $s.Estado).PadRight(20 - $g.Length) + $s.Detalhe), $null))
+  }
+  Write-WsSay ''
+  if ($Sum.Faltam -eq 0) {
+    $t = (M 'final_pronto')
+    if ($script:Mode -ne 'install') { $t = (M 'final_check_ok') }
+    Write-WsParts @(@('  ', $null), @($ok, 'Green'), @((' ' + $t), 'Green'))
+  } else {
+    $t = (M 'final_faltam' @{ N = $Sum.Faltam; LISTA = $Sum.Lista })
+    if ($Sum.Faltam -eq 1) { $t = (M 'final_falta1' @{ LISTA = $Sum.Lista }) }
+    Write-WsParts @(@('  ', $null), @($fail, 'Red'), @((' ' + $t), 'White'))
+    Write-WsParts @(@('  ', $null), @($arrow, 'DarkCyan'), @((' ' + (M 'final_voltar')), $null))
+  }
+  if ($Sum.Avisos -eq 1) { Write-WsParts @(@('  ', $null), @($warn, 'Yellow'), @((' ' + (M 'final_aviso1')), $null)) }
+  elseif ($Sum.Avisos -gt 1) { Write-WsParts @(@('  ', $null), @($warn, 'Yellow'), @((' ' + (M 'final_avisos' @{ N = $Sum.Avisos })), $null)) }
+  if ($script:Mode -eq 'install') { Write-WsParts @(@('  ', $null), @($arrow, 'DarkCyan'), @((' ' + (M 'final_reiniciar')), $null)) }
+  if ($script:TodoMcp) { Write-WsParts @(@('  ', $null), @($arrow, 'DarkCyan'), @((' ' + (M 's7_oauth')), $null)) }
+  Write-WsSay ('  ' + (M 'final_ficheiros' @{ RESUMO = $script:Resumo; LOG = $script:LogFile })) 'DarkGray'
 }
 
 # =============================================================== desinstalar
@@ -4595,19 +4917,25 @@ function Invoke-WsMain {
     # A copia guardada desatualizada (a mesma tag republicada): corre a da release, com as mesmas opcoes.
     if ($script:Mode -ne 'uninstall' -and (Update-WsSelf)) { return (Invoke-WsUpdatedSelf $lock) }
     [IO.File]::AppendAllText($script:LogFile,("`r`n==================== {0} - mode {1} - {2}`r`n" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $script:Mode, $script:C.WORKSHOP_VERSION), $script:Utf8NoBom)
-    Write-WsSay (M 'titulo') 'White'
+    Initialize-WsUi
+    [void](Set-WsOsInfo)
+    Write-WsHeader
+    # No fancy e no ascii o texto do inicio fica alinhado com o cartao, e a lista em cinzento.
+    $ind = ''
+    if ($script:Ui -ne 'plain') { $ind = '  ' }
     switch ($script:Mode) {
-      'uninstall' { Write-WsSay (M 'modo_desinstalar' @{ MANIFEST = (Join-Path $script:WsHome 'manifest.json') }); return (Invoke-WsUninstall) }
-      'check' { Write-WsSay (M 'tempo_check') }
-      'doctor' { Write-WsSay (M 'modo_doctor'); Write-WsSay (M 'tempo_check') }
+      'uninstall' { Write-WsSay ($ind + (M 'modo_desinstalar' @{ MANIFEST = (Join-Path $script:WsHome 'manifest.json') })); return (Invoke-WsUninstall) }
+      'check' { Write-WsSay ($ind + (M 'tempo_check')) }
+      'doctor' { Write-WsSay ($ind + (M 'modo_doctor')); Write-WsSay ($ind + (M 'tempo_check')) }
       default {
-        Write-WsSay (M 'instala')
-        foreach ($i in $script:Msgs.ui.instala_lista) { Write-WsSay ('  - ' + (Format-WsFill $i)) }
-        Write-WsSay (M 'tempo')
-        if ($script:Sim) { Write-WsSay (M 'modo_sim') }
+        Write-WsSay ($ind + (M 'instala'))
+        foreach ($i in $script:Msgs.ui.instala_lista) { if ($ind) { Write-WsSay ($ind + '  - ' + (Format-WsFill $i)) 'DarkGray' } else { Write-WsSay ('  - ' + (Format-WsFill $i)) } }
+        Write-WsSay ($ind + (M 'tempo'))
+        if ($script:Sim) { Write-WsSay ($ind + (M 'modo_sim')) }
       }
     }
-    Write-WsSay (M 'log_em' @{ LOG = $script:LogFile }) 'DarkGray'
+    Write-WsSay ($ind + (M 'log_em' @{ LOG = $script:LogFile })) 'DarkGray'
+    if ($ind) { Write-WsSay '' }
     Save-WsSelf
 
     Invoke-WsStep 0
@@ -4630,6 +4958,8 @@ function Invoke-WsMain {
     if ($faltam -gt 0) { return 1 }
     return 0
   } finally {
+    # Ctrl-C (ou um erro) a meio de um passo: a zona viva sai da consola.
+    Stop-WsLive
     Exit-WsLock $lock
     Remove-Item -LiteralPath $script:Tmp -Recurse -Force -ErrorAction SilentlyContinue
   }
