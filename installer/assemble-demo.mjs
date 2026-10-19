@@ -4,7 +4,8 @@
 //     in a language other than pt, runs tools/gen.mjs in the destination (cards, tests and TASKS.md in that language)
 //   - copies the kit engine (hooks/, orchestrator/, statusline/, pricing.json) to tools/workshop/
 //     and writes tools/workshop/language.json (the language of the tools' texts)
-//   - copies skills-demo/, skills-shared/ and agents/demo/ to .claude/
+//   - copies skills-demo/ and skills-shared/ to .claude/, and agents/demo/ with the names of workshop.project.json
+//     filled in (lib/project-agents.mjs)
 //   - writes .claude/settings.json with absolute paths (node, hooks, statusline)
 //   - git init + first commit, tagged arena-start (for /demo-reset, the gate and worktrees), isolated from the
 //     person's global git config (lib/kit-repo.mjs: no signing, no company hooks, no global gitignore, no CRLF)
@@ -24,6 +25,7 @@ import { spawnSync } from 'node:child_process';
 import { isMain } from './lib/is-main.mjs';
 import { clearForAssembly, gitSync, initKitRepo, isIncomplete, kitGit, writeIncompleteMark } from './lib/kit-repo.mjs';
 import { lingua, normalizar, LANGUAGE_FILE } from '../hooks/lib/language.mjs';
+import { copyDemoAgents } from './lib/project-agents.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -196,7 +198,7 @@ export function montar(o) {
   copiar(join(KIT, 'skills-demo'), skills);
   // /missions is installed for the user (~/.claude/skills): a project copy would show it twice.
   copiar(join(KIT, 'skills-shared'), skills, { sem: [resolve(KIT, 'skills-shared', 'missions')] });
-  copiar(join(KIT, 'agents', 'demo'), join(o.dest, '.claude', 'agents'));
+  copyDemoAgents(join(KIT, 'agents', 'demo'), o.dest);
   writeFileSync(join(o.dest, '.claude', 'settings.json'), JSON.stringify(settingsDemo(o.dest, o.node, o), null, 2) + '\n');
   mkdirSync(join(o.dest, '.workshop'), { recursive: true });
   writeFileSync(join(o.dest, '.gitignore'), '.workshop/\nnode_modules/\n.DS_Store\n');

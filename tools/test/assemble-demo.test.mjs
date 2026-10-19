@@ -86,6 +86,10 @@ test('Arena em pt: igual a demo-project/ (sem i18n/), com a lingua gravada', () 
     for (const f of ['TASKS.md', 'README.md', 'specs/cards.json', 'cards/pw-01/spec.md', 'cards/pw-01/card.test.js', nome('textos'), 'public/index.html', nome('paginaCategoria')]) {
       assert.equal(ler(join(dest, f)), ler(join(DEMO, f)), `${f} mudou na Arena em pt`);
     }
+    // Os agentes de agents/demo/ com os nomes do workshop.project.json da Arena (installer/lib/project-agents.mjs).
+    const worker = ler(join(dest, '.claude', 'agents', 'worker.md'));
+    assert.ok(worker.includes('Security Arena') && worker.includes('cards/CONTRACT.md') && worker.includes('cards/<id>/card.js'));
+    for (const a of readdirSync(join(dest, '.claude', 'agents'))) assert.ok(!ler(join(dest, '.claude', 'agents', a)).includes('{{'), a);
     const p = correr(dest, 'tools/reset.mjs', '--sim');
     assert.match(p.stderr, /^Recusado: esta pasta não é um repositório git\./);
   } finally {
