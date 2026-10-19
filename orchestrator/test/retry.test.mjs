@@ -136,3 +136,22 @@ test('--retry: unknown id, missing id and a task whose dependencies are not done
     rmSync(p.dir, { recursive: true, force: true });
   }
 });
+
+test('a spec missing a detail (a card broken on purpose) fails at once: no new attempts, motivo "spec"', async () => {
+  const GAP = ['node', '-e', 'process.exit(require("fs").existsSync("ok.txt") ? 0 : (console.log("✖ cards/x/spec.md is missing a detail the test checks: the right answer."), 1))'];
+  const p = project([{ id: 'x', test: GAP }]);
+  try {
+    const r = await untilDone(p);
+    const st = state(p.dir, 'x');
+    assert.equal(st.estado ?? st.state, 'falhou');
+    assert.equal(st.tentativa ?? st.attempt, 1, 'only the first attempt');
+    assert.equal(st.motivo, 'spec');
+    assert.ok(r);
+    // the person adds the line, then --retry: green
+    writeFileSync(join(p.dir, 'ok.txt'), '');
+    await untilDone(p, { retry: 'x' });
+    assert.equal(state(p.dir, 'x').estado ?? state(p.dir, 'x').state, 'verde');
+  } finally {
+    rmSync(p.dir, { recursive: true, force: true });
+  }
+});

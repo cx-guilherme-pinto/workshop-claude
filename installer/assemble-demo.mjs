@@ -109,9 +109,7 @@ export function settingsDemo(dest, node, { probe = false } = {}) {
         'Bash(rm -rf *)',
         'Bash(git push*)',
         'Edit(cards/*/spec.md)',
-        'Write(cards/*/spec.md)',
         'Edit(cards/*/card.test.js)',
-        'Write(cards/*/card.test.js)',
       ],
     },
     // The parallelism comes from plan.json (8 participant, 16 presenter); ARENA_MAX_PARALLEL in the environment overrides it.

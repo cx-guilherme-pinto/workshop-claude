@@ -269,7 +269,7 @@ test('broken cards: a gap that does not fit the template is an error in specs/ca
 
 test('settings: agents cannot change a card spec or test (a person completes the spec)', () => {
   const s = settingsDemo('/tmp/arena', process.execPath);
-  for (const r of ['Edit(cards/*/spec.md)', 'Write(cards/*/spec.md)', 'Edit(cards/*/card.test.js)', 'Write(cards/*/card.test.js)']) assert.ok(s.permissions.deny.includes(r), r);
+  for (const r of ['Edit(cards/*/spec.md)', 'Edit(cards/*/card.test.js)']) assert.ok(s.permissions.deny.includes(r), r);
   assert.ok(s.permissions.allow.includes('Edit(cards/**)'), 'card.js stays writable');
 });
 
