@@ -32,7 +32,9 @@ test('MISSIONS is the list of validated missions of missions/rules.json', () => 
 test('aggregate: every metric of spec 6.3, per room and for both', () => {
   const a = new Aggregate({ ws: 'ws-t' });
   const list = [
-    ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac', nickname: 'Ana' }),
+    ev(1, 'A', 'register', 0, { name: 'Ana Silva' }),
+    ev(2, 'A', 'register', 0, { name: 'Rui Costa' }),
+    ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' }),
     ev(1, 'A', 'check_ok', 1),
     ev(2, 'A', 'join', 0, { lang: 'en', os: 'win' }),
     ev(3, 'B', 'join', 0, { lang: 'pt', os: 'mac' }),
@@ -91,17 +93,26 @@ test('aggregate: every metric of spec 6.3, per room and for both', () => {
   assert.deepEqual(B.p2.funnel.plan, 1);
   assert.equal(s.rooms.all.people, 3);
   // the feed: the first of each room, never a ranking; a hidden nickname is not shown
-  assert.deepEqual(s.feed.map((f) => [f.room, f.kind, f.mission ?? f.project ?? null, f.nickname]), [
-    ['A', 'mission', 'M1', 'Ana'],
-    ['A', 'mission', 'M2', null],
-    ['A', 'tool', null, 'Ana'],
-    ['A', 'swarm', 'p1', 'Ana'],
-    ['A', 'report', null, 'Ana'],
+  assert.deepEqual(s.feed.map((f) => [f.room, f.kind, f.mission ?? f.project ?? null, f.name]), [
+    ['A', 'mission', 'M1', 'Ana Silva'],
+    ['A', 'mission', 'M2', 'Rui Costa'],
+    ['A', 'tool', null, 'Ana Silva'],
+    ['A', 'swarm', 'p1', 'Ana Silva'],
+    ['A', 'report', null, 'Ana Silva'],
   ]);
-  a.hide('Ana');
-  assert.ok(a.state(now).feed.every((f) => f.nickname === null));
+  // the leaderboard (D-34): registered people by points (coverage and quality), ties by who got there first
+  assert.deepEqual(s.board.all.top.map((r) => [r.rank, r.name, r.room, r.points, r.missions.join(','), r.p1, r.p2]), [
+    [1, 'Ana Silva', 'A', 1 + 1 + 1 + 2 + 1 + 2 + 1, 'M1', 'approved', 'approved'],
+    [2, 'Rui Costa', 'A', 2 + 1, 'M1,M2', 'swarm', null],
+  ]);
+  assert.equal(s.board.all.people, 2, 'person 3 never registered: not on the board');
+  assert.equal(s.board.B.people, 0);
+  a.hide('Ana Silva');
+  const hidden = a.state(now);
+  assert.ok(hidden.feed.every((f) => f.name !== 'Ana Silva'));
+  assert.equal(hidden.board.all.top[0].name, null, 'hidden: still ranked, without the name');
   // no person ids in the state
-  assert.ok(!JSON.stringify(a.state(now)).includes(id(1)));
+  assert.ok(!JSON.stringify(a.state(now)).includes(id(1)) && !JSON.stringify(a.state(now)).includes(id(2)));
   // snapshot round trip
   assert.deepEqual(Aggregate.fromJSON(JSON.parse(JSON.stringify(a))).state(now), a.state(now));
 });
@@ -116,24 +127,42 @@ async function api(opts = {}) {
   const x = await createApi({ allow: ALLOW, wsCode: 'ws-t', adminToken: 'adm-secret', store, now: () => t, throttleMs: 20, ...opts });
   return { x, store, tick: (ms) => (t += ms) };
 }
-const post = (x, body, h = {}) => x.fetch(new Request('http://p/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', ...h }, body: typeof body === 'string' ? body : JSON.stringify(body) }));
+// A registered person: the credential comes from /admin/register (the GitHub registration has its own test).
+const creds = new Map();
+async function reg(x, n, room = 'A', name = `Pessoa ${n}`) {
+  const r = await (await x.fetch(new Request('http://p/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm-secret' }, body: JSON.stringify({ p: id(n), room, name }) }))).json();
+  creds.set(id(n), r.credential);
+  return `${id(n)}.${r.credential}`;
+}
+const who = (body) => {
+  const first = Array.isArray(body) ? body.find((e) => e && typeof e === 'object') : null;
+  return first?.p && creds.has(first.p) ? { 'X-Participant': `${first.p}.${creds.get(first.p)}` } : {};
+};
+const post = (x, body, h = {}) => x.fetch(new Request('http://p/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', ...who(body), ...h }, body: typeof body === 'string' ? body : JSON.stringify(body) }));
 const get = async (x, path) => (await x.fetch(new Request(`http://p${path}`))).json();
 const admin = (x, what, body, token = 'adm-secret') => x.fetch(new Request(`http://p/admin/${what}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Admin-Token': token } : {}) }, body: JSON.stringify(body) }));
 
-test('API: workshop code, allowlist, limits, duplicates and the rate limit', async () => {
+test('API: workshop code, participant credential, allowlist, limits, duplicates and the rate limit', async () => {
   const { x, store } = await api();
   try {
+    for (const n of [1, 2, 3]) await reg(x, n, n === 3 ? 'B' : 'A');
+    const regs = store.rows.length;
+    assert.equal((await post(x, [ev(1, 'A', 'check_ok', 0)], { 'X-Participant': '' })).status, 401, 'no credential');
+    assert.equal((await post(x, [ev(1, 'A', 'check_ok', 0)], { 'X-Participant': `${id(1)}.${'0'.repeat(64)}` })).status, 401, 'a forged credential');
+    assert.equal((await post(x, [ev(2, 'A', 'check_ok', 0)], { 'X-Participant': `${id(1)}.${creds.get(id(1))}` })).status, 204);
+    assert.equal(store.rows.length, regs, "someone else's events are dropped");
     assert.equal((await post(x, [ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' })], { 'X-Workshop-Code': 'other' })).status, 403);
     const good = ev(1, 'A', 'mission_done', 10, { mission: 'M1' });
     const bad = [{ ...good, prompt: 'secret' }, { ...good, ev: 'tests_run', green: 1, red: 0 }, { ...good, ws: 'other' }, { ...good, mission: 'M99' }, 'x', null];
     assert.equal((await post(x, [good, ...bad])).status, 204);
-    assert.equal(store.rows.length, 1, 'only the valid event is stored');
+    assert.equal(store.rows.length, regs + 1, 'only the valid event is stored');
     assert.equal((await post(x, [good])).status, 204);
-    assert.equal(store.rows.length, 1, 'a duplicate (a sender retry) is ignored');
+    assert.equal(store.rows.length, regs + 1, 'a duplicate (a sender retry) is ignored');
     assert.equal((await get(x, '/state')).rooms.A.missions.M1.done, 1);
     assert.equal((await post(x, Array.from({ length: 51 }, (_, i) => ev(2, 'A', 'cost', i, { cost_usd: 0.01, model: 'haiku', block: 'p1' })))).status, 413);
-    assert.equal((await post(x, 'x'.repeat(70000))).status, 413);
-    assert.equal((await post(x, '{not json')).status, 400);
+    const ana = { 'X-Participant': `${id(1)}.${creds.get(id(1))}` };
+    assert.equal((await post(x, 'x'.repeat(70000), ana)).status, 413);
+    assert.equal((await post(x, '{not json', ana)).status, 400);
     // 120 events per minute per participant: the 121st stops the batch and says how many were processed
     let processed = 0;
     for (let b = 0; b < 3; b++) {
@@ -156,16 +185,18 @@ test('API: admin needs the token; phase, hide and reset; the snapshot survives a
     assert.equal((await admin(x, 'phase', { phase: 'p1' }, 'wrong')).status, 403);
     assert.equal((await admin(x, 'phase', { phase: 'nope' })).status, 400);
     assert.equal((await admin(x, 'phase', { phase: 'p1' })).status, 200);
-    await post(x, [ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac', nickname: 'Rui' }), ev(1, 'A', 'mission_done', 10, { mission: 'M3' })]);
-    assert.equal((await admin(x, 'hide', { nickname: 'Rui' })).status, 200);
+    await reg(x, 1, 'A', 'Rui Costa');
+    await post(x, [ev(1, 'A', 'join', 0, { lang: 'pt', os: 'mac' }), ev(1, 'A', 'mission_done', 10, { mission: 'M3' })]);
+    assert.equal((await admin(x, 'hide', { nickname: 'Rui Costa' })).status, 200);
     await x.flush();
     const y = (await api({ store })).x;
     const s = await get(y, '/state');
     assert.equal(s.phase, 'p1');
     assert.equal(s.rooms.A.missions.M3.done, 1);
     assert.equal(s.hidden, undefined, 'hidden nicknames are not listed in the public state');
-    assert.ok(s.feed.every((f) => f.nickname !== 'Rui'));
+    assert.ok(s.feed.every((f) => f.name !== 'Rui Costa'));
     assert.ok(!JSON.stringify(s).includes('Rui'));
+    assert.equal(s.board.all.top[0].name, null);
     assert.equal((await admin(y, 'reset', {})).status, 200);
     assert.equal((await get(y, '/state')).rooms.all.people, 0);
     y.close();
@@ -202,9 +233,10 @@ async function readSse(res, until, timeoutMs = 3000) {
 test('SSE: the state at once, then an update after a change (throttled)', async () => {
   const { x } = await api();
   try {
+    await reg(x, 9, 'B');
     const res = await x.fetch(new Request('http://p/stream'));
     assert.equal(res.headers.get('Content-Type'), 'text/event-stream');
-    const p = readSse(res, (m) => m.length >= 2);
+    const p = readSse(res, (m) => m.some((x) => x.rooms.B.ready === 1));
     await new Promise((ok) => setTimeout(ok, 30));
     await post(x, [ev(9, 'B', 'check_ok', 1)]);
     const msgs = await p;
@@ -240,7 +272,8 @@ test('the Durable Object store on SQLite (node:sqlite stands in for ctx.storage.
   const room = new PanelRoom({ storage: { sql } }, env);
   let seen = null;
   env.PANEL = { idFromName: (n) => `id:${n}`, get: (i) => ({ fetch: (r) => ((seen = { i, r }), room.fetch(r)) }) };
-  const r = await worker.fetch(new Request('https://w.example/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'User-Agent': 'secret-agent', Cookie: 'c=1' }, body: JSON.stringify([ev(1, 'A', 'check_ok', 1)]) }), env);
+  const cred = await (await worker.fetch(new Request('https://w.example/admin/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(1), room: 'A', name: 'Ana' }) }), env)).json();
+  const r = await worker.fetch(new Request('https://w.example/e', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${id(1)}.${cred.credential}`, 'User-Agent': 'secret-agent', Cookie: 'c=1' }, body: JSON.stringify([ev(1, 'A', 'check_ok', 1)]) }), env);
   assert.equal(r.status, 204);
   assert.equal(seen.i, 'id:ws-t');
   assert.equal(seen.r.headers.get('User-Agent'), null);
@@ -251,11 +284,17 @@ test('the Durable Object store on SQLite (node:sqlite stands in for ctx.storage.
   room.api.close();
 });
 
-function telemetryHome(url, { enabled = true } = {}) {
+// A laptop registered on the panel (the credential from /admin/register; the GitHub one has its own test).
+async function telemetryHome(url, { registered = true, n = 1 } = {}) {
   const base = mkdtempSync(join(tmpdir(), 'ws-send-'));
   const dir = join(base, 'telemetry');
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-t', kit: 'v2', panel_url: url, expires_at: '2099-01-01T00:00:00.000Z' }));
+  let participant = null;
+  if (registered) {
+    const r = await (await fetch(`${url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: id(n), room: 'A', name: 'Ana' }) })).json();
+    participant = { p: r.p, credential: r.credential, name: r.name };
+  }
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled: registered, room: 'A', workshop: 'ws-t', kit: 'v2', panel_url: url, expires_at: '2099-01-01T00:00:00.000Z', participant }));
   return { base, P: paths(dir) };
 }
 const queue = (P, list) => writeFileSync(P.queue, list.map((e) => JSON.stringify(e)).join('\n') + '\n');
@@ -264,7 +303,7 @@ test('sender: the queue goes in batches of 50, only confirmed events leave it; o
   const data = mkdtempSync(join(tmpdir(), 'ws-srv-'));
   let srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
   const port = new URL(srv.url).port;
-  const t = telemetryHome(srv.url);
+  const t = await telemetryHome(srv.url);
   try {
     const list = Array.from({ length: 120 }, (_, i) => ev(1, 'A', 'cost', i / 10, { cost_usd: 0.001, model: 'haiku', block: 'p1' }));
     queue(t.P, list.slice(0, 70));
@@ -282,10 +321,10 @@ test('sender: the queue goes in batches of 50, only confirmed events leave it; o
     srv = await startServer({ port: Number(port), data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
     r = await sendQueue({ P: t.P });
     assert.deepEqual(r, { sent: 60, left: 0 });
-    const lines = readFileSync(join(data, 'ws-t', 'events.jsonl'), 'utf8').trim().split('\n');
+    const lines = readFileSync(join(data, 'ws-t', 'events.jsonl'), 'utf8').trim().split('\n').filter((l) => !l.includes('"register"'));
     assert.equal(lines.length, 120, 'each event stored once');
-    // participation off or no panel: nothing is sent
-    const off = telemetryHome(srv.url, { enabled: false });
+    // not registered: nothing is sent
+    const off = await telemetryHome(srv.url, { registered: false });
     queue(off.P, list.slice(0, 5));
     assert.equal((await sendQueue({ P: off.P })).sent, 0);
     rmSync(off.base, { recursive: true, force: true });
@@ -299,7 +338,7 @@ test('sender: the queue goes in batches of 50, only confirmed events leave it; o
 test('end to end: record() queues the event and starts the sender, which posts it to the panel', async () => {
   const data = mkdtempSync(join(tmpdir(), 'ws-e2e-'));
   const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
-  const t = telemetryHome(srv.url);
+  const t = await telemetryHome(srv.url);
   try {
     assert.deepEqual(record('mission_done', { mission: 'M4' }, { P: t.P }), { recorded: true, queued: true });
     let s = null;
@@ -325,12 +364,17 @@ test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no error
     for (const e of events) (byPerson.get(e.p) || byPerson.set(e.p, []).get(e.p)).push(e);
     let errors = 0;
     const people = [...byPerson.values()];
+    const cred = new Map();
+    for (const list of people) {
+      const r = await (await fetch(`${srv.url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ p: list[0].p, room: list[0].room, name: `P ${cred.size}` }) })).json();
+      cred.set(list[0].p, r.credential);
+    }
     for (let i = 0; i < people.length; i += 25) {
       await Promise.all(
         people.slice(i, i + 25).map(async (list) => {
           for (let k = 0; k < list.length; k += 50) {
             // a laptop sends at most 50 events every 2 s: within the rate limit
-            const r = await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t' }, body: JSON.stringify(list.slice(k, k + 50)) });
+            const r = await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${list[0].p}.${cred.get(list[0].p)}` }, body: JSON.stringify(list.slice(k, k + 50)) });
             if (r.status !== 204) errors++;
           }
         }),
@@ -339,17 +383,95 @@ test('load: 250 people in 2 rooms (the whole agenda, ~7500 events) with no error
     assert.equal(errors, 0);
     const s = await (await fetch(`${srv.url}/state`)).json();
     assert.equal(s.rooms.all.people, 250);
-    assert.equal(s.events, events.length);
+    assert.equal(s.events, events.length + 250, 'the events and the 250 registrations');
+    assert.equal(s.board.all.people, 250);
     // latency: one more event → the SSE message that shows it
     const res = await fetch(`${srv.url}/stream`);
     const t0 = Date.now();
-    const p = readSse(res, (m) => m.some((x) => x.rooms.A.ready > s.rooms.A.ready), 3000);
-    await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t' }, body: JSON.stringify([{ v: 1, ws: 'ws-t', room: 'A', p: id(99999), ev: 'check_ok', t: new Date().toISOString(), kit: 'v2' }]) });
+    const p = readSse(res, (m) => m.some((x) => x.events > s.events), 3000);
+    const extra = people[0][0];
+    await fetch(`${srv.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${extra.p}.${cred.get(extra.p)}` }, body: JSON.stringify([{ v: 1, ws: 'ws-t', room: extra.room, p: extra.p, ev: 'check_ok', t: new Date().toISOString(), kit: 'v2' }]) });
     const msgs = await p;
-    assert.ok(msgs.some((x) => x.rooms.A.ready === s.rooms.A.ready + 1), 'no update');
+    assert.ok(msgs.some((x) => x.events === s.events + 1), 'no update');
     assert.ok(Date.now() - t0 <= 2000, `update after ${Date.now() - t0} ms`);
   } finally {
     await srv.close();
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test('registration with the GitHub token: a verified company email; the same account keeps its id; the token is not kept', async () => {
+  const seen = [];
+  const accounts = {
+    'tok-ana-000000': { id: 11, name: 'Ana Silva', emails: [{ email: 'ana@gmail.com', verified: true }, { email: 'Ana.Silva@Checkmarx.com', verified: true }] },
+    'tok-other-0000': { id: 12, name: 'Zé', emails: [{ email: 'ze@gmail.com', verified: true }] },
+    'tok-unverified': { id: 13, name: 'Rita', emails: [{ email: 'rita@checkmarx.com', verified: false }] },
+  };
+  const github = async (token) => {
+    seen.push(token);
+    if (token === 'tok-noscope-00') return { error: 'scope' };
+    return accounts[token] ?? { error: 'token' };
+  };
+  const { x, store } = await api({ github, emailDomain: 'checkmarx.com' });
+  const register = (token, room = 'A') => x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t' }, body: JSON.stringify({ token, room }) }));
+  try {
+    let r = await register('tok-ana-000000');
+    assert.equal(r.status, 200);
+    const ana = await r.json();
+    assert.equal(ana.name, 'Ana Silva');
+    assert.match(ana.p, /^[0-9a-f]{32}$/);
+    assert.equal((await post(x, [{ v: 1, ws: 'ws-t', room: 'A', p: ana.p, ev: 'check_ok', t: at(1), kit: 'v2' }], { 'X-Participant': `${ana.p}.${ana.credential}` })).status, 204);
+    assert.equal((await (await register('tok-ana-000000', 'B')).json()).p, ana.p, 'same account, same id');
+    r = await register('tok-other-0000');
+    assert.deepEqual([r.status, (await r.json()).reason], [403, 'domain']);
+    r = await register('tok-unverified');
+    assert.deepEqual([r.status, (await r.json()).reason], [403, 'domain'], 'an unverified company email does not count');
+    r = await register('tok-noscope-00');
+    assert.deepEqual([r.status, (await r.json()).reason], [400, 'scope']);
+    r = await register('tok-wrong-0000');
+    assert.equal(r.status, 401);
+    assert.equal((await x.fetch(new Request('http://p/register', { method: 'POST', headers: { 'X-Workshop-Code': 'other' }, body: '{}' }))).status, 403);
+    // the token never reaches the store, the state or the snapshot
+    await x.flush();
+    const everything = JSON.stringify(store.rows) + JSON.stringify(await get(x, '/state')) + String(store.getMeta('snapshot')) + String(store.getMeta('participants'));
+    for (const t of seen) assert.ok(!everything.includes(t), 'a token was kept');
+    assert.ok(!everything.includes('checkmarx.com') && !everything.includes('gmail'), 'no email is kept');
+    assert.equal((await get(x, '/state')).board.all.top[0].name, 'Ana Silva');
+  } finally {
+    x.close();
+  }
+});
+
+test('ctl.mjs register: gh token → the panel → config.json with the credential; the join reaches the board; clear errors', async () => {
+  const { register } = await import('../../telemetry/ctl.mjs');
+  const data = mkdtempSync(join(tmpdir(), 'ws-reg-'));
+  const github = async (token) => (token === 'gho_company_token' ? { id: 7, name: 'Marta Reis', emails: [{ email: 'marta@checkmarx.com', verified: true }] } : token === 'gho_noscope_tok' ? { error: 'scope' } : { id: 8, name: 'X', emails: [{ email: 'x@example.com', verified: true }] });
+  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20, emailDomain: 'checkmarx.com', github });
+  const t = await telemetryHome(srv.url, { registered: false });
+  const out = [];
+  try {
+    const cfg = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    writeFileSync(t.P.config, JSON.stringify({ ...cfg, email_domain: 'checkmarx.com' }));
+    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => null }), 4);
+    assert.match(out.at(-1), /gh auth login/);
+    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => 'gho_other_token' }), 3);
+    assert.match(out.at(-1), /@checkmarx\.com/);
+    assert.equal(await register('A', { P: t.P, print: (m) => out.push(m), token: () => 'gho_noscope_tok' }), 4);
+    assert.match(out.at(-1), /gh auth refresh -h github\.com -s user:email/);
+    assert.equal(await register('Z', { P: t.P, print: (m) => out.push(m), token: () => 'gho_company_token' }), 2);
+    assert.equal(await register('b', { P: t.P, print: (m) => out.push(m), token: () => 'gho_company_token' }), 0);
+    assert.match(out.at(-1), /Marta Reis/);
+    const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    assert.equal(c.room, 'B');
+    assert.match(c.participant.p, /^[0-9a-f]{32}$/);
+    assert.ok(!JSON.stringify(c).includes('gho_'), 'the token is not written');
+    for (const f of ['local.jsonl', 'queue.jsonl']) assert.ok(!readFileSync(join(t.P.dir, f), 'utf8').includes('gho_'));
+    await sendQueue({ P: t.P });
+    const s = await (await fetch(`${srv.url}/state`)).json();
+    assert.deepEqual(s.board.B.top.map((r) => r.name), ['Marta Reis']);
+  } finally {
+    await srv.close();
+    rmSync(t.base, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });
   }
 });

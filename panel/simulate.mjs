@@ -7,7 +7,9 @@
 //
 // --out writes every event (timestamps from --start, default now) as JSON lines: a replay file for the page
 // (?replay=<name>). --url sends them in real time divided by --speed, each person in batches like send.mjs.
-// With PANEL_ADMIN_TOKEN in the environment it also moves the panel phase at each block of the agenda.
+// --url needs PANEL_ADMIN_TOKEN in the environment: each simulated person is registered with a made-up name
+// (POST /admin/register, D-34) before its events are sent, and the panel phase moves at each block of the agenda.
+// --out also writes the registrations ("register" events with the made-up names), so the replay shows a leaderboard.
 import { writeFileSync } from 'node:fs';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 
@@ -36,7 +38,7 @@ function personEvents(r, i) {
   const between = (a, b) => a + r() * (b - a);
   const chance = (p) => r() < p;
   const joinAt = between(0, 6);
-  at(joinAt, 'join', { lang: chance(0.8) ? 'pt' : 'en', os: chance(0.75) ? 'mac' : 'win', ...(chance(0.25) ? { nickname: `${NICKS[i % NICKS.length]}${i}` } : {}) });
+  at(joinAt, 'join', { lang: chance(0.8) ? 'pt' : 'en', os: chance(0.75) ? 'mac' : 'win' });
   if (chance(0.92)) at(joinAt + between(1, 4), 'check_ok');
   // Missions: 2 min each, a little late for some; the slower ones finish in the waits of Project 1.
   const skill = 0.55 + r() * 0.45;
@@ -96,13 +98,18 @@ function personEvents(r, i) {
   return out;
 }
 
-// All the events of the workshop, sorted by time, already in the envelope.
-export function simulate({ people = 100, rooms = 2, seed = 7, start = Date.now(), ws = 'dev', kit = 'v2-sim' } = {}) {
+export const fakeName = (i) => `${NICKS[i % NICKS.length]} ${String.fromCharCode(65 + (Math.floor(i / NICKS.length) % 26))}.`;
+
+// All the events of the workshop, sorted by time, already in the envelope. With registrations: true it also has one
+// "register" event per person (what the Worker records at registration), for the replay files.
+export function simulate({ people = 100, rooms = 2, seed = 7, start = Date.now(), ws = 'dev', kit = 'v2-sim', registrations = false } = {}) {
   const r = rng(seed);
   const all = [];
   for (let i = 0; i < people; i++) {
     const p = Array.from({ length: 32 }, () => '0123456789abcdef'[Math.floor(r() * 16)]).join('');
-    const room = rooms > 1 && i % 2 ? 'B' : 'A';
+    // two rooms of different sizes, like the workshop (70 and 30)
+    const room = rooms > 1 && i % 10 >= 7 ? 'B' : 'A';
+    if (registrations) all.push({ v: 1, ws, room, p, ev: 'register', t: new Date(start).toISOString(), kit: 'panel', name: fakeName(i) });
     for (const [min, e] of personEvents(r, i)) all.push({ v: 1, ws, room, p, ev: e.ev, t: new Date(start + Math.round(min * 60000)).toISOString(), kit, ...Object.fromEntries(Object.entries(e).filter(([k]) => k !== 'ev')) });
   }
   return all.sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
@@ -110,6 +117,15 @@ export function simulate({ people = 100, rooms = 2, seed = 7, start = Date.now()
 
 // Sends the events in real time divided by speed, grouped per person every ~2 s of simulated time.
 export async function send({ events, url, ws, speed = 10, adminToken = '', log = () => {} }) {
+  // register every simulated person first (the panel only takes events with a participant credential)
+  const creds = new Map();
+  const people = [...new Map(events.filter((e) => e.ev !== 'register').map((e) => [e.p, e.room])).entries()];
+  for (let k = 0; k < people.length; k++) {
+    const [p, room] = people[k];
+    const r = await fetch(`${url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken }, body: JSON.stringify({ p, room, name: fakeName(k) }) }).catch(() => null);
+    if (r?.status === 200) creds.set(p, (await r.json()).credential);
+  }
+  events = events.filter((e) => e.ev !== 'register');
   const t0 = Date.parse(events[0]?.t || new Date().toISOString());
   const wall = Date.now();
   const phases = AGENDA.map(([phase, min]) => ({ phase, t: t0 + min * 60000 }));
@@ -132,7 +148,7 @@ export async function send({ events, url, ws, speed = 10, adminToken = '', log =
     await Promise.all(
       [...batch.values()].map(async (list) => {
         for (let k = 0; k < list.length; k += 50) {
-          const r = await fetch(`${url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': ws }, body: JSON.stringify(list.slice(k, k + 50)) }).catch(() => null);
+          const r = await fetch(`${url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': ws, 'X-Participant': `${list[0].p}.${creds.get(list[0].p) || ''}` }, body: JSON.stringify(list.slice(k, k + 50)) }).catch(() => null);
           if (r && r.status === 204) sent += Math.min(50, list.length - k);
           else errors++;
         }
@@ -147,7 +163,7 @@ if (isMain(import.meta.url)) {
   const a = process.argv.slice(2);
   const opt = (k, d) => (a.includes(k) ? a[a.indexOf(k) + 1] : d);
   const ws = opt('--ws', process.env.WORKSHOP_CODE || 'dev');
-  const events = simulate({ people: Number(opt('--people', 100)), rooms: Number(opt('--rooms', 2)), seed: Number(opt('--seed', 7)), ws, start: opt('--start') ? Date.parse(opt('--start')) : Date.now() });
+  const events = simulate({ people: Number(opt('--people', 100)), rooms: Number(opt('--rooms', 2)), seed: Number(opt('--seed', 7)), ws, start: opt('--start') ? Date.parse(opt('--start')) : Date.now(), registrations: !!opt('--out') });
   if (opt('--out')) {
     writeFileSync(opt('--out'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
     console.log(`${events.length} events → ${opt('--out')}`);

@@ -1,10 +1,11 @@
 // Local telemetry of the kit (docs/pt/WORKSHOP-V2-SPEC.md, sections 4.3, 6.4 and 6.6).
 //
 // Everything lives in ~/.workshop-claude/telemetry/ (WORKSHOP_TELEMETRY_DIR for tests):
-//   config.json   written by the installer: participation, room, workshop code, panel, expiry, projects folder
-//   id            16 random bytes (hex), not derived from the person or the machine
+//   config.json   written by the installer: room, workshop code, panel, expiry, projects folder; and, after
+//                 ctl.mjs register (D-34), "participant": the id and credential the panel gave this GitHub account
+//   id            16 random bytes (hex), the local id before the registration (never sent)
 //   local.jsonl   every allowed event, also with participation off (the person's own mission book)
-//   queue.jsonl   only with participation on: what send.mjs will send (Phase 2), already in the envelope
+//   queue.jsonl   only once registered: what send.mjs will send, already in the envelope
 //   seen.json     features already seen per session (hash of the session id), for "once per session"
 //   missions.json the mission book, written by missions/missions.mjs
 //   queue.sending.jsonl, sent.jsonl, cost-seen.json   used by send.mjs and the cost events
@@ -161,8 +162,9 @@ export function record(ev, fields = {}, { local = {}, P = paths(), now = new Dat
   const t = now.toISOString();
   appendLine(P.local, { t, ev, ...s.fields, ...(Object.keys(s.local).length ? { local: s.local } : {}) });
   let queued = false;
-  if (cfg.enabled === true && !s.localOnly) {
-    const p = readId(P, { create: true });
+  const part = cfg.participant;
+  if (part?.p && !s.localOnly) {
+    const p = part.p;
     const e = envelope(allow, { ws: cfg.workshop, room: cfg.room, p, kit: cfg.kit, ev, t }, s.fields);
     if (e) {
       appendLine(P.queue, e);
@@ -178,7 +180,7 @@ export function record(ev, fields = {}, { local = {}, P = paths(), now = new Dat
 // setup puts the company proxy in Claude Code's env, which the hooks inherit), Node's fetch uses it
 // (NODE_USE_ENV_PROXY); the company certificate comes from NODE_EXTRA_CA_CERTS or ~/.workshop-claude/ca.pem.
 export function kickSender(P = paths(), cfg = readConfig(P), env = process.env) {
-  if (!cfg?.enabled || !cfg.panel_url || env.WORKSHOP_TELEMETRY_NO_SEND === '1') return false;
+  if (!cfg?.participant?.p || !cfg.panel_url || env.WORKSHOP_TELEMETRY_NO_SEND === '1') return false;
   try {
     if (Date.now() - statSync(P.sendStamp).mtimeMs < 2000) return false;
   } catch {

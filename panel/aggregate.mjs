@@ -4,8 +4,9 @@
 // telemetry/schema.mjs (checkIncoming); anything unexpected here is ignored, never thrown.
 //
 // It measures coverage and quality, never volume (principle 2.3.2): each person counts once per mission or
-// decision, and nothing ranks people. The only per-person values that leave this module are the anonymous points
-// of the Project 1 scatter (duration, cost, parallelism, model) and nicknames in the milestone feed.
+// decision. The leaderboard (D-34, the organizer's decision: one board of people, not of rooms) ranks the registered
+// people by points for coverage and quality — never by spend — with the name the Worker took from their GitHub
+// account at registration (names never come from the laptops' events). The Project 1 scatter stays anonymous.
 
 // The missions shown in the grid: M7 (/btw) is not observable (docs/OBSERVABILITY.md). tools/test/panel.test.mjs
 // checks this list against missions/rules.json.
@@ -24,6 +25,9 @@ export const ACTIVE_MS = 10 * 60 * 1000;
 export const BUDGET_USD = 5;
 const FUNNEL = ['intake', 'plan', 'swarm', 'gate', 'report'];
 const FEED_MAX = 5;
+const BOARD_MAX = 30;
+// Points of the leaderboard: coverage and quality, never volume or spend.
+export const POINTS = { mission: 1, p1_swarm: 1, p1_retry_green: 1, p1_gate: 2, p2_swarm: 1, p2_gate: 2, p2_report: 1 };
 
 const median = (xs) => {
   const v = xs.filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
@@ -37,7 +41,9 @@ const pct = (a, b) => (b > 0 ? Math.min(100, Math.round((100 * a) / b)) : 0);
 function person(room) {
   return {
     room,
-    nickname: null,
+    name: null,
+    points: 0,
+    pointsT: null,
     first: null,
     last: null,
     ready: false,
@@ -48,6 +54,16 @@ function person(room) {
   };
 }
 
+const pointsOf = (p) =>
+  p.missions.size * POINTS.mission +
+  (p.p1.swarm ? POINTS.p1_swarm : 0) +
+  (p.p1.retryGreen ? POINTS.p1_retry_green : 0) +
+  (p.p1.gate === 'APPROVED' ? POINTS.p1_gate : 0) +
+  (p.p2.swarm ? POINTS.p2_swarm : 0) +
+  (p.p2.gate === 'APPROVED' ? POINTS.p2_gate : 0) +
+  (p.p2.stage === FUNNEL.length - 1 ? POINTS.p2_report : 0);
+export const MAX_POINTS = MISSIONS.length * POINTS.mission + POINTS.p1_swarm + POINTS.p1_retry_green + POINTS.p1_gate + POINTS.p2_swarm + POINTS.p2_gate + POINTS.p2_report;
+
 export class Aggregate {
   constructor({ ws = null } = {}) {
     this.ws = ws;
@@ -56,6 +72,7 @@ export class Aggregate {
     this.feed = [];
     this.hidden = new Set();
     this.firsts = new Set();
+    this.ids = new Map();
     this.count = 0;
     this.lastT = null;
   }
@@ -78,7 +95,10 @@ export class Aggregate {
     this.count++;
     switch (e.ev) {
       case 'join':
-        if (typeof e.nickname === 'string') p.nickname = e.nickname;
+        break;
+      // the Worker's registration (D-34): the name from the GitHub account; never accepted from a laptop
+      case 'register':
+        if (typeof e.name === 'string') this.setName(e.p, e.name, e.room);
         break;
       case 'check_ok':
         p.ready = true;
@@ -129,6 +149,26 @@ export class Aggregate {
       default:
         break;
     }
+    const pts = pointsOf(p);
+    if (pts > p.points) {
+      p.points = pts;
+      p.pointsT = Number.isFinite(t) ? t : p.pointsT;
+    }
+    return true;
+  }
+
+  // The name of a registered person (from the Worker's registration, never from an event).
+  setName(id, name, room) {
+    if (typeof id !== 'string' || typeof name !== 'string') return false;
+    let p = this.people.get(id);
+    if (!p) {
+      if (!ROOMS.includes(room)) return false;
+      p = person(room);
+      this.people.set(id, p);
+    }
+    p.name = name.slice(0, 60);
+    if (ROOMS.includes(room)) p.room = room;
+    this.ids.set(p, id);
     return true;
   }
 
@@ -137,7 +177,7 @@ export class Aggregate {
     const k = `${p.room}:${key}`;
     if (this.firsts.has(k)) return;
     this.firsts.add(k);
-    this.feed.push({ t: e.t, room: p.room, nickname: p.nickname, ...item });
+    this.feed.push({ t: e.t, room: p.room, id: e.p, ...item });
     if (this.feed.length > 50) this.feed.splice(0, this.feed.length - 50);
   }
 
@@ -147,11 +187,31 @@ export class Aggregate {
     return true;
   }
 
-  hide(nickname, on = true) {
-    if (typeof nickname !== 'string') return false;
-    if (on) this.hidden.add(nickname);
-    else this.hidden.delete(nickname);
+  // Hides a name on the panel (key H on the page): the person stays in the board, as "—".
+  hide(name, on = true) {
+    if (typeof name !== 'string') return false;
+    if (on) this.hidden.add(name);
+    else this.hidden.delete(name);
     return true;
+  }
+
+  // The leaderboard: registered people by points, ties broken by who got there first. room = null for both rooms.
+  board(room = null) {
+    const rows = [...this.people.values()]
+      .filter((p) => p.name && (room === null || p.room === room))
+      .sort((a, b) => b.points - a.points || (a.pointsT ?? Infinity) - (b.pointsT ?? Infinity) || a.name.localeCompare(b.name));
+    return {
+      people: rows.length,
+      top: rows.slice(0, BOARD_MAX).map((p, i) => ({
+        rank: i + 1,
+        name: this.hidden.has(p.name) ? null : p.name,
+        room: p.room,
+        points: p.points,
+        missions: MISSIONS.filter((m) => p.missions.has(m)),
+        p1: p.p1.gate ? (p.p1.gate === 'APPROVED' ? 'approved' : 'gate') : p.p1.swarm ? 'swarm' : p.p1.plan ? 'plan' : null,
+        p2: p.p2.gate === 'APPROVED' ? 'approved' : p.p2.stage >= 0 ? FUNNEL[p.p2.stage] : null,
+      })),
+    };
   }
 
   // The summary of one room (or of both, room = null).
@@ -231,7 +291,12 @@ export class Aggregate {
       missions: MISSIONS,
       rooms: { A: this.room('A', now), B: this.room('B', now), all: this.room(null, now) },
       // hidden nicknames are not listed: /state is public, and a hidden nickname must not be readable there
-      feed: this.feed.slice(-FEED_MAX).map((f) => ({ ...f, nickname: f.nickname && !this.hidden.has(f.nickname) ? f.nickname : null })),
+      feed: this.feed.slice(-FEED_MAX).map(({ id, ...f }) => {
+        const name = id ? this.people.get(id)?.name : null;
+        return { ...f, name: name && !this.hidden.has(name) ? name : null };
+      }),
+      board: { all: this.board(null), A: this.board('A'), B: this.board('B') },
+      max_points: MAX_POINTS,
     };
   }
 
@@ -259,7 +324,11 @@ export class Aggregate {
     a.feed = Array.isArray(j.feed) ? j.feed : [];
     a.hidden = new Set(j.hidden || []);
     a.firsts = new Set(j.firsts || []);
-    for (const [id, p] of j.people || []) a.people.set(id, { ...person(p.room), ...p, missions: new Set(p.missions || []) });
+    for (const [id, p] of j.people || []) {
+      const q = { ...person(p.room), ...p, missions: new Set(p.missions || []) };
+      a.people.set(id, q);
+      a.ids.set(q, id);
+    }
     return a;
   }
 }

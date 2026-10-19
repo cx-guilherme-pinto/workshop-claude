@@ -4,7 +4,7 @@
   "envelope": ["v", "ws", "room", "p", "ev", "t", "kit"],
   "max_bytes": 512,
   "events": {
-    "join": { "fields": { "lang": ["pt", "en"], "os": ["mac", "win"], "nickname": "nickname" } },
+    "join": { "fields": { "lang": ["pt", "en"], "os": ["mac", "win"] } },
     "check_ok": { "fields": {} },
     "feature": {
       "fields": {

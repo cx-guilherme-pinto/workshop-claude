@@ -2,7 +2,7 @@
 // Sends the panel queue (docs/pt/WORKSHOP-V2-SPEC.md, section 6.4). Started detached by telemetry/lib.mjs (record →
 // kickSender) at most once every 2 s; never by a hook directly, never blocking anything.
 //
-// - Only with participation on, a panel address (config.json panel_url) and the config in force.
+// - Only once registered (config.json participant, ctl.mjs register), with a panel address and the config in force.
 // - One sender at a time (send.lock). It takes queue.jsonl atomically (rename to queue.sending.jsonl, so the hooks
 //   keep appending to a fresh queue) and sends it in batches of at most 50 events: POST <panel>/e with the header
 //   X-Workshop-Code, a 2 s timeout each.
@@ -46,11 +46,11 @@ function remember(P, list) {
   writeLines(P.sent, kept);
 }
 
-async function post(url, ws, events, fetchImpl) {
+async function post(url, ws, part, events, fetchImpl) {
   try {
     const r = await fetchImpl(`${url.replace(/\/+$/, '')}/e`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': ws },
+      headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': ws, 'X-Participant': `${part.p}.${part.credential}` },
       body: JSON.stringify(events),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -69,7 +69,7 @@ async function post(url, ws, events, fetchImpl) {
 // One run: sends what is queued now. Returns { sent, left }.
 export async function sendQueue({ P = paths(), fetchImpl = fetch, now = new Date() } = {}) {
   const cfg = readConfig(P);
-  if (!active(cfg, now) || !cfg.enabled || !cfg.panel_url) return { sent: 0, left: readLines(P.queue).length + readLines(P.sending).length };
+  if (!active(cfg, now) || !cfg.participant?.p || !cfg.panel_url) return { sent: 0, left: readLines(P.queue).length + readLines(P.sending).length };
   if (!lock(P)) return { sent: 0, left: -1 };
   let sent = 0;
   try {
@@ -86,7 +86,7 @@ export async function sendQueue({ P = paths(), fetchImpl = fetch, now = new Date
       let stop = false;
       while (list.length && !stop) {
         const batch = list.slice(0, BATCH);
-        const r = await post(cfg.panel_url, cfg.workshop, batch, fetchImpl);
+        const r = await post(cfg.panel_url, cfg.workshop, cfg.participant, batch, fetchImpl);
         if (r.done) {
           if (!r.dropped) {
             remember(P, batch.slice(0, r.done));

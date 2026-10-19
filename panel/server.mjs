@@ -18,21 +18,21 @@ import { fileStore } from './store-file.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ALLOW = JSON.parse(readFileSync(join(HERE, '..', 'telemetry', 'allowlist.json'), 'utf8'));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.jsonl': 'application/x-ndjson', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
-const API = new Set(['/e', '/state', '/stream', '/health']);
+const API = new Set(['/e', '/register', '/state', '/stream', '/health']);
 const SECURITY = {
   'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
 };
 
-function confCode() {
+function confValue(key) {
   try {
-    const m = /^WORKSHOP_CODE=(.*)$/m.exec(readFileSync(join(HERE, '..', 'repos.conf'), 'utf8'));
-    return m?.[1]?.trim() || 'dev';
+    return new RegExp(`^${key}=(.*)$`, 'm').exec(readFileSync(join(HERE, '..', 'repos.conf'), 'utf8'))?.[1]?.trim() || '';
   } catch {
-    return 'dev';
+    return '';
   }
 }
+const confCode = () => confValue('WORKSHOP_CODE') || 'dev';
 
 // A static file under one of the roots, or null (no path ever leaves the roots).
 function staticFile(roots, pathname) {
@@ -47,9 +47,9 @@ function staticFile(roots, pathname) {
   return null;
 }
 
-export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now } = {}) {
+export async function startServer({ port = 8787, host = '127.0.0.1', data = join(HERE, 'data'), ws = process.env.WORKSHOP_CODE || confCode(), adminToken = process.env.PANEL_ADMIN_TOKEN || '', throttleMs = 500, now, emailDomain = process.env.PANEL_EMAIL_DOMAIN || confValue('PANEL_EMAIL_DOMAIN'), github } = {}) {
   const store = fileStore(join(data, ws));
-  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, ...(now ? { now } : {}) });
+  const api = await createApi({ allow: ALLOW, wsCode: ws, adminToken, store, throttleMs, emailDomain, ...(now ? { now } : {}), ...(github ? { github } : {}) });
   const roots = [
     ['/replays/', join(HERE, 'replays')],
     ['/', join(HERE, 'public')],

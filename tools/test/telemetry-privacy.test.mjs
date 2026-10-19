@@ -30,7 +30,7 @@ function setup({ enabled = true } = {}) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(
     join(dir, 'config.json'),
-    JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-test', kit: 'v9.9.9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs }),
+    JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-test', kit: 'v9.9.9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: enabled ? { p: 'c'.repeat(32), credential: 'x', name: 'Ana' } : null }),
   );
   // the person's own hook and statusline, with private text in the commands
   writeFileSync(
@@ -118,8 +118,7 @@ test('emit and record keep only the allowlisted fields and values', () => {
     const all = everyFile(t.dir);
     assert.ok(!all.includes(MARK));
     const q = readFileSync(t.P.queue, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-    assert.deepEqual(q[0], { v: 1, ws: 'ws-test', room: 'A', p: q[0].p, ev: 'p2_intake', t: q[0].t, kit: 'v9.9.9', origin: 'own' });
-    assert.match(q[0].p, /^[0-9a-f]{32}$/);
+    assert.deepEqual(q[0], { v: 1, ws: 'ws-test', room: 'A', p: 'c'.repeat(32), ev: 'p2_intake', t: q[0].t, kit: 'v9.9.9', origin: 'own' }, 'the id the panel gave at registration');
     assert.equal(q[1].parallel, 8);
     assert.equal(q[1].forecast_min, null);
     // local fields never go in the queue
@@ -130,7 +129,7 @@ test('emit and record keep only the allowlisted fields and values', () => {
   }
 });
 
-test('participation off: the local book is written, the queue never; tests_run never goes in the queue', () => {
+test('not registered: the local book is written, the queue never; tests_run never goes in the queue', () => {
   const t = setup({ enabled: false });
   try {
     record('feature', { name: 'loop' }, { P: t.P });

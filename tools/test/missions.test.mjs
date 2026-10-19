@@ -21,7 +21,7 @@ function setup({ enabled = false } = {}) {
   const proj = join(projs, 'missions-project');
   mkdirSync(join(proj, '.claude'), { recursive: true });
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-test', kit: 'v9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs }));
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ v: 1, enabled, room: 'A', workshop: 'ws-test', kit: 'v9', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: enabled ? { p: 'c'.repeat(32), credential: 'x', name: 'Ana' } : null }));
   const P = paths(dir);
   const env = { HOME: base, USERPROFILE: base, WS_HOME_OVERRIDE: base };
   const run = (opts = {}) => check({ P, env, runTests: () => false, ...opts });
