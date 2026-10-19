@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { SEGREDOS, CODIGO_PERIGOSO, procurar } from './lib/patterns.mjs';
 import { resumirSaida } from './grade.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { blockOf, emit, markGate } from './lib/telemetry.mjs';
 import { opt, opts, flag } from './lib/args.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
 
@@ -218,5 +219,11 @@ if (isMain(import.meta.url)) {
   const r = gate(dir, { base: opt(a, '--base'), teste: opt(a, '--test'), ignorar: opts(a, '--ignore') });
   if (existsSync(join(dir, '.workshop'))) writeFileSync(join(dir, '.workshop', 'gate.json'), JSON.stringify(r, null, 2));
   console.log(flag(a, '--json') ? JSON.stringify(r, null, 2) : gateMd(r));
+  // The workshop panel and the mission book (spec 6.4 and 6.7): the verdict of a gate that has the reviewer's one.
+  if (lerVeredito(dir)) {
+    const block = blockOf(dir);
+    await emit(`${block}_gate`, { verdict: r.bloqueado ? 'REJECTED' : 'APPROVED' });
+    await markGate(block, !r.bloqueado);
+  }
   process.exit(r.bloqueado ? 1 : 0);
 }

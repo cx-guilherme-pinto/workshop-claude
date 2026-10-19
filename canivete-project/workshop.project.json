@@ -2,12 +2,54 @@
   "v": 1,
   "id": "canivete",
   "block": "p1",
-  "name": { "pt": "Canivete", "en": "Pocketknife" },
-  "unit": { "pt": ["ferramenta", "ferramentas"], "en": ["tool", "tools"] },
+  "name": {
+    "pt": "Canivete",
+    "en": "Pocketknife"
+  },
+  "unit": {
+    "pt": [
+      "ferramenta",
+      "ferramentas"
+    ],
+    "en": [
+      "tool",
+      "tools"
+    ]
+  },
   "catalog": "specs/tools.json",
-  "item": { "spec": "tools/{id}/spec.md", "test": "tools/{id}/tool.test.js", "file": "tools/{id}/tool.js" },
-  "my_item": { "example": "specs/my-tool.example.json", "file": "specs/my-tool.json", "id": "my-01" },
-  "memory": { "project": "canivete", "query": "canivete swarm" },
-  "plan": { "parallel": [4, 8, 12], "default_parallel": 8, "models": ["haiku", "sonnet"], "default_model": "haiku" },
-  "app": { "start": "node server.js", "url": "http://localhost:3000", "status": "http://localhost:3000/status" }
+  "item": {
+    "spec": "tools/{id}/spec.md",
+    "test": "tools/{id}/tool.test.js",
+    "file": "tools/{id}/tool.js"
+  },
+  "my_item": {
+    "example": "specs/my-tool.example.json",
+    "file": "specs/my-tool.json",
+    "id": "my-01"
+  },
+  "memory": {
+    "project": "canivete",
+    "query": "canivete swarm"
+  },
+  "plan": {
+    "parallel": [
+      4,
+      8,
+      12
+    ],
+    "default_parallel": 8,
+    "models": [
+      "haiku",
+      "sonnet"
+    ],
+    "default_model": "haiku",
+    "planner": false
+  },
+  "app": {
+    "start": "node server.js",
+    "url": "http://localhost:3000",
+    "status": "http://localhost:3000/status"
+  },
+  "gate": "node tools/workshop/orchestrator/gate.mjs --test \"node tools/check-integration.mjs\" --base canivete-start",
+  "review_prompt": "Review the Pocketknife. Follow specs/review.md. Read .workshop/review-summary.md."
 }

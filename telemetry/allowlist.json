@@ -14,7 +14,7 @@
     },
     "mission_done": { "fields": { "mission": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"] } },
     "tests_run": { "local_only": true, "fields": { "green": "int", "red": "int" } },
-    "p1_tool_created": { "fields": { "tool_template": ["calc", "convert", "text", "generate"] } },
+    "p1_tool_created": { "fields": { "tool_template": ["calc", "convert", "text", "generate", "choice", "spot-the-flaw", "order", "answer"] } },
     "p1_plan": { "fields": { "parallel": [4, 8, 12], "model": ["haiku", "sonnet"], "forecast_min": "int_or_null", "tasks": "int" } },
     "p1_swarm_done": { "fields": { "duration_s": "int", "green": "int", "red": "int", "green_first": "int" } },
     "p1_retry_green": { "fields": { "tool": "catalog_id" } },

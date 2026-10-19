@@ -570,6 +570,9 @@ function extends_(current, generated) {
   return true;
 }
 
+// Your card generated for the first time now (for the workshop panel's event below).
+const freshMine = cards.some((c) => c.id === MY_CARD_ID) && !existsSync(join(ROOT, 'cards', MY_CARD_ID, 'card.test.js'));
+
 let changed = 0;
 function write(rel, content, { keepCompleted = false } = {}) {
   const p = join(ROOT, rel);
@@ -595,5 +598,14 @@ write('TASKS.md', tasksMd());
 if (CHECK && changed) {
   console.error(M.outOfDateN(changed));
   process.exit(1);
+}
+// The workshop panel counts the cards the room invented (only the template; spec 6.4, p1_tool_created).
+if (!CHECK && freshMine) {
+  try {
+    const { emit } = await import('./workshop/orchestrator/lib/telemetry.mjs');
+    await emit('p1_tool_created', { tool_template: cards.find((c) => c.id === MY_CARD_ID).template });
+  } catch {
+    /* no telemetry: the card is generated all the same */
+  }
 }
 console.log(CHECK ? M.upToDate : M.written(cards.length, changed));

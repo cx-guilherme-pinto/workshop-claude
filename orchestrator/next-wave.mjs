@@ -29,6 +29,7 @@ import { tabelaMarkdown, linhaResumo, usd, tempo } from './lib/table.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { opt, flag } from './lib/args.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
+import { blockOf, emit } from './lib/telemetry.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const TERMINAL_OK = new Set(['verde', 'falhou']);
@@ -279,11 +280,24 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry 
   if (!lote.length && pendentes === 0 && !run.fim) {
     run.fim = new Date().toISOString();
     evento(c, { tipo: 'fim', contagem: f.contagem, custo: f.custo });
+    // The workshop panel (spec 6.4): the swarm is done, with its duration and how many went green at the first try.
+    const fins = todosEstados(c, plano);
+    const greenFirst = [...fins.values()].filter((st) => st.estado === 'verde' && (st.tentativa || 0) <= 1 && !st.repeticoes).length;
+    await emit(`${blockOf(projeto)}_swarm_done`, {
+      duration_s: Math.max(0, Math.round((Date.parse(run.fim) - Date.parse(run.inicio)) / 1000)),
+      green: f.contagem.verde,
+      red: f.total - f.contagem.verde,
+      green_first: greenFirst,
+    });
   }
   // O retry acaba quando a tarefa fica verde ou falha de vez (e nada dela esta a correr): fica fechado.
   if (repetir && run.retry?.tarefa === repetir.id && !lote.length) {
     const e = estados.get(repetir.id)?.estado;
-    if (TERMINAL_OK.has(e) || e === 'falhou') run.retry.fechado = true;
+    if (TERMINAL_OK.has(e) || e === 'falhou') {
+      // a spec a person completed made it green: the panel counts the specs fixed (spec 5.1, D5)
+      if (!run.retry.fechado && e === 'verde' && repetir.spec_gap && blockOf(projeto) === 'p1') await emit('p1_retry_green', { tool: repetir.id });
+      run.retry.fechado = true;
+    }
   }
   escreverJson(c.run, run);
   return { plano, f, loteAnterior, lote, chamadas, pendentes, run, retry: repetir?.id ?? null };

@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "id": "security-arena",
+  "block": "p1",
+  "name": { "pt": "Arena de Segurança", "en": "Security Arena" },
+  "unit": { "pt": ["cartão", "cartões"], "en": ["card", "cards"] },
+  "catalog": "specs/cards.json",
+  "item": { "spec": "cards/{id}/spec.md", "test": "cards/{id}/card.test.js", "file": "cards/{id}/card.js" },
+  "my_item": { "example": "specs/my-card.example.json", "file": "specs/my-card.json", "id": "my-01" },
+  "memory": { "project": "security-arena", "query": "arena swarm" },
+  "plan": { "parallel": [4, 8, 12], "default_parallel": 8, "models": ["haiku", "sonnet"], "default_model": "haiku", "extra": "--crypto sonnet|haiku", "planner": true },
+  "gate": "node tools/workshop/orchestrator/gate.mjs --test \"node tools/check-integration.mjs\" --base arena-start --ignore cards/",
+  "review_prompt": "Review the Arena. Follow specs/review.md. Read .workshop/review-summary.md.",
+  "app": { "start": "node server.js", "url": "http://localhost:3000", "status": "http://localhost:3000/status" }
+}

@@ -1,11 +1,12 @@
 ---
 name: demo-reset
-description: Resets the Security Arena to its initial state so the exercise can be repeated (the built cards are deleted; the cost history is kept in .workshop/history/).
+description: Resets the Project 1 project (the Pocketknife or the Security Arena) to its initial state so the exercise can be repeated (the built items are deleted; the cost history is kept in .workshop/history/).
 argument-hint: "[--auto]"
 model: sonnet
 disable-model-invocation: true
 allowed-tools:
   - Bash(node tools/*)
+  - Read
 ---
 
 # /demo-reset — start over
@@ -14,10 +15,10 @@ allowed-tools:
 
 **Language:** talk to the participant in their language (Claude Code's `language` setting, otherwise the language they write in). Localise, don't translate word for word: write as a native speaker would, and keep technical terms in English (swarm, agent, skill, hook, statusline, MCP, worktree, prompt, token, plan mode, command names) the way developers who speak that language say them. Show script output exactly as it comes. Never translate status markers.
 
-Arguments: `$ARGUMENTS`.
+Arguments: `$ARGUMENTS`. Read `workshop.project.json` at the project root for the project's `name` and `unit` (what one item is called).
 
-1. Without `--auto`, first run `node tools/reset.mjs --dry-run` and show its output. Then ask: "This deletes the built cards and the current plan, and puts back the files listed above. Your own changes, files and commits are saved first in `.workshop/history/<date>/` (commits also in a `my-work-...` branch), and the cost history stays there too. Shall I continue?" Wait for a clear yes.
+1. Without `--auto`, first run `node tools/reset.mjs --dry-run` and show its output. Then ask: "This deletes the built <units> and the current plan, and puts back the files listed above. Your own changes, files and commits are saved first in `.workshop/history/<date>/` (commits also in a `my-work-...` branch), and the cost history stays there too. Shall I continue?" Wait for a clear yes.
 2. Run `node tools/reset.mjs`. If it says `Refused`, show the message as it is and stop.
 3. Show what the script did in 2 or 3 lines (say where the participant's work was saved, if the script saved any) and end with: "Done. To start over: `/demo-plan`."
 
-Never use `git` directly for this: the script checks that you are really in the Arena before deleting anything.
+Never use `git` directly for this: the script checks that you are really in the project before deleting anything.
