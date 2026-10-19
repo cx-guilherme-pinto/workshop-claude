@@ -2489,24 +2489,93 @@ ws_s8_part() {
   esac
   return 0
 }
-# A escolha, como nota do passo 8 (com o comando para a mudar).
+# A escolha, como nota do passo 8 (com o comando para a mudar). O estado e o que o instalar escreveu (a linha
+# "painel", WS_S8_PAINEL: "on A" ou "off"), tambem quando ficou a escolha de antes; um install-user sem essa linha
+# fica pela escolha desta vez (ou "como escolheste antes").
 ws_s8_part_note() {
   ws_part_kit || return 0
-  local ctl
+  local ctl st=${WS_S8_PAINEL:-}
   ctl="node $(ws_tilde "$WS_HOME/kit/telemetry/ctl.mjs")"
-  case "${WS_S8_TELEM:-}" in
-    on) ws_note "$(ws_msg s8_painel_on SALA="$WS_S8_ROOM")" ;;
+  if [ -z "$st" ]; then
+    case "${WS_S8_TELEM:-}" in on) st="on ${WS_S8_ROOM:-}" ;; off) st=off ;; esac
+  fi
+  case "$st" in
+    "on "[AB]) ws_note "$(ws_msg s8_painel_on SALA="${st#on }")" ;;
     off) ws_note "$(ws_msg s8_painel_off CMD="$ctl on A")" ;;
     *) ws_note "$(ws_msg s8_painel_mantido CMD="$ctl status")" ;;
   esac
 }
+# O painel no --check (spec 6.8): o setup pede GET <panel_url>/health, para quem esta numa rede que o bloqueia saber
+# no dia anterior. So com a participacao ligada (enabled: true), um panel_url e a config em vigor (expires_at ainda
+# no futuro): sem isso nao ha nada a testar. Nunca falha nem bloqueia: o E-TEL-01 e um aviso (a caderneta de missoes
+# funciona sem o painel).
+# O URL a testar (sem a "/" do fim), do config.json da telemetria; vazio = nada a testar.
+ws_tel_panel_url() { # config.json [agora: AAAA-MM-DDTHH:MM:SSZ]
+  local f=$1 now=${2:-} u exp
+  [ -f "$f" ] || return 0
+  LC_ALL=C grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true([^a-z]|$)' "$f" 2>/dev/null || return 0
+  u=$(ws_trim "$(ws_json_field "$f" panel_url)")
+  case "$u" in http://?*|https://?*) ;; *) return 0 ;; esac
+  # A config expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar): nada a testar.
+  exp=$(ws_json_field "$f" expires_at)
+  [ -n "$now" ] || now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  case "$exp" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) [[ "$now" < "$exp" ]] || return 0 ;; esac
+  printf '%s' "${u%/}"
+}
+# A resposta do /health: {"ok":true} (com ou sem espacos e outros campos) -> 0.
+ws_tel_health_ok() { # corpo
+  local b
+  b=$(printf '%s' "$1" | LC_ALL=C tr -d ' \t\r\n')
+  case "$b" in '{'*'"ok":true}'|'{'*'"ok":true,'*'}') return 0 ;; esac
+  return 1
+}
+# O resultado de um pedido ao /health -> nada (o painel responde) ou o motivo, para o detalhe do aviso.
+ws_tel_why() { # codigo-do-curl http corpo
+  [ "$1" = 0 ] || { printf 'curl %s' "$1"; return 0; }
+  case "$2" in 2??) ;; *) printf 'HTTP %s' "${2:-000}"; return 0 ;; esac
+  ws_tel_health_ok "$3" || printf '%s' 'not {"ok":true}'
+}
+# GET <url>/health, com o proxy e os certificados dos outros testes de rede (HTTPS_PROXY e CURL_CA_BUNDLE do passo 0)
+# e um limite curto. Define WS_TEL_WHY (vazio = responde).
+ws_tel_probe() { # url-do-painel
+  local f="$WS_TMP/panel-health" code rc body
+  rm -f "$f"
+  code=$(curl -q -sS -o "$f" --connect-timeout 5 -m 10 -A "$WS_UA" -w '%{http_code}' "$1/health" 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  body=$(head -c 512 "$f" 2>/dev/null); rm -f "$f"
+  WS_TEL_WHY=$(ws_tel_why "$rc" "${code:-000}" "$body")
+  ws_log "panel: $(ws_url_base "$1")health -> curl $rc HTTP ${code:-000}${WS_TEL_WHY:+ ($WS_TEL_WHY)}"
+  [ -z "$WS_TEL_WHY" ]
+}
+# No --check e no --doctor (o install nunca testa o painel): aviso E-TEL-01 se nao responder; se responder, uma nota.
+ws_s8_panel_check() {
+  [ "${WS_MODE:-}" = install ] && return 0
+  local cfg="$WS_HOME/telemetry/config.json" u room
+  u=$(ws_tel_panel_url "$cfg")
+  if [ -z "$u" ]; then ws_log "panel: nothing to test (participation off, expired or no panel_url)"; return 0; fi
+  room=$(ws_json_field "$cfg" room)
+  if ws_tel_probe "$u"; then ws_note "$(ws_msg s8_painel_acessivel SALA="${room:-?}")"
+  else ws_warn E-TEL-01 "$(ws_url_base "$u") · $WS_TEL_WHY"; fi
+  return 0
+}
+# check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. So no fim de um --check sem falhas (avisos podem
+# ficar); nunca noutro modo. O emit.mjs nunca escreve nada e sai sempre com 0; um erro dele nunca muda o resultado.
+ws_check_ok_want() { [ "$1" = check ] && [ "$2" = 0 ]; } # modo faltam
+ws_check_ok_emit() {
+  ws_check_ok_want "${WS_MODE:-}" "${WS_FALTAM:-1}" || return 0
+  local e="$WS_HOME/kit/telemetry/emit.mjs" n=${WS_NODE:-}
+  if [ ! -f "$e" ] || [ -z "$n" ] || [ ! -x "$n" ]; then ws_log "check_ok: not sent (no emit.mjs or node)"; return 0; fi
+  ws_timeout 20 "$n" "$e" check_ok </dev/null >/dev/null 2>&1 || true
+  ws_log "check_ok: recorded"
+  return 0
+}
 ws_s8_parse() { # le a saida TSV de install-user
   local k v skills=0 agentes=0 lang="" nossa=0 kit="" de="" para="" err="" det="" lingua=0 outra=0
   # WS_S8_SO_LINGUA=1: so falta mudar a lingua (WORKSHOP_LANG diferente da instalada); WS_S8_DE/PARA: de qual para qual
-  WS_S8_SO_LINGUA=0; WS_S8_DE=""; WS_S8_PARA=""
+  # WS_S8_PAINEL: a participacao no painel como o instalar a gravou ("on A", "on B" ou "off")
+  WS_S8_SO_LINGUA=0; WS_S8_DE=""; WS_S8_PARA=""; WS_S8_PAINEL=""
   while IFS="$WS_TAB" read -r k v; do
     case "$k" in
-      skills) skills=$v ;; agentes) agentes=$v ;;
+      skills) skills=$v ;; agentes) agentes=$v ;; painel) WS_S8_PAINEL=$v ;;
       language) lang=$v ;; language_nossa) nossa=$v ;; lingua_kit) kit=$v ;;
       aviso) [ "$v" = E-CFG-06 ] && ws_note "$(ws_m s8_statusline_mantida)"
         case "$v" in E-CFG-11) ws_warn "$v" "$(ws_path_show "$CLAUDE_DIR/settings.json"): disableAllHooks" ;; *) ws_warn "$v" "statusLine" ;; esac ;;
@@ -2571,10 +2640,10 @@ ws_s8_detect() {
     fi
     # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
     if [ "$WS_MODE" = install ] && ws_part_kit && ! ws_part_cfg; then ws_log "missing: telemetry config"; return 1; fi
-    ws_s8_config_dir; return 0
+    ws_s8_config_dir; ws_s8_panel_check; return 0
   fi
   # --check/--doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
-  [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && return 0
+  [ "${WS_MODE:-}" != install ] && [ "${WS_S8_SO_LINGUA:-0}" = 1 ] && { ws_s8_panel_check; return 0; }
   return 1
 }
 ws_s8_install() {
@@ -3823,6 +3892,7 @@ EOF
   [ "$WS_MODE" = install ] && ws_profile_update
   ws_registar_flush
   ws_summary
+  ws_check_ok_emit
   [ "$WS_MODE" = doctor ] && ws_doctor
   [ "$WS_FALTAM" = 0 ]
 }

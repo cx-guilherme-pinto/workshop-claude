@@ -3926,6 +3926,29 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
       ($script:IuExtra -join '|') | Should -BeExactly ('--projects-dir|' + $script:Proj)
       $script:T['8'].Notas | Should -Contain 'Workshop panel: as you chose before. To see it: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs status'
     }
+    It 'a nota diz o estado real (a linha "painel" do instalar), tambem quando ficou a escolha de antes: <Painel>' -ForEach @(
+      @{ Painel = 'on A'; Cfg = $true; T = ''; R = ''; Want = 'Workshop panel: on (room A).' },
+      @{ Painel = 'off'; Cfg = $true; T = ''; R = ''; Want = 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)' },
+      @{ Painel = 'on B'; Cfg = $false; T = 'on'; R = 'b'; Want = 'Workshop panel: on (room B).' },
+      @{ Painel = 'off'; Cfg = $false; T = 'on'; R = 'b'; Want = 'Workshop panel: off. To turn it on, run: node %USERPROFILE%\.workshop-claude\kit\telemetry\ctl.mjs on A (A or B: your room)' }
+    ) {
+      if ($Cfg) {
+        New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), '{}')
+      }
+      $env:WORKSHOP_TELEMETRY = $T; $env:WORKSHOP_ROOM = $R
+      $script:IuOut = "skills`t7`nagentes`t6`npainel`t" + $Painel + "`n"
+      Mock Invoke-WsInstallUser { $script:IuExtra = @($Extra); return @{ ExitCode = 0; StdOut = $script:IuOut } }
+      Install-WsStep8 | Should -BeTrue
+      $script:T['8'].Notas | Should -Contain $Want
+      @($script:T['8'].Notas | Where-Object { $_ -match 'as you chose before' }).Count | Should -Be 0
+      $script:S8Panel | Should -BeExactly $Painel
+    }
+    It 'Read-WsInstallUserOutput: sem linha painel o S8Panel fica vazio' {
+      $script:S8Panel = 'velho'
+      Read-WsInstallUserOutput "skills`t7`n"
+      $script:S8Panel | Should -BeExactly ''
+    }
     It 'kit sem a pasta telemetry: sem pergunta, sem flags da participacao e sem nota' {
       Mock Test-WsInteractive { return $true }
       $script:KitSrc = Join-Path $TestDrive 'kit8-velho'
@@ -3989,5 +4012,185 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
     [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-missions.mjs'), '')
     Test-WsStep9 | Should -BeFalse
     $script:T['9'].Falha -join '|' | Should -BeExactly ('E-DEMO-01|' + (Join-Path $script:Proj 'missions-project'))
+  }
+}
+
+Describe 'o painel no -Check (passo 8) e o check_ok no fim' {
+  BeforeAll {
+    function New-TelConfig([string]$Enabled, [string]$Url, [string]$Exp, [string]$Room = 'B') {
+      return ("{`n  ""v"": 1,`n  ""enabled"": $Enabled,`n  ""room"": ""$Room"",`n  ""workshop"": ""dev"",`n  ""panel_url"": ""$Url"",`n  ""expires_at"": ""$Exp""`n}`n")
+    }
+    function Set-TelConfig([string]$Text) { [IO.File]::WriteAllText((Join-Path $script:WsHome 'telemetry/config.json'), $Text) }
+  }
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Cur = '8'; $script:Mode = 'check'; $script:UA = 'pester'
+    $script:WsHome = Join-Path $TestDrive 'perfil-painel/.workshop-claude'
+    New-Item -ItemType Directory -Path (Join-Path $script:WsHome 'telemetry') -Force | Out-Null
+    $script:Now = [datetime]::new(2026, 10, 19, 12, 0, 0, [DateTimeKind]::Utc)
+  }
+
+  It 'Get-WsPanelTarget: <Name>' -ForEach @(
+    @{ Name = 'ligado, com panel_url e em vigor = testa (sem a / do fim)'; En = 'true'; Url = 'https://panel.example.test/'; Exp = '2026-10-21T00:00:00.000Z'; Want = 'https://panel.example.test' },
+    @{ Name = 'config expirada = nada a testar'; En = 'true'; Url = 'https://panel.example.test'; Exp = '2026-10-19T00:00:00.000Z'; Want = '' },
+    @{ Name = 'participacao desligada = nada a testar'; En = 'false'; Url = 'https://panel.example.test'; Exp = '2099-01-01T00:00:00.000Z'; Want = '' },
+    @{ Name = 'panel_url vazio = nada a testar'; En = 'true'; Url = ''; Exp = '2099-01-01T00:00:00.000Z'; Want = '' },
+    @{ Name = 'panel_url so com espacos = nada a testar'; En = 'true'; Url = '  '; Exp = '2099-01-01T00:00:00.000Z'; Want = '' },
+    @{ Name = 'panel_url sem http(s) = nada a testar'; En = 'true'; Url = 'panel.example.test'; Exp = '2099-01-01T00:00:00.000Z'; Want = '' },
+    @{ Name = 'sem expires_at = em vigor'; En = 'true'; Url = 'http://127.0.0.1:9/p'; Exp = ''; Want = 'http://127.0.0.1:9/p' },
+    @{ Name = 'enabled em texto ("true") nao conta'; En = '"true"'; Url = 'https://panel.example.test'; Exp = '2099-01-01T00:00:00.000Z'; Want = '' }
+  ) {
+    $t = Get-WsPanelTarget (New-TelConfig $En $Url $Exp) $script:Now
+    if ($Want) { $t.Url | Should -BeExactly $Want; $t.Room | Should -BeExactly 'B' } else { $t | Should -BeNullOrEmpty }
+  }
+
+  It 'Get-WsPanelTarget: JSON invalido ou vazio = nada a testar; JSON numa linha serve' {
+    Get-WsPanelTarget '{nao e json' $script:Now | Should -BeNullOrEmpty
+    Get-WsPanelTarget '' $script:Now | Should -BeNullOrEmpty
+    (Get-WsPanelTarget '{"v":1,"enabled":true,"room":"A","panel_url":"https://p.test","expires_at":"2099-01-01T00:00:00.000Z"}' $script:Now).Url | Should -BeExactly 'https://p.test'
+    (Get-WsPanelTarget ([string][char]0xFEFF + '{"enabled":true,"panel_url":"https://p.test"}') $script:Now).Url | Should -BeExactly 'https://p.test'
+  }
+
+  It 'Test-WsPanelHealthBody: <Body> = <Want>' -ForEach @(
+    @{ Body = '{"ok":true}'; Want = $true },
+    @{ Body = '{ "ok" : true }'; Want = $true },
+    @{ Body = "{`n  ""ok"": true`n}`n"; Want = $true },
+    @{ Body = '{"ok":true,"v":2}'; Want = $true },
+    @{ Body = '{"v":2,"ok":true}'; Want = $true },
+    @{ Body = '{"ok":false}'; Want = $false },
+    @{ Body = '{"ok":"true"}'; Want = $false },
+    @{ Body = '{"nok":true}'; Want = $false },
+    @{ Body = '<html>ok</html>'; Want = $false },
+    @{ Body = ''; Want = $false }
+  ) {
+    Test-WsPanelHealthBody $Body | Should -Be $Want
+  }
+
+  It 'Get-WsPanelProblem: <Name>' -ForEach @(
+    @{ Name = 'responde'; St = ''; Http = 200; Body = '{"ok":true}'; Want = '' },
+    @{ Name = 'nao liga'; St = 'ConnectFailure'; Http = 0; Body = ''; Want = 'ConnectFailure' },
+    @{ Name = 'sem resposta a tempo'; St = 'Timeout'; Http = 0; Body = ''; Want = 'Timeout' },
+    @{ Name = 'falha sem estado'; St = ''; Http = 0; Body = ''; Want = 'no answer' },
+    @{ Name = 'HTTP 503'; St = 'ProtocolError'; Http = 503; Body = ''; Want = 'HTTP 503' },
+    @{ Name = 'HTTP 403 de um filtro'; St = 'ProtocolError'; Http = 403; Body = 'denied'; Want = 'HTTP 403' },
+    @{ Name = 'pagina web em vez do JSON'; St = ''; Http = 200; Body = '<html>portal</html>'; Want = 'not {"ok":true}' },
+    @{ Name = 'ok false'; St = ''; Http = 200; Body = '{"ok":false}'; Want = 'not {"ok":true}' }
+  ) {
+    Get-WsPanelProblem $St $Http $Body | Should -BeExactly $Want
+  }
+
+  It 'Get-WsPanelReach: GET <url>/health, responde, JSON errado e sem ligacao' {
+    Mock Invoke-WebRequest { return [pscustomobject]@{ StatusCode = 200; Content = '{"ok":true}' } }
+    Get-WsPanelReach 'https://panel.example.test' | Should -BeExactly ''
+    Should -Invoke Invoke-WebRequest -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://panel.example.test/health' -and $TimeoutSec -le 15 }
+    Mock Invoke-WebRequest { return [pscustomobject]@{ StatusCode = 200; Content = [Text.Encoding]::UTF8.GetBytes('<html>login</html>') } }
+    Get-WsPanelReach 'https://panel.example.test' | Should -BeExactly 'not {"ok":true}'
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('refused', [System.Net.WebExceptionStatus]::ConnectFailure) }
+    Get-WsPanelReach 'https://panel.example.test' | Should -BeExactly 'ConnectFailure'
+  }
+
+  It 'Test-WsStep8Panel: responde = nota (com a sala), sem aviso' {
+    Set-TelConfig (New-TelConfig 'true' 'https://panel.example.test/' '2099-01-01T00:00:00.000Z')
+    Mock Invoke-WebRequest { return [pscustomobject]@{ StatusCode = 200; Content = '{"ok":true}' } }
+    Test-WsStep8Panel
+    $script:T['8'].Notas | Should -Contain 'Workshop panel: on (room B), and it answers from this network.'
+    @($script:T['8'].Avisos).Count | Should -Be 0
+  }
+
+  It 'Test-WsStep8Panel: <Name> = aviso E-TEL-01' -ForEach @(
+    @{ Name = 'sem ligacao'; Mode = 'check'; Kind = 'throw'; Want = 'E-TEL-01|https://panel.example.test/ - ConnectFailure' },
+    @{ Name = 'JSON errado'; Mode = 'check'; Kind = 'html'; Want = 'E-TEL-01|https://panel.example.test/ - not {"ok":true}' },
+    @{ Name = 'sem ligacao, -Doctor'; Mode = 'doctor'; Kind = 'throw'; Want = 'E-TEL-01|https://panel.example.test/ - ConnectFailure' }
+  ) {
+    $script:Mode = $Mode
+    Set-TelConfig (New-TelConfig 'true' 'https://panel.example.test/' '2099-01-01T00:00:00.000Z')
+    if ($Kind -eq 'throw') { Mock Invoke-WebRequest { throw [System.Net.WebException]::new('refused', [System.Net.WebExceptionStatus]::ConnectFailure) } }
+    else { Mock Invoke-WebRequest { return [pscustomobject]@{ StatusCode = 200; Content = '<html>portal</html>' } } }
+    Test-WsStep8Panel
+    @($script:T['8'].Avisos | ForEach-Object { $_ -join '|' }) | Should -Be @($Want)
+    @($script:T['8'].Notas | Where-Object { $_ -match 'Workshop panel' }).Count | Should -Be 0
+    $script:T['8'].Falha | Should -BeNullOrEmpty
+  }
+
+  It 'Test-WsStep8Panel: <Name> = nada (nem pede o /health)' -ForEach @(
+    @{ Name = 'a instalacao'; Mode = 'install'; En = 'true'; Url = 'https://panel.example.test' },
+    @{ Name = 'participacao desligada'; Mode = 'check'; En = 'false'; Url = 'https://panel.example.test' },
+    @{ Name = 'sem panel_url'; Mode = 'check'; En = 'true'; Url = '' },
+    @{ Name = 'sem config.json'; Mode = 'check'; En = ''; Url = '' }
+  ) {
+    $script:Mode = $Mode
+    if ($En) { Set-TelConfig (New-TelConfig $En $Url '2099-01-01T00:00:00.000Z') } else { Remove-Item -LiteralPath (Join-Path $script:WsHome 'telemetry/config.json') -ErrorAction SilentlyContinue }
+    Mock Invoke-WebRequest { throw 'nao devia ser chamado' }
+    Test-WsStep8Panel
+    Should -Invoke Invoke-WebRequest -Times 0 -Exactly
+    @($script:T['8'].Avisos).Count | Should -Be 0
+    @($script:T['8'].Notas).Count | Should -Be 0
+  }
+
+  It 'Test-WsStep8 no -Check: o kit instalado testa o painel; o aviso nunca faz o passo falhar' {
+    $script:KitSrc = Join-Path $TestDrive 'kit-painel'
+    New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'telemetry') -Force | Out-Null
+    $script:SubstSl = $false; $script:Lang = 'en'; $script:LangKit = 'en'
+    Mock Initialize-WsKit { return $true }
+    Mock Sync-WsExtras { }
+    Mock Test-WsClaudeConfigDir { }
+    Mock Invoke-WsInstallUser { return @{ ExitCode = 0; StdOut = "skills`t7`nagentes`t6`n" } }
+    Set-TelConfig (New-TelConfig 'true' 'https://panel.example.test' '2099-01-01T00:00:00.000Z')
+    Mock Invoke-WebRequest { throw [System.Net.WebException]::new('dns', [System.Net.WebExceptionStatus]::NameResolutionFailure) }
+    Test-WsStep8 | Should -BeTrue
+    @($script:T['8'].Avisos | ForEach-Object { $_ -join '|' }) | Should -Be @('E-TEL-01|https://panel.example.test/ - NameResolutionFailure')
+  }
+
+  It 'Test-WsCheckOkWanted: modo <Mode>, faltam <Faltam> = <Want>' -ForEach @(
+    @{ Mode = 'check'; Faltam = 0; Want = $true },
+    @{ Mode = 'check'; Faltam = 1; Want = $false },
+    @{ Mode = 'check'; Faltam = 3; Want = $false },
+    @{ Mode = 'install'; Faltam = 0; Want = $false },
+    @{ Mode = 'doctor'; Faltam = 0; Want = $false },
+    @{ Mode = 'uninstall'; Faltam = 0; Want = $false }
+  ) {
+    Test-WsCheckOkWanted $Mode $Faltam | Should -Be $Want
+  }
+
+  Context 'Send-WsCheckOk' {
+    BeforeEach {
+      $script:NodeExe = 'node-do-kit'
+      $script:Emit = Join-Path (Join-Path (Join-Path $script:WsHome 'kit') 'telemetry') 'emit.mjs'
+      New-Item -ItemType Directory -Path (Split-Path $script:Emit -Parent) -Force | Out-Null
+      [IO.File]::WriteAllText($script:Emit, '')
+      $script:Calls = @()
+      Mock Invoke-WsProcess { $script:Calls += , @($FilePath, @($Arguments)); return @{ ExitCode = 0; StdOut = ''; StdErr = '' } }
+    }
+    It '-Check sem falhas: node do kit + emit.mjs check_ok' {
+      Send-WsCheckOk 0
+      $script:Calls.Count | Should -Be 1
+      $script:Calls[0][0] | Should -BeExactly 'node-do-kit'
+      ($script:Calls[0][1] -join '|') | Should -BeExactly ($script:Emit + '|check_ok')
+    }
+    It 'nunca com falhas, na instalacao nem no -Doctor' {
+      Send-WsCheckOk 1
+      $script:Mode = 'install'; Send-WsCheckOk 0
+      $script:Mode = 'doctor'; Send-WsCheckOk 0
+      $script:Calls.Count | Should -Be 0
+    }
+    It 'um erro do emit.mjs (ou do node) e ignorado' {
+      Mock Invoke-WsProcess { throw 'boom' }
+      { Send-WsCheckOk 0 } | Should -Not -Throw
+      Mock Invoke-WsProcess { return @{ ExitCode = 3; StdOut = ''; StdErr = 'x' } }
+      { Send-WsCheckOk 0 } | Should -Not -Throw
+    }
+    It 'sem emit.mjs (kit antigo) ou sem node: nao envia (nem falha)' {
+      $script:NodeExe = ''
+      Send-WsCheckOk 0
+      $script:NodeExe = 'node-do-kit'
+      Remove-Item -LiteralPath $script:Emit
+      Send-WsCheckOk 0
+      $script:Calls.Count | Should -Be 0
+    }
+    It 'o Invoke-WsMain chama-o logo a seguir ao resumo' {
+      $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+      $text | Should -Match '\$faltam = Write-WsSummary\r?\n\s*Send-WsCheckOk \$faltam'
+    }
   }
 }

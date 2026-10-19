@@ -828,7 +828,7 @@ p8() { # config(0|1) tty(0|1) WORKSHOP_TELEMETRY WORKSHOP_ROOM [kit] -> argument
     PF_TTY=$2; ws_has_tty() { [ "$PF_TTY" = 1 ]; }
     ws_part_ask_yn() { return 1; }
     ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }
-    ws_iu() { printf '%s ' "$@" > "$PF/iu.args"; printf 'skills\t7\nagentes\t3\n'; }
+    ws_iu() { printf '%s ' "$@" > "$PF/iu.args"; printf 'skills\t7\nagentes\t3\n'; if [ -n "${P8_PAINEL:-}" ]; then printf 'painel\t%s\n' "$P8_PAINEL"; fi; }
     ws_s8_install >/dev/null; printf '%s#%s' "$(sed 's/ $//' "$PF/iu.args")" "$SN_8" )
 }
 r=$(p8 0 0 on b); case "$r" in "instalar --projects-dir $PF/h/workshop-claude --telemetry on --room B#"*"Workshop panel: on (room B)."*) ok ;; *) ko "s8 participacao: on B [$r]" ;; esac
@@ -846,6 +846,127 @@ p8d() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; KIT_SRC="$PF/kit"; WS_
   ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }; ws_iu() { printf 'skills\t7\nagentes\t3\n'; }
   ws_s8_detect >/dev/null; printf '%s' "$?" ); }
 eq "$(p8d install 0)|$(p8d install 1)|$(p8d check 0)" "1|0|0" "s8 detect: sem config.json da telemetria instala (so no modo install)"
+# A nota do passo 8 diz o estado real (a linha "painel" do instalar), tambem quando ficou a escolha de antes.
+r=$(P8_PAINEL="on A" p8 1 1 '' ''); case "$r" in *"Workshop panel: on (room A)."*) ok ;; *) ko "s8 participacao: mantida, painel on A [$r]" ;; esac
+case "$r" in *"as you chose before"*) ko "s8 participacao: mantida com a linha painel nao diz 'como antes' [$r]" ;; *) ok ;; esac
+r=$(P8_PAINEL=off p8 1 1 '' ''); case "$r" in *"Workshop panel: off. To turn it on, run: node ~/.workshop-claude/kit/telemetry/ctl.mjs on A"*) ok ;; *) ko "s8 participacao: mantida, painel off [$r]" ;; esac
+r=$(P8_PAINEL="on B" p8 0 0 on b); case "$r" in *"Workshop panel: on (room B)."*) ok ;; *) ko "s8 participacao: on B com a linha painel [$r]" ;; esac
+r=$(P8_PAINEL=off p8 0 0 on b); case "$r" in *"Workshop panel: off."*) ok ;; *) ko "s8 participacao: a linha painel ganha a escolha [$r]" ;; esac
+eq "$( WS_CUR=8; SN_8=""; ws_s8_parse "$(printf 'skills\t7\npainel\ton B\n')"; printf '%s' "$WS_S8_PAINEL" )" "on B" "s8 parse: linha painel"
+eq "$( WS_CUR=8; SN_8=""; WS_S8_PAINEL=velho; ws_s8_parse "$(printf 'skills\t7\n')"; printf '%s' "$WS_S8_PAINEL" )" "" "s8 parse: sem linha painel fica vazio"
+
+# O painel no --check (spec 6.8): o config.json da telemetria decide se ha alguma coisa a testar.
+TC="$WS_TMP/tc"; mkdir -p "$TC"
+tcfg() { # enabled panel_url expires_at [room] -> config.json (como o install-user o escreve)
+  printf '{\n  "v": 1,\n  "enabled": %s,\n  "room": "%s",\n  "workshop": "dev",\n  "panel_url": "%s",\n  "expires_at": "%s"\n}\n' "$1" "${4:-A}" "$2" "$3" > "$TC/config.json"
+}
+tcfg true "https://panel.example.test/" "2026-10-21T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json" 2026-10-19T12:00:00Z)" "https://panel.example.test" "painel: ligado, com panel_url e em vigor = testa (sem a / do fim)"
+eq "$(ws_tel_panel_url "$TC/config.json" 2026-10-21T00:00:01Z)" "" "painel: config expirada = nada a testar"
+tcfg true "https://panel.example.test/" "2020-01-02T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "" "painel: config expirada (agora, sem data dada) = nada a testar"
+tcfg true "https://panel.example.test" "2099-01-01T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "https://panel.example.test" "painel: em vigor (agora)"
+tcfg false "https://panel.example.test" "2099-01-01T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "" "painel: participacao desligada = nada a testar"
+tcfg true "" "2099-01-01T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "" "painel: panel_url vazio = nada a testar"
+tcfg true "  " "2099-01-01T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "" "painel: panel_url so com espacos = nada a testar"
+tcfg true "panel.example.test" "2099-01-01T00:00:00.000Z"
+eq "$(ws_tel_panel_url "$TC/config.json")" "" "painel: panel_url sem http(s) = nada a testar"
+tcfg true "https://panel.example.test" ""
+eq "$(ws_tel_panel_url "$TC/config.json")" "https://panel.example.test" "painel: sem expires_at = em vigor"
+printf '{"v":1,"enabled":true,"room":"B","panel_url":"http://127.0.0.1:9/p","expires_at":"2099-01-01T00:00:00.000Z"}' > "$TC/one.json"
+eq "$(ws_tel_panel_url "$TC/one.json")" "http://127.0.0.1:9/p" "painel: JSON numa linha"
+printf '{"v":1,"enabled":trueish,"panel_url":"http://x"}' > "$TC/bad.json"
+eq "$(ws_tel_panel_url "$TC/bad.json")" "" "painel: enabled que nao e true = nada a testar"
+eq "$(ws_tel_panel_url "$TC/nao-existe.json")" "" "painel: sem config.json = nada a testar"
+for c in '{"ok":true}|0' '{ "ok" : true }|0' '{"ok":true,"v":2}|0' '{"v":2,"ok":true}|0' '{"ok":false}|1' '{"ok":"true"}|1' '<html>ok</html>|1' '|1' '{"ok":trueish}|1'; do
+  ws_tel_health_ok "${c%|*}"; eq "$?" "${c##*|}" "painel: /health [${c%|*}]"
+done
+ws_tel_health_ok "$(printf '{\n  "ok": true\n}\n')"; eq "$?" 0 "painel: /health em varias linhas"
+eq "$(ws_tel_why 0 200 '{"ok":true}')" "" "painel: responde"
+eq "$(ws_tel_why 7 000 '')" "curl 7" "painel: nao liga"
+eq "$(ws_tel_why 28 000 '')" "curl 28" "painel: sem resposta a tempo"
+eq "$(ws_tel_why 0 503 '{"ok":true}')" "HTTP 503" "painel: HTTP 503"
+eq "$(ws_tel_why 0 302 '')" "HTTP 302" "painel: redirecionado (portal de WiFi, filtro)"
+eq "$(ws_tel_why 0 200 '<html>blocked</html>')" 'not {"ok":true}' "painel: pagina web em vez do JSON"
+eq "$(ws_tel_why 0 200 '{"ok":false}')" 'not {"ok":true}' "painel: ok false"
+# ws_s8_panel_check com um curl falso (FC_RC, FC_CODE, FC_BODY): o aviso, a nota e quando nem chama o curl.
+tpc() { # modo -> SW_8#SN_8#chamadas do curl
+  ( HOME="$TC/h"; WS_HOME="$TC/h/.workshop-claude"; WS_MODE=$1; WS_CUR=8; SW_8=""; SN_8=""; WS_STEP_LOG=/dev/null; WS_UA=t; : > "$TC/calls"
+    mkdir -p "$WS_HOME/telemetry"; cp "$TC/config.json" "$WS_HOME/telemetry/config.json"
+    curl() { local o="" u=""; while [ $# -gt 0 ]; do case "$1" in -o) o=$2; shift ;; http*) u=$1 ;; esac; shift; done
+      printf '%s ' "$u" >> "$TC/calls"; [ -n "$o" ] && printf '%s' "${FC_BODY:-}" > "$o"; printf '%s' "${FC_CODE:-000}"; return "${FC_RC:-0}"; }
+    ws_s8_panel_check; printf '%s#%s#%s' "$SW_8" "$SN_8" "$(sed 's/ $//' "$TC/calls")" )
+}
+tcfg true "https://panel.example.test/" "2099-01-01T00:00:00.000Z" B
+eq "$(FC_RC=0 FC_CODE=200 FC_BODY='{"ok":true}' tpc check)" "#Workshop panel: on (room B), and it answers from this network.
+#https://panel.example.test/health" "painel --check: responde = nota, sem aviso"
+eq "$(FC_RC=7 FC_CODE=000 tpc check)" "E-TEL-01|https://panel.example.test/ · curl 7
+##https://panel.example.test/health" "painel --check: nao responde = aviso E-TEL-01"
+eq "$(FC_RC=0 FC_CODE=200 FC_BODY='<html>login</html>' tpc check)" 'E-TEL-01|https://panel.example.test/ · not {"ok":true}
+##https://panel.example.test/health' "painel --check: JSON errado = aviso E-TEL-01"
+eq "$(FC_RC=0 FC_CODE=403 FC_BODY='denied' tpc doctor)" "E-TEL-01|https://panel.example.test/ · HTTP 403
+##https://panel.example.test/health" "painel --doctor: HTTP 403 = aviso E-TEL-01"
+eq "$(FC_RC=7 tpc install)" "##" "painel: o install nunca testa o painel"
+tcfg false "https://panel.example.test/" "2099-01-01T00:00:00.000Z"
+eq "$(FC_RC=7 tpc check)" "##" "painel --check: participacao desligada = nada (nem chama o curl)"
+tcfg true "" "2099-01-01T00:00:00.000Z"
+eq "$(FC_RC=7 tpc check)" "##" "painel --check: sem panel_url = nada (nem chama o curl)"
+# O detect do passo 8 no --check: o kit instalado testa o painel; o aviso nunca faz o passo falhar.
+tcfg true "https://panel.example.test" "2099-01-01T00:00:00.000Z"
+r=$( HOME="$TC/h"; WS_HOME="$TC/h/.workshop-claude"; KIT_SRC="$PF/kit"; WS_MODE=check; WS_CUR=8; SN_8=""; SD_8=""; SF_8=""; SW_8=""; WS_STEP_LOG=/dev/null; WS_SUBST_SL=0; WS_UA=t
+  mkdir -p "$WS_HOME/telemetry"; cp "$TC/config.json" "$WS_HOME/telemetry/config.json"
+  ws_kit_ensure() { return 0; }; ws_registar_flush() { :; }; ws_s8_config_dir() { :; }; ws_iu() { printf 'skills\t7\nagentes\t3\n'; }
+  curl() { printf '000'; return 6; }
+  ws_s8_detect >/dev/null; printf '%s|%s|%s' "$?" "$SW_8" "$SF_8" )
+eq "$r" "0|E-TEL-01|https://panel.example.test/ · curl 6
+|" "s8 detect --check: painel inacessivel = aviso, o passo fica ok"
+# Com o curl a serio contra um servidor local (o mesmo caminho do setup): responde, JSON errado, porta fechada.
+if [ -n "$NODE" ]; then
+  "$NODE" -e '
+    const s = require("http").createServer((q, r) => {
+      if (q.url === "/ok/health") { r.setHeader("content-type", "application/json"); r.end("{\"ok\":true}"); }
+      else if (q.url === "/bad/health") r.end("<html>portal</html>");
+      else { r.statusCode = 404; r.end("{}"); }
+    });
+    s.listen(0, "127.0.0.1", () => { require("fs").writeFileSync(process.argv[1], String(s.address().port)); });
+    setTimeout(() => process.exit(0), 20000);' "$TC/port" & TS=$!
+  i=0; while [ ! -s "$TC/port" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+  TP=$(cat "$TC/port" 2>/dev/null)
+  rp() { ( WS_STEP_LOG=/dev/null; WS_UA=t; export NO_PROXY='*' no_proxy='*'; unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy
+    ws_tel_probe "$1"; printf '%s|%s' "$?" "$WS_TEL_WHY" ); }
+  eq "$(rp "http://127.0.0.1:$TP/ok")" "0|" "painel (curl): responde {\"ok\":true}"
+  eq "$(rp "http://127.0.0.1:$TP/bad")" '1|not {"ok":true}' "painel (curl): pagina em vez do JSON"
+  eq "$(rp "http://127.0.0.1:$TP/nada")" "1|HTTP 404" "painel (curl): HTTP 404"
+  kill "$TS" 2>/dev/null; wait "$TS" 2>/dev/null
+  eq "$(rp "http://127.0.0.1:$TP/ok")" "1|curl 7" "painel (curl): porta fechada"
+fi
+
+# check_ok: so no fim de um --check sem falhas (avisos podem ficar), com o node e o emit.mjs do kit.
+for c in "check 0 0" "check 1 1" "check 3 1" "install 0 1" "doctor 0 1" "uninstall 0 1"; do
+  read -r cm cf cw <<EOF
+$c
+EOF
+  ws_check_ok_want "$cm" "$cf"; eq "$?" "$cw" "check_ok: modo $cm, faltam $cf"
+done
+if [ -n "$NODE" ]; then
+  CK="$WS_TMP/ck"; mkdir -p "$CK/.workshop-claude/kit/telemetry"
+  printf '%s\n' 'import { appendFileSync } from "node:fs";' 'appendFileSync(process.env.CK_OUT, process.argv.slice(2).join(" ") + "\n"); process.exit(Number(process.env.CK_RC || 0));' >"$CK/.workshop-claude/kit/telemetry/emit.mjs"
+  ck() { ( WS_HOME="$CK/.workshop-claude"; WS_MODE=$1; WS_FALTAM=$2; WS_NODE=${3-$NODE}; CK_OUT="$CK/out"; export CK_OUT; : > "$CK/out"
+    ws_check_ok_emit; printf '%s|%s' "$?" "$(cat "$CK/out")" ); }
+  eq "$(ck check 0)" "0|check_ok" "check_ok: --check sem falhas chama o emit.mjs check_ok"
+  eq "$(ck check 1)" "0|" "check_ok: --check com falhas nao envia"
+  eq "$(ck install 0)" "0|" "check_ok: a instalacao nunca envia"
+  eq "$(ck doctor 0)" "0|" "check_ok: o --doctor nunca envia"
+  eq "$(CK_RC=3; export CK_RC; ck check 0)" "0|check_ok" "check_ok: um erro do emit.mjs e ignorado"
+  eq "$(ck check 0 '')" "0|" "check_ok: sem node nao envia (nem falha)"
+  eq "$(ck check 0 "$CK/nao-existe")" "0|" "check_ok: node que nao existe nao envia (nem falha)"
+  rm -f "$CK/.workshop-claude/kit/telemetry/emit.mjs"
+  eq "$(ck check 0)" "0|" "check_ok: sem emit.mjs (kit antigo) nao envia (nem falha)"
+fi
 
 # Passo 9: o projeto das missoes monta-se como o de treino (so com o assemble-missions.mjs), depois dele.
 mkdir -p "$PF/k9/installer"; : > "$PF/k9/installer/assemble-sandbox.mjs"

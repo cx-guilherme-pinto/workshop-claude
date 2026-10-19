@@ -147,6 +147,7 @@
     "s8_painel_on": "Painel do workshop: ligado (sala {SALA}).",
     "s8_painel_off": "Painel do workshop: desligado. Para o ligares, corre: {CMD} (A ou B: a tua sala)",
     "s8_painel_mantido": "Painel do workshop: fica como escolheste antes. Para o veres: {CMD}",
+    "s8_painel_acessivel": "Painel do workshop: ligado (sala {SALA}) e responde a partir desta rede.",
     "s9_ja": "{PROJETOS}",
     "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
@@ -1206,6 +1207,23 @@
       ],
       "windows": [
         "Get-ChildItem \"$env:USERPROFILE\\.claude\", \"$env:USERPROFILE\\.workshop-claude\\backup\""
+      ]
+    },
+    "E-TEL-01": {
+      "titulo": "Não é possível chegar ao painel do workshop a partir desta rede",
+      "so": "todos",
+      "causa": "A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.",
+      "fazer": [
+        "No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).",
+        "Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora."
+      ],
+      "mac": [
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs off",
+        "node ~/.workshop-claude/kit/telemetry/ctl.mjs status"
+      ],
+      "windows": [
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" off",
+        "node \"$env:USERPROFILE\\.workshop-claude\\kit\\telemetry\\ctl.mjs\" status"
       ]
     },
     "E-DEMO-01": {

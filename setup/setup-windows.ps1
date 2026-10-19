@@ -3391,12 +3391,110 @@ function Get-WsStep8Participation {
 }
 
 function Add-WsStep8ParticipationNote {
-  # A escolha, como nota do passo 8 (com o comando para a mudar).
+  # A escolha, como nota do passo 8 (com o comando para a mudar). O estado e o que o instalar escreveu (a linha
+  # "painel", $script:S8Panel: "on A" ou "off"), tambem quando ficou a escolha de antes; um install-user sem essa
+  # linha fica pela escolha desta vez (ou "como escolheste antes"). Ver ws_s8_part_note no setup-mac.sh.
   if (-not (Test-WsTelemetryKit)) { return }
   $ctl = 'node ' + (Format-WsShowPath (Join-Path $script:WsHome 'kit\telemetry\ctl.mjs'))
-  if ($script:S8Telem -eq 'on') { Add-WsNote (M 's8_painel_on' @{ SALA = $script:S8Room }) }
-  elseif ($script:S8Telem -eq 'off') { Add-WsNote (M 's8_painel_off' @{ CMD = ($ctl + ' on A') }) }
+  $st = [string]$script:S8Panel
+  if (-not $st) {
+    if ($script:S8Telem -eq 'on') { $st = 'on ' + $script:S8Room } elseif ($script:S8Telem -eq 'off') { $st = 'off' }
+  }
+  if ($st -cmatch '^on ([AB])$') { Add-WsNote (M 's8_painel_on' @{ SALA = $Matches[1] }) }
+  elseif ($st -eq 'off') { Add-WsNote (M 's8_painel_off' @{ CMD = ($ctl + ' on A') }) }
   else { Add-WsNote (M 's8_painel_mantido' @{ CMD = ($ctl + ' status') }) }
+}
+
+# O painel no -Check (spec 6.8): o setup pede GET <panel_url>/health, para quem esta numa rede que o bloqueia saber
+# no dia anterior. So com a participacao ligada (enabled: true), um panel_url e a config em vigor (expires_at ainda no
+# futuro). Nunca falha nem bloqueia: o E-TEL-01 e um aviso (a caderneta de missoes funciona sem o painel). Ver
+# ws_tel_panel_url e ws_s8_panel_check no setup-mac.sh.
+function Get-WsPanelTarget {
+  # Texto do config.json da telemetria -> @{ Url (sem a '/' do fim); Room }, ou $null quando nao ha nada a testar.
+  param([string]$Text, [datetime]$Now = [datetime]::UtcNow)
+  $j = $null
+  try { $j = ([string]$Text).TrimStart([char]0xFEFF) | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+  if (-not $j -or $j.enabled -isnot [bool] -or -not $j.enabled) { return $null }
+  $u = ([string]$j.panel_url).Trim()
+  if ($u -notmatch '^https?://.') { return $null }
+  # A config expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar): nada a testar. O
+  # PowerShell 7 ja le o expires_at como data; o 5.1 deixa o texto.
+  $exp = $j.expires_at
+  $when = $null
+  if ($exp -is [datetime]) { $when = $exp.ToUniversalTime() }
+  elseif ($exp) {
+    $d = [datetime]::MinValue
+    $sty = [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal
+    if ([datetime]::TryParse([string]$exp, [Globalization.CultureInfo]::InvariantCulture, $sty, [ref]$d)) { $when = $d }
+  }
+  if ($null -ne $when -and $Now.ToUniversalTime() -ge $when) { return $null }
+  return @{ Url = $u.TrimEnd('/'); Room = [string]$j.room }
+}
+
+function Test-WsPanelHealthBody {
+  # A resposta do /health: {"ok":true} (com ou sem espacos e outros campos) -> $true.
+  param([string]$Body)
+  return ([string]$Body -match '(?s)^\s*\{(.*[,{\s])?"ok"\s*:\s*true\s*[,}]' -and [string]$Body -match '\}\s*$')
+}
+
+function Get-WsPanelProblem {
+  # O resultado de um pedido ao /health -> '' (o painel responde) ou o motivo, para o detalhe do aviso.
+  # $Status: o estado de uma falha (Get-WsWebErrorInfo); '' quando houve resposta.
+  param([string]$Status, [int]$Http, [string]$Body)
+  if ($Http -gt 0 -and ($Http -lt 200 -or $Http -gt 299)) { return ('HTTP ' + $Http) }
+  if ($Status) { return $Status }
+  if ($Http -eq 0) { return 'no answer' }
+  if (-not (Test-WsPanelHealthBody $Body)) { return 'not {"ok":true}' }
+  return ''
+}
+
+function Get-WsPanelReach {
+  # GET <url>/health com o proxy e os certificados dos outros testes de rede (o Test-WsNetwork ja os configurou) e
+  # um limite curto. Devolve '' (responde) ou o motivo.
+  param([string]$Url)
+  try {
+    $r = Invoke-WebRequest -UseBasicParsing -Uri ($Url + '/health') -Method Get -TimeoutSec 10 -UserAgent $script:UA -ErrorAction Stop
+    $body = $r.Content
+    if ($body -is [byte[]]) { $body = [Text.Encoding]::UTF8.GetString($body) }
+    $why = Get-WsPanelProblem '' ([int]$r.StatusCode) ([string]$body)
+    Write-WsLog ('panel: HTTP {0}' -f [int]$r.StatusCode)
+  } catch {
+    $i = Get-WsWebErrorInfo $_.Exception
+    $why = Get-WsPanelProblem ([string]$i.Status) ([int]$i.Http) ''
+    Write-WsLog ('panel: {0} HTTP {1}' -f $i.Status, $i.Http)
+  }
+  return $why
+}
+
+function Test-WsStep8Panel {
+  # No -Check e no -Doctor (o install nunca testa o painel): aviso E-TEL-01 se nao responder; se responder, uma nota.
+  if ($script:Mode -eq 'install') { return }
+  $f = Join-Path (Join-Path $script:WsHome 'telemetry') 'config.json'
+  $t = $null
+  if (Test-Path -LiteralPath $f -PathType Leaf) { try { $t = Get-WsPanelTarget ([IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)) } catch { $t = $null } }
+  if (-not $t) { Write-WsLog 'panel: nothing to test (participation off, expired or no panel_url)'; return }
+  $why = Get-WsPanelReach $t.Url
+  $room = $t.Room; if (-not $room) { $room = '?' }
+  if (-not $why) { Add-WsNote (M 's8_painel_acessivel' @{ SALA = $room }); return }
+  Set-WsWarn 'E-TEL-01' ((Get-WsGatewayShow $t.Url) + ' - ' + $why)
+}
+
+function Test-WsCheckOkWanted {
+  # check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. So no fim de um -Check sem falhas (avisos podem
+  # ficar); nunca noutro modo.
+  param([string]$Mode, [int]$Faltam)
+  return ($Mode -eq 'check' -and $Faltam -eq 0)
+}
+
+function Send-WsCheckOk {
+  # node ~/.workshop-claude/kit/telemetry/emit.mjs check_ok, com o node do kit. O emit.mjs nunca escreve nada e sai
+  # sempre com 0; um erro dele nunca muda o resultado do -Check.
+  param([int]$Faltam)
+  if (-not (Test-WsCheckOkWanted $script:Mode $Faltam)) { return }
+  $e = Join-Path (Join-Path (Join-Path $script:WsHome 'kit') 'telemetry') 'emit.mjs'
+  $n = [string]$script:NodeExe
+  if (-not $n -or -not (Test-Path -LiteralPath $e -PathType Leaf)) { Write-WsLog 'check_ok: not sent (no emit.mjs or node)'; return }
+  try { $null = Invoke-WsProcess $n @($e, 'check_ok') -TimeoutSec 20; Write-WsLog 'check_ok: recorded' } catch { Write-WsLog 'check_ok: not sent' }
 }
 
 function Read-WsInstallUserOutput {
@@ -3404,10 +3502,12 @@ function Read-WsInstallUserOutput {
   $skills = 0; $agentes = 0; $lang = ''; $nossa = '0'; $kit = ''; $temLingua = $false; $err = ''; $det = ''; $de = ''; $para = ''
   # S8SoLingua: so falta mudar a lingua (WORKSHOP_LANG diferente da instalada); S8De/S8Para: de qual para qual
   $soLingua = $false; $outra = $false
-  $script:S8SoLingua = $false; $script:S8De = ''; $script:S8Para = ''
+  # S8Panel: a participacao no painel como o instalar a gravou ("on A", "on B" ou "off")
+  $script:S8SoLingua = $false; $script:S8De = ''; $script:S8Para = ''; $script:S8Panel = ''
   foreach ($kv in (ConvertFrom-WsTsv $Text)) {
     switch ($kv[0]) {
       'skills' { $skills = $kv[1] }
+      'painel' { $script:S8Panel = [string]$kv[1] }
       'agentes' { $agentes = $kv[1] }
       'lingua' { $temLingua = $true }
       'language' { $lang = $kv[1] }
@@ -3476,10 +3576,11 @@ function Test-WsStep8 {
     if ($script:Mode -eq 'install' -and $script:SubstSl -and ([string]$r.StdOut -match '(?m)^statusline\talheia')) { return $false }
     # A participacao no painel ainda por escolher (kit novo numa instalacao antiga): o passo 8 corre para perguntar.
     if ($script:Mode -eq 'install' -and (Test-WsTelemetryKit) -and -not (Test-WsTelemetryConfig)) { Write-WsLog 'missing: telemetry config'; return $false }
-    Test-WsClaudeConfigDir; return $true
+    Test-WsClaudeConfigDir; Test-WsStep8Panel; return $true
   }
   # -Check/-Doctor: so a lingua diferente da pedida (WORKSHOP_LANG) nao e uma instalacao a meio (ver a nota)
-  return ($script:Mode -ne 'install' -and $script:S8SoLingua)
+  if ($script:Mode -ne 'install' -and $script:S8SoLingua) { Test-WsStep8Panel; return $true }
+  return $false
 }
 
 function Test-WsClaudeConfigDir {
@@ -5061,6 +5162,7 @@ function Invoke-WsMain {
     if ($script:Mode -eq 'install') { Update-WsUserPathFront }
     Sync-WsExtras
     $faltam = Write-WsSummary
+    Send-WsCheckOk $faltam
     if ($script:Mode -eq 'doctor') { Invoke-WsDoctor }
     if ($faltam -gt 0) { return 1 }
     return 0

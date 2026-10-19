@@ -83,6 +83,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-KIT-01` | Não consegui obter o kit do workshop | [macOS](#mac-e-kit-01) · [Windows](#windows-e-kit-01) |
 | `E-KIT-02` | O arquivo do kit não confere (SHA-256) | [macOS](#mac-e-kit-02) · [Windows](#windows-e-kit-02) |
 | `E-KIT-03` | A instalação das skills e dos hooks falhou | [macOS](#mac-e-kit-03) · [Windows](#windows-e-kit-03) |
+| `E-TEL-01` | Não é possível chegar ao painel do workshop a partir desta rede | [macOS](#mac-e-tel-01) · [Windows](#windows-e-tel-01) |
 | `E-DEMO-01` | Não consegui montar os projetos do workshop | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | Os testes da app da Arena falharam | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | A pasta do projeto já existe e não é do kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
@@ -984,6 +985,22 @@ Comando (macOS):
 
 ```
 ls -la ~/.claude ~/.workshop-claude/backup
+```
+
+<a id="mac-e-tel-01"></a>
+
+### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
+
+- **Porquê:** A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.
+- **O que fazer:**
+  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).
+  - Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora.
+
+Comandos (macOS):
+
+```
+node ~/.workshop-claude/kit/telemetry/ctl.mjs off
+node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 ```
 
 <a id="mac-e-demo-01"></a>
@@ -2245,6 +2262,22 @@ Comando (Windows):
 
 ```
 Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\backup"
+```
+
+<a id="windows-e-tel-01"></a>
+
+### E-TEL-01 · Não é possível chegar ao painel do workshop a partir desta rede
+
+- **Porquê:** A tua participação no painel do workshop está ligada, mas o servidor do painel (indicado acima) não respondeu a partir desta rede: é provável que um proxy ou um filtro de conteúdos da empresa o esteja a bloquear. É só um aviso. A tua caderneta de missões (/missions e a statusline) funciona sem o painel; só o painel ao vivo na sala é que não vê o teu progresso.
+- **O que fazer:**
+  - No dia do workshop, liga-te à rede do evento ou ao hotspot do telemóvel e volta a correr a verificação (--check).
+  - Se preferires não enviar nada para o painel, desliga a participação com o primeiro comando (podes voltar a ligá-la mais tarde com «on A» ou «on B»). O segundo comando mostra como está agora.
+
+Comandos (Windows):
+
+```
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" off
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 ```
 
 <a id="windows-e-demo-01"></a>

@@ -83,6 +83,7 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-KIT-01` | I couldn't get the workshop kit | [macOS](#mac-e-kit-01) · [Windows](#windows-e-kit-01) |
 | `E-KIT-02` | The kit archive does not match (SHA-256) | [macOS](#mac-e-kit-02) · [Windows](#windows-e-kit-02) |
 | `E-KIT-03` | Installing the skills and hooks failed | [macOS](#mac-e-kit-03) · [Windows](#windows-e-kit-03) |
+| `E-TEL-01` | The workshop panel can't be reached from this network | [macOS](#mac-e-tel-01) · [Windows](#windows-e-tel-01) |
 | `E-DEMO-01` | I couldn't set up the workshop projects | [macOS](#mac-e-demo-01) · [Windows](#windows-e-demo-01) |
 | `E-DEMO-02` | The Arena app tests failed | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | The project folder already exists and is not from the kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
@@ -984,6 +985,22 @@ Command (macOS):
 
 ```
 ls -la ~/.claude ~/.workshop-claude/backup
+```
+
+<a id="mac-e-tel-01"></a>
+
+### E-TEL-01 · The workshop panel can't be reached from this network
+
+- **Why:** Your participation in the workshop panel is on, but the panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. Your mission book (/missions and the statusline) works without the panel; only the live panel in the room won't see your progress.
+- **What to do:**
+  - On the workshop day, connect to the event network or to your phone's hotspot and run the check (--check) again.
+  - If you'd rather not send anything to the panel, turn participation off with the first command (you can turn it on again later with "on A" or "on B"). The second command shows how it is set now.
+
+Commands (macOS):
+
+```
+node ~/.workshop-claude/kit/telemetry/ctl.mjs off
+node ~/.workshop-claude/kit/telemetry/ctl.mjs status
 ```
 
 <a id="mac-e-demo-01"></a>
@@ -2245,6 +2262,22 @@ Command (Windows):
 
 ```
 Get-ChildItem "$env:USERPROFILE\.claude", "$env:USERPROFILE\.workshop-claude\backup"
+```
+
+<a id="windows-e-tel-01"></a>
+
+### E-TEL-01 · The workshop panel can't be reached from this network
+
+- **Why:** Your participation in the workshop panel is on, but the panel server (shown above) did not answer from this network: a company proxy or content filter is probably blocking it. This is only a warning. Your mission book (/missions and the statusline) works without the panel; only the live panel in the room won't see your progress.
+- **What to do:**
+  - On the workshop day, connect to the event network or to your phone's hotspot and run the check (--check) again.
+  - If you'd rather not send anything to the panel, turn participation off with the first command (you can turn it on again later with "on A" or "on B"). The second command shows how it is set now.
+
+Commands (Windows):
+
+```
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" off
+node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" status
 ```
 
 <a id="windows-e-demo-01"></a>
