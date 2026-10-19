@@ -409,10 +409,10 @@ Describe 'chaos G9-windows: pasta do perfil e caminhos (F1, F8)' {
     $code | Should -Not -Match 'WorkingDirectory = \$HOME'
     $code | Should -Match '\$script:UserHome = Get-WsUserHome \(\[Environment\]::GetFolderPath\(''UserProfile''\)\) \$env:USERPROFILE \$HOME'
   }
-  It 'os comandos -Check, -Doctor e -Uninstall publicados usam $env:USERPROFILE' {
+  It 'os comandos -Check, -Doctor, -Uninstall e -Cleanup publicados usam $env:USERPROFILE' {
     $conf = [IO.File]::ReadAllText((Join-Path $script:Root 'installer/lib/conf.mjs'))
     $conf | Should -Not -Match '"\$HOME\\\\\.workshop-claude'
-    ([regex]::Matches($conf, '\$env:USERPROFILE\\\\\.workshop-claude\\\\setup-windows\.ps1')).Count | Should -Be 3
+    ([regex]::Matches($conf, '\$env:USERPROFILE\\\\\.workshop-claude\\\\setup-windows\.ps1')).Count | Should -Be 4
     foreach ($f in @('docs/INSTALL.md', 'docs/pt/INSTALL.md', 'docs/TROUBLESHOOTING.md', 'setup/messages.en.json')) {
       [IO.File]::ReadAllText((Join-Path $script:Root $f)) | Should -Not -Match '\$HOME\\+\.workshop-claude' -Because $f
     }
