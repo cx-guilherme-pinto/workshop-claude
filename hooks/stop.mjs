@@ -2,7 +2,7 @@
 // Stop hook: at the end of each answer of the main session, records that session's cumulative cost
 // (only the main conversation; the subagents are measured in SubagentStop).
 import { join } from 'node:path';
-import { runHook, workshopDir, appendJsonl } from './lib/workshop.mjs';
+import { runHook, workshopDir, appendJsonl, telemetryCost } from './lib/workshop.mjs';
 import { loadPricing, tokensFromUsage, requestCost } from './lib/cost.mjs';
 import { summarize, readJsonl } from './lib/transcript.mjs';
 import { budgetMessage } from './budget.mjs';
@@ -30,18 +30,20 @@ runHook('stop', async (input) => {
   if (!ws) return null;
   const pricing = loadPricing();
   const s = summarize(input.transcript_path, pricing, { onlyMainThread: true });
+  const porModelo = costByModel(input.transcript_path, pricing);
   appendJsonl(join(ws, 'usage.jsonl'), {
     v: 1,
     tipo: 'principal',
     ts: new Date().toISOString(),
     sessao: input.session_id || null,
     modelo: s.model,
-    por_modelo: costByModel(input.transcript_path, pricing),
+    por_modelo: porModelo,
     inicio: s.start,
     fim: s.end,
     pedidos: s.requests,
     tokens: s.tokens,
     custo_usd: s.usd,
   });
+  await telemetryCost(input, { byModel: porModelo });
   return budgetMessage(ws, pricing);
 });

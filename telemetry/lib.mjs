@@ -7,12 +7,15 @@
 //   queue.jsonl   only with participation on: what send.mjs will send (Phase 2), already in the envelope
 //   seen.json     features already seen per session (hash of the session id), for "once per session"
 //   missions.json the mission book, written by missions/missions.mjs
-// Nothing here ever does network. Past expires_at nothing is recorded.
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+//   queue.sending.jsonl, sent.jsonl, cost-seen.json   used by send.mjs and the cost events
+// Nothing here ever does network: record() only starts send.mjs (detached, at most once every 2 s) when it queued
+// something and the config has a panel address. Past expires_at nothing is recorded.
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { envelope, sanitize } from './schema.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -36,6 +39,11 @@ export function paths(dir = telemetryDir()) {
     seen: join(dir, 'seen.json'),
     missions: join(dir, 'missions.json'),
     lock: join(dir, 'missions.lock'),
+    sending: join(dir, 'queue.sending.jsonl'),
+    sent: join(dir, 'sent.jsonl'),
+    sendLock: join(dir, 'send.lock'),
+    sendStamp: join(dir, 'send.stamp'),
+    costSeen: join(dir, 'cost-seen.json'),
   };
 }
 
@@ -162,5 +170,80 @@ export function record(ev, fields = {}, { local = {}, P = paths(), now = new Dat
       queued = true;
     }
   }
+  if (queued) kickSender(P, cfg);
   return { recorded: true, queued };
+}
+
+// Starts send.mjs in the background, at most once every 2 s (spec 6.4). With HTTPS_PROXY in the environment (the
+// setup puts the company proxy in Claude Code's env, which the hooks inherit), Node's fetch uses it
+// (NODE_USE_ENV_PROXY); the company certificate comes from NODE_EXTRA_CA_CERTS or ~/.workshop-claude/ca.pem.
+export function kickSender(P = paths(), cfg = readConfig(P), env = process.env) {
+  if (!cfg?.enabled || !cfg.panel_url || env.WORKSHOP_TELEMETRY_NO_SEND === '1') return false;
+  try {
+    if (Date.now() - statSync(P.sendStamp).mtimeMs < 2000) return false;
+  } catch {
+    /* first time */
+  }
+  try {
+    writeFileSync(P.sendStamp, '');
+    const t = new Date();
+    utimesSync(P.sendStamp, t, t);
+    const ca = join(dirname(P.dir), 'ca.pem');
+    const childEnv = { ...env, NODE_USE_ENV_PROXY: '1', ...(!env.NODE_EXTRA_CA_CERTS && existsSync(ca) ? { NODE_EXTRA_CA_CERTS: ca } : {}) };
+    const c = spawn(process.execPath, [join(HERE, 'send.mjs')], { detached: true, stdio: 'ignore', windowsHide: true, env: childEnv });
+    c.unref();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const inside = (child, parent) => {
+  const r = relative(resolve(parent), resolve(child));
+  return r === '' || (!!r && !r.startsWith('..') && !isAbsolute(r));
+};
+
+// The project of a hook call: { proj, project: missions | p1 | p2 } inside the workshop projects folder (or a project
+// with .workshop/, the participant's own repository in Project 2), otherwise null. The path never leaves the machine.
+export function scope(proj, cfg) {
+  if (!proj || typeof proj !== 'string') return null;
+  const root = cfg?.projects_dir;
+  if (root && inside(proj, root)) {
+    const name = basename(relative(resolve(root), resolve(proj)).split(/[\\/]/)[0] || '');
+    const project = name === 'missions-project' ? 'missions' : ['canivete-project', 'demo-project'].includes(name) ? 'p1' : 'p2';
+    return { proj, project };
+  }
+  if (existsSync(join(proj, '.workshop'))) return { proj, project: 'p2' };
+  return null;
+}
+
+export const family = (m) => {
+  const s = String(m || '').toLowerCase();
+  return s.includes('haiku') ? 'haiku' : s.includes('sonnet') ? 'sonnet' : s.includes('opus') ? 'opus' : 'other';
+};
+
+// Cost events from the kit's cost hooks: a subagent's cost once (SubagentStop), the main session's growth since the
+// last Stop of the same session (Stop records the session's cumulative cost per model).
+export function recordCosts({ proj, sessionId, sub = null, byModel = null, P = paths(), now = new Date() }) {
+  const cfg = readConfig(P);
+  if (!active(cfg, now)) return 0;
+  const sc = scope(proj, cfg);
+  if (!sc) return 0;
+  const out = [];
+  if (sub && typeof sub.usd === 'number' && sub.usd > 0) out.push({ usd: sub.usd, model: sub.model });
+  if (byModel && typeof byModel === 'object') {
+    const seen = readJson(P.costSeen, {}) || {};
+    const key = createHash('sha256').update(String(sessionId || 'none')).digest('hex').slice(0, 16);
+    const prev = seen[key]?.m || {};
+    for (const [m, v] of Object.entries(byModel)) {
+      const d = (typeof v === 'number' ? v : 0) - (prev[m] || 0);
+      if (d > 0.000001) out.push({ usd: d, model: m });
+    }
+    seen[key] = { m: { ...prev, ...byModel }, t: Date.now() };
+    const keys = Object.keys(seen);
+    if (keys.length > 200) for (const k of keys.sort((a, b) => seen[a].t - seen[b].t).slice(0, keys.length - 200)) delete seen[k];
+    writeJson(P.costSeen, seen);
+  }
+  for (const c of out) record('cost', { cost_usd: Math.min(c.usd, 1000), model: family(c.model), block: sc.project }, { P, now });
+  return out.length;
 }

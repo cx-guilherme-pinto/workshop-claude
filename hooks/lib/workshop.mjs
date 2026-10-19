@@ -78,6 +78,17 @@ export function ensureDir(d) {
   return d;
 }
 
+// Workshop v2: the cost of this hook call also goes to the panel's telemetry (telemetry/lib.mjs, a cost event per
+// model). Dynamic import: the Arena's own copy of these hooks has no telemetry/ next to it and simply skips this.
+export async function telemetryCost(input, what) {
+  try {
+    const t = await import('../../telemetry/lib.mjs');
+    t.recordCosts({ proj: projectDir(input), sessionId: input?.session_id, ...what });
+  } catch {
+    /* no telemetry here */
+  }
+}
+
 // Os hooks nunca bloqueiam: qualquer erro vai para o log e o hook sai com 0.
 export async function runHook(name, fn) {
   try {

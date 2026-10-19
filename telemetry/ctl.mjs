@@ -88,12 +88,12 @@ export function ctl(args, { P = paths(), print = console.log, now = new Date() }
     }
     case 'off': {
       writeJson(P.config, { ...cfg, enabled: false });
-      if (existsSync(P.queue)) rmSync(P.queue, { force: true });
+      for (const f of [P.queue, P.sending]) if (existsSync(f)) rmSync(f, { force: true });
       print(T.desligada);
       return 0;
     }
     case 'show': {
-      const sent = readLines(P.sent ?? `${P.dir}/sent.jsonl`);
+      const sent = readLines(P.sent);
       const list = [...sent, ...readLines(P.queue)].slice(-20);
       if (!list.length) {
         print(T.nada);

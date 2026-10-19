@@ -94,6 +94,8 @@ export function montar({ dest, force = false, lingua = null, kitDir = null, kit 
   pkg.scripts = { ...(pkg.scripts || {}), test: testScript(dest, kitDir || userPaths().kitDir) };
   writeFileSync(pkgFile, JSON.stringify(pkg, null, 2) + '\n');
   writeFileSync(join(dest, '.gitignore'), '.workshop/\nnode_modules/\n.DS_Store\n');
+  // .workshop/: the kit's cost hooks only measure a project that has it (the cost of the missions, block "missions")
+  mkdirSync(join(dest, '.workshop'), { recursive: true });
   writeFileSync(marca, JSON.stringify({ created_at: new Date().toISOString(), language: l }) + '\n');
   const t = TEXTOS[l];
   initKitRepo(dest, { name: t.nome, email: t.email });

@@ -10,12 +10,12 @@
 // or a project with .workshop/), records each feature once per session, never does network, prints nothing and
 // always exits with 0 within 1 s. When it records something new, it starts the mission check in the background.
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
-import { active, paths, readConfig, readJson, record, writeJson } from '../telemetry/lib.mjs';
+import { active, family, paths, readConfig, readJson, record, scope, writeJson } from '../telemetry/lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LIMIT_MS = 1000;
@@ -35,30 +35,11 @@ export const KIT_AGENTS = new Set([
 const isKitAgent = (t) => KIT_AGENTS.has(t) || /^ws-/.test(t);
 const USER_SKILL_SOURCES = new Set(['projectSettings', 'userSettings', 'localSettings']);
 
-export const family = (m) => {
-  const s = String(m || '').toLowerCase();
-  return s.includes('haiku') ? 'haiku' : s.includes('sonnet') ? 'sonnet' : s.includes('opus') ? 'opus' : 'other';
-};
-
 const ours = (cmd) => typeof cmd === 'string' && cmd.replace(/\\/g, '/').includes('/.workshop-claude/kit/');
 const inside = (child, parent) => {
   const r = relative(resolve(parent), resolve(child));
   return r === '' || (!!r && !r.startsWith('..') && !isAbsolute(r));
 };
-
-// The project folder of the session and whether it is a workshop project.
-export function scope(input, cfg, env = process.env) {
-  const proj = env.CLAUDE_PROJECT_DIR || input?.cwd;
-  if (!proj || typeof proj !== 'string') return null;
-  const root = cfg?.projects_dir;
-  if (root && inside(proj, root)) {
-    const name = basename(relative(resolve(root), resolve(proj)).split(/[\\/]/)[0] || '');
-    const project = name === 'missions-project' ? 'missions' : ['canivete-project', 'demo-project'].includes(name) ? 'p1' : 'p2';
-    return { proj, project };
-  }
-  if (existsSync(join(proj, '.workshop'))) return { proj, project: 'p2' };
-  return null;
-}
 
 // The person's own settings.local.json (the file of a ConfigChange): a PostToolUse hook and a statusLine that
 // are not the kit's. Only booleans come out of here.
@@ -141,7 +122,7 @@ function startCheck(env = process.env) {
 export function handle(input, { env = process.env, P = paths(), now = new Date() } = {}) {
   const cfg = readConfig(P);
   if (!active(cfg, now)) return [];
-  const sc = scope(input, cfg, env);
+  const sc = scope(env.CLAUDE_PROJECT_DIR || input?.cwd, cfg);
   if (!sc) return [];
   const novos = fresh(P, input.session_id, signals(input, env, sc.proj));
   for (const s of novos) record('feature', { name: s.name }, { local: { ...(s.family ? { family: s.family } : {}), project: sc.project }, P, now });
