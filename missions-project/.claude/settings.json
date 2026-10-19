@@ -1,0 +1,6 @@
+{
+  "model": "claude-sonnet-5-5",
+  "permissions": {
+    "allow": ["Bash(npm test)", "Bash(npm test *)", "Bash(node --test)", "Bash(node --test *)"]
+  }
+}

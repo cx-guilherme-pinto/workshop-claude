@@ -481,3 +481,59 @@ test('chaos R2: "disableAllHooks": true no settings.json da o aviso E-CFG-11 (in
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('workshop v2: config.json da telemetria (participacao, sala, pasta, codigo, expiracao, id) e o desinstalar apaga-a', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-tel-'));
+  const home = join(base, 'João Silva');
+  const kit = fakeKit(base);
+  cpSync(join(ROOT, 'telemetry'), join(kit, 'telemetry'), { recursive: true });
+  cpSync(join(ROOT, 'missions'), join(kit, 'missions'), { recursive: true });
+  writeFileSync(join(kit, 'repos.conf'), 'WORKSHOP_VERSION=v9.9.9-teste\nWORKSHOP_CODE=lisboa-1\nWORKSHOP_DATE=2026-11-20\nPANEL_URL=\n');
+  const node = process.execPath;
+  const tel = join(home, '.workshop-claude', 'telemetry');
+  const cfg = () => JSON.parse(readFileSync(join(tel, 'config.json'), 'utf8'));
+  try {
+    let r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.get('painel'), ['off']);
+    let c = cfg();
+    assert.equal(c.enabled, false);
+    assert.equal(c.workshop, 'lisboa-1');
+    assert.equal(c.kit, 'v9.9.9-teste');
+    assert.equal(c.expires_at, '2026-11-22T00:00:00.000Z', 'fim do dia seguinte ao workshop');
+    assert.equal(c.projects_dir, join(home, 'workshop-claude').replace(/\\/g, '/'));
+    assert.match(readFileSync(join(tel, 'id'), 'utf8').trim(), /^[0-9a-f]{32}$/);
+    const id = readFileSync(join(tel, 'id'), 'utf8');
+    assert.ok(existsSync(join(home, '.workshop-claude', 'kit', 'telemetry', 'allowlist.json')));
+    assert.ok(existsSync(join(home, '.workshop-claude', 'kit', 'missions', 'missions.mjs')));
+
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--telemetry', 'on', '--room', 'b', '--projects-dir', join(base, 'proj')]);
+    assert.deepEqual(r.get('painel'), ['on B']);
+    c = cfg();
+    assert.equal(c.enabled, true);
+    assert.equal(c.room, 'B');
+    assert.equal(c.projects_dir, join(base, 'proj').replace(/\\/g, '/'));
+    assert.equal(readFileSync(join(tel, 'id'), 'utf8'), id, 'o id nao muda');
+    const q = readFileSync(join(tel, 'queue.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(q.map((e) => [e.ev, e.room, e.ws]), [['join', 'B', 'lisboa-1']]);
+
+    // sem opcoes fica a escolha anterior; sem sala nao ha participacao
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.deepEqual(r.get('painel'), ['on B']);
+    assert.equal(readFileSync(join(tel, 'queue.jsonl'), 'utf8').trim().split('\n').length, 1, 'join so uma vez');
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit, '--telemetry', 'off']);
+    assert.deepEqual(r.get('painel'), ['off']);
+    assert.equal(cfg().room, 'B');
+
+    const s = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
+    assert.ok(s.hooks.UserPromptSubmit[0].hooks[0].command.includes('/.workshop-claude/kit/hooks/telemetry.mjs'));
+    assert.equal(s.hooks.UserPromptSubmit[0].hooks[0].async, true);
+
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(r.get('removido').includes('telemetry'));
+    assert.ok(!existsSync(tel));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

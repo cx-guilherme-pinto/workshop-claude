@@ -1,9 +1,9 @@
 {
   "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-  "checked_on": "2026-10-16",
+  "checked_on": "2026-10-19",
   "currency": "USD",
   "unit": "per million tokens",
-  "note": "List prices. Claude Code computes the cost locally with these prices; the real invoice is on the Usage/Cost page of the Console.",
+  "note": "List prices. Claude Code computes the cost locally with these prices; the real invoice is on the Usage/Cost page of the Console. In Claude Code 2.1.292 the \"haiku\" alias of /model and --model is Haiku 4.5 (claude-haiku-4-5-20251001); the kit agents use the full ID claude-haiku-5-5.",
   "models": {
     "claude-opus-5-5": {
       "name": "Opus 5.5",
@@ -36,6 +36,14 @@
         "cache_write_1h": 1,
         "cache_read": 0.05
       }
+    },
+    "claude-haiku-4-5": {
+      "name": "Haiku 4.5",
+      "input": 1,
+      "output": 5,
+      "cache_write_5m": 1.25,
+      "cache_write_1h": 2,
+      "cache_read": 0.1
     },
     "claude-fable-5-1": {
       "name": "Fable 5.1",

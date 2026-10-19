@@ -188,12 +188,14 @@ export function montar(o) {
   const motor = join(o.dest, 'tools', 'workshop');
   // Without the kit's own tests (hooks/test/, orchestrator/test/): "node --test" and tools/check-integration.mjs in
   // the Arena would run them too, and their names are the kit's (Portuguese), not the Arena's language.
-  for (const d of ENGINE) copiar(join(KIT, d), join(motor, d), { sem: [resolve(KIT, d, 'test')] });
+  // Nor the telemetry hook (workshop v2): it is user-level and needs telemetry/, which the Arena does not have.
+  for (const d of ENGINE) copiar(join(KIT, d), join(motor, d), { sem: [resolve(KIT, d, 'test'), resolve(KIT, 'hooks', 'telemetry.mjs')] });
   cpSync(join(KIT, 'pricing.json'), join(motor, 'pricing.json'));
   writeFileSync(join(motor, LANGUAGE_FILE), JSON.stringify({ language: l }) + '\n');
   const skills = join(o.dest, '.claude', 'skills');
   copiar(join(KIT, 'skills-demo'), skills);
-  copiar(join(KIT, 'skills-shared'), skills);
+  // /missions is installed for the user (~/.claude/skills): a project copy would show it twice.
+  copiar(join(KIT, 'skills-shared'), skills, { sem: [resolve(KIT, 'skills-shared', 'missions')] });
   copiar(join(KIT, 'agents', 'demo'), join(o.dest, '.claude', 'agents'));
   writeFileSync(join(o.dest, '.claude', 'settings.json'), JSON.stringify(settingsDemo(o.dest, o.node, o), null, 2) + '\n');
   mkdirSync(join(o.dest, '.workshop'), { recursive: true });

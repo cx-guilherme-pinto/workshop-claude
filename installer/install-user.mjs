@@ -4,6 +4,7 @@
 //   node installer/install-user.mjs instalar   --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
 //                                              [--no-proxy <lista>] [--substituir-statusline] [--versao <v>]
 //                                              [--lingua-maquina <etiqueta, ex.: pt-PT>]
+//                                              [--telemetry on|off] [--room A|B] [--projects-dir <dir>]
 //   node installer/install-user.mjs verificar  --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
 //                                              [--no-proxy <lista>] [--lingua-maquina <etiqueta>]
 //   node installer/install-user.mjs desinstalar
@@ -11,13 +12,16 @@
 //   node installer/install-user.mjs extras
 //
 // O que faz "instalar":
-//   - copia hooks/ orchestrator/ statusline/ pricing.json para ~/.workshop-claude/kit/
+//   - copia hooks/ orchestrator/ statusline/ telemetry/ missions/ pricing.json para ~/.workshop-claude/kit/
 //   - copia skills-prod/* e skills-shared/* para ~/.claude/skills/ e agents/prod/*.md para ~/.claude/agents/,
 //     trocando {{KIT_DIR}} pelo caminho absoluto do kit (barras "/" tambem no Windows)
 //   - faz backup e merge seguro do ~/.claude/settings.json (hooks, statusLine so se nao houver, env e, com
 //     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma). Sem --https-proxy, o HTTPS_PROXY e o
 //     NO_PROXY que uma instalacao anterior gravou saem (o proxy do escritorio nao serve noutra rede)
 //   - com --lingua-maquina, escreve ~/.workshop-claude/kit/language.json (pt ou en: a lingua dos textos do kit)
+//   - escreve ~/.workshop-claude/telemetry/config.json (caderneta de missoes e painel, D-30): participacao
+//     (--telemetry; sem a opcao fica a de antes, ou desligada), sala (--room), pasta dos projetos (--projects-dir),
+//     codigo do workshop, painel e expiracao (WORKSHOP_CODE, PANEL_URL e WORKSHOP_DATE do repos.conf) e o id anonimo
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
@@ -30,6 +34,7 @@ import { gitSync } from './lib/kit-repo.mjs';
 import { linguaMaquina } from './lib/languages.mjs';
 import { isMain as ehPrincipal } from './lib/is-main.mjs';
 import { LANGUAGE_FILE, storedLanguage } from '../hooks/lib/language.mjs';
+import { paths as telemetryPaths, readConfig as readTelemetry, readId, record as recordTelemetry, writeJson } from '../telemetry/lib.mjs';
 import {
   checkSettings,
   mergeSettings,
@@ -63,6 +68,8 @@ const ocupado = (p) => {
   }
 };
 const MOTOR = ['hooks', 'orchestrator', 'statusline', 'pricing.json'];
+// Copiados quando o kit os tem (workshop v2: caderneta de missoes e painel).
+const MOTOR_V2 = ['telemetry', 'missions'];
 
 function parseArgs(argv) {
   const o = { cmd: argv[0], flags: {} };
@@ -98,6 +105,61 @@ export function kitSources(kitSrc) {
         .map((f) => ({ nome: f, origem: join(agDir, f) }))
     : [];
   return { skills, agentes };
+}
+
+function kitConf(kitSrc) {
+  try {
+    return parseConf(readFileSync(join(kitSrc, 'repos.conf'), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+const DAY = 86400000;
+// A telemetria expira no fim do dia a seguir ao workshop (WORKSHOP_DATE); sem data, 14 dias depois da instalacao.
+export function telemetryExpiry(date, prev, now = new Date()) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return new Date(Date.parse(`${date}T00:00:00Z`) + 2 * DAY).toISOString();
+  if (prev?.expires_at && !Number.isNaN(Date.parse(prev.expires_at))) return prev.expires_at;
+  return new Date(now.getTime() + 14 * DAY).toISOString();
+}
+
+// O config.json da telemetria (docs/pt/WORKSHOP-V2-SPEC.md, seccao 6.6). Sem --telemetry fica a escolha anterior;
+// sem escolha nenhuma, desligada. A participacao so fica ligada com uma sala (A ou B).
+export function telemetryConfig(flags, prev, { conf = {}, versao, lingua, home, now = new Date(), env = process.env }) {
+  const on = flags.telemetry === 'on' ? true : flags.telemetry === 'off' ? false : prev?.enabled === true;
+  const r = String(typeof flags.room === 'string' ? flags.room : prev?.room || '').toUpperCase();
+  const room = ['A', 'B'].includes(r) ? r : null;
+  const val = (k) => (env[k] !== undefined && env[k] !== '' ? env[k] : conf[k]);
+  const code = String(val('WORKSHOP_CODE') || prev?.workshop || 'dev');
+  return {
+    v: 1,
+    enabled: on && room !== null,
+    room,
+    workshop: /^[A-Za-z0-9_-]{1,40}$/.test(code) ? code : 'dev',
+    panel_url: val('PANEL_URL') || '',
+    kit: /^[A-Za-z0-9._-]{1,40}$/.test(versao || '') ? versao : 'dev',
+    lang: lingua ?? prev?.lang ?? null,
+    projects_dir: fwd(typeof flags['projects-dir'] === 'string' ? resolve(flags['projects-dir']) : prev?.projects_dir || join(home, 'workshop-claude')),
+    expires_at: telemetryExpiry(val('WORKSHOP_DATE'), prev, now),
+    nickname: prev?.nickname ?? null,
+    created_at: prev?.created_at ?? now.toISOString(),
+  };
+}
+
+function instalarTelemetria(flags, P, ctx) {
+  const T = telemetryPaths(join(P.wsDir, 'telemetry'));
+  const prev = readTelemetry(T);
+  const cfg = telemetryConfig(flags, prev, { ...ctx, home: P.home });
+  writeJson(T.config, cfg);
+  readId(T, { create: true });
+  if (cfg.enabled && !prev?.enabled) {
+    try {
+      recordTelemetry('join', { lang: cfg.lang, os: process.platform === 'win32' ? 'win' : 'mac' }, { P: T });
+    } catch {
+      /* the panel must never break the install */
+    }
+  }
+  return cfg;
 }
 
 function kitVersion(kitSrc, flags) {
@@ -214,7 +276,7 @@ export function instalar(flags, env = process.env) {
   const ts = timestamp();
   const manifest = loadManifest(P) || { v: 1, instalado_em: new Date().toISOString(), skills: [], agentes: [], extras: [] };
   const versao = kitVersion(kitSrc, flags);
-  const fp = fingerprint([...MOTOR, 'skills-prod', 'skills-shared', 'agents/prod'].map((p) => join(kitSrc, p)));
+  const fp = fingerprint([...MOTOR, ...MOTOR_V2, 'skills-prod', 'skills-shared', 'agents/prod'].map((p) => join(kitSrc, p)));
 
   // 1. settings.json primeiro: se for invalido, nao se toca em nada.
   const cur = readSettingsFile(P);
@@ -229,7 +291,7 @@ export function instalar(flags, env = process.env) {
   // 2. Motor do kit (pasta toda nossa: substitui-se).
   rmSync(P.kitDir, { recursive: true, force: true });
   mkdirSync(P.kitDir, { recursive: true });
-  for (const m of MOTOR) {
+  for (const m of [...MOTOR, ...MOTOR_V2.filter((d) => existsSync(join(kitSrc, d)))]) {
     const src = join(kitSrc, m);
     if (statSync(src).isDirectory()) copyTree(src, join(P.kitDir, m));
     else copyFileSync(src, join(P.kitDir, m));
@@ -302,6 +364,7 @@ export function instalar(flags, env = process.env) {
   manifest.env = envVars;
   if (lm) manifest.lingua = { maquina: lm.tag, kit: lm.kit };
   saveManifest(P, manifest);
+  const tel = instalarTelemetria(flags, P, { conf: kitConf(kitSrc), versao, lingua: lm?.kit ?? linguaKitInstalada(P) });
 
   out('estado', 'instalado');
   out('versao', versao);
@@ -309,6 +372,7 @@ export function instalar(flags, env = process.env) {
   out('agentes', novosAgentes.length);
   out('kit', fwd(P.kitDir));
   out('settings', fwd(P.settings));
+  out('painel', tel.enabled ? `on ${tel.room}` : 'off');
   if (lm) saidaLingua(lm, linguaKitInstalada(P), merged.settings.language, merged.record);
   for (const w of merged.warnings) out('aviso', w);
   saidaRetirados(retirados);
@@ -345,7 +409,7 @@ export function verificar(flags, env = process.env) {
       if (!existsSync(it.destino)) faltam.push(`${it.nome}`);
     }
     if (existsSync(kitSrc) && existsSync(join(kitSrc, 'hooks'))) {
-      const fp = fingerprint([...MOTOR, 'skills-prod', 'skills-shared', 'agents/prod'].map((p) => join(kitSrc, p)));
+      const fp = fingerprint([...MOTOR, ...MOTOR_V2, 'skills-prod', 'skills-shared', 'agents/prod'].map((p) => join(kitSrc, p)));
       if (fp !== manifest.kit_fingerprint) faltam.push('kit desatualizado');
     }
   }
@@ -477,6 +541,9 @@ export function desinstalar(flags, env = process.env) {
   saidaRetirados(retirados);
   rmSync(P.kitDir, { recursive: true, force: true });
   out('removido', 'kit');
+  // A caderneta de missoes e a fila do painel (o id anonimo incluido): nada fica para tras.
+  rmSync(join(P.wsDir, 'telemetry'), { recursive: true, force: true });
+  out('removido', 'telemetry');
   for (const x of manifest.extras || []) {
     if (x.tipo !== 'projeto' || !x.caminho || !existsSync(x.caminho)) continue;
     if (projetoIntacto(x.caminho)) {

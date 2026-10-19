@@ -1,0 +1,87 @@
+{
+  "v": 1,
+  "about": "The 10 missions (docs/pt/WORKSHOP-V2-SPEC.md, section 4.2) and how each one is validated (docs/OBSERVABILITY.md). A mission is done when every condition in \"all\" holds (or one in \"any\"). Conditions: {feature, family?} = a feature event in the local book; {file: ...} = a file check in the workshop projects; {tests: \"green_after_loop\"} = a green npm test after /loop. A mission with \"validated\": false is a hint only (M7: /btw fires no hook event).",
+  "order": ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M9", "M10", "M7"],
+  "missions": [
+    {
+      "id": "M1", "guided": true, "all": [{ "feature": "plan_mode" }],
+      "title": { "pt": "Planear sem tocar", "en": "Plan without touching" },
+      "hint": {
+        "pt": "Shift+Tab até aparecer \"plan mode on\" e pergunta: Como acrescentarias conversão de volume?",
+        "en": "Press Shift+Tab until \"plan mode on\" shows, then ask: How would you add volume conversion?"
+      }
+    },
+    {
+      "id": "M2", "guided": true, "all": [{ "feature": "model_switch", "family": "haiku" }],
+      "title": { "pt": "O modelo certo", "en": "The right model" },
+      "hint": {
+        "pt": "/model haiku (confirma com Enter), pergunta \"O que faz o units.js?\" e volta com /model sonnet.",
+        "en": "/model haiku (confirm with Enter), ask \"What does units.js do?\" and go back with /model sonnet."
+      }
+    },
+    {
+      "id": "M3", "guided": true, "all": [{ "feature": "subagent" }],
+      "title": { "pt": "Um subagente", "en": "A subagent" },
+      "hint": {
+        "pt": "Pede: Usa um subagente Explore para listar as funções sem teste.",
+        "en": "Ask: Use an Explore subagent to list the functions without a test."
+      }
+    },
+    {
+      "id": "M4", "guided": true, "all": [{ "feature": "skill_user" }, { "file": "skill" }],
+      "title": { "pt": "A tua skill", "en": "Your skill" },
+      "hint": {
+        "pt": "Pede ao Claude para criar .claude/skills/resumo/SKILL.md; depois /exit, claude -c e /resumo src/units.js.",
+        "en": "Ask Claude to create .claude/skills/summary/SKILL.md; then /exit, claude -c and /summary src/units.js."
+      }
+    },
+    {
+      "id": "M5", "guided": true, "all": [{ "file": "user_hook_log" }],
+      "title": { "pt": "O teu hook", "en": "Your hook" },
+      "hint": {
+        "pt": "Pede um hook PostToolUse em .claude/settings.local.json que junta a hora e o ficheiro a edits.log em cada Edit ou Write; depois pede uma edição.",
+        "en": "Ask for a PostToolUse hook in .claude/settings.local.json that appends the time and the file to edits.log on every Edit or Write; then ask for an edit."
+      }
+    },
+    {
+      "id": "M6", "guided": true, "all": [{ "feature": "loop" }, { "tests": "green_after_loop" }],
+      "title": { "pt": "Até ficar verde", "en": "Until it is green" },
+      "hint": {
+        "pt": "/loop 1m corre npm test e corrige o primeiro teste vermelho; para quando estiver tudo verde",
+        "en": "/loop 1m run npm test and fix the first red test; stop when everything is green"
+      }
+    },
+    {
+      "id": "M7", "validated": false,
+      "title": { "pt": "Pergunta ao lado", "en": "A side question" },
+      "hint": {
+        "pt": "Durante uma tarefa longa: /btw o que é um subagente? (não conta na caderneta: o /btw não deixa rasto)",
+        "en": "During a long task: /btw what is a subagent? (not counted in the book: /btw leaves no trace)"
+      }
+    },
+    {
+      "id": "M8", "all": [{ "file": "user_statusline" }],
+      "title": { "pt": "A tua statusline", "en": "Your statusline" },
+      "hint": {
+        "pt": "/statusline mostra o modelo e a branch; grava só em .claude/settings.local.json deste projeto",
+        "en": "/statusline show the model and the branch; save it only in this project's .claude/settings.local.json"
+      }
+    },
+    {
+      "id": "M9", "all": [{ "feature": "headless" }, { "file": "summary_txt" }],
+      "title": { "pt": "Sem abrir sessão", "en": "Without a session" },
+      "hint": {
+        "pt": "Num terminal, na pasta do projeto: claude -p \"Resume o README numa frase\" --model haiku > resumo.txt",
+        "en": "In a terminal, in the project folder: claude -p \"Summarise the README in one sentence\" --model haiku > summary.txt"
+      }
+    },
+    {
+      "id": "M10", "any": [{ "feature": "memory_write" }, { "file": "memory_note" }],
+      "title": { "pt": "Lembra-te disto", "en": "Remember this" },
+      "hint": {
+        "pt": "/memory guarda uma lição sobre o conversor",
+        "en": "/memory save a lesson about the converter"
+      }
+    }
+  ]
+}

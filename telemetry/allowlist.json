@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "about": "The only events and fields the kit may record or send (docs/pt/WORKSHOP-V2-SPEC.md, section 6.4). The telemetry hook, emit.mjs and the panel server read this file; anything else is dropped. Field types: an array is the list of allowed values; int (0 to 100000), int_or_null, num (0 to 1000), catalog_id ([a-z]{2}-NN or my-NN), nickname (1 to 16 of A-Z a-z 0-9 space _ -). \"local\" fields stay in local.jsonl and are never sent; a \"local_only\" event never leaves the machine.",
+  "envelope": ["v", "ws", "room", "p", "ev", "t", "kit"],
+  "max_bytes": 512,
+  "events": {
+    "join": { "fields": { "lang": ["pt", "en"], "os": ["mac", "win"], "nickname": "nickname" } },
+    "check_ok": { "fields": {} },
+    "feature": {
+      "fields": {
+        "name": ["plan_mode", "model_switch", "subagent", "skill_user", "hook_user", "loop", "statusline_user", "headless", "memory_write"]
+      },
+      "local": { "family": ["haiku", "sonnet", "opus", "other"], "project": ["missions", "p1", "p2"] }
+    },
+    "mission_done": { "fields": { "mission": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"] } },
+    "tests_run": { "local_only": true, "fields": { "green": "int", "red": "int" } },
+    "p1_tool_created": { "fields": { "tool_template": ["calc", "convert", "text", "generate"] } },
+    "p1_plan": { "fields": { "parallel": [4, 8, 12], "model": ["haiku", "sonnet"], "forecast_min": "int_or_null", "tasks": "int" } },
+    "p1_swarm_done": { "fields": { "duration_s": "int", "green": "int", "red": "int", "green_first": "int" } },
+    "p1_retry_green": { "fields": { "tool": "catalog_id" } },
+    "p1_gate": { "fields": { "verdict": ["APPROVED", "REJECTED", "OTHER"] } },
+    "cost": { "fields": { "cost_usd": "num", "model": ["haiku", "sonnet", "opus", "other"], "block": ["missions", "p1", "p2"] } },
+    "p2_intake": { "fields": { "origin": ["practice", "own"], "issue": ["EX-1", "EX-2", "EX-3", "own"] } },
+    "p2_plan": { "fields": { "n_agents": "int" } },
+    "p2_swarm_done": { "fields": { "duration_s": "int", "green": "int", "red": "int", "green_first": "int" } },
+    "p2_gate": { "fields": { "verdict": ["APPROVED", "REJECTED", "OTHER"] } },
+    "p2_report": { "fields": { "destination": ["file", "jira", "github"] } }
+  }
+}

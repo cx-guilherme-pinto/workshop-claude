@@ -1,0 +1,1250 @@
+{
+ "about": "Hook inputs recorded from Claude Code 2.1.292 in the Phase 0 spike (docs/OBSERVABILITY.md), one per event shape. Every free-text value (prompts, paths, ids, tool input and output) was replaced by MARKnnnn; only the enum-like fields the telemetry hook reads are real. tools/test/telemetry-privacy.test.mjs replaces MARK with its own markers and checks that none ever reaches a file.",
+ "cases": [
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0001",
+    "transcript_path": "MARK0002",
+    "cwd": "MARK0003",
+    "scratchpad_dir": "MARK0004",
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "model": "claude-sonnet-5-5"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0005",
+    "transcript_path": "MARK0006",
+    "cwd": "MARK0007",
+    "scratchpad_dir": "MARK0008",
+    "hook_event_name": "InstructionsLoaded",
+    "file_path": "MARK0009",
+    "memory_type": "Project",
+    "load_reason": "session_start"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0010",
+    "transcript_path": "MARK0011",
+    "cwd": "MARK0012",
+    "scratchpad_dir": "MARK0013",
+    "prompt_id": "MARK0014",
+    "permission_mode": "plan",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "MARK0015"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0016",
+    "transcript_path": "MARK0017",
+    "cwd": "MARK0018",
+    "scratchpad_dir": "MARK0019",
+    "prompt_id": "MARK0020",
+    "permission_mode": "plan",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+     "command": "MARK0021",
+     "description": "MARK0022"
+    },
+    "tool_use_id": "MARK0023"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0024",
+    "transcript_path": "MARK0025",
+    "cwd": "MARK0026",
+    "scratchpad_dir": "MARK0027",
+    "prompt_id": "MARK0028",
+    "permission_mode": "plan",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+     "command": "MARK0029",
+     "description": "MARK0030"
+    },
+    "tool_response": {
+     "stdout": "MARK0031",
+     "stderr": "MARK0032",
+     "interrupted": false,
+     "isImage": false,
+     "noOutputExpected": false
+    },
+    "tool_use_id": "MARK0033",
+    "duration_ms": 63
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0034",
+    "transcript_path": "MARK0035",
+    "cwd": "MARK0036",
+    "scratchpad_dir": "MARK0037",
+    "prompt_id": "MARK0038",
+    "permission_mode": "plan",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolBatch",
+    "tool_calls": [
+     {
+      "tool_name": "Bash",
+      "tool_input": {
+       "command": "MARK0039",
+       "description": "MARK0040"
+      },
+      "tool_use_id": "MARK0041",
+      "tool_response": "MARK0042"
+     }
+    ]
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0043",
+    "transcript_path": "MARK0044",
+    "cwd": "MARK0045",
+    "scratchpad_dir": "MARK0046",
+    "prompt_id": "MARK0047",
+    "hook_event_name": "MessageDisplay",
+    "turn_id": "MARK0048",
+    "message_id": "MARK0049",
+    "index": 0,
+    "final": false,
+    "delta": "MARK0050"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0051",
+    "transcript_path": "MARK0052",
+    "cwd": "MARK0053",
+    "scratchpad_dir": "MARK0054",
+    "prompt_id": "MARK0055",
+    "permission_mode": "plan",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "MARK0056",
+    "background_tasks": [],
+    "session_crons": []
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0057",
+    "transcript_path": "MARK0058",
+    "cwd": "MARK0059",
+    "scratchpad_dir": "MARK0060",
+    "prompt_id": "MARK0061",
+    "hook_event_name": "PreModelSwitch",
+    "from_model": "claude-sonnet-5-5",
+    "to_model": "claude-haiku-4-5-20251001",
+    "requested_model": "haiku",
+    "source": "command",
+    "context_tokens": 33481,
+    "prompt_cache_warm": true,
+    "cache_ttl": "1h",
+    "estimated_cache_write_usd": 0.067,
+    "pricing": "catalog"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0062",
+    "transcript_path": "MARK0063",
+    "cwd": "MARK0064",
+    "scratchpad_dir": "MARK0065",
+    "prompt_id": "MARK0066",
+    "permission_mode": "auto",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "MARK0067"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0068",
+    "transcript_path": "MARK0069",
+    "cwd": "MARK0070",
+    "scratchpad_dir": "MARK0071",
+    "prompt_id": "MARK0072",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_input": {
+     "description": "MARK0073",
+     "prompt": "MARK0074",
+     "subagent_type": "MARK0075"
+    },
+    "tool_use_id": "MARK0076"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0077",
+    "transcript_path": "MARK0078",
+    "cwd": "MARK0079",
+    "scratchpad_dir": "MARK0080",
+    "prompt_id": "MARK0081",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Agent",
+    "tool_input": {
+     "description": "MARK0082",
+     "prompt": "MARK0083",
+     "subagent_type": "MARK0084"
+    },
+    "tool_response": {
+     "isAsync": true,
+     "status": "async_launched",
+     "agentId": "MARK0085",
+     "description": "MARK0086",
+     "resolvedModel": "MARK0087",
+     "prompt": "MARK0088",
+     "outputFile": "MARK0089",
+     "canReadOutputFile": true
+    },
+    "tool_use_id": "MARK0090",
+    "duration_ms": 10
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0091",
+    "transcript_path": "MARK0092",
+    "cwd": "MARK0093",
+    "scratchpad_dir": "MARK0094",
+    "prompt_id": "MARK0095",
+    "agent_id": "MARK0096",
+    "agent_type": "Explore",
+    "hook_event_name": "SubagentStart"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0097",
+    "transcript_path": "MARK0098",
+    "cwd": "MARK0099",
+    "scratchpad_dir": "MARK0100",
+    "prompt_id": "MARK0101",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolBatch",
+    "tool_calls": [
+     {
+      "tool_name": "Agent",
+      "tool_input": {
+       "description": "MARK0102",
+       "subagent_type": "MARK0103",
+       "prompt": "MARK0104"
+      },
+      "tool_use_id": "MARK0105",
+      "tool_response": [
+       {
+        "type": "text",
+        "text": "MARK0106"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0107",
+    "transcript_path": "MARK0108",
+    "cwd": "MARK0109",
+    "scratchpad_dir": "MARK0110",
+    "prompt_id": "MARK0111",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "MARK0112",
+    "background_tasks": [
+     {
+      "id": "MARK0113",
+      "type": "subagent",
+      "status": "running",
+      "description": "MARK0114",
+      "agent_type": "Explore"
+     }
+    ],
+    "session_crons": []
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0115",
+    "transcript_path": "MARK0116",
+    "cwd": "MARK0117",
+    "scratchpad_dir": "MARK0118",
+    "prompt_id": "MARK0119",
+    "permission_mode": "auto",
+    "agent_id": "MARK0120",
+    "agent_type": "MARK0121",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "SubagentStop",
+    "stop_hook_active": false,
+    "agent_transcript_path": "MARK0122",
+    "last_assistant_message": "MARK0123",
+    "background_tasks": [
+     {
+      "id": "MARK0124",
+      "type": "subagent",
+      "status": "running",
+      "description": "MARK0125",
+      "agent_type": "Explore"
+     }
+    ],
+    "session_crons": []
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0126",
+    "transcript_path": "MARK0127",
+    "cwd": "MARK0128",
+    "scratchpad_dir": "MARK0129",
+    "prompt_id": "MARK0130",
+    "permission_mode": "auto",
+    "agent_id": "MARK0131",
+    "agent_type": "Explore",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+     "command": "MARK0132"
+    },
+    "tool_use_id": "MARK0133"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0134",
+    "transcript_path": "MARK0135",
+    "cwd": "MARK0136",
+    "scratchpad_dir": "MARK0137",
+    "prompt_id": "MARK0138",
+    "permission_mode": "auto",
+    "agent_id": "MARK0139",
+    "agent_type": "Explore",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+     "command": "MARK0140"
+    },
+    "tool_response": {
+     "stdout": "MARK0141",
+     "stderr": "MARK0142",
+     "interrupted": false,
+     "isImage": false,
+     "noOutputExpected": false
+    },
+    "tool_use_id": "MARK0143",
+    "duration_ms": 54
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0144",
+    "transcript_path": "MARK0145",
+    "cwd": "MARK0146",
+    "scratchpad_dir": "MARK0147",
+    "prompt_id": "MARK0148",
+    "permission_mode": "auto",
+    "agent_id": "MARK0149",
+    "agent_type": "Explore",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "SubagentHandback",
+    "tool_input": {
+     "message": "MARK0150"
+    },
+    "tool_use_id": "MARK0151"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0152",
+    "transcript_path": "MARK0153",
+    "cwd": "MARK0154",
+    "scratchpad_dir": "MARK0155",
+    "prompt_id": "MARK0156",
+    "permission_mode": "auto",
+    "agent_id": "MARK0157",
+    "agent_type": "Explore",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "SubagentHandback",
+    "tool_input": {
+     "message": "MARK0158"
+    },
+    "tool_response": {
+     "success": true,
+     "message": "MARK0159"
+    },
+    "tool_use_id": "MARK0160",
+    "duration_ms": 30
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0161",
+    "transcript_path": "MARK0162",
+    "cwd": "MARK0163",
+    "scratchpad_dir": "MARK0164",
+    "prompt_id": "MARK0165",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+     "file_path": "MARK0166",
+     "content": "MARK0167"
+    },
+    "tool_use_id": "MARK0168"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0169",
+    "transcript_path": "MARK0170",
+    "cwd": "MARK0171",
+    "scratchpad_dir": "MARK0172",
+    "prompt_id": "MARK0173",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+     "file_path": "MARK0174",
+     "content": "MARK0175"
+    },
+    "tool_response": {
+     "type": "create",
+     "filePath": "MARK0176",
+     "content": "MARK0177",
+     "structuredPatch": [],
+     "originalFile": null,
+     "userModified": false
+    },
+    "tool_use_id": "MARK0178",
+    "duration_ms": 37
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0179",
+    "transcript_path": "MARK0180",
+    "cwd": "MARK0181",
+    "scratchpad_dir": "MARK0182",
+    "prompt_id": "MARK0183",
+    "hook_event_name": "Notification",
+    "message": "MARK0184",
+    "notification_type": "idle_prompt"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0185",
+    "transcript_path": "MARK0186",
+    "cwd": "MARK0187",
+    "scratchpad_dir": "MARK0188",
+    "prompt_id": "MARK0189",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+     "file_path": "MARK0190"
+    },
+    "tool_use_id": "MARK0191"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0192",
+    "transcript_path": "MARK0193",
+    "cwd": "MARK0194",
+    "scratchpad_dir": "MARK0195",
+    "prompt_id": "MARK0196",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+     "file_path": "MARK0197"
+    },
+    "tool_response": {
+     "type": "text",
+     "file": {
+      "filePath": "MARK0198",
+      "content": "MARK0199",
+      "numLines": 4,
+      "startLine": 1,
+      "totalLines": 4
+     }
+    },
+    "tool_use_id": "MARK0200",
+    "duration_ms": 3
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0201",
+    "transcript_path": "MARK0202",
+    "cwd": "MARK0203",
+    "scratchpad_dir": "MARK0204",
+    "prompt_id": "MARK0205",
+    "hook_event_name": "ConfigChange",
+    "source": "local_settings",
+    "file_path": "MARK0206"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0207",
+    "transcript_path": "MARK0208",
+    "cwd": "MARK0209",
+    "scratchpad_dir": "MARK0210",
+    "prompt_id": "MARK0211",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+     "file_path": "MARK0212",
+     "old_string": "MARK0213",
+     "new_string": "MARK0214",
+     "replace_all": false
+    },
+    "tool_use_id": "MARK0215"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0216",
+    "transcript_path": "MARK0217",
+    "cwd": "MARK0218",
+    "scratchpad_dir": "MARK0219",
+    "prompt_id": "MARK0220",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+     "file_path": "MARK0221",
+     "old_string": "MARK0222",
+     "new_string": "MARK0223",
+     "replace_all": false
+    },
+    "tool_response": {
+     "filePath": "MARK0224",
+     "oldString": "MARK0225",
+     "newString": "MARK0226",
+     "originalFile": "MARK0227",
+     "structuredPatch": [
+      {
+       "oldStart": 1,
+       "oldLines": 3,
+       "newStart": 1,
+       "newLines": 4,
+       "lines": [
+        "MARK0228",
+        "MARK0229",
+        "MARK0230"
+       ]
+      }
+     ],
+     "userModified": false,
+     "replaceAll": false
+    },
+    "tool_use_id": "MARK0231",
+    "duration_ms": 7
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0232",
+    "transcript_path": "MARK0233",
+    "cwd": "MARK0234",
+    "scratchpad_dir": "MARK0235",
+    "prompt_id": "MARK0236",
+    "permission_mode": "auto",
+    "hook_event_name": "UserPromptExpansion",
+    "expansion_type": "slash_command",
+    "command_name": "statusline",
+    "command_args": "MARK0237",
+    "command_source": "builtin",
+    "prompt": "MARK0238"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0239",
+    "transcript_path": "MARK0240",
+    "cwd": "MARK0241",
+    "scratchpad_dir": "MARK0242",
+    "prompt_id": "MARK0243",
+    "permission_mode": "auto",
+    "hook_event_name": "UserPromptExpansion",
+    "expansion_type": "slash_command",
+    "command_name": "memory",
+    "command_args": "MARK0244",
+    "command_source": "userSettings",
+    "prompt": "MARK0245"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0246",
+    "transcript_path": "MARK0247",
+    "cwd": "MARK0248",
+    "scratchpad_dir": "MARK0249",
+    "prompt_id": "MARK0250",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUseFailure",
+    "tool_name": "Bash",
+    "tool_input": {
+     "command": "MARK0251",
+     "description": "MARK0252"
+    },
+    "tool_use_id": "MARK0253",
+    "error": "MARK0254",
+    "is_interrupt": false,
+    "duration_ms": 35
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0255",
+    "transcript_path": "MARK0256",
+    "cwd": "MARK0257",
+    "scratchpad_dir": "MARK0258",
+    "prompt_id": "MARK0259",
+    "permission_mode": "auto",
+    "agent_id": "MARK0260",
+    "agent_type": "memory-extractor",
+    "effort": {
+     "level": "high"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "mcp__agent-memory__memory_search",
+    "tool_input": {
+     "project": "MARK0261",
+     "text": "MARK0262"
+    },
+    "tool_use_id": "MARK0263",
+    "mcp_server": {
+     "name": "MARK0264",
+     "source": "user"
+    }
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0265",
+    "transcript_path": "MARK0266",
+    "cwd": "MARK0267",
+    "scratchpad_dir": "MARK0268",
+    "prompt_id": "MARK0269",
+    "permission_mode": "auto",
+    "agent_id": "MARK0270",
+    "agent_type": "memory-extractor",
+    "effort": {
+     "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "mcp__agent-memory__memory_search",
+    "tool_input": {
+     "project": "MARK0271"
+    },
+    "tool_response": [
+     {
+      "type": "text",
+      "text": "MARK0272"
+     }
+    ],
+    "tool_use_id": "MARK0273",
+    "duration_ms": 23,
+    "mcp_server": {
+     "name": "MARK0274",
+     "source": "user"
+    }
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0275",
+    "transcript_path": "MARK0276",
+    "cwd": "MARK0277",
+    "scratchpad_dir": "MARK0278",
+    "prompt_id": "MARK0279",
+    "permission_mode": "auto",
+    "agent_id": "MARK0280",
+    "agent_type": "memory-extractor",
+    "effort": {
+     "level": "high"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "mcp__agent-memory__memory_add",
+    "tool_input": {
+     "type": "lesson",
+     "title": "MARK0281",
+     "text": "MARK0282",
+     "project": "MARK0283",
+     "tags": [
+      "MARK0284",
+      "MARK0285",
+      "MARK0286"
+     ],
+     "files": [
+      "MARK0287"
+     ]
+    },
+    "tool_use_id": "MARK0288",
+    "mcp_server": {
+     "name": "MARK0289",
+     "source": "user"
+    }
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0290",
+    "transcript_path": "MARK0291",
+    "cwd": "MARK0292",
+    "scratchpad_dir": "MARK0293",
+    "prompt_id": "MARK0294",
+    "permission_mode": "auto",
+    "agent_id": "MARK0295",
+    "agent_type": "memory-extractor",
+    "effort": {
+     "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "mcp__agent-memory__memory_add",
+    "tool_input": {
+     "type": "lesson",
+     "title": "MARK0296",
+     "text": "MARK0297",
+     "project": "MARK0298",
+     "tags": [
+      "MARK0299",
+      "MARK0300",
+      "MARK0301"
+     ],
+     "files": [
+      "MARK0302"
+     ]
+    },
+    "tool_response": "MARK0303",
+    "tool_use_id": "MARK0304",
+    "duration_ms": 19,
+    "mcp_server": {
+     "name": "MARK0305",
+     "source": "user"
+    }
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0306",
+    "transcript_path": "MARK0307",
+    "cwd": "MARK0308",
+    "scratchpad_dir": "MARK0309",
+    "prompt_id": "MARK0310",
+    "permission_mode": "auto",
+    "hook_event_name": "UserPromptExpansion",
+    "expansion_type": "slash_command",
+    "command_name": "loop",
+    "command_args": "MARK0311",
+    "command_source": "bundled",
+    "prompt": "MARK0312"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0313",
+    "transcript_path": "MARK0314",
+    "cwd": "MARK0315",
+    "scratchpad_dir": "MARK0316",
+    "prompt_id": "MARK0317",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "ToolSearch",
+    "tool_input": {
+     "query": "MARK0318",
+     "max_results": 2
+    },
+    "tool_use_id": "MARK0319"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0320",
+    "transcript_path": "MARK0321",
+    "cwd": "MARK0322",
+    "scratchpad_dir": "MARK0323",
+    "prompt_id": "MARK0324",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "ToolSearch",
+    "tool_input": {
+     "query": "MARK0325",
+     "max_results": 2
+    },
+    "tool_response": {
+     "matches": [
+      "MARK0326",
+      "MARK0327"
+     ],
+     "query": "MARK0328",
+     "total_deferred_tools": 27
+    },
+    "tool_use_id": "MARK0329",
+    "duration_ms": 1
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0330",
+    "transcript_path": "MARK0331",
+    "cwd": "MARK0332",
+    "scratchpad_dir": "MARK0333",
+    "prompt_id": "MARK0334",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "CronCreate",
+    "tool_input": {
+     "cron": "MARK0335",
+     "prompt": "MARK0336",
+     "recurring": true
+    },
+    "tool_use_id": "MARK0337"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0338",
+    "transcript_path": "MARK0339",
+    "cwd": "MARK0340",
+    "scratchpad_dir": "MARK0341",
+    "prompt_id": "MARK0342",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "CronCreate",
+    "tool_input": {
+     "cron": "MARK0343",
+     "prompt": "MARK0344",
+     "recurring": true
+    },
+    "tool_response": {
+     "id": "MARK0345",
+     "humanSchedule": "MARK0346",
+     "recurring": true,
+     "durable": false
+    },
+    "tool_use_id": "MARK0347",
+    "duration_ms": 0
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0348",
+    "transcript_path": "MARK0349",
+    "cwd": "MARK0350",
+    "scratchpad_dir": "MARK0351",
+    "prompt_id": "MARK0352",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "CronDelete",
+    "tool_input": {
+     "id": "MARK0353"
+    },
+    "tool_use_id": "MARK0354"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0355",
+    "transcript_path": "MARK0356",
+    "cwd": "MARK0357",
+    "scratchpad_dir": "MARK0358",
+    "prompt_id": "MARK0359",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "CronDelete",
+    "tool_input": {
+     "id": "MARK0360"
+    },
+    "tool_response": {
+     "id": "MARK0361"
+    },
+    "tool_use_id": "MARK0362",
+    "duration_ms": 0
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0363",
+    "transcript_path": "MARK0364",
+    "cwd": "MARK0365",
+    "scratchpad_dir": "MARK0366",
+    "prompt_id": "MARK0367",
+    "hook_event_name": "SessionEnd",
+    "reason": "prompt_input_exit"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0368",
+    "transcript_path": "MARK0369",
+    "cwd": "MARK0370",
+    "scratchpad_dir": "MARK0371",
+    "prompt_id": "MARK0372",
+    "permission_mode": "auto",
+    "hook_event_name": "UserPromptExpansion",
+    "expansion_type": "slash_command",
+    "command_name": "resumo",
+    "command_args": "MARK0373",
+    "command_source": "projectSettings",
+    "prompt": "MARK0374"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0375",
+    "transcript_path": "MARK0376",
+    "cwd": "MARK0377",
+    "scratchpad_dir": "MARK0378",
+    "prompt_id": "MARK0379",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Skill",
+    "tool_input": {
+     "skill": "resumo",
+     "args": "MARK0380"
+    },
+    "tool_use_id": "MARK0381"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0382",
+    "transcript_path": "MARK0383",
+    "cwd": "MARK0384",
+    "scratchpad_dir": "MARK0385",
+    "prompt_id": "MARK0386",
+    "permission_mode": "auto",
+    "effort": {
+     "level": "medium"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Skill",
+    "tool_input": {
+     "skill": "resumo",
+     "args": "MARK0387"
+    },
+    "tool_response": {
+     "success": true,
+     "commandName": "MARK0388"
+    },
+    "tool_use_id": "MARK0389",
+    "duration_ms": 4
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "1"
+   },
+   "input": {
+    "session_id": "MARK0390",
+    "transcript_path": "MARK0391",
+    "cwd": "MARK0392",
+    "scratchpad_dir": "MARK0393",
+    "prompt_id": "MARK0394",
+    "hook_event_name": "PostModelSwitch",
+    "from_model": "claude-sonnet-5-5",
+    "to_model": "claude-haiku-4-5-20251001",
+    "requested_model": "haiku",
+    "source": "command",
+    "context_tokens": 31847,
+    "prompt_cache_warm": true,
+    "cache_ttl": "1h",
+    "estimated_cache_write_usd": 0.0637,
+    "pricing": "catalog"
+   }
+  },
+  {
+   "env": {
+    "CLAUDE_CODE_ENTRYPOINT": "sdk-cli",
+    "CLAUDE_CODE_SESSION_ATTENDED": "0"
+   },
+   "input": {
+    "session_id": "MARK0001",
+    "transcript_path": "MARK0002",
+    "cwd": "MARK0003",
+    "scratchpad_dir": "MARK0004",
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "model": "claude-sonnet-5-5"
+   }
+  }
+ ]
+}

@@ -458,3 +458,53 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
     - o `--model claude-haiku-5-5` no `claude -p` avisa no stderr que o modelo não está no catálogo desta versão;
     - o `/model` grava o modelo como defeito das sessões novas;
     - o ciclo do Shift+Tab é default → accept edits → plan mode → auto mode.
+
+## D-31 · Workshop v2, Fase 1: caderneta de missões e telemetria local (19 out. 2026)
+
+- **Entregue:**
+  - `telemetry/`:
+    - `allowlist.json`, a fonte única dos eventos e campos, com os nomes em inglês (D-30);
+    - `schema.mjs`, a validação pura, que a Worker também vai usar;
+    - `lib.mjs`, com o registo local e a fila;
+    - `emit.mjs` e `ctl.mjs` (`on|off|status|show|nickname`).
+  - `hooks/telemetry.mjs`.
+  - `missions/`: `rules.json`, `missions.mjs` (`check|status|reset`) e `reporter.mjs` (o `npm test` grava `tests_run`).
+  - A skill `/missions` e o `missions-project` (pt e en, 8 testes, 2 vermelhos de propósito), montado pelo `installer/assemble-missions.mjs`.
+  - O segmento `missões n/9` na statusline.
+  - O registo dos 7 hooks (`"async": true`) no `settings.json`; o `desinstalar` apaga `~/.workshop-claude/telemetry/`.
+  - O setup, em Mac e Windows: a pergunta de participação e a sala no passo 8, e o projeto das missões no passo 9.
+  - Ainda sem envio: o `send.mjs` é da Fase 2.
+- **Decisões tomadas aqui (valores por defeito da spec ou necessários para fechar a fase):**
+  - **`repos.conf`:** chaves novas `PANEL_URL` (vazia até haver Worker), `WORKSHOP_CODE` (`dev`) e `WORKSHOP_DATE`. A telemetria expira no fim do dia seguinte ao workshop; sem data, 14 dias depois da instalação.
+  - **`config.json`:** fica com a participação, a sala, a pasta dos projetos, o código, o painel e a expiração. A alcunha está desligada por defeito (A3). Sem sala não há participação. Reinstalar mantém a escolha anterior. O `join` é enviado uma só vez.
+  - **O hook só atua dentro da pasta dos projetos** (`~/workshop-claude`) ou num projeto com `.workshop/`, e guarda cada funcionalidade uma vez por sessão, com o hash do id da sessão.
+  - **Missões:**
+    - a M6 tem um plano B: se os testes forem corridos sem o `npm test`, o check corre-os ele próprio;
+    - a M9 aceita `resumo.txt` ou `summary.txt`;
+    - a M10 conta com a escrita na Agent Memory ou com uma nota nova;
+    - a M7 é só dica, como na D-30.
+  - **Haiku 4.5 no `pricing.json`:** US$ 1 / 5 por MTok, escrita na cache 1,25 e 2, leitura 0,10. Fonte: platform.claude.com/docs/en/about-claude/pricing, consultada a 19 out. Os slides mantêm `/model haiku` e `--model haiku`, por decisão do organizador.
+  - **`missions-project`:** o `.claude/settings.json` fixa o Sonnet e deixa correr `npm test` e `node --test` sem perguntar, porque o `/loop` não pode parar num pedido de permissão. O reporter fica com um caminho relativo ou, com espaços, um `file://`.
+  - **A Arena não copia o hook de telemetria** (precisa de `telemetry/`) nem a skill `/missions`, que apareceria duas vezes.
+  - **Setup:**
+    - sem terminal, ou com `--yes`, a participação fica desligada (é opt-in);
+    - `WORKSHOP_TELEMETRY` e `WORKSHOP_ROOM` sobrepõem-se à pergunta;
+    - o passo 8 volta a correr uma vez quando o kit tem telemetria e ainda não há `config.json`.
+- **Testes:**
+  - novos: `telemetry-privacy.test.mjs` (8, com as entradas reais da 2.1.292 com marcadores, e nenhum marcador chega aos ficheiros) e `missions.test.mjs` (14);
+  - alargados: `settings.test` e `install-user.test`;
+  - `test-mac.sh` 675;
+  - Pester 280;
+  - PSSA sem erros;
+  - shellcheck limpo;
+  - `test-all` verde.
+  - O hook demora p50 30 ms e p95 32 ms (o limite é 300 ms).
+- **Aceitação** (release local v1.1.0-dev.1 instalada pelo one-liner num HOME limpo, com o painel ligado por variável de ambiente; as missões feitas por pty como um participante, com uma segunda sessão `claude -c` e um `claude -p`):
+  - a caderneta ficou com **9/9** (a M7 é dica);
+  - a fila só tem campos da allowlist, sem nomes, caminhos nem prompts;
+  - as missões todas custaram **US$ 0,47** (o alvo é ≤ US$ 0,80).
+- **Encontrado (para os slides e as notas, Fase 5):**
+  - Depois do `/model haiku`, o auto mode fica indisponível e a sessão passa a manual mode, com mais pedidos de permissão.
+  - Sair com um `/loop` ativo abre o diálogo "Background work is running"; a opção 1 para o loop.
+  - A statusline da M8 substitui a do kit nesse projeto.
+  - A M5 só fica marcada no evento seguinte ao `edits.log`; o `/missions` também atualiza.

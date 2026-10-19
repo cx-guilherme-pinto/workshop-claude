@@ -1,0 +1,10 @@
+{
+  "name": "missions-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Unit converter for the workshop missions",
+  "scripts": {
+    "test": "node --test"
+  }
+}

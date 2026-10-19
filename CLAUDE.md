@@ -19,6 +19,7 @@ The Agent Memory app (called Memória until v0.4) lives in another repository (`
 | `setup/` | `setup-mac.sh`, `setup-windows.ps1`, `bootstrap-windows.ps1` and the catalogs `messages.en.json` (what the setup prints; generates `docs/TROUBLESHOOTING.md`) and `messages.pt.json` (generates `docs/pt/TROUBLESHOOTING.md`). Tests in `setup/test/` |
 | `installer/` | Node with no dependencies: user-level install, `settings.json` merge, Arena assembly, injection into the release, and redaction |
 | `orchestrator/` | `next-wave`, `grade`, `gate`, `digest`, `report`, `publish-text`, `estimate`, `validate-plan`, `explore`, `dashboard` and `init-workshop`. The DAG is deterministic (D-07). Reads plans with English keys or the older Portuguese ones |
+| `telemetry/`, `missions/`, `missions-project/` | Workshop v2 (D-30, D-31): the event allowlist, the telemetry hook's library, `emit`/`ctl`, the mission book (`rules.json`, `missions.mjs`, the `npm test` reporter) and the missions project (`i18n/en/` is the whole English project). Spec in `docs/pt/WORKSHOP-V2-SPEC.md`, hook events in `docs/OBSERVABILITY.md` |
 | `hooks/`, `statusline/`, `pricing.json` | Cost from the real tokens in the transcripts × `pricing.json` (D-08). Never `total_cost_usd` |
 | `skills-demo/`, `skills-prod/`, `skills-shared/`, `agents/` | Skills and agents, in English, that answer in the user's language (D-20) |
 | `demo-project/` | The Arena (100 cards; `i18n/en/` overlays the pt source). Reference solutions in `dev/solutions/` (not shipped in the kit) |

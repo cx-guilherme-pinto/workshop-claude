@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Statusline do workshop: modelo · custo da sessao · custo do projeto/enxame · duracao · progresso.
+// Statusline do workshop: modelo · custo da sessao · custo do projeto/enxame · duracao · progresso · missoes.
 // O custo e calculado com o pricing.json do kit a partir do transcript (precos de lista publicados),
 // e nao com o total_cost_usd do Claude Code, que pode estar desatualizado para modelos recentes.
 // Sem dependencias; igual em Mac e Windows. As palavras saem na lingua do kit (pt ou en).
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { isAbsolute, join, relative, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { loadPricing } from '../hooks/lib/cost.mjs';
 import { summarize, readJsonl } from '../hooks/lib/transcript.mjs';
@@ -13,8 +14,8 @@ import { lingua, textos } from '../hooks/lib/language.mjs';
 
 const L = lingua();
 const T = textos({
-  pt: { sessao: 'sessão', projeto: 'projeto', de: 'de', teto: 'acima do teto', alvo: 'acima do alvo', enxame: 'swarm' },
-  en: { sessao: 'session', projeto: 'project', de: 'of', teto: 'over the cap', alvo: 'over the target', enxame: 'swarm' },
+  pt: { sessao: 'sessão', projeto: 'projeto', de: 'de', teto: 'acima do teto', alvo: 'acima do alvo', enxame: 'swarm', missoes: 'missões' },
+  en: { sessao: 'session', projeto: 'project', de: 'of', teto: 'over the cap', alvo: 'over the target', enxame: 'swarm', missoes: 'missions' },
 }, L);
 
 const chunks = [];
@@ -109,4 +110,36 @@ if (existsSync(ws)) {
   }
 }
 partes.push(dur(s.cost?.total_duration_ms));
+
+// The mission book (workshop v2, spec 6.7): "missões 6/9", and P1 ✓ / P2 ✓ when each gate approves. Only in the
+// workshop projects and while the telemetry config is in force; read straight from the files (the Arena copy of
+// this statusline has no telemetry/ folder next to it).
+function caderneta() {
+  const home = process.env.WS_HOME_OVERRIDE || (process.platform === 'win32' ? process.env.USERPROFILE || homedir() : process.env.HOME || homedir());
+  const dir = process.env.WORKSHOP_TELEMETRY_DIR || join(home, '.workshop-claude', 'telemetry');
+  const cfg = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8'));
+  const exp = Date.parse(cfg.expires_at || '');
+  if (cfg.v !== 1 || (!Number.isNaN(exp) && Date.now() >= exp)) return null;
+  const r = cfg.projects_dir ? relative(resolve(cfg.projects_dir), resolve(proj)) : '..';
+  if ((r.startsWith('..') || isAbsolute(r)) && !existsSync(ws)) return null;
+  let book = {};
+  try {
+    book = JSON.parse(readFileSync(join(dir, 'missions.json'), 'utf8'));
+  } catch {
+    /* nothing done yet */
+  }
+  // rules.json next to this statusline (the kit) or, for a project copy (the Arena), in the installed kit
+  const here = fileURLToPath(new URL('../missions/rules.json', import.meta.url));
+  const file = [here, join(home, '.workshop-claude', 'kit', 'missions', 'rules.json')].find((f) => existsSync(f));
+  const rules = JSON.parse(readFileSync(file, 'utf8'));
+  const valid = rules.missions.filter((m) => m.validated !== false).map((m) => m.id);
+  const n = valid.filter((id) => book.done?.[id]).length;
+  return [`${T.missoes} ${n}/${valid.length}`, book.p1 ? 'P1 ✓' : '', book.p2 ? 'P2 ✓' : ''].filter(Boolean).join(' ');
+}
+try {
+  const c = caderneta();
+  if (c) partes.push(c);
+} catch {
+  /* no mission book */
+}
 process.stdout.write(partes.join(' · '));

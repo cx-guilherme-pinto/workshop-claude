@@ -168,7 +168,19 @@ test('settings.json com comentarios, virgulas a mais ou tipos errados: o detalhe
 
 test('checkSettings deteta o que falta e statusline alheia', () => {
   const opts = { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } };
-  assert.deepEqual(checkSettings({}, opts).faltam.sort(), ['env DISABLE_AUTOUPDATER', 'hook Stop', 'hook SubagentStop', 'statusLine']);
+  assert.deepEqual(checkSettings({}, opts).faltam.sort(), [
+    'env DISABLE_AUTOUPDATER',
+    'hook ConfigChange',
+    'hook PostModelSwitch',
+    'hook PostToolUse',
+    'hook SessionStart',
+    'hook Stop',
+    'hook SubagentStart',
+    'hook SubagentStop',
+    'hook UserPromptExpansion',
+    'hook UserPromptSubmit',
+    'statusLine',
+  ]);
   const a = mergeSettings(alheio(), opts);
   const c = checkSettings(a.settings, opts);
   assert.equal(c.ok, true);
@@ -255,4 +267,35 @@ test('checkSettings encontra o proxy nosso que esta execucao ja nao pede (o pass
   const venue = mergeSettings(a.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' } }, a.record);
   const r2 = checkSettings(venue.settings, { ...opts, env: { DISABLE_AUTOUPDATER: '1' }, record: venue.record });
   assert.deepEqual(r2.faltam.filter((f) => f.startsWith('env')), []);
+});
+
+test('workshop v2: o hook de telemetria fica nos 7 eventos, "async", com o matcher no PostToolUse, sem tocar nos alheios', () => {
+  const opts = { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } };
+  const cur = alheio();
+  cur.hooks.PostToolUse = [{ matcher: 'Edit|Write', hooks: [{ type: 'command', command: 'echo meu >> edits.log' }] }];
+  const { settings: s } = mergeSettings(cur, opts);
+  const tel = command(NODE_MAC, `${KIT_MAC}/hooks/telemetry.mjs`);
+  for (const ev of ['SessionStart', 'UserPromptSubmit', 'UserPromptExpansion', 'SubagentStart', 'PostToolUse', 'PostModelSwitch', 'ConfigChange']) {
+    const nossos = s.hooks[ev].filter((g) => g.hooks.some((h) => h.command === tel));
+    assert.equal(nossos.length, 1, ev);
+    assert.deepEqual(nossos[0].hooks, [{ type: 'command', command: tel, timeout: 5, async: true }], ev);
+    assert.equal(nossos[0].matcher, ev === 'PostToolUse' ? 'Skill|CronCreate|mcp__agent-memory__memory_add' : undefined, ev);
+  }
+  assert.deepEqual(s.hooks.PostToolUse[0], cur.hooks.PostToolUse[0], 'o hook da pessoa fica igual e no mesmo sitio');
+  assert.deepEqual(s.hooks.PreToolUse, cur.hooks.PreToolUse);
+  // os de custo nao sao async
+  assert.equal(s.hooks.Stop.at(-1).hooks[0].async, undefined);
+  // repetir nao muda nada; o --check fica ok
+  assert.equal(mergeSettings(s, opts).changed, false);
+  assert.equal(checkSettings(s, opts).ok, true);
+  // um registo nosso antigo noutro grupo (outro matcher) sai e fica so o certo
+  const velho = structuredClone(s);
+  velho.hooks.PostToolUse.push({ matcher: 'Skill', hooks: [{ type: 'command', command: tel, timeout: 30 }] });
+  const novo = mergeSettings(velho, opts).settings;
+  assert.equal(novo.hooks.PostToolUse.filter((g) => g.hooks.some((h) => h.command === tel)).length, 1);
+  assert.equal(checkSettings({ ...s, hooks: { ...s.hooks, PostToolUse: [{ hooks: [{ type: 'command', command: tel }] }] } }, opts).faltam.includes('hook PostToolUse'), true);
+  // desinstalar tira os nossos e deixa os da pessoa
+  const u = unmergeSettings(s, {});
+  assert.deepEqual(u.hooks.PostToolUse, cur.hooks.PostToolUse);
+  for (const ev of ['SessionStart', 'UserPromptSubmit', 'UserPromptExpansion', 'SubagentStart', 'PostModelSwitch', 'ConfigChange']) assert.equal(u.hooks[ev], undefined, ev);
 });

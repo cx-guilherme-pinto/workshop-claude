@@ -1,13 +1,24 @@
 // Merge seguro do ~/.claude/settings.json do utilizador.
-// Regras: nunca apaga chaves alheias; acrescenta os hooks SubagentStop/Stop do workshop;
+// Regras: nunca apaga chaves alheias; acrescenta os hooks SubagentStop/Stop (custo) e os do hook de telemetria
+// (missoes e painel, "async": true, nos eventos da docs/OBSERVABILITY.md);
 // so define a statusLine se nao existir nenhuma (ou com --substituir-statusline);
 // so define a "language" (lingua das respostas do Claude, D-20) se a pessoa nao tiver uma;
 // regista em "record" o que mudou, para o --desinstalar repor exatamente o anterior.
 import { join } from 'node:path';
 
+// [evento, ficheiro, opcoes]. O hook de telemetria corre em segundo plano ("async": true): nunca atrasa o Claude Code.
+export const TELEMETRY_MATCHER = 'Skill|CronCreate|mcp__agent-memory__memory_add';
+const TEL = { async: true, timeout: 5 };
 export const HOOKS = [
   ['SubagentStop', 'hooks/subagent-stop.mjs'],
   ['Stop', 'hooks/stop.mjs'],
+  ['SessionStart', 'hooks/telemetry.mjs', TEL],
+  ['UserPromptSubmit', 'hooks/telemetry.mjs', TEL],
+  ['UserPromptExpansion', 'hooks/telemetry.mjs', TEL],
+  ['SubagentStart', 'hooks/telemetry.mjs', TEL],
+  ['PostToolUse', 'hooks/telemetry.mjs', { ...TEL, matcher: TELEMETRY_MATCHER }],
+  ['PostModelSwitch', 'hooks/telemetry.mjs', TEL],
+  ['ConfigChange', 'hooks/telemetry.mjs', TEL],
 ];
 export const STATUSLINE_FILE = 'statusline/statusline.mjs';
 export const HOOK_TIMEOUT = 30;
@@ -115,7 +126,13 @@ export function checkShape(s) {
 
 export function expectedEntries({ node, kitDir }) {
   return {
-    hooks: HOOKS.map(([event, file]) => ({ event, command: command(node, join(kitDir, file)) })),
+    hooks: HOOKS.map(([event, file, o = {}]) => ({
+      event,
+      command: command(node, join(kitDir, file)),
+      matcher: o.matcher,
+      async: o.async === true,
+      timeout: o.timeout ?? HOOK_TIMEOUT,
+    })),
     statusLine: { type: 'command', command: command(node, join(kitDir, STATUSLINE_FILE)), refreshInterval: 5 },
   };
 }
@@ -145,21 +162,22 @@ export function mergeSettings(current, opts, prevRecord = null) {
 
   checkShape(s);
   s.hooks = s.hooks || {};
-  for (const { event, command: cmd } of exp.hooks) {
+  for (const { event, command: cmd, matcher, async: bg, timeout } of exp.hooks) {
     const file = cmd.split('/').pop(); // ex.: stop.mjs" (com a aspa final)
     let groups = s.hooks[event] || [];
     let found = false;
     const emptied = new Set();
+    const mine = () => ({ type: 'command', command: cmd, timeout, ...(bg ? { async: true } : {}) });
     for (const g of groups) {
       if (!isObj(g) || !Array.isArray(g.hooks)) continue;
       const keep = [];
       for (const h of g.hooks) {
         if (isObj(h) && isOurs(h.command) && fwd(h.command).endsWith('/' + file)) {
-          if (found) continue; // duplicado nosso: sai
+          // duplicado nosso, ou num grupo com outro matcher (versao anterior): sai e fica so o certo
+          if (found || (g.matcher ?? undefined) !== matcher) continue;
           found = true;
-          h.type = 'command';
-          h.command = cmd;
-          h.timeout = HOOK_TIMEOUT;
+          Object.assign(h, mine());
+          if (!bg) delete h.async;
         }
         keep.push(h);
       }
@@ -167,7 +185,7 @@ export function mergeSettings(current, opts, prevRecord = null) {
       g.hooks = keep;
     }
     groups = groups.filter((g) => !emptied.has(g));
-    if (!found) groups.push({ hooks: [{ type: 'command', command: cmd, timeout: HOOK_TIMEOUT }] });
+    if (!found) groups.push({ ...(matcher ? { matcher } : {}), hooks: [mine()] });
     s.hooks[event] = groups;
   }
 
@@ -277,8 +295,8 @@ export function checkSettings(current, opts) {
   if (isObj(current)) checkShape(current);
   const exp = expectedEntries(opts);
   const faltam = [];
-  for (const { event, command: cmd } of exp.hooks) {
-    const ok = (current?.hooks?.[event] || []).some((g) => (g?.hooks || []).some((h) => h?.command === cmd));
+  for (const { event, command: cmd, matcher } of exp.hooks) {
+    const ok = (current?.hooks?.[event] || []).some((g) => (g?.matcher ?? undefined) === matcher && (g?.hooks || []).some((h) => h?.command === cmd));
     if (!ok) faltam.push(`hook ${event}`);
   }
   for (const [k, v] of Object.entries(opts.env || {})) {
