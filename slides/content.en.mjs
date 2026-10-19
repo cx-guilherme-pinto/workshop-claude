@@ -2,7 +2,7 @@
 // Same shape and slide order as content.mjs (pt-PT): change a slide there = change the same slide here.
 // {{...}} are replaced from repos.conf, pricing.json and slides/dados.json (see build.mjs).
 // Every Project 1 number (cost, times, agents, estimate) comes from dados.json (P1_*, ESTIMATIVA):
-// one reference run. The swarm video is a different run (presenter mode) and uses the APRES_* keys.
+// one reference run. The swarm video is a different run (recorded earlier) and uses the APRES_* keys.
 // min = minutes for the slide; saltar = can be skipped if running late.
 
 export const SECCOES = ['Opening', 'Install', 'Concepts', 'Preview', 'Project 1', 'Memory', 'Project 2', 'Closing'];
@@ -164,8 +164,8 @@ Answer in the participant's language.`,
     titulo: 'The swarm building the Arena',
     media: 'media/enxame-acelerado.en.mp4',
     poster: 'media/estado-final.en.png',
-    legenda: 'A different run, in presenter mode ({{APRES_PARALELO}} agents in parallel): {{APRES_DURACAO}} · {{APRES_CUSTO}} · {{APRES_AGENTES}} agents',
-    notas: 'Sped-up video of a real run with 100 tasks, recorded in presenter mode: {{APRES_PARALELO}} agents in parallel, so the footer numbers are not the Project 1 ones (on each laptop, {{P1_PARALELO}} run in parallel; see the cost slide). On the left, the /status page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. Plan B if the video fails: open /status?replay=recording in the recorded Arena.',
+    legenda: 'A different run, recorded earlier ({{APRES_PARALELO}} agents in parallel): {{APRES_DURACAO}} · {{APRES_CUSTO}} · {{APRES_AGENTES}} agents',
+    notas: 'Sped-up video of a real run with 100 tasks, recorded before your own card and the cards that fail on purpose existed ({{APRES_PARALELO}} agents in parallel), so the footer numbers are not the Project 1 ones (on each laptop, {{P1_PARALELO}} run in parallel; see the cost slide). On the left, the /status page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. Plan B if the video fails: open /status?replay=recording in the recorded Arena.',
   },
   {
     seccao: 'Preview', tipo: 'video', min: 1,

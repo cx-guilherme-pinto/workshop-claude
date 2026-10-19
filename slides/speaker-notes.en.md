@@ -75,7 +75,7 @@ The budget is backed by the benchmark, not by cuts. If someone goes over the tar
 
 [4:00 → 5:30] 1.5 min · you should be here at 4 min
 
-Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.3). To update only the Agent Memory app: agent-memory update. Before this slide, post the commands in Teams so everyone can copy them.
+Almost everyone installed beforehand (pre-work): for them this slide only shows where the command is. Anyone who has not installed yet runs it now and follows along with a neighbour while it installs (10 to 20 minutes). The same command installs on another machine. The commands are generated from repos.conf: they are always right for the published version (v1.0.0-rc.4). To update only the Agent Memory app: agent-memory update. Before this slide, post the commands in Teams so everyone can copy them.
 
 ### 5. Check your installation
 
@@ -141,7 +141,7 @@ Bridge into Project 1. What they are about to see is the cycle from the concepts
 
 [19:30 → 22:00] 2.5 min · you should be here at 20 min
 
-Sped-up video of a real run with 100 tasks, recorded in presenter mode: 16 agents in parallel, so the footer numbers are not the Project 1 ones (on each laptop, 8 run in parallel; see the cost slide). On the left, the /status page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. Plan B if the video fails: open /status?replay=recording in the recorded Arena.
+Sped-up video of a real run with 100 tasks, recorded before your own card and the cards that fail on purpose existed (8 agents in parallel), so the footer numbers are not the Project 1 ones (on each laptop, 8 run in parallel; see the cost slide). On the left, the /status page: each square is a task, yellow while an agent works on it and green when its test passes. On the right, the terminal with the agent batches. Plan B if the video fails: open /status?replay=recording in the recorded Arena.
 
 ### 16. The result: the game, ready to use
 
@@ -153,7 +153,7 @@ Recording of someone playing the final Arena: point at the insecure line, pick t
 
 [23:00 → 23:30] 0.5 min · you should be here at 23 min
 
-37 minutes of hands-on. In the reference run, the 100-task swarm took 6.5 min (the full session, 9 min); in interactive mode and with new accounts it can take longer. The slides between "Release the swarm" and "Why did this card fail?" (9 minutes) cover that wait: they are all done while the swarm works.
+37 minutes of hands-on. In the reference run, the 100-task swarm took 7.4 min (the full session, 14 min); in interactive mode and with new accounts it can take longer. The slides between "Release the swarm" and "Why did this card fail?" (9 minutes) cover that wait: they are all done while the swarm works.
 
 ### 18. What we will do in this project today
 
@@ -195,7 +195,7 @@ Explain before running it. The key point: a script picks what runs, not the mode
 
 [37:00 → 39:00] 2 min · you should be here at 37 min
 
-Prediction, before pressing Enter: each person writes in Teams how much they think it will cost and how many cards will end up red. From here the swarm works for a few minutes (6.5 min in the reference run; longer with new accounts). The next four slides (9 minutes) happen during that wait; whoever finishes first plays the Arena.
+Prediction, before pressing Enter: each person writes in Teams how much they think it will cost and how many cards will end up red. From here the swarm works for a few minutes (7.4 min in the reference run; longer with new accounts). The next four slides (9 minutes) happen during that wait; whoever finishes first plays the Arena.
 
 ### 25. Ask without interrupting
 
