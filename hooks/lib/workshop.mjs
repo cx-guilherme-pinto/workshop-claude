@@ -79,11 +79,13 @@ export function ensureDir(d) {
 }
 
 // Workshop v2: the cost of this hook call also goes to the panel's telemetry (telemetry/lib.mjs, a cost event per
-// model). Dynamic import: the Arena's own copy of these hooks has no telemetry/ next to it and simply skips this.
+// model). Through the engine's bridge (orchestrator/lib/telemetry.mjs), which finds the telemetry next to the kit or,
+// for the copy of these hooks inside a Project 1 folder (tools/workshop/), in the installed kit. Without it: nothing.
 export async function telemetryCost(input, what) {
   try {
-    const t = await import('../../telemetry/lib.mjs');
-    t.recordCosts({ proj: projectDir(input), sessionId: input?.session_id, ...what });
+    const bridge = await import('../../orchestrator/lib/telemetry.mjs');
+    const t = await bridge.telemetry();
+    t?.recordCosts({ proj: projectDir(input), sessionId: input?.session_id, ...what });
   } catch {
     /* no telemetry here */
   }

@@ -47,7 +47,9 @@ function parseOne(def, raw) {
     }
     case 'date': {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
-      const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      // setUTCFullYear, not Date.UTC: Date.UTC turns the years 0 to 99 into 1900 to 1999
+      const d = m && new Date(0);
+      if (d) d.setUTCFullYear(+m[1], +m[2] - 1, +m[3]);
       if (!d || d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) throw new ToolError(T.input.date(label));
       return s.trim();
     }
