@@ -1474,5 +1474,118 @@ for c in E-MEM-11 E-MEM-12; do
   [ -n "$(ws_err_field "$c" titulo)" ] && grep -q "\"$c\"" "$ROOT/setup/messages.pt.json" && ok || ko "am rules catalogo: $c"
 done
 
+# --- aspeto: cartao, lista de passos e spinner (fancy) e as linhas de sempre (plain)
+UI="$WS_TMP/ui"; mkdir -p "$UI/h/.workshop-claude"
+# os simbolos novos: uma coluna, sem emoji
+eq "$(for s in feito ja ok aviso falhou falta naoexec saltado; do ws_sym "$s"; done)" "✔✔✔▲✖✖○–" "ui: simbolos dos estados"
+# guardas estaticas: um $VAR colado a um caractere nao ASCII (o bash 3.2 num locale UTF-8 le-o como parte do nome)
+# e um "wait" sem PIDs (esperava tambem pelo spinner, que so acaba no fim do passo)
+LC_ALL=C grep -n '\$[A-Za-z_][A-Za-z0-9_]*[^ -~]' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "ui: \$VAR colado a um caractere nao ASCII (usar \${VAR})" || ok
+grep -nE '(^|[;&|{]|then|do)[[:space:]]*wait[[:space:]]*($|[;&|}])' "$ROOT/setup/setup-mac.sh" | grep -q . && ko "ui: wait sem PIDs no setup" || ok
+# o mesmo nome curto para cada passo nos dois catalogos
+[ -n "$NODE" ] && eq "$("$NODE" -e 'const a=require(process.argv[1]),b=require(process.argv[2]);const k=o=>Object.keys(o.passos_curtos||{}).join(",");console.log(k(a)===k(b)&&k(a)===Object.keys(a.passos).join(",")?"ok":"diff")' "$ROOT/setup/messages.en.json" "$ROOT/setup/messages.pt.json")" ok "ui: passos_curtos em pt e en, um por passo"
+# sem terminal: plain, e o plain nao tem \r nem sequencias do cursor
+eq "$(ws_ui_detect; printf '%s' "$WS_UI")" plain "ui: stdout que nao e terminal = plain"
+( for v in $(set | sed -n 's/^\(M_[A-Za-z0-9_]*\)=.*/\1/p'); do printf '%s=%q\n' "$v" "${!v}"; done ) > "$UI/msgs.sh"
+cat > "$UI/run.sh" <<'__UI__'
+# run.sh setup msgs cenario: um passo falso (o 4) com o aspeto que o terminal pedir
+WS_SOURCE_ONLY=1; . "$1"; . "$2"; S=$3; D=$4
+[ -n "${UI_SIZE:-}" ] && stty $UI_SIZE </dev/tty 2>/dev/null
+WS_HOME="$D/h/.workshop-claude"; WS_TMP="$D/tmp.$$"; mkdir -p "$WS_TMP"; : > "$WS_TMP/.ws-tmp"; WS_LOG="$D/setup.log"; WS_MODE=install; WS_SIM=0
+WS_FILL_KEYS=""; WS_OS="macOS 26.6 arm64"; WS_LANG=en-US; ST_2=feito
+ws_ui_detect; printf 'UI=%s\n' "$WS_UI"
+trap ws_interrupted INT TERM HUP; trap ws_cleanup EXIT
+case "$S" in
+  redir) ws_ui_begin 4 > "$D/redir.out"; printf "REDIR=[%s|%s]\n" "$WS_UI_SPIN" "${WS_UI_ON:-0}"; ws_ui_end; exit 0 ;;
+  cmdsub) x=$(ws_ui_begin 4; printf "%s|%s" "$WS_UI_SPIN" "${WS_UI_ON:-0}"); printf "CMDSUB=[%s] ON=%s\n" "$x" "${WS_UI_ON:-0}"; exit 0 ;;
+esac
+ws_s4_detect() { return 1; }
+ws_s4_install() {
+  ws_activity "$(ws_msg a_descarregar O_QUE="node.tar.xz")"
+  printf '%s\n' "$WS_UI_SPIN" >> "$D/spins"
+  : > "$WS_TMP/f.part"; ws_hb_start "$WS_TMP/f.part"; printf '%s\n' "$WS_UI_SPIN" >> "$D/spins"
+  sleep 1; ws_hb_stop
+  case "$S" in
+    ask) if ws_ask "Log in to GitHub now? (opens the browser)" s; then ws_note "ANSWER=yes"; else ws_note "ANSWER=no"; fi
+         printf '%s\n' "$WS_UI_SPIN" >> "$D/spins" ;;
+    ctrlc) printf 'READY\n' > "$D/ready"; sleep 30 ;;
+    kill9) printf '%s\n' "$$" > "$D/main"; sleep 30 ;;
+  esac
+  ws_detail "Node v24.22.0"; return 0
+}
+ws_tty_fg_check() { # chamado pela pergunta a serio (ws_ask_q) antes de a mostrar: o spinner ja tem de estar parado
+  local p; for p in $(cat "$D/spins" 2>/dev/null); do [ -n "$p" ] && kill -0 "$p" 2>/dev/null && printf "ALIVE-AT-ASK\n"; done; return 0
+}
+ws_step 4
+printf 'SPIN_AFTER=[%s] ON=%s\n' "$WS_UI_SPIN" "$WS_UI_ON"
+__UI__
+# corre o cenario num pty (script) com o tamanho dado; $1 tamanho ("rows 30 cols 100" ou ""), $2 cenario, resto: env
+ui_run() {
+  local size=$1 s=$2; shift 2
+  rm -f "$UI/spins" "$UI/ready" "$UI/main"
+  ( [ "$#" -gt 0 ] && export "$@"; export UI_SIZE="$size" TERM="${UI_TERM:-xterm-256color}"; g1_timeout 40 script -q /dev/null /usr/bin/perl -e "\$SIG{INT} = q(DEFAULT); exec @ARGV" /bin/bash "$UI/run.sh" "$ROOT/setup/setup-mac.sh" "$UI/msgs.sh" "$s" "$UI" < "${UI_IN:-/dev/null}" > "$UI/out" 2>&1 )
+}
+ui_txt() { LC_ALL=C sed $'s/\033\\[[0-9;]*m//g' "$UI/out" | tr -d '\r'; }
+ui_dead() { local p; for p in $(cat "$UI/spins" 2>/dev/null); do [ -n "$p" ] && kill -0 "$p" 2>/dev/null && { printf 'alive %s' "$p"; return 1; }; done; return 0; }
+if command -v script >/dev/null 2>&1 && [ -n "$NODE" ]; then
+  # fancy: so com o tamanho conhecido, >= 70 colunas, TERM a serio e sem NO_COLOR
+  ui_run "rows 30 cols 100" step; grep -q 'UI=fancy' "$UI/out" && ok || ko "ui: pty 100x30 = fancy [$(head -c 200 "$UI/out")]"
+  ui_run "rows 30 cols 60" step; grep -q 'UI=plain' "$UI/out" && ok || ko "ui: terminal estreito (60 colunas) = plain"
+  ui_run "rows 30 cols 100" step NO_COLOR=1; grep -q 'UI=plain' "$UI/out" && ok || ko "ui: NO_COLOR = plain"
+  UI_TERM=dumb ui_run "rows 30 cols 100" step; grep -q 'UI=plain' "$UI/out" && ok || ko "ui: TERM=dumb = plain"
+  ui_run "rows 0 cols 0" step; grep -q 'UI=plain' "$UI/out" && ok || ko "ui: tamanho desconhecido = plain"
+  # plain: o cabecalho e o resultado de sempre, sem \r e sem sequencias do cursor, e nenhum spinner
+  ui_run "rows 30 cols 60" step
+  ui_txt | grep -q "Step 4/12 · Node.js" && ui_txt | grep -q "✔ Done · Node v24.22.0" && ui_txt | grep -q "  Downloading node.tar.xz…" && ok || ko "ui plain: linhas de sempre [$(tr -d '\r' < "$UI/out")]"
+  LC_ALL=C grep -q $'\033\\[[0-9]*[ABJK]' "$UI/out" && ko "ui plain: sequencias do cursor no plain" || ok
+  eq "$(wc -l < "$UI/spins" 2>/dev/null | tr -d " ")" 2 "ui plain: o registo do cenario correu"
+  eq "$(tr -d '\n' < "$UI/spins")" "" "ui plain: nenhum spinner"
+  # fancy: a linha do passo no fim, a zona viva tirada (ESC[J depois da ultima imagem do spinner), sem processos a mais
+  ui_run "rows 30 cols 100" step
+  grep -q 'SPIN_AFTER=\[\] ON=0' "$UI/out" && ok || ko "ui fancy: spinner parado no fim do passo [$(grep SPIN_AFTER "$UI/out")]"
+  ui_txt | grep -q "✔ Node.js            Node v24.22.0" && ok || ko "ui fancy: linha do passo"
+  grep -q '4 of 12' "$UI/out" && ok || ko "ui fancy: barra N of 12"
+  [ "$(wc -l < "$UI/spins" | tr -d " ")" = 2 ] && [ -n "$(head -n 1 "$UI/spins")" ] && ok || ko "ui fancy: o spinner arrancou [$(tr '\n' ' ' < "$UI/spins")]"
+  r=$(ui_dead) && ok || ko "ui fancy: processo do spinner depois do passo ($r)"
+  grep -q 'Step 4/12' "$UI/out" && ko "ui fancy: cabecalho do plain no fancy" || ok
+  eq "$(LC_ALL=C perl -0ne 'my $f = rindex($_, "\033[K\r\033["); my $j = rindex($_, "\033[J"); print($j > $f ? "ok" : "stale")' "$UI/out")" ok "ui fancy: a zona viva sai do ecra"
+  grep -q 'Still downloading' "$UI/out" && ko "ui fancy: linha do heartbeat no fancy" || ok
+  # pergunta: o spinner para antes (a pergunta fica sozinha, "? ... [Y/n]") e volta depois; a resposta conta
+  printf '%s\n' 'sleep 3; printf "n\n"; sleep 3' > "$UI/feed.sh"
+  bash "$UI/feed.sh" | { UI_IN=/dev/stdin ui_run "rows 30 cols 100" ask; }
+  grep -q 'ALIVE-AT-ASK' "$UI/out" && ko "ui fancy: spinner vivo na pergunta" || ok
+  grep -q '  ? Log in to GitHub now? (opens the browser) \[Y/n\] ' "$UI/out" && ok || ko "ui fancy: forma da pergunta [$(tr -d '\r' < "$UI/out" | tail -n 5)]"
+  grep -q 'ANSWER=no' "$UI/out" && ok || ko "ui fancy: resposta lida"
+  [ "$(sed -n 3p "$UI/spins")" != "" ] && ok || ko "ui fancy: o spinner volta depois da pergunta"
+  r=$(ui_dead) && ok || ko "ui fancy: processo do spinner depois da pergunta ($r)"
+  # Ctrl-C a meio do passo: o setup diz que foi interrompido, sai com 130 e nao fica nenhum spinner
+  printf '%s\n' 'i=0; while [ ! -f "$1/ready" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done; sleep 0.5; printf "\003"; sleep 2' > "$UI/feed.sh"
+  bash "$UI/feed.sh" "$UI" | { UI_IN=/dev/stdin ui_run "rows 30 cols 100" ctrlc; }
+  grep -q 'Interrupted' "$UI/out" && ok || ko "ui fancy: Ctrl-C mostra a mensagem [$(tr -d '\r' < "$UI/out" | tail -n 3)]"
+  sleep 0.3; r=$(ui_dead) && ok || ko "ui fancy: spinner vivo depois do Ctrl-C ($r)"
+  # no processo principal mas com o stdout num ficheiro, ou dentro de $( ): nada de spinner
+  ui_run "rows 30 cols 100" redir; grep -q "REDIR=\[|0\]" "$UI/out" && ok || ko "ui fancy: sem spinner com o stdout redirecionado [$(grep REDIR "$UI/out")]"
+  ui_run "rows 30 cols 100" cmdsub; grep -q "CMDSUB=\[|0\] ON=0" "$UI/out" && ok || ko "ui fancy: sem spinner dentro de \$( ) [$(grep CMDSUB "$UI/out")]"
+  # kill -9 do setup: o spinner acaba sozinho
+  ui_run "rows 30 cols 100" kill9 & bp=$!
+  i=0; while [ ! -s "$UI/main" ] && [ "$i" -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+  kill -9 "$(cat "$UI/main" 2>/dev/null)" 2>/dev/null; wait "$bp" 2>/dev/null
+  sleep 1; r=$(ui_dead) && ok || ko "ui fancy: spinner vivo depois de kill -9 do setup ($r)"
+fi
+# nunca dentro de $( ), de um subshell ou com o stdout redirecionado (o spinner seguraria a captura)
+eq "$( WS_UI=fancy; WS_COLS=100; WS_ROWS=30; WS_MODE=install; ws_ui_begin 4; printf "%s|%s" "$WS_UI_SPIN" "${WS_UI_ON:-0}" )" "|0" "ui: sem spinner dentro de \$( )"
+( WS_UI=fancy; WS_COLS=100; WS_ROWS=30; WS_MODE=install; ws_ui_begin 4 > "$UI/redir"; printf "%s|%s" "$WS_UI_SPIN" "${WS_UI_ON:-0}" > "$UI/redir.r" )
+eq "$(cat "$UI/redir.r")|$(wc -c < "$UI/redir" | tr -d ' ')" "|0|0" "ui: sem spinner num subshell com o stdout num ficheiro"
+# o resumo (plain): o mesmo summary.txt, com os simbolos novos
+o=$( WS_HOME="$UI/h/.workshop-claude"; WS_RESUMO="$WS_HOME/summary.txt"; WS_LOG=/dev/null; WS_MODE=install; WS_OS=macOS; WS_UI=plain
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do ws_set ST "$n" feito; ws_set SD "$n" "d$n"; done; ws_set ST 1 ja; ws_set ST 6 falhou; ws_summary >/dev/null 2>&1; cat "$WS_RESUMO" )
+case "$o" in "Summary · "*"1     Git"*"✔ Already done"*"6     GitHub CLI (gh)"*"✖ Failed"*"1 step still to do: 6 (GitHub CLI (gh))."*) ok ;; *) ko "ui: summary.txt [$o]" ;; esac
+case "$o" in *$'\033'*) ko "ui: summary.txt com cores" ;; *) ok ;; esac
+# o resumo (fancy): cartao com "Summary", a tabela com os mesmos dados, as frases do fim e o summary.txt igual ao do plain
+o=$( WS_HOME="$UI/h/.workshop-claude"; WS_RESUMO="$WS_HOME/summary.txt"; WS_LOG=/dev/null; WS_MODE=install; WS_OS=macOS; WS_UI=fancy; WS_COLOR=0; WS_COLS=100
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11 12; do ws_set ST "$n" feito; ws_set SD "$n" "d$n"; done; ws_set ST 1 ja; ws_set ST 6 falhou; ws_set ST 11 aviso; WS_TODO_MCP=1; ws_summary 2>&1 )
+case "$o" in *"╭"*"Summary · "*"✔ 11 ready"*"▲ 1 with warnings"*"✖ 1 still to do"*"╰"*"1   Git"*"✔ Already done"*"d1"*"6   GitHub CLI"*"✖ Failed"*"d6"*"✖ 1 step still to do: 6 (GitHub CLI (gh))."*"→ After you fix it"*"▲ There is 1 warning above"*"→ To finish: open Claude Code"*"Summary saved to"*) ok ;; *) ko "ui fancy: resumo [$o]" ;; esac
+case "$(cat "$UI/h/.workshop-claude/summary.txt")" in "Summary · "*"6     GitHub CLI (gh)"*"✖ Failed"*) ok ;; *) ko "ui fancy: summary.txt igual ao do plain" ;; esac
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

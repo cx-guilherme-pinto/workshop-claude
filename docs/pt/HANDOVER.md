@@ -4,7 +4,7 @@
 
 Para a sessão do Claude que continua o trabalho na máquina da empresa, onde há Jira, Confluence e GitHub corporativo, mas não o Gitea de desenvolvimento. Escrito a 16 out. 2026, no fim da construção.
 
-Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-26: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
+Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-27: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
 
 ## Atualização, 17 out. 2026 (v1.0.0-rc.2)
 

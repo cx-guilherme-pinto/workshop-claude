@@ -41,7 +41,7 @@ Se o PowerShell bloquear o comando acima, descarrega o [setup-windows.ps1](https
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
 ```
 
-O setup fala inglês, em todas as máquinas. Faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Cada passo termina com um de quatro estados: ✅ Done (feito) · ⏭️ Already done (já estava feito) · ⚠️ Done with warning (feito com aviso) · ❌ Failed (falhou). Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
+O setup fala inglês, em todas as máquinas. Faz algumas perguntas (por exemplo, o login na Console, que abre o browser). Mostra uma linha por passo, com um spinner enquanto o passo corre, e um resumo no fim. Cada passo termina com um de quatro estados: ✔ Done (feito) · ✔ Already done (já estava feito) · ▲ Done with warning (feito com aviso) · ✖ Failed (falhou) (na janela antiga da consola do Windows: [OK] · [OK] · [!!] · [XX]). Quando algo falha, o setup diz porquê e o que fazer, com o comando exato.
 
 O setup também deteta a língua da máquina. Se ainda não tiveres a definição `language` do Claude Code, grava-a (português, inglês, hindi ou hebraico). As skills estão em inglês, mas respondem na tua língua. A Arena, o orquestrador e a statusline ficam em português numa máquina em português e em inglês nas restantes.
 

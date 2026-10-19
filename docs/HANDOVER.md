@@ -4,7 +4,7 @@
 
 For the Claude session that continues the work on the company machine, which has Jira, Confluence and corporate GitHub but not the development Gitea. Written on 16 Oct 2026, at the end of the build.
 
-Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-26: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
+Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-27: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
 
 ## Update, 17 Oct 2026 (v1.0.0-rc.2)
 

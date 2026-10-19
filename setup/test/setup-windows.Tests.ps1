@@ -264,10 +264,17 @@ Describe 'tabela de estados' {
   }
   It 'usa simbolos ASCII fora do Windows Terminal' {
     Get-WsSymbol 'feito' $false | Should -Be '[OK]'
-    Get-WsSymbol 'ja' $false | Should -Be '[SKIP]'
-    Get-WsSymbol 'aviso' $false | Should -Be '[WARN]'
-    Get-WsSymbol 'falhou' $false | Should -Be '[FAIL]'
-    (Get-WsSymbol 'feito' $true) | Should -Be ([char]::ConvertFromUtf32(0x2705))
+    Get-WsSymbol 'ja' $false | Should -Be '[OK]'
+    Get-WsSymbol 'aviso' $false | Should -Be '[!!]'
+    Get-WsSymbol 'falhou' $false | Should -Be '[XX]'
+    Get-WsSymbol 'naoexec' $false | Should -Be '[--]'
+    # No Windows Terminal: simbolos de uma coluna, nao emoji (sem o seletor 0xFE0F, que muda a largura)
+    (Get-WsSymbol 'feito' $true) | Should -BeExactly ([string][char]0x2714)
+    (Get-WsSymbol 'ja' $true) | Should -BeExactly ([string][char]0x2714)
+    (Get-WsSymbol 'aviso' $true) | Should -BeExactly ([string][char]0x25B2)
+    (Get-WsSymbol 'falhou' $true) | Should -BeExactly ([string][char]0x2716)
+    (Get-WsSymbol 'naoexec' $true) | Should -BeExactly ([string][char]0x25CB)
+    foreach ($st in @('feito', 'ja', 'aviso', 'falhou', 'falta', 'naoexec', 'saltado', 'ok')) { (Get-WsSymbol $st $true).Length | Should -Be 1 -Because $st }
   }
   It 'converte "nao instalado" em E-SETUP-01 no -Check' {
     Test-WsMissingCode 'E-NODE-01' | Should -BeTrue
@@ -790,7 +797,8 @@ Describe 'chaos G9-windows: Ctrl-C, programas pendurados e o .lock (F11)' {
     $r = Invoke-WsProcess (Join-Path $TestDrive 'nao-existe') @() -TimeoutSec 5
     $r.ExitCode | Should -Be -1
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
-    $text | Should -Match 'while \(-not \$p\.WaitForExit\(500\)\)'
+    $text | Should -Match 'while \(-not \$p\.WaitForExit\(\$tick\)\)'
+    $text | Should -Match '\$tick = 500\r?\n\s+if \(\$script:Live\.On\) \{ \$tick = 120 \}'
     $text | Should -Not -Match 'WaitForExit\(\$TimeoutSec \* 1000\)'
   }
   It 'um Ctrl-C (paragem do pipeline) chega a meio da espera, e o programa filho nao fica a correr' {
@@ -2358,7 +2366,7 @@ Describe 'chaos G6-lifecycle' {
     $main.IndexOf('Test-WsDirWritable $script:WsHome') | Should -BeLessThan $main.IndexOf('Enter-WsLock $lock')
     $main.IndexOf('setup.log.unwritable-') | Should -BeLessThan $main.IndexOf('Enter-WsLock $lock')
     $main.IndexOf('Enter-WsLock $lock') | Should -BeLessThan $main.IndexOf('(Update-WsSelf)')
-    $main.IndexOf('(Update-WsSelf)') | Should -BeLessThan $main.IndexOf("M 'titulo'")
+    $main.IndexOf('(Update-WsSelf)') | Should -BeLessThan $main.IndexOf('Write-WsHeader')
     $main | Should -Match "\`$script:Mode -ne 'uninstall' -and \(Update-WsSelf\)"
     $main | Should -Match 'Exit-WsLock \$lock'
     $text | Should -Not -Match 'The setup is already running \(PID'
@@ -3681,5 +3689,125 @@ Describe 'agent memory folder rules (a regra da app, src/memoria/config.py)' {
       $script:Msgs.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
       $pt.erros.$c.titulo | Should -Not -BeNullOrEmpty -Because $c
     }
+  }
+}
+
+Describe 'aspeto: cartao, lista de passos e spinner' {
+  BeforeEach {
+    $script:Raw = New-Object System.Collections.Generic.List[string]
+    $script:Out = New-Object System.Collections.Generic.List[string]
+    Mock Write-WsRaw { $script:Raw.Add($Text) }
+    $script:OutLine = ''
+    Mock Write-Host { if ($NoNewline) { $script:OutLine += [string]$Object } else { $script:Out.Add($script:OutLine + [string]$Object); $script:OutLine = '' } }
+    $script:Titles = @{}
+    foreach ($p in $script:Msgs.passos.PSObject.Properties) { $script:Titles[$p.Name] = $p.Value }
+    $script:T = New-WsStateTable
+    $script:Mode = 'install'; $script:Ui = 'fancy'; $script:UiCols = 100; $script:UiRows = 30; $script:Emoji = $true
+    $script:Live.On = $false; $script:Live.Step = ''
+  }
+  AfterEach { $script:Ui = 'plain'; $script:Live.On = $false; $script:Live.Step = ''; $script:Emoji = $false }
+
+  It 'escolhe o aspeto: fancy so com Unicode, a consola e 70 colunas; ascii na consola antiga; plain no resto' {
+    Get-WsUiMode $false 120 $false 'xterm-256color' $true | Should -Be 'fancy'
+    Get-WsUiMode $false 120 $false '' $false | Should -Be 'ascii'
+    Get-WsUiMode $true 120 $false '' $true | Should -Be 'plain' -Because 'saida redirecionada'
+    Get-WsUiMode $false 120 $true '' $true | Should -Be 'plain' -Because 'NO_COLOR'
+    Get-WsUiMode $false 120 $false 'dumb' $true | Should -Be 'plain' -Because 'TERM=dumb'
+    Get-WsUiMode $false 69 $false '' $true | Should -Be 'plain' -Because 'consola estreita'
+    Get-WsUiMode $false 0 $false '' $true | Should -Be 'plain' -Because 'largura desconhecida'
+  }
+  It 'o passo comeca com a zona viva (spinner, passos por fazer e "N of 12") e acaba com a linha do passo' {
+    $script:Cur = '4'
+    Start-WsLive '4'
+    $script:Live.On | Should -BeTrue
+    ($script:Raw -join '') | Should -Match '4 of 12'
+    ($script:Raw -join '') | Should -Match ([regex]::Escape((Get-WsStepName '5')))
+    Write-WsActivity (M 'a_descarregar' @{ O_QUE = 'node.zip' })
+    $script:Live.Text | Should -BeExactly 'Downloading node.zip'
+    $script:Live.On | Should -BeTrue
+    $script:T['4'].Estado = 'feito'; $script:T['4'].Detalhe = 'Node v24.22.0'
+    Write-WsResult '4'
+    $script:Live.On | Should -BeFalse
+    $script:Live.Step | Should -BeNullOrEmpty
+    $script:Raw[$script:Raw.Count - 1] | Should -Match ([regex]::Escape([string][char]27 + '[J')) -Because 'a zona viva sai da consola antes da linha do passo'
+    ($script:Out -join '') | Should -Match ([regex]::Escape([string][char]0x2714 + ' Node.js            Node v24.22.0'))
+  }
+  It 'para antes de cada pergunta e volta depois; a pergunta e a de sempre' {
+    Start-WsLive '6'
+    $script:AtAsk = $null
+    Mock Read-WsYesNoCore { $script:AtAsk = $script:Live.On; return $false }
+    Read-WsYesNo (M 's6_pergunta_login') $true | Should -BeFalse
+    $script:AtAsk | Should -BeFalse -Because 'o spinner nao pode estar na consola durante a pergunta'
+    $script:Live.On | Should -BeTrue -Because 'o passo continua'
+    Stop-WsLive
+    $script:Live.On | Should -BeFalse
+    ${function:Read-WsYesNoCore}.ToString() | Should -Not -BeNullOrEmpty
+    [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1')) | Should -Match "Read-Host \('  \? \{0\} \{1\}' -f \`$Question, \`$hint\)"
+  }
+  It 'uma linha a meio do passo tira a zona viva e volta a po-la' {
+    Start-WsLive '2'
+    $n = $script:Raw.Count
+    Write-WsSay 'linha'
+    $script:Live.On | Should -BeTrue
+    ($script:Raw | Select-Object -Skip $n) -join '' | Should -Match ([regex]::Escape([string][char]27 + '[J'))
+    $script:Out | Should -Contain 'linha'
+    Stop-WsLive
+  }
+  It 'no Ctrl-C (finally do Invoke-WsMain) a zona viva sai, e o login espera com o spinner' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $main = $text.Substring($text.IndexOf('function Invoke-WsMain'))
+    $main | Should -Match '\} finally \{\r?\n\s+# Ctrl-C[^\r\n]*\r?\n\s+Stop-WsLive'
+    $text | Should -Match 'while \(-not \$p\.WaitForExit\(120\)\) \{ Update-WsLive \}'
+    Start-WsLive '3'
+    try { try { throw 'Ctrl-C' } finally { Stop-WsLive } } catch { }
+    $script:Live.On | Should -BeFalse
+  }
+  It 'com a zona viva o Invoke-WsProcess faz andar o spinner e os MB vao para a linha dele (sem linhas novas)' {
+    if (-not (Test-Path -LiteralPath '/bin/sleep')) { Set-ItResult -Skipped -Because 'so em macOS/Linux'; return }
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $d = Join-Path $TestDrive 'dl'; New-Item -ItemType Directory -Path $d -Force | Out-Null
+    [IO.File]::WriteAllBytes((Join-Path $d 'a.bin'), (New-Object byte[] 2097152))
+    $script:Said = @()
+    Mock Write-WsSay { $script:Said += $Text }
+    Start-WsLive '2'
+    $n = $script:Raw.Count
+    $r = Invoke-WsProcess '/bin/sleep' @('1') -TimeoutSec 10 -WatchPaths @($TestDrive)
+    $r.ExitCode | Should -Be 0
+    ($script:Raw.Count - $n) | Should -BeGreaterThan 3 -Because 'o spinner anda enquanto espera'
+    $script:Said.Count | Should -Be 0 -Because 'sem a linha "Still downloading" no fancy'
+    Stop-WsLive
+  }
+  It 'no plain nada de zona viva nem sequencias VT' {
+    $script:Ui = 'plain'; $script:Emoji = $false
+    $script:Cur = '1'
+    Start-WsLive '1'
+    $script:Live.On | Should -BeFalse
+    Write-WsActivity (M 'a_instalar')
+    $script:T['1'].Estado = 'ja'; $script:T['1'].Detalhe = 'git 2.50.1'
+    Write-WsResult '1'
+    $script:Raw.Count | Should -Be 0
+    $script:Out | Should -Contain ('  ' + (M 'a_instalar'))
+    $script:Out | Should -Contain ('  [OK] ' + (M 'estado_ja') + ' - git 2.50.1')
+  }
+  It 'cartoes: Unicode no fancy, +--+ e [OK] [!!] [XX] no ascii; o resumo mantem "Summary" e o summary.txt' {
+    $script:Lang = 'en-US'; $script:OsText = 'Windows 10.0.22631 x64'; $script:Fill = @{ WORKSHOP_VERSION = 'v9' }
+    Write-WsHeader
+    ($script:Out -join "`n") | Should -Match ([regex]::Escape([string][char]0x256D))
+    ($script:Out -join "`n") | Should -Match 'Claude Workshop'
+    $script:Ui = 'ascii'; $script:Emoji = $false; $script:Out.Clear()
+    $script:WsHome = $TestDrive; $script:Resumo = Join-Path $TestDrive 'summary.txt'
+    foreach ($k in @($script:T.Keys)) { $script:T[$k].Estado = 'feito'; $script:T[$k].Detalhe = 'd' + $k }
+    $script:T['6'].Estado = 'falhou'; $script:T['11'].Estado = 'aviso'
+    Write-WsSummary | Should -Be 1
+    $all = $script:Out -join "`n"
+    $all | Should -Match '\+-{58,}\+'
+    $all | Should -Match 'Summary - '
+    $all | Should -Match '\[XX\] Failed\s+d6'
+    $all | Should -Match '\[!!\] '
+    $all | Should -Match ([regex]::Escape('[XX] 1 step still to do: 6 (GitHub CLI (gh)).'))
+    $all | Should -Not -Match ([regex]::Escape([string][char]27))
+    $txt = [IO.File]::ReadAllText($script:Resumo)
+    $txt | Should -Match '^Summary - '
+    $txt | Should -Match '6\s+GitHub CLI \(gh\)\s+\[XX\]\s+Failed\s+d6'
   }
 }

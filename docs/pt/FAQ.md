@@ -13,7 +13,7 @@ O script instala tudo no teu perfil e não precisa de admin. Corre `setup --doct
 Corre o script com `--check` (Windows: `-Check`). Demora 2 a 3 minutos, não instala nada e acaba com "Check complete: everything is ready for the workshop." (está tudo pronto) ou com a lista do que falta. O resumo fica em `~/.workshop-claude/summary.txt`, e podes mostrá-lo a quem te ajudar.
 
 **Posso correr o script duas vezes?**
-Sim. Ele deteta o que já está feito e salta esses passos (⏭️). Se falhou a meio, voltar a correr continua dali.
+Sim. Ele deteta o que já está feito e salta esses passos (✔ Already done). Se falhou a meio, voltar a correr continua dali.
 
 **O setup diz que já está a correr.**
 Outra janela está a corrê-lo, ou ele está em pausa nela (alguém carregou em Ctrl+Z e a janela mostra "suspended"). A mensagem diz qual dos dois. Espera que acabe, escreve `fg` e carrega em Enter na janela em pausa, ou fecha essa janela, e volta a correr o mesmo comando. Um setup que foi interrompido à força (por exemplo, quando o portátil se desligou) não bloqueia o seguinte.
