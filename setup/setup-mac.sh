@@ -2908,6 +2908,16 @@ ws_assemble() { # script destino marca ref [--node ...]
   [ -n "$bk" ] && ws_note "$(ws_msg s9_backup PASTA="$(ws_tilde "$bk")")"
   ws_registar projeto "$(basename "$dest")" "$dest"
 }
+# Os projetos do workshop ficam "trusted" no ~/.claude.json (D-34, install-user.mjs confiar), como se a pessoa
+# aceitasse o dialogo de confianca: sem isso um "claude -p" ignora as permissions.allow do projeto. Nao bloqueia: um
+# ~/.claude.json invalido (o passo 3 ja o trata) ou um kit antigo sem o "confiar" ficam so no log.
+ws_s9_trust() {
+  local out rc
+  ws_registar_flush
+  out=$("$WS_NODE" "$KIT_SRC/installer/install-user.mjs" confiar 2>>"$WS_STEP_LOG" </dev/null); rc=$?
+  ws_log "trust (exit $rc): $(printf '%s' "$out" | tr '\t\n' ' ;')"
+  return 0
+}
 ws_s9_install() {
   ws_set SF 9 ""
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
@@ -2928,6 +2938,7 @@ ws_s9_install() {
   if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
     ws_assemble assemble-missions.mjs "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD --language "${WS_LANG_KIT:-en}" --kit-dir "$WS_HOME/kit" || return 1
   fi
+  ws_s9_trust
   ws_s9_detail
   ws_s9_lang_check
   ws_s9_tests

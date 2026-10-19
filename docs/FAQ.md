@@ -43,6 +43,9 @@ The same login works for Confluence: `acli confluence space list` and `acli conf
 **The Agent Memory app does not open on Windows.**
 It needs Microsoft WebView2. The setup installs it if it is missing. If it still does not open, the app opens the same interface in your browser.
 
+**Why doesn't Claude Code ask whether I trust the workshop folders?**
+The setup marks the projects it creates (`~/workshop-claude/canivete-project`, `missions-project`, `practice-project` and, if you chose it, `demo-project`) as trusted in `~/.claude.json`, as if you had accepted the dialog. That way the permissions the kit gives in each project (`.claude/settings.json`) also work in `claude -p`, where there is no dialog. No other folder is touched, and `--uninstall` puts back what was there before.
+
 ## Costs
 
 **How much have I spent so far?**

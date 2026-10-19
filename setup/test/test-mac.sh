@@ -1970,5 +1970,26 @@ if [ -n "$NODE" ]; then
 fi
 grep -q -- '--cleanup  ' "$ROOT/setup/setup-mac.sh" && ok || ko "cleanup: --cleanup na ajuda"
 
+# --- passo 9: os projetos do workshop ficam "trusted" no ~/.claude.json (D-34, install-user.mjs confiar)
+if [ -n "$NODE" ]; then
+  TH="$WS_TMP/trust home"; mkdir -p "$TH/.claude" "$TH/.workshop-claude" "$TH/workshop-claude/canivete-project"
+  printf '{"hasCompletedOnboarding":true,"projects":{"/x":{"hasTrustDialogAccepted":false}}}' > "$TH/.claude/.claude.json"
+  (
+    export HOME="$TH" CLAUDE_CONFIG_DIR="$TH/.claude"
+    WS_HOME="$TH/.workshop-claude"; WS_NODE=$NODE; KIT_SRC=$ROOT; WS_STEP_LOG="$WS_TMP/s9trust.log"; WS_LOG="$WS_TMP/s9trust.log"
+    ws_registar projeto canivete-project "$TH/workshop-claude/canivete-project"
+    ws_s9_trust; echo "rc=$?"
+  ) > "$WS_TMP/s9trust.out" 2>&1
+  eq "$(cat "$WS_TMP/s9trust.out")" "rc=0" "s9 trust: nao bloqueia e nao escreve no ecra"
+  real=$(cd "$TH/workshop-claude/canivete-project" && pwd -P)
+  eq "$("$NODE" -e 'const j=require(process.argv[1]);console.log(j.projects[process.argv[2]]?.hasTrustDialogAccepted, j.projects["/x"].hasTrustDialogAccepted, j.hasCompletedOnboarding)' "$TH/.claude/.claude.json" "$real")" "true false true" "s9 trust: o projeto fica trusted, o resto fica igual"
+  grep -q "trust (exit 0): confiado" "$WS_TMP/s9trust.log" && ok || ko "s9 trust: fica no log"
+  # um ~/.claude.json invalido nao se toca e nao bloqueia
+  printf '{ nope' > "$TH/.claude/.claude.json"
+  ( export HOME="$TH" CLAUDE_CONFIG_DIR="$TH/.claude"; WS_HOME="$TH/.workshop-claude"; WS_NODE=$NODE; KIT_SRC=$ROOT; WS_STEP_LOG="$WS_TMP/s9trust2.log"; WS_LOG=/dev/null; ws_s9_trust; echo "rc=$?" ) > "$WS_TMP/s9trust.out" 2>&1
+  eq "$(cat "$WS_TMP/s9trust.out")|$(cat "$TH/.claude/.claude.json")" "rc=0|{ nope" "s9 trust: .claude.json invalido fica igual"
+fi
+sed -n '/^ws_s9_install() {/,/^}/p' "$ROOT/setup/setup-mac.sh" | grep -q '^  ws_s9_trust$' && ok || ko "s9 trust: o ws_s9_install chama o ws_s9_trust"
+
 printf '\n%s testes passaram, %s falharam.\n' "$PASS" "$FAIL"
 [ "$FAIL" = 0 ]

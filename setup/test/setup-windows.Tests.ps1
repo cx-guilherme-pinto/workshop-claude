@@ -4028,6 +4028,14 @@ Describe 'painel do workshop (passos 6 e 8, D-34) e projeto das missoes (passo 9
       $script:Msgs.ui.PSObject.Properties.Name | Should -Not -Contain 's8_painel_sala'
       $script:Msgs.ui.PSObject.Properties.Name | Should -Not -Contain 's8_painel_sala_repetir'
     }
+    It 'passo 9: os projetos ficam trusted no .claude.json (install-user.mjs confiar), sem bloquear' {
+      $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+      $text | Should -Match "(?s)function Set-WsProjectTrust \{.*?'confiar'.*?Write-WsLog"
+      $body = [regex]::Match($text, '(?s)function Install-WsStep9 \{.*?\n\}').Value
+      $body | Should -Match 'Set-WsProjectTrust'
+      $fn = [regex]::Match($text, '(?s)function Set-WsProjectTrust \{.*?\n\}').Value
+      $fn | Should -Not -Match 'return \$false|Set-WsFail'
+    }
   }
 
   It 'passo 9: Arena, treino e missoes, por esta ordem; as missoes so com o assemble-missions.mjs' {

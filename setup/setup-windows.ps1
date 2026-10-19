@@ -3989,6 +3989,17 @@ function Invoke-WsAssemble {
   return $true
 }
 
+# Os projetos do workshop ficam "trusted" no .claude.json (D-34, install-user.mjs confiar), como se a pessoa
+# aceitasse o dialogo de confianca: sem isso um "claude -p" ignora as permissions.allow do projeto. Nao bloqueia: um
+# .claude.json invalido (o passo 3 ja o trata) ou um kit antigo sem o "confiar" ficam so no log.
+function Set-WsProjectTrust {
+  Sync-WsExtras
+  $iu = Join-Path $script:KitSrc 'installer\install-user.mjs'
+  if (-not $script:NodeExe -or -not (Test-Path -LiteralPath $iu)) { return }
+  $r = Invoke-WsProcess $script:NodeExe @($iu, 'confiar')
+  Write-WsLog ("trust (exit {0}): {1}" -f $r.ExitCode, (($r.StdOut -replace "[`t`r`n]+", ' ').Trim()))
+}
+
 function Install-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   New-Item -ItemType Directory -Path $script:Proj -Force | Out-Null
@@ -4008,6 +4019,7 @@ function Install-WsStep9 {
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-missions.mjs')) {
     if (-not (Invoke-WsAssemble 'assemble-missions.mjs' (Join-Path $script:Proj $script:MissionsDir) '.missions-kit.json' 'HEAD' @('--language', $script:LangKit, '--kit-dir', (Join-Path $script:WsHome 'kit')))) { return $false }
   }
+  Set-WsProjectTrust
   Set-WsStep9Detail
   Add-WsStep9LangNote
   return (Test-WsAppTests)

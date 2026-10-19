@@ -4,13 +4,15 @@
 //   node installer/install-user.mjs instalar   --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
 //                                              [--no-proxy <lista>] [--substituir-statusline] [--versao <v>]
 //                                              [--lingua-maquina <etiqueta, ex.: pt-PT>]
-//                                              [--room A|B] [--projects-dir <dir>]
+//                                              [--projects-dir <dir>]
 //   node installer/install-user.mjs verificar  --node <node> [--kit-src <dir>] [--ca-pem <f>] [--https-proxy <url>]
 //                                              [--no-proxy <lista>] [--lingua-maquina <etiqueta>]
 //   node installer/install-user.mjs desinstalar
 //   node installer/install-user.mjs registar   --tipo <t> --nome <n> [--caminho <p>] [--valor <v>]
 //   node installer/install-user.mjs extras
 //   node installer/install-user.mjs limpar     [--dry-run] [--projects-dir <dir>]   (setup --cleanup / -Cleanup)
+//   node installer/install-user.mjs confiar    (setup, fim do passo 9: os projetos do manifest ficam "trusted" no
+//                                              ~/.claude.json, como se a pessoa aceitasse o dialogo; lib/trust.mjs)
 //
 // O que faz "instalar":
 //   - copia hooks/ orchestrator/ statusline/ telemetry/ missions/ pricing.json para ~/.workshop-claude/kit/
@@ -20,8 +22,7 @@
 //     --lingua-maquina, a "language" do Claude Code se nao houver nenhuma). Sem --https-proxy, o HTTPS_PROXY e o
 //     NO_PROXY que uma instalacao anterior gravou saem (o proxy do escritorio nao serve noutra rede)
 //   - com --lingua-maquina, escreve ~/.workshop-claude/kit/language.json (pt ou en: a lingua dos textos do kit)
-//   - escreve ~/.workshop-claude/telemetry/config.json (caderneta de missoes e painel, D-30 e D-34): sala (--room),
-//     pasta dos projetos (--projects-dir), codigo do workshop, painel, dominio dos emails e expiracao (WORKSHOP_CODE,
+//   - escreve ~/.workshop-claude/telemetry/config.json (caderneta de missoes e painel, D-30 e D-34): pasta dos projetos (--projects-dir), codigo do workshop, painel, dominio dos emails e expiracao (WORKSHOP_CODE,
 //     PANEL_URL, PANEL_EMAIL_DOMAIN e WORKSHOP_DATE do repos.conf) e o registo anterior (ctl.mjs register)
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
@@ -35,6 +36,7 @@ import { gitSync } from './lib/kit-repo.mjs';
 import { linguaMaquina } from './lib/languages.mjs';
 import { isMain as ehPrincipal } from './lib/is-main.mjs';
 import { LANGUAGE_FILE, storedLanguage } from '../hooks/lib/language.mjs';
+import { claudeJson, trustProjects, untrustProjects } from './lib/trust.mjs';
 import { paths as telemetryPaths, readConfig as readTelemetry, readId, writeJson } from '../telemetry/lib.mjs';
 import {
   checkSettings,
@@ -473,6 +475,30 @@ export function registar(flags, env = process.env) {
   return 0;
 }
 
+// "confiar" (D-34): os projetos do workshop que estao no manifest (o setup regista-os no passo 9) ficam "trusted" no
+// ~/.claude.json. Sem isso, um claude -p ignora as permissions.allow do projeto. O manifest guarda o valor de antes
+// (manifest.confianca), para o "desinstalar" o repor. Saida: confiado <chave> (so as que mudaram) · projetos <n> · erro <codigo>.
+export function confiar(flags, env = process.env) {
+  const P = userPaths(env);
+  const manifest = loadManifest(P);
+  const dirs = (manifest?.extras || []).filter((x) => x.tipo === 'projeto' && x.caminho && existsSync(x.caminho)).map((x) => x.caminho);
+  let changed;
+  try {
+    changed = trustProjects(claudeJson(P, env), dirs);
+  } catch (e) {
+    out('erro', e.code || 'claude_json');
+    return e.exit || 4;
+  }
+  if (manifest && changed.length) {
+    const known = new Set((manifest.confianca || []).map((c) => c.key));
+    manifest.confianca = [...(manifest.confianca || []), ...changed.filter((c) => !known.has(c.key))];
+    saveManifest(P, manifest);
+  }
+  for (const c of changed) out('confiado', c.key);
+  out('projetos', dirs.length);
+  return 0;
+}
+
 export function extras(flags, env = process.env) {
   const m = loadManifest(userPaths(env));
   for (const x of m?.extras || []) {
@@ -539,6 +565,8 @@ export function desinstalar(flags, env = process.env) {
   // A caderneta de missoes e a fila do painel (o id anonimo incluido): nada fica para tras.
   rmSync(join(P.wsDir, 'telemetry'), { recursive: true, force: true });
   out('removido', 'telemetry');
+  // a confianca que o "confiar" deu aos projetos volta ao que era (lib/trust.mjs)
+  if (manifest.confianca?.length) out('confianca_reposta', untrustProjects(claudeJson(P, env), manifest.confianca));
   for (const x of manifest.extras || []) {
     if (x.tipo !== 'projeto' || !x.caminho || !existsSync(x.caminho)) continue;
     if (projetoIntacto(x.caminho)) {
@@ -696,7 +724,7 @@ export function limpar(flags, env = process.env) {
   return falhou ? 4 : 0;
 }
 
-const CMDS = { instalar, verificar, desinstalar, registar, extras, limpar };
+const CMDS = { instalar, verificar, desinstalar, registar, extras, limpar, confiar };
 
 const isMain = ehPrincipal(import.meta.url);
 if (isMain) {

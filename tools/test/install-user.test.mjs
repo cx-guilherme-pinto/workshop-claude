@@ -12,12 +12,13 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { basename, join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -661,6 +662,54 @@ test('workshop v2: limpar respeita AGENT_MEMORY_HOME e funciona sem manifest', (
     assert.ok(!existsSync(join(home, 'workshop-claude', 'missions-project')));
     assert.match(r.stdout, /^backup\t.*missions-project\t.*\/projects\/missions-project\tprojeto$/m, 'a folder without the kit commit is never deleted');
     assert.ok(!existsSync(join(home, '.workshop-claude', 'manifest.json')), 'no manifest is created');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('workshop v2: confiar marca os projetos do manifest como trusted no ~/.claude.json, sem tocar no resto; o desinstalar repoe', () => {
+  const base = mkdtempSync(join(tmpdir(), 'ws-iu-trust-'));
+  const home = join(base, 'João Silva');
+  const kit = fakeKit(base);
+  const cfgDir = join(home, '.claude');
+  const cj = join(cfgDir, '.claude.json');
+  const projs = ['canivete-project', 'missions-project', 'practice-project'].map((n) => join(home, 'workshop-claude', n));
+  const real = (p) => realpathSync(p).replace(/\\/g, '/');
+  try {
+    assert.equal(run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]).status, 0);
+    for (const p of projs) {
+      mkdirSync(p, { recursive: true });
+      assert.equal(run(home, ['registar', '--tipo', 'projeto', '--nome', basename(p), '--caminho', p]).status, 0);
+    }
+    // a project the person had refused, another of their own, and the other keys of the file
+    const before = { hasCompletedOnboarding: true, mcpServers: { x: { command: 'y' } }, projects: { [real(projs[1])]: { hasTrustDialogAccepted: false, allowedTools: ['a'] }, '/elsewhere': { hasTrustDialogAccepted: false } } };
+    writeFileSync(cj, JSON.stringify(before));
+    let r = run(home, ['confiar']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(r.get('projetos'), ['3']);
+    assert.equal(r.get('confiado').length, 3);
+    let j = JSON.parse(readFileSync(cj, 'utf8'));
+    for (const p of projs) assert.equal(j.projects[real(p)].hasTrustDialogAccepted, true, p);
+    assert.deepEqual(j.projects[real(projs[1])].allowedTools, ['a'], 'the other fields of a project stay');
+    assert.deepEqual([j.hasCompletedOnboarding, j.mcpServers, j.projects['/elsewhere'].hasTrustDialogAccepted], [true, { x: { command: 'y' } }, false]);
+    // again: nothing changes
+    r = run(home, ['confiar']);
+    assert.deepEqual(r.get('confiado'), []);
+    // uninstall puts back what was there before
+    r = run(home, ['desinstalar']);
+    assert.equal(r.status, 0, r.stderr);
+    j = JSON.parse(readFileSync(cj, 'utf8'));
+    assert.equal(j.projects[real(projs[1])].hasTrustDialogAccepted, false, 'refused before the kit: refused again');
+    assert.equal('hasTrustDialogAccepted' in (j.projects[real(projs[2])] || {}), false);
+    assert.equal(j.mcpServers.x.command, 'y');
+    // an invalid ~/.claude.json is never touched
+    writeFileSync(cj, '{ "projects": ,');
+    assert.equal(run(home, ['instalar', '--node', process.execPath, '--kit-src', kit]).status, 0);
+    assert.equal(run(home, ['registar', '--tipo', 'projeto', '--nome', 'p', '--caminho', projs[0]]).status, 0);
+    r = run(home, ['confiar']);
+    assert.equal(r.status, 3);
+    assert.deepEqual(r.get('erro'), ['claude_json_invalid']);
+    assert.equal(readFileSync(cj, 'utf8'), '{ "projects": ,');
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
