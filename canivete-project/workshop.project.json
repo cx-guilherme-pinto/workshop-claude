@@ -22,6 +22,7 @@
     "test": "tools/{id}/tool.test.js",
     "file": "tools/{id}/tool.js"
   },
+  "contract": "tools/CONTRACT.md",
   "my_item": {
     "example": "specs/my-tool.example.json",
     "file": "specs/my-tool.json",

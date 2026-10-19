@@ -61,6 +61,10 @@ for (const l of ['pt', 'en']) {
       assert.ok(existsSync(join(dest, 'tools', 'workshop', 'orchestrator', 'lib', 'telemetry.mjs')));
       const s = JSON.parse(readFileSync(join(dest, '.claude', 'settings.json'), 'utf8'));
       assert.ok(s.permissions.deny.includes('Edit(tools/*/spec.md)') && s.permissions.deny.includes('Edit(tools/*/tool.test.js)'));
+      // the demo agents name the Pocketknife's contract and files, never the Arena's cards (installer/lib/project-agents.mjs)
+      const worker = readFileSync(join(dest, '.claude', 'agents', 'worker.md'), 'utf8');
+      assert.ok(worker.includes('tools/CONTRACT.md') && worker.includes('tools/<id>/tool.js'), 'worker.md names the Pocketknife files');
+      for (const a of readdirSync(join(dest, '.claude', 'agents'))) assert.doesNotMatch(readFileSync(join(dest, '.claude', 'agents', a), 'utf8'), /Arena|card|\{\{/i, a);
       assert.equal(spawnSync('git', ['-C', dest, 'tag'], { encoding: 'utf8' }).stdout.trim(), 'canivete-start');
       assert.equal((await montar({ dest, lingua: l, node: process.execPath })).status, 'already_there');
     } finally {

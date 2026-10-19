@@ -14,7 +14,7 @@ You extract useful memories from a finished task and save them with the `memory_
 1. Read the file indicated in the task (usually `.workshop/memory-summary.md`).
 2. With `memory_search` (with `project` and, if there is one, `task`), check whether the same memory already exists. Do not duplicate.
 3. Save, with short texts:
-   - 1 to 3 `lesson` memories: what this task taught, concrete and reusable, for example "Cards with hash logic failed 2× on Haiku: give the call example in the spec";
+   - 1 to 3 `lesson` memories: what this task taught, concrete and reusable, for example "Tasks with hash logic failed 2× on Haiku: give the call example in the spec";
    - 1 to 3 `do`: practices that worked;
    - 0 to 3 `dont`: mistakes to avoid next time. Only real ones, never invented;
    - exactly 1 `history`: what was done, when, with what result, duration and cost. Pass `cost_usd` with the value from the summary.

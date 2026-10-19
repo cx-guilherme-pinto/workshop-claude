@@ -6,7 +6,8 @@
 //   - copies the kit engine (hooks/, orchestrator/, statusline/, pricing.json) to tools/workshop/, without the kit's
 //     own tests and without the user-level telemetry hook;
 //   - copies the demo skills (generic: they read workshop.project.json), the shared skills (not /missions, which is
-//     installed for the user) and the demo agents to .claude/;
+//     installed for the user) and the demo agents to .claude/, the agents with the names of workshop.project.json
+//     filled in (lib/project-agents.mjs: tools/CONTRACT.md, tools/<id>/tool.js);
 //   - writes .claude/settings.json with absolute paths (node, hooks, statusline) and the permissions of the swarm;
 //   - git init with the kit's isolated git (lib/kit-repo.mjs), a first commit and the tag canivete-start.
 //
@@ -22,6 +23,7 @@ import { isMain } from './lib/is-main.mjs';
 import { clearForAssembly, initKitRepo, isIncomplete, kitGit, writeIncompleteMark } from './lib/kit-repo.mjs';
 import { lingua, normalizar, LANGUAGE_FILE } from '../hooks/lib/language.mjs';
 import { ENGINE, kitVersion } from './assemble-demo.mjs';
+import { copyDemoAgents } from './lib/project-agents.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const CANIVETE_DIR = 'canivete-project';
@@ -137,7 +139,7 @@ export async function montar(o) {
   const skills = join(o.dest, '.claude', 'skills');
   copy(join(KIT, 'skills-demo'), skills);
   copy(join(KIT, 'skills-shared'), skills, { without: [resolve(KIT, 'skills-shared', 'missions')] });
-  copy(join(KIT, 'agents', 'demo'), join(o.dest, '.claude', 'agents'));
+  copyDemoAgents(join(KIT, 'agents', 'demo'), o.dest);
   writeFileSync(join(o.dest, '.claude', 'settings.json'), JSON.stringify(settingsCanivete(o.dest, o.node), null, 2) + '\n');
   mkdirSync(join(o.dest, '.workshop'), { recursive: true });
   writeFileSync(join(o.dest, '.gitignore'), '.workshop/\nnode_modules/\n.DS_Store\n');
