@@ -49,6 +49,13 @@ test('respeita dependências e o máximo em paralelo', async () => {
   assert.equal(estado(p.dir, 'c').estado, 'verde');
 });
 
+test('as chamadas do lote correm em primeiro plano (run_in_background false), para o lote acabar no mesmo turno', async () => {
+  const p = projeto([{ id: 'a', teste: FALHA }, { id: 'b', teste: FALHA }]);
+  const r = await proximaOnda({ projeto: p.dir, plano: p.plano });
+  assert.equal(r.chamadas.length, 2);
+  for (const ch of r.chamadas) assert.equal(ch.run_in_background, false);
+});
+
 test('repete com o erro e escala para Sonnet na última tentativa', async () => {
   const p = projeto([{ id: 'x', teste: FALHA }]);
   await proximaOnda({ projeto: p.dir, plano: p.plano }); // tentativa 1

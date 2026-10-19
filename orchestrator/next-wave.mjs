@@ -43,7 +43,7 @@ const TEXTOS = {
     progresso: 'Progresso:',
     lote: (n, ondas, k) => `STATE: BATCH ${n} · onda ${ondas} · ${k} agente(s)`,
     cabecalho: ['| agente | tarefa | tipo |', '|---|---|---|'],
-    lanca: 'Lança AGORA estas chamadas, todas na MESMA mensagem, cada uma com a ferramenta Agent e os campos exatamente como estão (subagent_type, description, prompt e, se existir, isolation):',
+    lanca: 'Lança AGORA estas chamadas, todas na MESMA mensagem, cada uma com a ferramenta Agent e os campos exatamente como estão (subagent_type, description, prompt, run_in_background e, se existir, isolation):',
     bloqueado: 'STATE: BLOCKED — há tarefas por terminar mas nenhuma está pronta (dependências falhadas?).',
     fim: (v, f, dur, custo) => `STATE: DONE · ${v} verdes, ${f} falhadas · duração ${dur} · custo ${custo}`,
     semTarefas: 'O plano não tem tarefas: volta a planear (/demo-plan ou /task-plan).',
@@ -62,7 +62,7 @@ const TEXTOS = {
     progresso: 'Progress:',
     lote: (n, ondas, k) => `STATE: BATCH ${n} · wave ${ondas} · ${k} agent(s)`,
     cabecalho: ['| agent | task | type |', '|---|---|---|'],
-    lanca: 'Launch these calls NOW, all in the SAME message, each one with the Agent tool and the fields exactly as they are (subagent_type, description, prompt and, if present, isolation):',
+    lanca: 'Launch these calls NOW, all in the SAME message, each one with the Agent tool and the fields exactly as they are (subagent_type, description, prompt, run_in_background and, if present, isolation):',
     bloqueado: 'STATE: BLOCKED — some tasks are not finished but none is ready (failed dependencies?).',
     fim: (v, f, dur, custo) => `STATE: DONE · ${v} green, ${f} failed · duration ${dur} · cost ${custo}`,
     semTarefas: 'The plan has no tasks: plan again (/demo-plan or /task-plan).',
@@ -270,7 +270,10 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry 
     if (t.preparar) spawnSync(t.preparar[0] === 'node' ? process.execPath : t.preparar[0], t.preparar.slice(1), { cwd: projeto, stdio: 'ignore', shell: t.preparar[0] !== 'node' });
     const modelo = plano.agentes?.[tipo]?.modelo || null;
     gravarEstado(c, { ...st, tarefa: t.id, estado: 'em_curso', tentativa, agente, agent_type: tipo, modelo, onda: ondaDe(t), lote: run.lote, inicio: new Date().toISOString(), fim: null });
-    const chamada = { subagent_type: tipo, description: `${agente} · ${t.id}`, prompt: prompt(t, st, agente, tentativa, plano, l) };
+    // run_in_background false: the whole batch ends in the same turn. A background agent ends the turn, and the next
+    // next-wave then runs in a turn started by its notification, where Claude Code asks for approval of the command
+    // even with the allow rule (headless it is refused: seen in the first real run of the Pocketknife, 19 Oct 2026).
+    const chamada = { subagent_type: tipo, description: `${agente} · ${t.id}`, prompt: prompt(t, st, agente, tentativa, plano, l), run_in_background: false };
     if (cfg.worktrees && !['integracao', 'revisao'].includes(t.grupo_tipo)) chamada.isolation = 'worktree';
     chamadas.push(chamada);
   }

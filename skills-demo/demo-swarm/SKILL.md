@@ -29,7 +29,7 @@ The script decides the graph, not you. Your job is to launch exactly what it ask
 
 1. Run the command. If `ERROR: plan not found` appears, tell the participant to run `/demo-plan` and stop. If another `ERROR: …` appears, show it as it is and stop.
 2. Show the participant the previous batch's result table (the `## …` heading), if it exists, and the progress line, exactly as they came.
-3. If `STATE: BATCH` appears, read the JSON between `<<<CALLS` and `CALLS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description` and `prompt` **exactly** as they are.
+3. If `STATE: BATCH` appears, read the JSON between `<<<CALLS` and `CALLS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description`, `prompt` and `run_in_background` **exactly** as they are. `run_in_background` is `false`: wait for every agent of the batch in this same turn, never in the background.
    - Do not change the prompts.
    - Do not merge or split calls.
    - Do not read the agents' files.

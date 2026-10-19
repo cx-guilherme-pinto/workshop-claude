@@ -109,4 +109,4 @@ fi
 echo
 echo "Done. In repos.conf: PANEL_URL=$API  PANEL_PAGE_URL=${PAGE:-https://$PROJECT.pages.dev}"
 echo "Then: node tools/render.mjs, build the release again, and redeploy the Worker if PANEL_PAGE_URL changed (CORS)."
-echo "Presenter: <page>/?room=A#admin=<token> (the token stays in the browser, never in the address sent to the server)."
+echo "Presenter: <page>/#admin=<token> (the token stays in the browser, never in the address sent to the server)."

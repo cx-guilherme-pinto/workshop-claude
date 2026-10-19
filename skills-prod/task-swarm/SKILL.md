@@ -23,7 +23,7 @@ The script decides the graph and the batches. Your job is to launch exactly what
 
 1. Run `node "{{KIT_DIR}}/orchestrator/next-wave.mjs" --plan .workshop/plan.json`. If `ERROR: plan not found` appears, tell the user to run `/task-plan` and stop.
 2. Show the previous batch's result table (the `## …` heading), if it exists, and the progress line.
-3. If `STATE: BATCH` appears, read the JSON between `<<<CALLS` and `CALLS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description`, `prompt` and, if present, `isolation`, **exactly** as they are.
+3. If `STATE: BATCH` appears, read the JSON between `<<<CALLS` and `CALLS>>>`. In a **single message**, make one call to the `Agent` tool per object, with `subagent_type`, `description`, `prompt`, `run_in_background` and, if present, `isolation`, **exactly** as they are. `run_in_background` is `false`: wait for every agent of the batch in this same turn, never in the background.
 4. When all of them have answered, go back to step 1. Do not summarise their answers.
 
 **If `STATE: BLOCKED` appears**, show which tasks failed (the table has the test excerpt) and suggest:
