@@ -12,6 +12,43 @@
   ],
   "tools": [
     {
+      "id": "tx-01",
+      "category": "text",
+      "template": "text",
+      "title": "Contar palavras e tempo de leitura",
+      "concept": "Conta as palavras e os caracteres de um texto e estima quantos minutos demora a lê-lo.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Texto" },
+        { "name": "words_per_minute", "type": "integer", "label": "Palavras por minuto", "default": "200", "min": 1, "max": 1000 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "words", "label": "Palavras" },
+          { "name": "characters", "label": "Caracteres (sem espaços)" },
+          { "name": "reading_minutes", "label": "Tempo de leitura (min)" }
+        ]
+      },
+      "rules": [
+        "Uma palavra é uma sequência de letras (com ou sem acento) e algarismos. Um hífen (-) ou um apóstrofo (' ou ’) entre duas letras ou algarismos não separa: «guarda-chuva» e «d’água» são 1 palavra cada. A pontuação sozinha («—», «...») não é palavra.",
+        "Os números contam como palavras: «Em 2024 li 12 livros.» tem 5 palavras.",
+        "characters conta todos os caracteres que não são espaços, tabulações nem quebras de linha (a pontuação conta).",
+        "reading_minutes = palavras ÷ palavras por minuto, arredondado para cima a minutos inteiros (Math.ceil): 1 palavra dá 1 minuto e um texto sem palavras dá 0.",
+        "Sem palavras por minuto preenchidas, usa 200."
+      ],
+      "examples": [
+        { "in": { "text": "Olá mundo" }, "out": { "words": 2, "characters": 8, "reading_minutes": 1 } },
+        { "in": { "text": "O guarda-chuva ficou no café — outra vez.", "words_per_minute": "200" }, "out": { "words": 7, "characters": 34, "reading_minutes": 1 } },
+        { "in": { "text": "Primeira linha.\n\n  Segunda   linha, com d’água.  " }, "out": { "words": 6, "characters": 37, "reading_minutes": 1 } },
+        { "in": { "text": "Em 2024 li 12 livros.", "words_per_minute": "2" }, "out": { "words": 5, "characters": 17, "reading_minutes": 3 } },
+        { "in": { "text": "— ... —" }, "out": { "words": 0, "characters": 5, "reading_minutes": 0 } }
+      ],
+      "errors": [
+        { "in": { "text": "   " }, "error": "Falta preencher: Texto." },
+        { "in": { "text": "olá", "words_per_minute": "0" }, "error": "Palavras por minuto: o mínimo é 1." }
+      ]
+    },
+    {
       "id": "tx-02",
       "category": "text",
       "template": "text",
@@ -40,6 +77,84 @@
           ],
           "obvious": ["A Casa De Papel", "O Senhor Dos Anéis", "Cidade E Serra"]
         }
+      ]
+    },
+    {
+      "id": "tx-03",
+      "category": "text",
+      "template": "text",
+      "title": "Slug para URL",
+      "concept": "Transforma um título num slug para usar num endereço web: minúsculas, sem acentos e com hífenes.",
+      "inputs": [{ "name": "text", "type": "text", "label": "Texto" }],
+      "output": { "type": "text", "label": "Slug" },
+      "rules": [
+        "Tira os acentos e o cedilha: decompõe o texto (normalize('NFD')) e remove os sinais diacríticos (U+0300 a U+036F). «Ação» fica «Acao».",
+        "Passa tudo a minúsculas.",
+        "Cada sequência de caracteres que não são a-z nem 0-9 passa a um só hífen: espaços, pontuação, _, &, €, e também letras que não se decompõem, como ß ou ø.",
+        "Tira os hífenes do início e do fim.",
+        "Se não sobrar nenhuma letra nem algarismo, devolve o erro da tabela."
+      ],
+      "examples": [
+        { "in": { "text": "Olá Mundo!" }, "out": "ola-mundo" },
+        { "in": { "text": "  Preço: 10 € — só hoje  " }, "out": "preco-10-so-hoje" },
+        { "in": { "text": "Ação & Reação_2024" }, "out": "acao-reacao-2024" },
+        { "in": { "text": "já---está" }, "out": "ja-esta" },
+        { "in": { "text": "Lisboa 2025: Guia Rápido" }, "out": "lisboa-2025-guia-rapido" }
+      ],
+      "errors": [
+        { "in": { "text": "!!! ???" }, "error": "O texto não tem letras nem números para o slug." },
+        { "in": { "text": "   " }, "error": "Falta preencher: Texto." }
+      ]
+    },
+    {
+      "id": "tx-04",
+      "category": "text",
+      "template": "text",
+      "title": "Remover acentos",
+      "concept": "Tira os acentos e o cedilha de um texto e deixa tudo o resto como está.",
+      "inputs": [{ "name": "text", "type": "multiline", "label": "Texto" }],
+      "output": { "type": "text", "label": "Texto sem acentos" },
+      "rules": [
+        "Tira os sinais diacríticos das letras: á, à, â, ã → a; é, ê → e; ç → c; ñ → n; ü → u; e o mesmo nas maiúsculas (É → E, Ç → C). Uma forma: normalize('NFD'), remover os caracteres U+0300 a U+036F e normalize('NFC').",
+        "Letras que não são uma letra base com acento, como ß, ø, æ ou œ, ficam iguais.",
+        "Tudo o resto fica exatamente como está: maiúsculas e minúsculas, espaços (também no início e no fim), quebras de linha, pontuação e algarismos."
+      ],
+      "examples": [
+        { "in": { "text": "Coração de São João" }, "out": "Coracao de Sao Joao" },
+        { "in": { "text": "ÉVORA, ÁGUEDA e Ílhavo" }, "out": "EVORA, AGUEDA e Ilhavo" },
+        { "in": { "text": "Crème brûlée e piñata" }, "out": "Creme brulee e pinata" },
+        { "in": { "text": "linha 1: à\nlinha 2: ü" }, "out": "linha 1: a\nlinha 2: u" },
+        { "in": { "text": "  Straße, Ørsted, pé  " }, "out": "  Straße, Ørsted, pe  " }
+      ],
+      "errors": [{ "in": { "text": "" }, "error": "Falta preencher: Texto." }]
+    },
+    {
+      "id": "tx-05",
+      "category": "text",
+      "template": "text",
+      "title": "Contar ocorrências de uma palavra",
+      "concept": "Conta quantas vezes uma palavra aparece num texto, só como palavra inteira.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Texto" },
+        { "name": "word", "type": "text", "label": "Palavra" }
+      ],
+      "output": { "type": "number", "label": "Ocorrências" },
+      "rules": [
+        "As palavras do texto são as sequências de letras (com ou sem acento) e algarismos. Tudo o resto separa palavras, incluindo espaços, pontuação, hífenes e apóstrofos: «guarda-chuva» tem as palavras «guarda» e «chuva».",
+        "Só conta palavras inteiras: «mar» não conta em «amar» nem em «maré».",
+        "Não distingue maiúsculas de minúsculas («Mar», «MAR» e «mar» são a mesma), mas distingue acentos: «café» e «cafe» são palavras diferentes.",
+        "A palavra procurada (sem os espaços do início e do fim) tem de ser uma só palavra, só com letras e algarismos; se não for, devolve o erro da tabela."
+      ],
+      "examples": [
+        { "in": { "text": "O mar, o MAR e o Mar.", "word": "mar" }, "out": 3 },
+        { "in": { "text": "Amar o mar na maré cheia", "word": "mar" }, "out": 1 },
+        { "in": { "text": "O guarda-chuva e a chuva", "word": "chuva" }, "out": 2 },
+        { "in": { "text": "Café com café, não cafe.", "word": "café" }, "out": 2 },
+        { "in": { "text": "Nada aqui", "word": "mar" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "text": "O mar e a serra", "word": "mar e" }, "error": "Escreve só uma palavra, sem espaços nem pontuação." },
+        { "in": { "text": "", "word": "mar" }, "error": "Falta preencher: Texto." }
       ]
     },
     {
@@ -72,6 +187,35 @@
       "errors": [
         { "in": { "x": "0", "y": "10" }, "error": "X não pode ser 0." },
         { "in": { "x": "dez", "y": "10" }, "error": "X: escreve um número." }
+      ]
+    },
+    {
+      "id": "nm-02",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Regra de três simples",
+      "concept": "Se A corresponde a B, a quanto corresponde C? A regra de três das proporções diretas.",
+      "inputs": [
+        { "name": "a", "type": "number", "label": "A" },
+        { "name": "b", "type": "number", "label": "B" },
+        { "name": "c", "type": "number", "label": "C" }
+      ],
+      "output": { "type": "number", "label": "X (corresponde a C)" },
+      "rules": [
+        "X = B × C ÷ A (proporção direta: A está para B como C está para X).",
+        "Arredonda X a 2 casas decimais (Math.round(v × 100) / 100 serve).",
+        "A, B e C podem ser negativos ou ter casas decimais; só A não pode ser 0."
+      ],
+      "examples": [
+        { "in": { "a": "3", "b": "4,5", "c": "5" }, "out": 7.5 },
+        { "in": { "a": "2", "b": "10", "c": "5" }, "out": 25 },
+        { "in": { "a": "7", "b": "10", "c": "3" }, "out": 4.29 },
+        { "in": { "a": "0,5", "b": "2", "c": "3" }, "out": 12 },
+        { "in": { "a": "4", "b": "-2", "c": "6" }, "out": -3 }
+      ],
+      "errors": [
+        { "in": { "a": "0", "b": "1", "c": "2" }, "error": "A não pode ser 0." },
+        { "in": { "a": "2", "b": "dez", "c": "2" }, "error": "B: escreve um número." }
       ]
     },
     {
@@ -111,6 +255,226 @@
           ],
           "obvious": [1, 2.67, 1]
         }
+      ]
+    },
+    {
+      "id": "nm-04",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Média e mediana de uma lista",
+      "concept": "Calcula a média e a mediana de uma lista de números.",
+      "inputs": [{ "name": "numbers", "type": "multiline", "label": "Números" }],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "count", "label": "Quantidade" },
+          { "name": "mean", "label": "Média" },
+          { "name": "median", "label": "Mediana" }
+        ]
+      },
+      "rules": [
+        "Os números separam-se por ponto e vírgula (;), espaços ou quebras de linha. A vírgula é a vírgula decimal («1,5» é um e meio); também se aceita o ponto («1.5»). Não há separador de milhares.",
+        "Cada número pode ter sinal (-5, +3). Um item que não é um número dá o erro «<item>» não é um número., com o item tal como foi escrito (o primeiro que falhar).",
+        "count é quantos números há.",
+        "mean é a soma ÷ count. median é o número do meio depois de os ordenar do menor para o maior; com uma quantidade par, é a média dos dois do meio.",
+        "mean e median arredondam a 2 casas decimais (Math.round(v × 100) / 100 serve)."
+      ],
+      "examples": [
+        { "in": { "numbers": "2; 4; 9" }, "out": { "count": 3, "mean": 5, "median": 4 } },
+        { "in": { "numbers": "1 2 3 4" }, "out": { "count": 4, "mean": 2.5, "median": 2.5 } },
+        { "in": { "numbers": "10\n1,5\n7\n2\n3" }, "out": { "count": 5, "mean": 4.7, "median": 3 } },
+        { "in": { "numbers": "7" }, "out": { "count": 1, "mean": 7, "median": 7 } },
+        { "in": { "numbers": "1; 2; 2" }, "out": { "count": 3, "mean": 1.67, "median": 2 } },
+        { "in": { "numbers": "-5; 5; 1" }, "out": { "count": 3, "mean": 0.33, "median": 1 } }
+      ],
+      "errors": [
+        { "in": { "numbers": "1; abc; 3" }, "error": "«abc» não é um número." },
+        { "in": { "numbers": "  " }, "error": "Falta preencher: Números." }
+      ]
+    },
+    {
+      "id": "nm-05",
+      "category": "numbers",
+      "template": "convert",
+      "title": "Numeração romana ↔ árabe",
+      "concept": "Converte números árabes (1, 2, 3…) em numeração romana (I, II, III…) e ao contrário.",
+      "inputs": [
+        { "name": "value", "type": "text", "label": "Número" },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "to_roman", "options": [{ "value": "to_roman", "label": "Árabe → romana" }, { "value": "to_arabic", "label": "Romana → árabe" }] }
+      ],
+      "output": { "type": "text", "label": "Resultado" },
+      "rules": [
+        "direction to_roman: value tem de ter só algarismos e ser um número inteiro de 1 a 3999 (sem sinal nem casas decimais); se não for, devolve o erro da tabela.",
+        "A numeração romana escreve-se na forma padrão, em maiúsculas, do maior para o menor valor: M = 1000, CM = 900, D = 500, CD = 400, C = 100, XC = 90, L = 50, XL = 40, X = 10, IX = 9, V = 5, IV = 4, I = 1 (4 é IV, nunca IIII).",
+        "direction to_arabic: aceita maiúsculas ou minúsculas («xiv» = «XIV») e devolve o número como texto («14»).",
+        "Só é válido um numeral na forma padrão, a que to_roman escreveria para esse número (1 a 3999). «IIII», «IC», «VX», «MMMM» ou letras que não são I, V, X, L, C, D, M dão o erro «<value>» não é um numeral romano válido., com value tal como foi escrito.",
+        "A saída é sempre um texto."
+      ],
+      "examples": [
+        { "in": { "value": "2024", "direction": "to_roman" }, "out": "MMXXIV" },
+        { "in": { "value": "1994", "direction": "to_roman" }, "out": "MCMXCIV" },
+        { "in": { "value": "4", "direction": "to_roman" }, "out": "IV" },
+        { "in": { "value": "xiv", "direction": "to_arabic" }, "out": "14" },
+        { "in": { "value": "MMMCMXCIX", "direction": "to_arabic" }, "out": "3999" }
+      ],
+      "errors": [
+        { "in": { "value": "4000", "direction": "to_roman" }, "error": "Para numeração romana, escreve um número inteiro de 1 a 3999." },
+        { "in": { "value": "IIII", "direction": "to_arabic" }, "error": "«IIII» não é um numeral romano válido." },
+        { "in": { "value": "", "direction": "to_roman" }, "error": "Falta preencher: Número." }
+      ]
+    },
+    {
+      "id": "dt-01",
+      "category": "dates",
+      "template": "calc",
+      "title": "Dias entre duas datas",
+      "concept": "Quantos dias vão de uma data a outra.",
+      "inputs": [
+        { "name": "start", "type": "date", "label": "Data inicial" },
+        { "name": "end", "type": "date", "label": "Data final" }
+      ],
+      "output": { "type": "number", "label": "Dias" },
+      "rules": [
+        "Devolve end − start em dias: de 2024-01-01 a 2024-01-02 é 1, e a mesma data dá 0.",
+        "Se end for antes de start, o resultado é negativo.",
+        "Conta com os anos bissextos (fevereiro de 2024 tem 29 dias). São datas de calendário, sem horas nem fusos: calcular em UTC (Date.UTC) evita os erros da hora de verão."
+      ],
+      "examples": [
+        { "in": { "start": "2024-01-01", "end": "2024-12-31" }, "out": 365 },
+        { "in": { "start": "2023-01-01", "end": "2024-01-01" }, "out": 365 },
+        { "in": { "start": "2024-02-28", "end": "2024-03-01" }, "out": 2 },
+        { "in": { "start": "2025-03-10", "end": "2025-03-01" }, "out": -9 },
+        { "in": { "start": "2025-06-01", "end": "2025-06-01" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "start": "2024-02-30", "end": "2024-03-01" }, "error": "Data inicial: escreve uma data no formato AAAA-MM-DD." },
+        { "in": { "start": "2024-01-01", "end": "31/12/2024" }, "error": "Data final: escreve uma data no formato AAAA-MM-DD." }
+      ]
+    },
+    {
+      "id": "dt-02",
+      "category": "dates",
+      "template": "calc",
+      "title": "Idade numa data",
+      "concept": "Quantos anos completos tem uma pessoa numa data à escolha.",
+      "inputs": [
+        { "name": "birth", "type": "date", "label": "Data de nascimento" },
+        { "name": "on", "type": "date", "label": "Na data" }
+      ],
+      "output": { "type": "number", "label": "Idade (anos)" },
+      "rules": [
+        "Devolve os anos completos de birth até on. Cada ano completa-se no dia do aniversário: no próprio dia já conta.",
+        "Quem nasceu a 29 de fevereiro faz anos a 29 de fevereiro nos anos bissextos e a 28 de fevereiro nos outros.",
+        "Anos bissextos: os divisíveis por 4, exceto os divisíveis por 100 que não são divisíveis por 400 (2000 é, 1900 não).",
+        "on igual a birth dá 0. on antes de birth dá o erro da tabela."
+      ],
+      "examples": [
+        { "in": { "birth": "1990-05-15", "on": "2024-05-14" }, "out": 33 },
+        { "in": { "birth": "1990-05-15", "on": "2024-05-15" }, "out": 34 },
+        { "in": { "birth": "2000-02-29", "on": "2023-02-27" }, "out": 22 },
+        { "in": { "birth": "2000-02-29", "on": "2023-02-28" }, "out": 23 },
+        { "in": { "birth": "2000-02-29", "on": "2024-02-28" }, "out": 23 },
+        { "in": { "birth": "2024-03-10", "on": "2024-03-10" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "birth": "2024-03-10", "on": "2024-03-09" }, "error": "A data tem de ser igual ou posterior à data de nascimento." },
+        { "in": { "birth": "1990-13-01", "on": "2024-01-01" }, "error": "Data de nascimento: escreve uma data no formato AAAA-MM-DD." }
+      ]
+    },
+    {
+      "id": "dt-03",
+      "category": "dates",
+      "template": "calc",
+      "title": "Dia da semana de uma data",
+      "concept": "Diz em que dia da semana calha (ou calhou) uma data.",
+      "inputs": [{ "name": "date", "type": "date", "label": "Data" }],
+      "output": { "type": "text", "label": "Dia da semana" },
+      "rules": [
+        "Devolve o nome do dia em minúsculas, como se escreve em português de Portugal: segunda-feira, terça-feira, quarta-feira, quinta-feira, sexta-feira, sábado ou domingo.",
+        "Usa o calendário gregoriano, também para as datas antes de 1582. Calcula em UTC (getUTCDay), para não depender do fuso do computador."
+      ],
+      "examples": [
+        { "in": { "date": "2024-01-01" }, "out": "segunda-feira" },
+        { "in": { "date": "1974-04-25" }, "out": "quinta-feira" },
+        { "in": { "date": "2000-02-29" }, "out": "terça-feira" },
+        { "in": { "date": "1755-11-01" }, "out": "sábado" },
+        { "in": { "date": "2025-12-25" }, "out": "quinta-feira" }
+      ],
+      "errors": [
+        { "in": { "date": "2023-02-29" }, "error": "Data: escreve uma data no formato AAAA-MM-DD." },
+        { "in": { "date": "" }, "error": "Falta preencher: Data." }
+      ]
+    },
+    {
+      "id": "dt-04",
+      "category": "dates",
+      "template": "calc",
+      "title": "Somar dias a uma data",
+      "concept": "Que data é daqui a N dias, ou era há N dias.",
+      "inputs": [
+        { "name": "date", "type": "date", "label": "Data" },
+        { "name": "days", "type": "integer", "label": "Dias", "min": -100000, "max": 100000 }
+      ],
+      "output": { "type": "text", "label": "Data" },
+      "rules": [
+        "Soma days à data (um número negativo subtrai) e devolve a data no formato AAAA-MM-DD, com zeros à esquerda (2024-02-01).",
+        "Respeita os dias de cada mês e os anos bissextos: 2024-02-28 + 1 dá 2024-02-29 e 2023-02-28 + 1 dá 2023-03-01.",
+        "Calcula em UTC, para a hora de verão não mudar o dia.",
+        "Se o resultado sair do calendário (antes de 0001-01-01 ou depois de 9999-12-31), devolve o erro da tabela."
+      ],
+      "examples": [
+        { "in": { "date": "2024-01-31", "days": "1" }, "out": "2024-02-01" },
+        { "in": { "date": "2024-02-28", "days": "1" }, "out": "2024-02-29" },
+        { "in": { "date": "2023-02-28", "days": "1" }, "out": "2023-03-01" },
+        { "in": { "date": "2024-12-31", "days": "1" }, "out": "2025-01-01" },
+        { "in": { "date": "2024-03-01", "days": "-1" }, "out": "2024-02-29" },
+        { "in": { "date": "2024-01-15", "days": "100" }, "out": "2024-04-24" }
+      ],
+      "errors": [
+        { "in": { "date": "9999-12-31", "days": "1" }, "error": "O resultado sai do calendário (de 0001-01-01 a 9999-12-31)." },
+        { "in": { "date": "2024-01-01", "days": "1,5" }, "error": "Dias: escreve um número inteiro." },
+        { "in": { "date": "2024-01-01", "days": "200000" }, "error": "Dias: o máximo é 100000." }
+      ]
+    },
+    {
+      "id": "dt-05",
+      "category": "dates",
+      "template": "convert",
+      "title": "Hora noutro fuso (offset fixo)",
+      "concept": "Converte uma hora de um fuso para outro, dados os desvios de UTC (sem hora de verão), e diz se muda o dia.",
+      "inputs": [
+        { "name": "time", "type": "text", "label": "Hora" },
+        { "name": "zone_a", "type": "text", "label": "Fuso A" },
+        { "name": "zone_b", "type": "text", "label": "Fuso B" },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "a_to_b", "options": [{ "value": "a_to_b", "label": "A → B" }, { "value": "b_to_a", "label": "B → A" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "time", "label": "Hora" },
+          { "name": "day", "label": "Dia" }
+        ]
+      },
+      "rules": [
+        "time é uma hora HH:MM de 00:00 a 23:59: a hora pode ter 1 ou 2 algarismos (9:30 é 09:30) e os minutos têm 2. Outra coisa dá o erro da tabela para a Hora.",
+        "zone_a e zone_b são desvios de UTC no formato +HH:MM ou -HH:MM (sinal obrigatório, 2 algarismos de cada lado), com minutos 00, 15, 30 ou 45, de -12:00 a +14:00. Outra coisa dá o erro da tabela, começado pelo nome do fuso (Fuso A ou Fuso B).",
+        "As entradas verificam-se por esta ordem: Hora, Fuso A, Fuso B (o primeiro erro é o que se devolve).",
+        "direction a_to_b: a hora está no fuso A e devolve a hora no fuso B. direction b_to_a: a hora está no fuso B e devolve a hora no fuso A.",
+        "A conta: hora de destino = hora de origem − desvio de origem + desvio de destino. A hora devolvida é sempre HH:MM, com 2 algarismos em cada parte.",
+        "day diz em que dia fica a hora de destino em relação ao dia da hora de origem: «mesmo dia», «dia seguinte», «dia anterior», «2 dias depois» ou «2 dias antes» (estes dois só acontecem entre fusos muito afastados, como -12:00 e +14:00)."
+      ],
+      "examples": [
+        { "in": { "time": "09:30", "zone_a": "+01:00", "zone_b": "-05:00", "direction": "a_to_b" }, "out": { "time": "03:30", "day": "mesmo dia" } },
+        { "in": { "time": "22:00", "zone_a": "+00:00", "zone_b": "+09:00", "direction": "a_to_b" }, "out": { "time": "07:00", "day": "dia seguinte" } },
+        { "in": { "time": "1:15", "zone_a": "+01:00", "zone_b": "-08:00", "direction": "a_to_b" }, "out": { "time": "16:15", "day": "dia anterior" } },
+        { "in": { "time": "12:00", "zone_a": "+05:30", "zone_b": "+00:00", "direction": "a_to_b" }, "out": { "time": "06:30", "day": "mesmo dia" } },
+        { "in": { "time": "07:00", "zone_a": "+01:00", "zone_b": "-05:00", "direction": "b_to_a" }, "out": { "time": "13:00", "day": "mesmo dia" } },
+        { "in": { "time": "23:00", "zone_a": "-12:00", "zone_b": "+14:00", "direction": "a_to_b" }, "out": { "time": "01:00", "day": "2 dias depois" } }
+      ],
+      "errors": [
+        { "in": { "time": "25:00", "zone_a": "+00:00", "zone_b": "+01:00", "direction": "a_to_b" }, "error": "Hora: escreve uma hora no formato HH:MM, de 00:00 a 23:59." },
+        { "in": { "time": "10:00", "zone_a": "+1", "zone_b": "+01:00", "direction": "a_to_b" }, "error": "Fuso A: escreve um fuso no formato +HH:MM ou -HH:MM, de -12:00 a +14:00." },
+        { "in": { "time": "10:00", "zone_a": "+01:00", "zone_b": "+15:00", "direction": "a_to_b" }, "error": "Fuso B: escreve um fuso no formato +HH:MM ou -HH:MM, de -12:00 a +14:00." }
       ]
     },
     {

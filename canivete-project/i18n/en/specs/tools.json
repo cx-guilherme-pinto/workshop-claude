@@ -12,6 +12,43 @@
   ],
   "tools": [
     {
+      "id": "tx-01",
+      "category": "text",
+      "template": "text",
+      "title": "Word count and reading time",
+      "concept": "Counts the words and characters of a text and estimates how many minutes it takes to read.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Text" },
+        { "name": "words_per_minute", "type": "integer", "label": "Words per minute", "default": "200", "min": 1, "max": 1000 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "words", "label": "Words" },
+          { "name": "characters", "label": "Characters (no spaces)" },
+          { "name": "reading_minutes", "label": "Reading time (min)" }
+        ]
+      },
+      "rules": [
+        "A word is a run of letters (with or without accents) and digits. A hyphen (-) or an apostrophe (' or ’) between two letters or digits does not split it: \"well-known\" and \"isn’t\" are 1 word each. Punctuation on its own (\"—\", \"...\") is not a word.",
+        "Numbers count as words: \"In 2024 I read 12 books.\" has 6 words.",
+        "characters counts every character that is not a space, a tab or a line break (punctuation counts).",
+        "reading_minutes = words ÷ words per minute, rounded up to whole minutes (Math.ceil): 1 word gives 1 minute and a text with no words gives 0.",
+        "With no words per minute filled in, use 200."
+      ],
+      "examples": [
+        { "in": { "text": "Hello world" }, "out": { "words": 2, "characters": 10, "reading_minutes": 1 } },
+        { "in": { "text": "The well-known café — again, isn't it?", "words_per_minute": "200" }, "out": { "words": 6, "characters": 32, "reading_minutes": 1 } },
+        { "in": { "text": "First line.\n\n  Second   line, it’s here.  " }, "out": { "words": 6, "characters": 30, "reading_minutes": 1 } },
+        { "in": { "text": "In 2024 I read 12 books.", "words_per_minute": "2" }, "out": { "words": 6, "characters": 19, "reading_minutes": 3 } },
+        { "in": { "text": "— ... —" }, "out": { "words": 0, "characters": 5, "reading_minutes": 0 } }
+      ],
+      "errors": [
+        { "in": { "text": "   " }, "error": "Missing: Text." },
+        { "in": { "text": "hello", "words_per_minute": "0" }, "error": "Words per minute: the minimum is 1." }
+      ]
+    },
+    {
       "id": "tx-02",
       "category": "text",
       "template": "text",
@@ -40,6 +77,84 @@
           ],
           "obvious": ["The Lord Of The Rings", "War And Peace", "A Tale Of Two Cities"]
         }
+      ]
+    },
+    {
+      "id": "tx-03",
+      "category": "text",
+      "template": "text",
+      "title": "URL slug",
+      "concept": "Turns a title into a slug for a web address: lower case, no accents and with hyphens.",
+      "inputs": [{ "name": "text", "type": "text", "label": "Text" }],
+      "output": { "type": "text", "label": "Slug" },
+      "rules": [
+        "Removes the accents: decompose the text (normalize('NFD')) and remove the diacritical marks (U+0300 to U+036F). \"Café\" becomes \"Cafe\".",
+        "Turns everything into lower case.",
+        "Each run of characters that are not a-z or 0-9 becomes a single hyphen: spaces, punctuation, _, &, $, and also letters that do not decompose, such as ß or ø.",
+        "Removes the hyphens at the start and at the end.",
+        "If no letter or digit is left, returns the error in the table."
+      ],
+      "examples": [
+        { "in": { "text": "Hello World!" }, "out": "hello-world" },
+        { "in": { "text": "  Price: $10 — today only  " }, "out": "price-10-today-only" },
+        { "in": { "text": "Rock & Roll_2024" }, "out": "rock-roll-2024" },
+        { "in": { "text": "crème---brûlée" }, "out": "creme-brulee" },
+        { "in": { "text": "London 2025: A Quick Guide" }, "out": "london-2025-a-quick-guide" }
+      ],
+      "errors": [
+        { "in": { "text": "!!! ???" }, "error": "The text has no letters or digits for the slug." },
+        { "in": { "text": "   " }, "error": "Missing: Text." }
+      ]
+    },
+    {
+      "id": "tx-04",
+      "category": "text",
+      "template": "text",
+      "title": "Remove accents",
+      "concept": "Removes the accents from a text and leaves everything else as it is.",
+      "inputs": [{ "name": "text", "type": "multiline", "label": "Text" }],
+      "output": { "type": "text", "label": "Text without accents" },
+      "rules": [
+        "Removes the diacritical marks from letters: á, à, â, ã → a; é, è, ê → e; ç → c; ñ → n; ü → u; and the same in capitals (É → E, Ç → C). One way: normalize('NFD'), remove the characters U+0300 to U+036F and normalize('NFC').",
+        "Letters that are not a base letter with an accent, such as ß, ø, æ or œ, stay the same.",
+        "Everything else stays exactly as it is: upper and lower case, spaces (also at the start and at the end), line breaks, punctuation and digits."
+      ],
+      "examples": [
+        { "in": { "text": "Café in São Paulo" }, "out": "Cafe in Sao Paulo" },
+        { "in": { "text": "ÉCOLE, ÅRHUS and Ísafjörður" }, "out": "ECOLE, ARHUS and Isafjorður" },
+        { "in": { "text": "Crème brûlée and piñata" }, "out": "Creme brulee and pinata" },
+        { "in": { "text": "line 1: à\nline 2: ü" }, "out": "line 1: a\nline 2: u" },
+        { "in": { "text": "  Straße, Ørsted, naïve  " }, "out": "  Straße, Ørsted, naive  " }
+      ],
+      "errors": [{ "in": { "text": "" }, "error": "Missing: Text." }]
+    },
+    {
+      "id": "tx-05",
+      "category": "text",
+      "template": "text",
+      "title": "Count the occurrences of a word",
+      "concept": "Counts how many times a word appears in a text, only as a whole word.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Text" },
+        { "name": "word", "type": "text", "label": "Word" }
+      ],
+      "output": { "type": "number", "label": "Occurrences" },
+      "rules": [
+        "The words of the text are the runs of letters (with or without accents) and digits. Everything else separates words, including spaces, punctuation, hyphens and apostrophes: \"rain-coat\" has the words \"rain\" and \"coat\", and \"it's\" has \"it\" and \"s\".",
+        "Only whole words count: \"sea\" does not count in \"seal\" or \"overseas\".",
+        "Upper and lower case do not matter (\"Sea\", \"SEA\" and \"sea\" are the same), but accents do: \"café\" and \"cafe\" are different words.",
+        "The word searched for (without the spaces at the start and at the end) must be a single word, with only letters and digits; if it is not, returns the error in the table."
+      ],
+      "examples": [
+        { "in": { "text": "The sea, the SEA and the Sea.", "word": "sea" }, "out": 3 },
+        { "in": { "text": "A seal by the sea, overseas", "word": "sea" }, "out": 1 },
+        { "in": { "text": "A rain-coat for the rain", "word": "rain" }, "out": 2 },
+        { "in": { "text": "Café or café, not cafe.", "word": "café" }, "out": 2 },
+        { "in": { "text": "Nothing here", "word": "sea" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "text": "The sea and the hills", "word": "sea and" }, "error": "Type a single word, with no spaces or punctuation." },
+        { "in": { "text": "", "word": "sea" }, "error": "Missing: Text." }
       ]
     },
     {
@@ -72,6 +187,35 @@
       "errors": [
         { "in": { "x": "0", "y": "10" }, "error": "X cannot be 0." },
         { "in": { "x": "ten", "y": "10" }, "error": "X: type a number." }
+      ]
+    },
+    {
+      "id": "nm-02",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Rule of three",
+      "concept": "If A matches B, what does C match? The rule of three for direct proportions.",
+      "inputs": [
+        { "name": "a", "type": "number", "label": "A" },
+        { "name": "b", "type": "number", "label": "B" },
+        { "name": "c", "type": "number", "label": "C" }
+      ],
+      "output": { "type": "number", "label": "X (matches C)" },
+      "rules": [
+        "X = B × C ÷ A (direct proportion: A is to B as C is to X).",
+        "Round X to 2 decimal places (Math.round(v × 100) / 100 is fine).",
+        "A, B and C may be negative or have decimal places; only A cannot be 0."
+      ],
+      "examples": [
+        { "in": { "a": "3", "b": "4.5", "c": "5" }, "out": 7.5 },
+        { "in": { "a": "2", "b": "10", "c": "5" }, "out": 25 },
+        { "in": { "a": "7", "b": "10", "c": "3" }, "out": 4.29 },
+        { "in": { "a": "0.5", "b": "2", "c": "3" }, "out": 12 },
+        { "in": { "a": "4", "b": "-2", "c": "6" }, "out": -3 }
+      ],
+      "errors": [
+        { "in": { "a": "0", "b": "1", "c": "2" }, "error": "A cannot be 0." },
+        { "in": { "a": "2", "b": "ten", "c": "2" }, "error": "B: type a number." }
       ]
     },
     {
@@ -111,6 +255,226 @@
           ],
           "obvious": [1, 2.67, 1]
         }
+      ]
+    },
+    {
+      "id": "nm-04",
+      "category": "numbers",
+      "template": "calc",
+      "title": "Mean and median of a list",
+      "concept": "Works out the mean and the median of a list of numbers.",
+      "inputs": [{ "name": "numbers", "type": "multiline", "label": "Numbers" }],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "count", "label": "Count" },
+          { "name": "mean", "label": "Mean" },
+          { "name": "median", "label": "Median" }
+        ]
+      },
+      "rules": [
+        "The numbers are separated by commas, semicolons, spaces or line breaks. The point is the decimal mark (\"1.5\" is one and a half). There is no thousands separator.",
+        "Each number may have a sign (-5, +3). An item that is not a number gives the error \"<item>\" is not a number., with the item as it was typed (the first one that fails).",
+        "count is how many numbers there are.",
+        "mean is the sum ÷ count. median is the middle number once they are sorted from smallest to largest; with an even count, it is the mean of the two middle ones.",
+        "mean and median are rounded to 2 decimal places (Math.round(v × 100) / 100 is fine)."
+      ],
+      "examples": [
+        { "in": { "numbers": "2, 4, 9" }, "out": { "count": 3, "mean": 5, "median": 4 } },
+        { "in": { "numbers": "1 2 3 4" }, "out": { "count": 4, "mean": 2.5, "median": 2.5 } },
+        { "in": { "numbers": "10\n1.5\n7\n2\n3" }, "out": { "count": 5, "mean": 4.7, "median": 3 } },
+        { "in": { "numbers": "7" }, "out": { "count": 1, "mean": 7, "median": 7 } },
+        { "in": { "numbers": "1, 2, 2" }, "out": { "count": 3, "mean": 1.67, "median": 2 } },
+        { "in": { "numbers": "-5; 5; 1" }, "out": { "count": 3, "mean": 0.33, "median": 1 } }
+      ],
+      "errors": [
+        { "in": { "numbers": "1, abc, 3" }, "error": "\"abc\" is not a number." },
+        { "in": { "numbers": "  " }, "error": "Missing: Numbers." }
+      ]
+    },
+    {
+      "id": "nm-05",
+      "category": "numbers",
+      "template": "convert",
+      "title": "Roman ↔ Arabic numerals",
+      "concept": "Converts Arabic numbers (1, 2, 3…) into Roman numerals (I, II, III…) and back.",
+      "inputs": [
+        { "name": "value", "type": "text", "label": "Number" },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "to_roman", "options": [{ "value": "to_roman", "label": "Arabic → Roman" }, { "value": "to_arabic", "label": "Roman → Arabic" }] }
+      ],
+      "output": { "type": "text", "label": "Result" },
+      "rules": [
+        "direction to_roman: value must have only digits and be a whole number from 1 to 3999 (no sign and no decimal places); if it is not, returns the error in the table.",
+        "Roman numerals are written in the standard form, in capitals, from the largest value to the smallest: M = 1000, CM = 900, D = 500, CD = 400, C = 100, XC = 90, L = 50, XL = 40, X = 10, IX = 9, V = 5, IV = 4, I = 1 (4 is IV, never IIII).",
+        "direction to_arabic: accepts upper or lower case (\"xiv\" = \"XIV\") and returns the number as text (\"14\").",
+        "Only a numeral in the standard form is valid, the one to_roman would write for that number (1 to 3999). \"IIII\", \"IC\", \"VX\", \"MMMM\" or letters other than I, V, X, L, C, D, M give the error \"<value>\" is not a valid Roman numeral., with value as it was typed.",
+        "The output is always a text."
+      ],
+      "examples": [
+        { "in": { "value": "2024", "direction": "to_roman" }, "out": "MMXXIV" },
+        { "in": { "value": "1994", "direction": "to_roman" }, "out": "MCMXCIV" },
+        { "in": { "value": "4", "direction": "to_roman" }, "out": "IV" },
+        { "in": { "value": "xiv", "direction": "to_arabic" }, "out": "14" },
+        { "in": { "value": "MMMCMXCIX", "direction": "to_arabic" }, "out": "3999" }
+      ],
+      "errors": [
+        { "in": { "value": "4000", "direction": "to_roman" }, "error": "For Roman numerals, type a whole number from 1 to 3999." },
+        { "in": { "value": "IIII", "direction": "to_arabic" }, "error": "\"IIII\" is not a valid Roman numeral." },
+        { "in": { "value": "", "direction": "to_roman" }, "error": "Missing: Number." }
+      ]
+    },
+    {
+      "id": "dt-01",
+      "category": "dates",
+      "template": "calc",
+      "title": "Days between two dates",
+      "concept": "How many days there are from one date to another.",
+      "inputs": [
+        { "name": "start", "type": "date", "label": "Start date" },
+        { "name": "end", "type": "date", "label": "End date" }
+      ],
+      "output": { "type": "number", "label": "Days" },
+      "rules": [
+        "Returns end − start in days: from 2024-01-01 to 2024-01-02 is 1, and the same date gives 0.",
+        "If end is before start, the result is negative.",
+        "Leap years count (February 2024 has 29 days). These are calendar dates, with no times or time zones: working in UTC (Date.UTC) avoids daylight saving time errors."
+      ],
+      "examples": [
+        { "in": { "start": "2024-01-01", "end": "2024-12-31" }, "out": 365 },
+        { "in": { "start": "2023-01-01", "end": "2024-01-01" }, "out": 365 },
+        { "in": { "start": "2024-02-28", "end": "2024-03-01" }, "out": 2 },
+        { "in": { "start": "2025-03-10", "end": "2025-03-01" }, "out": -9 },
+        { "in": { "start": "2025-06-01", "end": "2025-06-01" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "start": "2024-02-30", "end": "2024-03-01" }, "error": "Start date: type a date as YYYY-MM-DD." },
+        { "in": { "start": "2024-01-01", "end": "12/31/2024" }, "error": "End date: type a date as YYYY-MM-DD." }
+      ]
+    },
+    {
+      "id": "dt-02",
+      "category": "dates",
+      "template": "calc",
+      "title": "Age on a date",
+      "concept": "How many full years old a person is on a date of your choice.",
+      "inputs": [
+        { "name": "birth", "type": "date", "label": "Date of birth" },
+        { "name": "on", "type": "date", "label": "On date" }
+      ],
+      "output": { "type": "number", "label": "Age (years)" },
+      "rules": [
+        "Returns the full years from birth to on. Each year is complete on the birthday: the day itself already counts.",
+        "Someone born on 29 February has their birthday on 29 February in leap years and on 28 February in the other years.",
+        "Leap years: those divisible by 4, except those divisible by 100 that are not divisible by 400 (2000 is one, 1900 is not).",
+        "on equal to birth gives 0. on before birth gives the error in the table."
+      ],
+      "examples": [
+        { "in": { "birth": "1990-05-15", "on": "2024-05-14" }, "out": 33 },
+        { "in": { "birth": "1990-05-15", "on": "2024-05-15" }, "out": 34 },
+        { "in": { "birth": "2000-02-29", "on": "2023-02-27" }, "out": 22 },
+        { "in": { "birth": "2000-02-29", "on": "2023-02-28" }, "out": 23 },
+        { "in": { "birth": "2000-02-29", "on": "2024-02-28" }, "out": 23 },
+        { "in": { "birth": "2024-03-10", "on": "2024-03-10" }, "out": 0 }
+      ],
+      "errors": [
+        { "in": { "birth": "2024-03-10", "on": "2024-03-09" }, "error": "The date must be on or after the date of birth." },
+        { "in": { "birth": "1990-13-01", "on": "2024-01-01" }, "error": "Date of birth: type a date as YYYY-MM-DD." }
+      ]
+    },
+    {
+      "id": "dt-03",
+      "category": "dates",
+      "template": "calc",
+      "title": "Day of the week of a date",
+      "concept": "Tells which day of the week a date falls (or fell) on.",
+      "inputs": [{ "name": "date", "type": "date", "label": "Date" }],
+      "output": { "type": "text", "label": "Day of the week" },
+      "rules": [
+        "Returns the English name of the day, with a capital letter: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday or Sunday.",
+        "Uses the Gregorian calendar, also for dates before 1582. Works in UTC (getUTCDay), so that it does not depend on the computer's time zone."
+      ],
+      "examples": [
+        { "in": { "date": "2024-01-01" }, "out": "Monday" },
+        { "in": { "date": "1969-07-20" }, "out": "Sunday" },
+        { "in": { "date": "2000-02-29" }, "out": "Tuesday" },
+        { "in": { "date": "1755-11-01" }, "out": "Saturday" },
+        { "in": { "date": "2025-12-25" }, "out": "Thursday" }
+      ],
+      "errors": [
+        { "in": { "date": "2023-02-29" }, "error": "Date: type a date as YYYY-MM-DD." },
+        { "in": { "date": "" }, "error": "Missing: Date." }
+      ]
+    },
+    {
+      "id": "dt-04",
+      "category": "dates",
+      "template": "calc",
+      "title": "Add days to a date",
+      "concept": "Which date it is N days from now, or was N days ago.",
+      "inputs": [
+        { "name": "date", "type": "date", "label": "Date" },
+        { "name": "days", "type": "integer", "label": "Days", "min": -100000, "max": 100000 }
+      ],
+      "output": { "type": "text", "label": "Date" },
+      "rules": [
+        "Adds days to the date (a negative number subtracts) and returns the date as YYYY-MM-DD, with leading zeros (2024-02-01).",
+        "Respects the length of each month and leap years: 2024-02-28 + 1 gives 2024-02-29 and 2023-02-28 + 1 gives 2023-03-01.",
+        "Works in UTC, so that daylight saving time does not change the day.",
+        "If the result falls outside the calendar (before 0001-01-01 or after 9999-12-31), returns the error in the table."
+      ],
+      "examples": [
+        { "in": { "date": "2024-01-31", "days": "1" }, "out": "2024-02-01" },
+        { "in": { "date": "2024-02-28", "days": "1" }, "out": "2024-02-29" },
+        { "in": { "date": "2023-02-28", "days": "1" }, "out": "2023-03-01" },
+        { "in": { "date": "2024-12-31", "days": "1" }, "out": "2025-01-01" },
+        { "in": { "date": "2024-03-01", "days": "-1" }, "out": "2024-02-29" },
+        { "in": { "date": "2024-01-15", "days": "100" }, "out": "2024-04-24" }
+      ],
+      "errors": [
+        { "in": { "date": "9999-12-31", "days": "1" }, "error": "The result falls outside the calendar (0001-01-01 to 9999-12-31)." },
+        { "in": { "date": "2024-01-01", "days": "1.5" }, "error": "Days: type a whole number." },
+        { "in": { "date": "2024-01-01", "days": "200000" }, "error": "Days: the maximum is 100000." }
+      ]
+    },
+    {
+      "id": "dt-05",
+      "category": "dates",
+      "template": "convert",
+      "title": "Time in another zone (fixed offset)",
+      "concept": "Converts a time from one zone to another, given their offsets from UTC (no daylight saving time), and says whether the day changes.",
+      "inputs": [
+        { "name": "time", "type": "text", "label": "Time" },
+        { "name": "zone_a", "type": "text", "label": "Zone A" },
+        { "name": "zone_b", "type": "text", "label": "Zone B" },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "a_to_b", "options": [{ "value": "a_to_b", "label": "A → B" }, { "value": "b_to_a", "label": "B → A" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "time", "label": "Time" },
+          { "name": "day", "label": "Day" }
+        ]
+      },
+      "rules": [
+        "time is a 24-hour HH:MM time from 00:00 to 23:59: the hour may have 1 or 2 digits (9:30 is 09:30) and the minutes have 2. Anything else gives the error in the table for Time.",
+        "zone_a and zone_b are offsets from UTC as +HH:MM or -HH:MM (the sign is required, 2 digits on each side), with minutes 00, 15, 30 or 45, from -12:00 to +14:00. Anything else gives the error in the table, starting with the name of the zone (Zone A or Zone B).",
+        "The inputs are checked in this order: Time, Zone A, Zone B (the first error is the one returned).",
+        "direction a_to_b: the time is in zone A and the result is the time in zone B. direction b_to_a: the time is in zone B and the result is the time in zone A.",
+        "The sum: target time = source time − source offset + target offset. The returned time is always HH:MM, with 2 digits in each part.",
+        "day says which day the target time falls on compared with the day of the source time: \"same day\", \"next day\", \"previous day\", \"2 days later\" or \"2 days earlier\" (the last two only happen between zones far apart, such as -12:00 and +14:00)."
+      ],
+      "examples": [
+        { "in": { "time": "09:30", "zone_a": "+00:00", "zone_b": "-05:00", "direction": "a_to_b" }, "out": { "time": "04:30", "day": "same day" } },
+        { "in": { "time": "22:00", "zone_a": "+00:00", "zone_b": "+09:00", "direction": "a_to_b" }, "out": { "time": "07:00", "day": "next day" } },
+        { "in": { "time": "1:15", "zone_a": "+01:00", "zone_b": "-08:00", "direction": "a_to_b" }, "out": { "time": "16:15", "day": "previous day" } },
+        { "in": { "time": "12:00", "zone_a": "+05:30", "zone_b": "+00:00", "direction": "a_to_b" }, "out": { "time": "06:30", "day": "same day" } },
+        { "in": { "time": "07:00", "zone_a": "+01:00", "zone_b": "-05:00", "direction": "b_to_a" }, "out": { "time": "13:00", "day": "same day" } },
+        { "in": { "time": "23:00", "zone_a": "-12:00", "zone_b": "+14:00", "direction": "a_to_b" }, "out": { "time": "01:00", "day": "2 days later" } }
+      ],
+      "errors": [
+        { "in": { "time": "25:00", "zone_a": "+00:00", "zone_b": "+01:00", "direction": "a_to_b" }, "error": "Time: type a time as HH:MM, from 00:00 to 23:59." },
+        { "in": { "time": "10:00", "zone_a": "+1", "zone_b": "+01:00", "direction": "a_to_b" }, "error": "Zone A: type an offset as +HH:MM or -HH:MM, from -12:00 to +14:00." },
+        { "in": { "time": "10:00", "zone_a": "+01:00", "zone_b": "+15:00", "direction": "a_to_b" }, "error": "Zone B: type an offset as +HH:MM or -HH:MM, from -12:00 to +14:00." }
       ]
     },
     {
