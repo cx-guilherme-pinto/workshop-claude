@@ -2679,6 +2679,35 @@ WS_PRACTICE=practice-project
 WS_PRACTICE_OLD=exemplo-projeto-real
 # Workshop v2: o projeto das missoes (~/workshop-claude/missions-project), so nos kits com o assemble-missions.mjs.
 WS_MISSIONS=missions-project
+# Workshop v2 (A4): o Projeto 1 e o Canivete (~/workshop-claude/canivete-project, tag canivete-start); a Arena
+# (demo-project) so com WORKSHOP_P1=arena. Uma Arena ja montada numa instalacao anterior fica como esta (nunca e
+# apagada): com o Canivete, monta-se ao lado dela.
+WS_CANIVETE=canivete-project
+# WORKSHOP_P1 (maiusculas ou minusculas, espacos a volta nao contam) -> WS_P1 canivete|arena.
+#   vazio ou canivete -> canivete; arena -> arena; outra coisa -> canivete e WS_P1_IGNORADO (para a nota do passo 9).
+# Um kit sem o installer/assemble-canivete.mjs (anterior ao v2) monta a Arena, como antes.
+ws_p1_pick() {
+  local v
+  WS_P1_IGNORADO=""
+  if [ ! -f "${KIT_SRC:-}/installer/assemble-canivete.mjs" ]; then WS_P1=arena; return 0; fi
+  v=$(printf '%s' "${WORKSHOP_P1:-}" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  case "$v" in
+    ''|canivete) WS_P1=canivete ;;
+    arena) WS_P1=arena ;;
+    *) WS_P1=canivete; WS_P1_IGNORADO=$(printf '%s' "${WORKSHOP_P1:0:40}" | LC_ALL=C tr -d '\000-\037\177') ;;
+  esac
+  return 0
+}
+# A pasta e a marca do Projeto 1 escolhido (WS_P1).
+ws_p1_dir() { if [ "${WS_P1:-}" = arena ]; then printf 'demo-project'; else printf '%s' "$WS_CANIVETE"; fi; }
+ws_p1_mark() { if [ "${WS_P1:-}" = arena ]; then printf '.arena-kit.json'; else printf '.canivete-kit.json'; fi; }
+# O detalhe do passo 9 diz qual e o Projeto 1 e onde esta; um WORKSHOP_P1 nao reconhecido fica numa nota.
+ws_s9_detail() {
+  if [ "${WS_P1:-}" = arena ]; then ws_detail "$(ws_msg s9_p1_arena CAMINHO="$WS_PROJ_SHOW/demo-project")"
+  else ws_detail "$(ws_msg s9_p1_canivete CAMINHO="$WS_PROJ_SHOW/$WS_CANIVETE")"; fi
+  [ -n "${WS_P1_IGNORADO:-}" ] && ws_note "$(ws_msg s9_p1_ignorado VALOR="$WS_P1_IGNORADO")"
+  return 0
+}
 # git so no .git da propria pasta (nunca num repositorio acima, ex.: um HOME com os dotfiles em git), sem tag assinada.
 ws_git_own() { local d=$1; shift; git --git-dir="$d/.git" -c tag.gpgsign=false "$@" </dev/null; }
 # Estado de um projeto do workshop (pasta marca ref):
@@ -2717,34 +2746,45 @@ ws_s9_migrate() {
   return 0
 }
 ws_s9_detect() {
-  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE" ref=refs/tags/arena-start
+  local demo="$WS_PROJ/demo-project" sb="$WS_PROJ/$WS_PRACTICE" ref=refs/tags/arena-start cv="$WS_PROJ/$WS_CANIVETE"
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
+  ws_p1_pick
+  ws_log "project 1: $WS_P1${WS_P1_IGNORADO:+ (WORKSHOP_P1 ignored: $WS_P1_IGNORADO)}"
   # Ao instalar, as migracoes (arena-inicial -> arena-start, a pasta do projeto de treino) vem antes do estado: sem
   # elas uma Arena antiga e intacta parecia historico da pessoa (E-DEMO-04). No --check, que nao muda nada, a tag
   # antiga conta como a nova (o /demo-reset dessa Arena usa a arena-inicial).
   if [ "$WS_MODE" = install ]; then ws_s9_migrate
   else ws_git_own "$demo" rev-parse -q --verify "$ref" >/dev/null 2>&1 || ref=refs/tags/arena-inicial; fi
-  case "$(ws_proj_state "$demo" .arena-kit.json "$ref")" in
-    ok) ;;
-    propria) ws_warn E-DEMO-04 "$(ws_tilde "$demo")" ;;
-    *) ws_fail E-DEMO-01 "$demo"; return 1 ;;
-  esac
+  if [ "$WS_P1" = arena ]; then
+    case "$(ws_proj_state "$demo" .arena-kit.json "$ref")" in
+      ok) ;;
+      propria) ws_warn E-DEMO-04 "$(ws_tilde "$demo")" ;;
+      *) ws_fail E-DEMO-01 "$demo"; return 1 ;;
+    esac
+  else
+    case "$(ws_proj_state "$cv" .canivete-kit.json refs/tags/canivete-start)" in
+      ok) ;;
+      propria) ws_warn E-DEMO-06 "$(ws_tilde "$cv")" ;;
+      *) ws_fail E-DEMO-01 "$cv"; return 1 ;;
+    esac
+  fi
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     [ "$(ws_proj_state "$sb" .sandbox-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$sb"; return 1; }
   fi
   if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
     [ "$(ws_proj_state "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD)" = ok ] || { ws_fail E-DEMO-01 "$WS_PROJ/$WS_MISSIONS"; return 1; }
   fi
-  ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
+  ws_s9_detail
   ws_s9_lang_check
   [ "$WS_MODE" = install ] || ws_s9_tests
   return 0
 }
 # Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
-# (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
+# (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado. Do Projeto 1 so conta o
+# escolhido (WS_P1): uma Arena antiga ao lado do Canivete nao faz parte deste workshop.
 ws_s9_lang_check() {
   local f l nome
-  for f in "demo-project/.arena-kit.json" "$WS_PRACTICE/.sandbox-kit.json" "$WS_MISSIONS/.missions-kit.json"; do
+  for f in "$(ws_p1_dir)/$(ws_p1_mark)" "$WS_PRACTICE/.sandbox-kit.json" "$WS_MISSIONS/.missions-kit.json"; do
     [ -f "$WS_PROJ/$f" ] || continue
     l=$(ws_json_field "$WS_PROJ/$f" 'language|lingua')
     case "$l" in pt|en) ;; *) continue ;; esac
@@ -2757,7 +2797,11 @@ ws_s9_lang_check() {
 # Numero de testes que passaram na saida do "node --test" ("ℹ pass 16"; TAP antigo: "# pass 7").
 # Alternativa e LC_ALL=C, e nao [#ℹ]: no locale C (LANG vazio ou invalido) o sed le o ℹ como 3 bytes soltos.
 ws_count_pass() { LC_ALL=C sed -n -E 's/^(#|ℹ) *pass ([0-9]+).*/\2/p' | tail -n 1; }
+# Os testes do Projeto 1 escolhido: os da app da Arena, ou o "node tools/gen.mjs --check" do Canivete (as specs e
+# os testes das ferramentas sao os gerados). Os tool.test.js do Canivete nao correm aqui: as ferramentas so existem
+# depois do swarm.
 ws_s9_tests() {
+  [ "${WS_P1:-}" = arena ] || { ws_s9_canivete_check; return; }
   local demo="$WS_PROJ/demo-project" out n
   if [ ! -f "$demo/test/app.test.js" ]; then ws_note "$(ws_m s9_sem_testes)"; return 0; fi
   out=$(cd "$demo" && "$WS_NODE" --test test/app.test.js 2>&1 </dev/null); local rc=$?
@@ -2765,6 +2809,15 @@ ws_s9_tests() {
   n=$(printf '%s\n' "$out" | ws_count_pass)
   if [ "$rc" = 0 ]; then ws_note "$(ws_msg s9_testes_ok OK="${n:-?}")"; return 0; fi
   ws_fail E-DEMO-02 "node --test test/app.test.js"; return 1
+}
+ws_s9_canivete_check() {
+  local cv="$WS_PROJ/$WS_CANIVETE" out rc n=0 f
+  if [ ! -f "$cv/tools/gen.mjs" ]; then ws_note "$(ws_m s9_sem_gen)"; return 0; fi
+  out=$(cd "$cv" && "$WS_NODE" tools/gen.mjs --check 2>&1 </dev/null); rc=$?
+  printf '%s\n' "$out" >> "$WS_STEP_LOG"
+  for f in "$cv"/tools/*/spec.md; do [ -f "$f" ] && n=$((n + 1)); done
+  if [ "$rc" = 0 ]; then ws_note "$(ws_msg s9_canivete_ok N="$n")"; return 0; fi
+  ws_fail E-DEMO-05 "node tools/gen.mjs --check"; return 1
 }
 # Monta um projeto conforme o estado (ws_proj_state). Nunca apaga trabalho da pessoa: o historico proprio fica
 # como esta (E-DEMO-04) e uma pasta substituida vai para o backup (o assembler diz onde: "backup" no JSON).
@@ -2774,7 +2827,9 @@ ws_assemble() { # script destino marca ref [--node ...]
   case "$(ws_proj_state "$dest" "$mark" "$ref")" in
     alheia) ws_fail E-DEMO-03 "$dest"; return 1 ;;
     incompleta) force=--force ;;
-    propria) ws_warn E-DEMO-04 "$(ws_tilde "$dest")"; ws_registar projeto "$(basename "$dest")" "$dest"; return 0 ;;
+    propria)
+      if [ "$mark" = .canivete-kit.json ]; then ws_warn E-DEMO-06 "$(ws_tilde "$dest")"; else ws_warn E-DEMO-04 "$(ws_tilde "$dest")"; fi
+      ws_registar projeto "$(basename "$dest")" "$dest"; return 0 ;;
   esac
   ws_log "\$ $WS_NODE $KIT_SRC/installer/$script --dest $dest $* $force"
   out=$("$WS_NODE" "$KIT_SRC/installer/$script" --dest "$dest" "$@" ${force:+"$force"} 2>>"$WS_STEP_LOG" </dev/null); rc=$?
@@ -2794,7 +2849,13 @@ ws_s9_install() {
   ws_kit_ensure || { ws_fail E-KIT-01 ""; return 1; }
   mkdir -p "$WS_PROJ" || { ws_fail E-PERM-01 "$WS_PROJ"; return 1; }
   ws_s9_migrate
-  ws_assemble assemble-demo.mjs "$WS_PROJ/demo-project" .arena-kit.json refs/tags/arena-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
+  ws_p1_pick
+  ws_log "project 1: $WS_P1${WS_P1_IGNORADO:+ (WORKSHOP_P1 ignored: $WS_P1_IGNORADO)}"
+  if [ "$WS_P1" = arena ]; then
+    ws_assemble assemble-demo.mjs "$WS_PROJ/demo-project" .arena-kit.json refs/tags/arena-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
+  else
+    ws_assemble assemble-canivete.mjs "$WS_PROJ/$WS_CANIVETE" .canivete-kit.json refs/tags/canivete-start --node "$WS_NODE" --language "${WS_LANG_KIT:-en}" || return 1
+  fi
   if [ -f "$KIT_SRC/installer/assemble-sandbox.mjs" ]; then
     ws_assemble assemble-sandbox.mjs "$WS_PROJ/$WS_PRACTICE" .sandbox-kit.json HEAD --language "${WS_LANG_KIT:-en}" || return 1
   fi
@@ -2802,7 +2863,7 @@ ws_s9_install() {
   if [ -f "$KIT_SRC/installer/assemble-missions.mjs" ]; then
     ws_assemble assemble-missions.mjs "$WS_PROJ/$WS_MISSIONS" .missions-kit.json HEAD --language "${WS_LANG_KIT:-en}" --kit-dir "$WS_HOME/kit" || return 1
   fi
-  ws_detail "$(ws_msg s9_ja PROJETOS="$WS_PROJ_SHOW")"
+  ws_s9_detail
   ws_s9_lang_check
   ws_s9_tests
 }

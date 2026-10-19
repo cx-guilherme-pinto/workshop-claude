@@ -145,6 +145,7 @@ Describe 'lingua da maquina (casos partilhados)' {
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
     $text | Should -Match '''assemble-demo\.mjs''.*''--language'', \$script:LangKit'
     $text | Should -Match '''assemble-sandbox\.mjs''.*''--language'', \$script:LangKit'
+    $text | Should -Match '''assemble-canivete\.mjs''.*''--language'', \$script:LangKit'
   }
 }
 
@@ -2996,7 +2997,7 @@ Describe 'chaos G7-language' {
     New-Item -ItemType Directory -Path $sb -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"version":"1.0.0","language":"pt"}')
     [IO.File]::WriteAllText((Join-Path $sb '.sandbox-kit.json'), '{"lingua":"en"}')
-    $script:T = New-WsStateTable; $script:Cur = '9'; $script:LangKit = 'en'
+    $script:T = New-WsStateTable; $script:Cur = '9'; $script:LangKit = 'en'; $script:P1 = 'arena'
     Add-WsStep9LangNote
     $n = @($script:T['9'].Notas)
     $n.Count | Should -Be 1
@@ -3012,8 +3013,19 @@ Describe 'chaos G7-language' {
     Add-WsStep9LangNote
     @($script:T['9'].Notas).Count | Should -Be 0 -Because 'sem lingua no marcador (ou marcador estragado) nao ha nota'
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
-    $text | Should -Match '(?s)function Test-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote.*?Test-WsAppTests'
-    $text | Should -Match '(?s)function Install-WsStep9 \{.*?s9_ja.*?Add-WsStep9LangNote\s+return \(Test-WsAppTests\)'
+    $text | Should -Match '(?s)function Test-WsStep9 \{.*?Set-WsStep9Detail.*?Add-WsStep9LangNote.*?Test-WsAppTests'
+    $text | Should -Match '(?s)function Install-WsStep9 \{.*?Set-WsStep9Detail\s+Add-WsStep9LangNote\s+return \(Test-WsAppTests\)'
+    # Com o Canivete conta a marca dele; uma Arena antiga ao lado nao da nota.
+    $cv = Join-Path $script:Proj 'canivete-project'
+    New-Item -ItemType Directory -Path $cv -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $cv '.canivete-kit.json'), '{"version":"v1","language":"pt"}')
+    [IO.File]::WriteAllText((Join-Path $demo '.arena-kit.json'), '{"version":"v1","language":"pt"}')
+    $script:T = New-WsStateTable; $script:LangKit = 'en'; $script:P1 = 'canivete'
+    Add-WsStep9LangNote
+    $n = @($script:T['9'].Notas)
+    $n.Count | Should -Be 1
+    $n[0] | Should -Match '^%USERPROFILE%\\workshop-claude\\canivete-project is in Portuguese'
+    $script:P1 = 'arena'
   }
   It 'as mensagens novas existem nos dois catalogos, com os mesmos marcadores' {
     $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -3985,6 +3997,7 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
     $script:Proj = Join-Path $script:UserHome 'workshop-claude'
     $script:KitSrc = Join-Path $TestDrive 'kit9m'
     $script:NodeExe = 'node'; $script:LangKit = 'pt'; $script:Cur = '9'; $script:Mode = 'install'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
     New-Item -ItemType Directory -Path (Join-Path $script:KitSrc 'installer') -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-sandbox.mjs'), '')
     $script:Asm = @()
@@ -3997,6 +4010,30 @@ Describe 'participacao no painel do workshop (passo 8) e projeto das missoes (pa
     $script:Asm[0] | Should -BeExactly 'assemble-demo.mjs demo-project .arena-kit.json refs/tags/arena-start --node node --language pt'
     $script:Asm[1] | Should -BeExactly 'assemble-sandbox.mjs practice-project .sandbox-kit.json HEAD --language pt'
     $script:Asm[2] | Should -BeExactly ('assemble-missions.mjs missions-project .missions-kit.json HEAD --language pt --kit-dir ' + (Join-Path $script:WsHome 'kit'))
+    $script:T['9'].Detalhe | Should -BeExactly ('Security Arena at ' + $script:ProjShow + '\demo-project') -Because 'kit sem o assemble-canivete.mjs: a Arena'
+    # Com o assemble-canivete.mjs, o Projeto 1 por defeito e o Canivete; a Arena so com WORKSHOP_P1=arena.
+    [IO.File]::WriteAllText((Join-Path $script:KitSrc 'installer/assemble-canivete.mjs'), '')
+    $keep = $env:WORKSHOP_P1
+    try {
+      Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue
+      $script:Asm = @(); $script:T = New-WsStateTable
+      Install-WsStep9 | Should -BeTrue
+      $script:Asm.Count | Should -Be 3
+      $script:Asm[0] | Should -BeExactly 'assemble-canivete.mjs canivete-project .canivete-kit.json refs/tags/canivete-start --node node --language pt'
+      $script:Asm[1] | Should -BeExactly 'assemble-sandbox.mjs practice-project .sandbox-kit.json HEAD --language pt'
+      $script:T['9'].Detalhe | Should -BeExactly ('Pocketknife at ' + $script:ProjShow + '\canivete-project')
+      $env:WORKSHOP_P1 = 'Arena'
+      $script:Asm = @(); $script:T = New-WsStateTable
+      Install-WsStep9 | Should -BeTrue
+      $script:Asm[0] | Should -BeExactly 'assemble-demo.mjs demo-project .arena-kit.json refs/tags/arena-start --node node --language pt'
+      $env:WORKSHOP_P1 = 'xpto'
+      $script:Asm = @(); $script:T = New-WsStateTable
+      Install-WsStep9 | Should -BeTrue
+      $script:Asm[0] | Should -Match '^assemble-canivete\.mjs canivete-project '
+      $script:T['9'].Notas -join ' ' | Should -BeExactly 'WORKSHOP_P1=xpto is not canivete or arena, so I ignored it and set up the Pocketknife (the default).'
+    } finally {
+      if ($null -eq $keep) { Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue } else { $env:WORKSHOP_P1 = $keep }
+    }
     $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
     $text | Should -Match "Invoke-WsAssemble 'assemble-missions\.mjs' \(Join-Path \`$script:Proj \`$script:MissionsDir\) '\.missions-kit\.json' 'HEAD' @\("
   }
@@ -4191,6 +4228,137 @@ Describe 'o painel no -Check (passo 8) e o check_ok no fim' {
     It 'o Invoke-WsMain chama-o logo a seguir ao resumo' {
       $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
       $text | Should -Match '\$faltam = Write-WsSummary\r?\n\s*Send-WsCheckOk \$faltam'
+    }
+  }
+}
+
+# Workshop v2 (A4): o Projeto 1 por defeito e o Canivete; a Arena so com WORKSHOP_P1=arena (port de ws_p1_pick).
+Describe 'Projeto 1 (WORKSHOP_P1) no passo 9' {
+  BeforeAll {
+    $script:GitExe = Get-WsGit
+    $script:P1New = Join-Path $TestDrive 'p1kit-new'
+    $script:P1Old = Join-Path $TestDrive 'p1kit-old'
+    New-Item -ItemType Directory -Path (Join-Path $script:P1New 'installer'), (Join-Path $script:P1Old 'installer') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $script:P1New 'installer/assemble-canivete.mjs'), '')
+  }
+  BeforeEach {
+    $script:T = New-WsStateTable
+    $script:StepLog = New-Object System.Text.StringBuilder
+    $script:Cur = '9'
+    $script:ProjShow = '%USERPROFILE%\workshop-claude'
+  }
+  AfterAll { $script:P1 = 'arena'; $script:P1Ignored = '' }
+
+  It 'Select-WsP1: <Name>' -ForEach @(
+    @{ Name = 'sem WORKSHOP_P1, o Canivete'; V = $null; Kit = 'new'; Want = 'canivete'; Ign = '' },
+    @{ Name = 'vazio, o Canivete'; V = ''; Kit = 'new'; Want = 'canivete'; Ign = '' },
+    @{ Name = 'canivete'; V = 'canivete'; Kit = 'new'; Want = 'canivete'; Ign = '' },
+    @{ Name = 'CANIVETE'; V = 'CANIVETE'; Kit = 'new'; Want = 'canivete'; Ign = '' },
+    @{ Name = 'arena'; V = 'arena'; Kit = 'new'; Want = 'arena'; Ign = '' },
+    @{ Name = 'ARENA'; V = 'ARENA'; Kit = 'new'; Want = 'arena'; Ign = '' },
+    @{ Name = 'espacos a volta nao contam'; V = ' Arena '; Kit = 'new'; Want = 'arena'; Ign = '' },
+    @{ Name = 'invalido, o Canivete e o valor ignorado'; V = 'pocket'; Kit = 'new'; Want = 'canivete'; Ign = 'pocket' },
+    @{ Name = 'invalido, sem caracteres de controlo'; V = ('x' + [char]27 + '[31my'); Kit = 'new'; Want = 'canivete'; Ign = 'x[31my' },
+    @{ Name = 'kit sem assemble-canivete.mjs, a Arena'; V = $null; Kit = 'old'; Want = 'arena'; Ign = '' },
+    @{ Name = 'kit sem assemble-canivete.mjs, a Arena mesmo com canivete'; V = 'canivete'; Kit = 'old'; Want = 'arena'; Ign = '' },
+    @{ Name = 'kit sem assemble-canivete.mjs, sem nota'; V = 'xpto'; Kit = 'old'; Want = 'arena'; Ign = '' }
+  ) {
+    $k = $script:P1New
+    if ($Kit -eq 'old') { $k = $script:P1Old }
+    Select-WsP1 $V $k | Should -BeExactly $Want
+    $script:P1Ignored | Should -BeExactly $Ign
+  }
+
+  It 'Select-WsP1: o valor ignorado fica com 40 caracteres; sem pasta do kit, a Arena' {
+    Select-WsP1 ('a' * 60) $script:P1New | Should -BeExactly 'canivete'
+    $script:P1Ignored.Length | Should -Be 40
+    Select-WsP1 'canivete' '' | Should -BeExactly 'arena'
+  }
+
+  It 'Get-WsP1Dir e Get-WsP1Mark seguem o Projeto 1 escolhido' {
+    $script:P1 = 'canivete'
+    (Get-WsP1Dir) + ' ' + (Get-WsP1Mark) | Should -BeExactly 'canivete-project .canivete-kit.json'
+    $script:P1 = 'arena'
+    (Get-WsP1Dir) + ' ' + (Get-WsP1Mark) | Should -BeExactly 'demo-project .arena-kit.json'
+  }
+
+  It 'Test-WsStep9 com o Canivete: falta montar (mesmo com a Arena), historico proprio e E-DEMO-06, detalhe e nota' {
+    Mock Initialize-WsKit { return $true }
+    Mock Invoke-WsStep9Migrate { }
+    Mock Add-WsStep9LangNote { }
+    $script:Proj = Join-Path $TestDrive 'p1proj'
+    $script:KitSrc = $script:P1New
+    $script:Mode = 'install'
+    $keep = $env:WORKSHOP_P1
+    try {
+      Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue
+      Mock Get-WsProjState { if ($Dir -like '*canivete-project') { return 'vazia' }; return 'ok' }
+      Test-WsStep9 | Should -BeFalse
+      $script:T['9'].Falha -join '|' | Should -BeExactly ('E-DEMO-01|' + (Join-Path $script:Proj 'canivete-project'))
+      Mock Get-WsProjState { if ($Dir -like '*canivete-project') { return 'propria' }; return 'vazia' }
+      $script:T = New-WsStateTable
+      Test-WsStep9 | Should -BeTrue -Because 'a Arena que nao foi escolhida nao conta'
+      $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-06'
+      Mock Get-WsProjState { return 'ok' }
+      $env:WORKSHOP_P1 = 'kanivete'
+      $script:T = New-WsStateTable
+      Test-WsStep9 | Should -BeTrue
+      $script:T['9'].Detalhe | Should -BeExactly 'Pocketknife at %USERPROFILE%\workshop-claude\canivete-project'
+      $script:T['9'].Notas -join ' ' | Should -BeExactly 'WORKSHOP_P1=kanivete is not canivete or arena, so I ignored it and set up the Pocketknife (the default).'
+      $env:WORKSHOP_P1 = 'arena'
+      $script:T = New-WsStateTable
+      Test-WsStep9 | Should -BeTrue
+      $script:T['9'].Detalhe | Should -BeExactly 'Security Arena at %USERPROFILE%\workshop-claude\demo-project'
+      @($script:T['9'].Notas).Count | Should -Be 0
+    } finally {
+      if ($null -eq $keep) { Remove-Item Env:WORKSHOP_P1 -ErrorAction SilentlyContinue } else { $env:WORKSHOP_P1 = $keep }
+    }
+  }
+
+  It 'Invoke-WsAssemble: um Canivete com historico proprio e o aviso E-DEMO-06 (a Arena continua E-DEMO-04)' {
+    Mock Get-WsProjState { return 'propria' }
+    Mock Register-WsExtra { }
+    Invoke-WsAssemble 'assemble-canivete.mjs' (Join-Path $TestDrive 'cvp') '.canivete-kit.json' 'refs/tags/canivete-start' @() | Should -BeTrue
+    $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-06'
+    $script:T = New-WsStateTable
+    Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $TestDrive 'dp') '.arena-kit.json' 'refs/tags/arena-start' @() | Should -BeTrue
+    $script:T['9'].Avisos[0][0] | Should -BeExactly 'E-DEMO-04'
+  }
+
+  It 'Test-WsAppTests com o Canivete: sem tools/gen.mjs salta; corre o gen --check a serio (E-DEMO-05 se desatualizado)' {
+    $script:P1 = 'canivete'
+    $script:Proj = Join-Path $TestDrive 'p1check'
+    $cv = Join-Path $script:Proj 'canivete-project'
+    New-Item -ItemType Directory -Path $cv -Force | Out-Null
+    Test-WsAppTests | Should -BeTrue
+    $script:T['9'].Notas -join ' ' | Should -BeExactly "The Pocketknife doesn't have tools/gen.mjs yet. I skipped the check."
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $node) { $script:P1 = 'arena'; Set-ItResult -Skipped -Because 'sem node'; return }
+    $script:NodeExe = $node.Source
+    Remove-Item -LiteralPath $cv -Recurse -Force
+    $r = Invoke-WsProcess $script:NodeExe @((Join-Path $script:Root 'installer/assemble-canivete.mjs'), '--dest', $cv, '--language', 'en', '--no-git') -TimeoutSec 120
+    $r.ExitCode | Should -Be 0
+    $script:T = New-WsStateTable
+    Test-WsAppTests | Should -BeTrue
+    $script:T['9'].Notas -join ' ' | Should -Match '^Pocketknife check: the specs and tests of the [0-9]+ tools are up to date\.$'
+    [IO.File]::AppendAllText((Join-Path $cv 'TASKS.md'), "`nchanged`n")
+    $script:T = New-WsStateTable
+    Test-WsAppTests | Should -BeFalse
+    $script:T['9'].Falha -join '|' | Should -BeExactly 'E-DEMO-05|node tools/gen.mjs --check'
+    $script:P1 = 'arena'
+  }
+
+  It 'os codigos e as mensagens novas existem nos dois catalogos, com os mesmos marcadores' {
+    $pt = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/messages.pt.json'), [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $keys = @{ s9_p1_canivete = @('{CAMINHO}'); s9_p1_arena = @('{CAMINHO}'); s9_p1_ignorado = @('{VALOR}'); s9_canivete_ok = @('{N}'); s9_sem_gen = @() }
+    foreach ($cat in @($script:Msgs, $pt)) {
+      foreach ($k in $keys.Keys) {
+        $cat.ui.PSObject.Properties.Name | Should -Contain $k
+        foreach ($m in $keys[$k]) { $cat.ui.$k | Should -Match ([regex]::Escape($m)) }
+      }
+      $cat.erros.'E-DEMO-05'.windows[0] | Should -Match 'canivete-project; node tools/gen\.mjs --check'
+      $cat.erros.'E-DEMO-06'.windows[0] | Should -Match 'Rename-Item \{PROJETOS\}\\canivete-project canivete-project-old'
+      $cat.ui.PSObject.Properties.Name | Should -Not -Contain 's9_ja'
     }
   }
 }

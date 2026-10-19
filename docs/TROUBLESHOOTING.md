@@ -88,6 +88,8 @@ Every setup error has a **code** (for example, `E-NET-01`). The setup shows the 
 | `E-DEMO-02` | The Arena app tests failed | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | The project folder already exists and is not from the kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
 | `E-DEMO-04` | The Arena has its own git history: I left it as it is | [macOS](#mac-e-demo-04) · [Windows](#windows-e-demo-04) |
+| `E-DEMO-05` | The Pocketknife specs and tests are not the generated ones | [macOS](#mac-e-demo-05) · [Windows](#windows-e-demo-05) |
+| `E-DEMO-06` | The Pocketknife has its own git history: I left it as it is | [macOS](#mac-e-demo-06) · [Windows](#windows-e-demo-06) |
 | `E-MEM-01` | The Agent Memory app release is not published yet | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
 | `E-MEM-02` | The Agent Memory app file does not match (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
 | `E-MEM-03` | Installing the Agent Memory app failed | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
@@ -1060,6 +1062,37 @@ Command (macOS):
 
 ```
 mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
+```
+
+<a id="mac-e-demo-05"></a>
+
+### E-DEMO-05 · The Pocketknife specs and tests are not the generated ones
+
+- **Why:** node tools/gen.mjs --check found a tool spec.md, a tool.test.js or TASKS.md that no longer matches specs/tools.json (or a specs/my-tool.json with an error). The tools themselves are only built later, by the swarm.
+- **What to do:**
+  - Run the check by hand: it names each file that is out of date.
+  - If you changed specs/tools.json or specs/my-tool.json on purpose, run node tools/gen.mjs (without --check) to generate the files again.
+  - Otherwise send the result to the organizer.
+
+Command (macOS):
+
+```
+cd ~/workshop-claude/canivete-project && node tools/gen.mjs --check
+```
+
+<a id="mac-e-demo-06"></a>
+
+### E-DEMO-06 · The Pocketknife has its own git history: I left it as it is
+
+- **Why:** The Pocketknife has commits but not the canivete-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.
+- **What to do:**
+  - Nothing to do if you want to keep working in this Pocketknife.
+  - To get a fresh Pocketknife, rename this folder and run the setup again.
+
+Command (macOS):
+
+```
+mv ~/workshop-claude/canivete-project ~/workshop-claude/canivete-project-old
 ```
 
 <a id="mac-e-mem-01"></a>
@@ -2337,6 +2370,37 @@ Command (Windows):
 
 ```
 Rename-Item ~/workshop-claude\demo-project demo-project-old
+```
+
+<a id="windows-e-demo-05"></a>
+
+### E-DEMO-05 · The Pocketknife specs and tests are not the generated ones
+
+- **Why:** node tools/gen.mjs --check found a tool spec.md, a tool.test.js or TASKS.md that no longer matches specs/tools.json (or a specs/my-tool.json with an error). The tools themselves are only built later, by the swarm.
+- **What to do:**
+  - Run the check by hand: it names each file that is out of date.
+  - If you changed specs/tools.json or specs/my-tool.json on purpose, run node tools/gen.mjs (without --check) to generate the files again.
+  - Otherwise send the result to the organizer.
+
+Command (Windows):
+
+```
+cd ~/workshop-claude\canivete-project; node tools/gen.mjs --check
+```
+
+<a id="windows-e-demo-06"></a>
+
+### E-DEMO-06 · The Pocketknife has its own git history: I left it as it is
+
+- **Why:** The Pocketknife has commits but not the canivete-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.
+- **What to do:**
+  - Nothing to do if you want to keep working in this Pocketknife.
+  - To get a fresh Pocketknife, rename this folder and run the setup again.
+
+Command (Windows):
+
+```
+Rename-Item ~/workshop-claude\canivete-project canivete-project-old
 ```
 
 <a id="windows-e-mem-01"></a>

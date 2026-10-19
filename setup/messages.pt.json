@@ -148,11 +148,15 @@
     "s8_painel_off": "Painel do workshop: desligado. Para o ligares, corre: {CMD} (A ou B: a tua sala)",
     "s8_painel_mantido": "Painel do workshop: fica como escolheste antes. Para o veres: {CMD}",
     "s8_painel_acessivel": "Painel do workshop: ligado (sala {SALA}) e responde a partir desta rede.",
-    "s9_ja": "{PROJETOS}",
     "s9_backup": "A tua pasta anterior ficou guardada em {PASTA}.",
     "s9_testes_ok": "Testes da app: {OK} passaram.",
     "s9_sem_testes": "O projeto ainda não tem test/app.test.js. Saltei os testes.",
     "s9_lingua_diferente": "{CAMINHO} está em {LINGUA}, e os textos do workshop estão agora em {KIT}. Deixei-o como estava, com o teu trabalho. Para o teres em {KIT}: muda o nome dessa pasta e corre o setup outra vez (monta uma nova; a pasta com o nome mudado guarda o teu trabalho).",
+    "s9_p1_canivete": "Canivete em {CAMINHO}",
+    "s9_p1_arena": "Arena de Segurança em {CAMINHO}",
+    "s9_p1_ignorado": "WORKSHOP_P1={VALOR} não é canivete nem arena: ignorei-o e montei o Canivete (o projeto por defeito).",
+    "s9_canivete_ok": "Verificação do Canivete: as specs e os testes das {N} ferramentas estão em dia.",
+    "s9_sem_gen": "O Canivete ainda não tem tools/gen.mjs. Saltei a verificação.",
     "s10_ja": "agent-memory {VERSAO}",
     "s10_ok": "App Agent Memory {VERSAO} (Python {PY} gerido pelo uv, FTS5 ok)",
     "s10_update": "Para atualizar a app mais tarde: agent-memory update. No Windows, fecha primeiro o Claude Code; a atualização termina numa janela nova do PowerShell.",
@@ -1283,6 +1287,37 @@
       ],
       "windows": [
         "Rename-Item {PROJETOS}\\demo-project demo-project-old"
+      ]
+    },
+    "E-DEMO-05": {
+      "titulo": "As specs e os testes do Canivete não são os gerados",
+      "so": "todos",
+      "causa": "O node tools/gen.mjs --check encontrou um spec.md, um tool.test.js ou o TASKS.md que já não corresponde ao specs/tools.json (ou um specs/my-tool.json com um erro). As ferramentas só são feitas depois, pelo swarm.",
+      "fazer": [
+        "Corre a verificação à mão: diz qual é cada ficheiro desatualizado.",
+        "Se mudaste o specs/tools.json ou o specs/my-tool.json de propósito, corre node tools/gen.mjs (sem --check) para gerar os ficheiros outra vez.",
+        "Se não, envia o resultado ao organizador."
+      ],
+      "mac": [
+        "cd {PROJETOS}/canivete-project && node tools/gen.mjs --check"
+      ],
+      "windows": [
+        "cd {PROJETOS}\\canivete-project; node tools/gen.mjs --check"
+      ]
+    },
+    "E-DEMO-06": {
+      "titulo": "O Canivete tem um histórico git próprio: deixei-o como está",
+      "so": "todos",
+      "causa": "O Canivete tem commits mas não tem a tag canivete-start (o ponto de partida), por isso o /demo-reset não o consegue repor no início. O setup nunca apaga o teu trabalho.",
+      "fazer": [
+        "Não há nada a fazer se quiseres continuar a trabalhar neste Canivete.",
+        "Para teres um Canivete novo, muda o nome desta pasta e volta a correr o setup."
+      ],
+      "mac": [
+        "mv {PROJETOS}/canivete-project {PROJETOS}/canivete-project-old"
+      ],
+      "windows": [
+        "Rename-Item {PROJETOS}\\canivete-project canivete-project-old"
       ]
     },
     "E-MEM-01": {

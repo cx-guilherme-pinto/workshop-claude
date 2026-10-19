@@ -88,6 +88,8 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 | `E-DEMO-02` | Os testes da app da Arena falharam | [macOS](#mac-e-demo-02) · [Windows](#windows-e-demo-02) |
 | `E-DEMO-03` | A pasta do projeto já existe e não é do kit | [macOS](#mac-e-demo-03) · [Windows](#windows-e-demo-03) |
 | `E-DEMO-04` | A Arena tem um histórico git próprio: deixei-a como está | [macOS](#mac-e-demo-04) · [Windows](#windows-e-demo-04) |
+| `E-DEMO-05` | As specs e os testes do Canivete não são os gerados | [macOS](#mac-e-demo-05) · [Windows](#windows-e-demo-05) |
+| `E-DEMO-06` | O Canivete tem um histórico git próprio: deixei-o como está | [macOS](#mac-e-demo-06) · [Windows](#windows-e-demo-06) |
 | `E-MEM-01` | A release da app Agent Memory ainda não foi publicada | [macOS](#mac-e-mem-01) · [Windows](#windows-e-mem-01) |
 | `E-MEM-02` | O ficheiro da app Agent Memory não confere (SHA-256) | [macOS](#mac-e-mem-02) · [Windows](#windows-e-mem-02) |
 | `E-MEM-03` | A instalação da app Agent Memory falhou | [macOS](#mac-e-mem-03) · [Windows](#windows-e-mem-03) |
@@ -1060,6 +1062,37 @@ Comando (macOS):
 
 ```
 mv ~/workshop-claude/demo-project ~/workshop-claude/demo-project-old
+```
+
+<a id="mac-e-demo-05"></a>
+
+### E-DEMO-05 · As specs e os testes do Canivete não são os gerados
+
+- **Porquê:** O node tools/gen.mjs --check encontrou um spec.md, um tool.test.js ou o TASKS.md que já não corresponde ao specs/tools.json (ou um specs/my-tool.json com um erro). As ferramentas só são feitas depois, pelo swarm.
+- **O que fazer:**
+  - Corre a verificação à mão: diz qual é cada ficheiro desatualizado.
+  - Se mudaste o specs/tools.json ou o specs/my-tool.json de propósito, corre node tools/gen.mjs (sem --check) para gerar os ficheiros outra vez.
+  - Se não, envia o resultado ao organizador.
+
+Comando (macOS):
+
+```
+cd ~/workshop-claude/canivete-project && node tools/gen.mjs --check
+```
+
+<a id="mac-e-demo-06"></a>
+
+### E-DEMO-06 · O Canivete tem um histórico git próprio: deixei-o como está
+
+- **Porquê:** O Canivete tem commits mas não tem a tag canivete-start (o ponto de partida), por isso o /demo-reset não o consegue repor no início. O setup nunca apaga o teu trabalho.
+- **O que fazer:**
+  - Não há nada a fazer se quiseres continuar a trabalhar neste Canivete.
+  - Para teres um Canivete novo, muda o nome desta pasta e volta a correr o setup.
+
+Comando (macOS):
+
+```
+mv ~/workshop-claude/canivete-project ~/workshop-claude/canivete-project-old
 ```
 
 <a id="mac-e-mem-01"></a>
@@ -2337,6 +2370,37 @@ Comando (Windows):
 
 ```
 Rename-Item ~/workshop-claude\demo-project demo-project-old
+```
+
+<a id="windows-e-demo-05"></a>
+
+### E-DEMO-05 · As specs e os testes do Canivete não são os gerados
+
+- **Porquê:** O node tools/gen.mjs --check encontrou um spec.md, um tool.test.js ou o TASKS.md que já não corresponde ao specs/tools.json (ou um specs/my-tool.json com um erro). As ferramentas só são feitas depois, pelo swarm.
+- **O que fazer:**
+  - Corre a verificação à mão: diz qual é cada ficheiro desatualizado.
+  - Se mudaste o specs/tools.json ou o specs/my-tool.json de propósito, corre node tools/gen.mjs (sem --check) para gerar os ficheiros outra vez.
+  - Se não, envia o resultado ao organizador.
+
+Comando (Windows):
+
+```
+cd ~/workshop-claude\canivete-project; node tools/gen.mjs --check
+```
+
+<a id="windows-e-demo-06"></a>
+
+### E-DEMO-06 · O Canivete tem um histórico git próprio: deixei-o como está
+
+- **Porquê:** O Canivete tem commits mas não tem a tag canivete-start (o ponto de partida), por isso o /demo-reset não o consegue repor no início. O setup nunca apaga o teu trabalho.
+- **O que fazer:**
+  - Não há nada a fazer se quiseres continuar a trabalhar neste Canivete.
+  - Para teres um Canivete novo, muda o nome desta pasta e volta a correr o setup.
+
+Comando (Windows):
+
+```
+Rename-Item ~/workshop-claude\canivete-project canivete-project-old
 ```
 
 <a id="windows-e-mem-01"></a>
