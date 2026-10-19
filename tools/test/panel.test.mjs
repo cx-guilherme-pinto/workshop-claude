@@ -102,10 +102,14 @@ test('aggregate: every metric of spec 6.3, per room and for both', () => {
   ]);
   // the leaderboard (D-34): registered people by points (coverage and quality), ties by who got there first
   assert.deepEqual(s.board.all.top.map((r) => [r.rank, r.name, r.room, r.points, r.missions.join(','), r.p1, r.p2]), [
-    [1, 'Ana Silva', 'A', 1 + 1 + 1 + 2 + 1 + 2 + 1, 'M1', 'approved', 'approved'],
+    [1, 'Ana Silva', 'A', 1 + 1 + 1 + 2 + 1 + 2 + 1, 'M1', 'approved', 'report'],
     [2, 'Rui Costa', 'A', 2 + 1, 'M1,M2', 'swarm', null],
   ]);
   assert.equal(s.board.all.people, 2, 'person 3 never registered: not on the board');
+  assert.deepEqual(s.registrations.all, { people: 2, ready: 1, recent: [{ name: 'Rui Costa', room: 'A' }, { name: 'Ana Silva', room: 'A' }] });
+  assert.deepEqual(s.registrations.B, { people: 0, ready: 0, recent: [] }, 'person 3 is ready but not registered');
+  assert.deepEqual(s.feed_rooms.B, []);
+  assert.equal(s.feed_rooms.A.length, 5);
   assert.equal(s.board.B.people, 0);
   a.hide('Ana Silva');
   const hidden = a.state(now);

@@ -73,6 +73,7 @@ export class Aggregate {
     this.hidden = new Set();
     this.firsts = new Set();
     this.ids = new Map();
+    this.regSeq = 0;
     this.count = 0;
     this.lastT = null;
   }
@@ -167,6 +168,7 @@ export class Aggregate {
       this.people.set(id, p);
     }
     p.name = name.slice(0, 60);
+    p.registeredSeq = ++this.regSeq;
     if (ROOMS.includes(room)) p.room = room;
     this.ids.set(p, id);
     return true;
@@ -195,6 +197,19 @@ export class Aggregate {
     return true;
   }
 
+  // The registrations of a room (or both): how many, how many of them are ready, the most recent ones (Opening view).
+  registrations(room = null) {
+    const ps = [...this.people.values()].filter((p) => p.name && (room === null || p.room === room));
+    return {
+      people: ps.length,
+      ready: ps.filter((p) => p.ready).length,
+      recent: ps
+        .sort((a, b) => (b.registeredSeq || 0) - (a.registeredSeq || 0))
+        .slice(0, 42)
+        .map((p) => ({ name: this.hidden.has(p.name) ? null : p.name, room: p.room })),
+    };
+  }
+
   // The leaderboard: registered people by points, ties broken by who got there first. room = null for both rooms.
   board(room = null) {
     const rows = [...this.people.values()]
@@ -209,7 +224,8 @@ export class Aggregate {
         points: p.points,
         missions: MISSIONS.filter((m) => p.missions.has(m)),
         p1: p.p1.gate ? (p.p1.gate === 'APPROVED' ? 'approved' : 'gate') : p.p1.swarm ? 'swarm' : p.p1.plan ? 'plan' : null,
-        p2: p.p2.gate === 'APPROVED' ? 'approved' : p.p2.stage >= 0 ? FUNNEL[p.p2.stage] : null,
+        // the Project 2 stage on the board: … gate → approved → report (the report comes after the approval)
+        p2: p.p2.stage === FUNNEL.length - 1 ? 'report' : p.p2.gate === 'APPROVED' ? 'approved' : p.p2.stage >= 0 ? FUNNEL[p.p2.stage] : null,
       })),
     };
   }
@@ -295,7 +311,13 @@ export class Aggregate {
         const name = id ? this.people.get(id)?.name : null;
         return { ...f, name: name && !this.hidden.has(name) ? name : null };
       }),
+      // the feed of one room (the page filters by ?room=)
+      feed_rooms: Object.fromEntries(ROOMS.map((r) => [r, this.feed.filter((f) => f.room === r).slice(-FEED_MAX).map(({ id, ...f }) => {
+        const name = id ? this.people.get(id)?.name : null;
+        return { ...f, name: name && !this.hidden.has(name) ? name : null };
+      })])),
       board: { all: this.board(null), A: this.board('A'), B: this.board('B') },
+      registrations: { all: this.registrations(null), A: this.registrations('A'), B: this.registrations('B') },
       max_points: MAX_POINTS,
     };
   }
@@ -308,6 +330,7 @@ export class Aggregate {
       phase: this.phase,
       count: this.count,
       lastT: this.lastT,
+      regSeq: this.regSeq,
       feed: this.feed,
       hidden: [...this.hidden],
       firsts: [...this.firsts],
@@ -321,6 +344,7 @@ export class Aggregate {
     a.phase = PHASES.includes(j.phase) ? j.phase : 'opening';
     a.count = j.count || 0;
     a.lastT = j.lastT ?? null;
+    a.regSeq = j.regSeq || 0;
     a.feed = Array.isArray(j.feed) ? j.feed : [];
     a.hidden = new Set(j.hidden || []);
     a.firsts = new Set(j.firsts || []);

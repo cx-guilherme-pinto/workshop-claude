@@ -24,7 +24,7 @@ const ROOMS = ['A', 'B'];
 const BUDGET = 5;
 // The stages of each project on the leaderboard, in order (what board().top[].p1 and .p2 hold).
 export const P1_STAGES = ['plan', 'swarm', 'gate', 'approved'];
-export const P2_STAGES = ['intake', 'plan', 'swarm', 'gate', 'report', 'approved'];
+export const P2_STAGES = ['intake', 'plan', 'swarm', 'gate', 'approved', 'report'];
 const FUNNEL = ['intake', 'plan', 'swarm', 'gate', 'report'];
 const WIDE = 1100;
 
@@ -350,8 +350,9 @@ function feedBlock(parent, ctx, n) {
   f.append(feed);
   let key = '';
   return (state) => {
-    // ?room filters the feed too (the aggregate keeps the last few of both rooms).
-    const items = (Array.isArray(state.feed) ? state.feed : [])
+    // ?room shows that room's own feed (the aggregate keeps the last few of each room).
+    const src = ctx.focus ? state.feed_rooms?.[ctx.focus] : state.feed;
+    const items = (Array.isArray(src) ? src : [])
       .filter((it) => !ctx.focus || it.room === ctx.focus)
       .slice(-n)
       .reverse();
@@ -413,14 +414,12 @@ view.opening = (root, ctx) => {
   let key = '';
   return (state) => {
     const room = ctx.focus || 'all';
-    const x = state.rooms?.[room] || {};
-    setText(regNum, num(state.board?.[room]?.people ?? 0));
-    setText(readyNum, num(x.ready ?? 0));
-    setText(readyOf, t('readyOf', { n: num(x.people ?? 0) }));
-    const names = [...ctx.seen]
-      .filter(([, v]) => !ctx.focus || v.room === ctx.focus)
-      .sort((a, b) => b[1].seq - a[1].seq)
-      .slice(0, 60);
+    const r = state.registrations?.[room] || { people: 0, ready: 0, recent: [] };
+    setText(regNum, num(r.people ?? 0));
+    setText(readyNum, num(r.ready ?? 0));
+    setText(readyOf, t('readyOf', { n: num(r.people ?? 0) }));
+    // the most recent registrations, newest first (a hidden name comes as null and shows as "—")
+    const names = (r.recent || []).map((x) => [x.name, { room: x.room }]);
     const k = JSON.stringify([names, ctx.hiding, [...ctx.hidden]]);
     if (k !== key) {
       key = k;
