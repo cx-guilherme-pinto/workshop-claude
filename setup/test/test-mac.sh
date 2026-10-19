@@ -14,6 +14,7 @@ WS_SOURCE_ONLY=1
 . "$ROOT/setup/setup-mac.sh"
 WS_LOG=/dev/null; WS_TMP=$(mktemp -d); trap 'rm -rf "$WS_TMP"' EXIT
 NODE=$(command -v node || true)
+unset WORKSHOP_P1
 
 # --- versoes
 for c in "2.1.292|2.1.285|0" "2.1.285|2.1.292|1" "24.22.0|24|0" "22.0.1|24|1" "0.13.1|0.5|0" "0.4.9|0.5|1" "1.10|1.9|0" "2.1.285 (Claude Code)|2.1.285|0" "v24.3.0|22|0"; do
@@ -289,11 +290,33 @@ grep -q 'This run asks for' "$WS_TMP/g7.out" && ko "s8 check: sem lingua instala
 # (5) passo 9: projetos noutra lingua que a do kit dao uma nota (nao mudam sozinhos)
 printf '{\n  "version": "v1",\n  "language": "pt"\n}\n' > "$G7/proj/demo-project/.arena-kit.json"
 printf '{"created_at":"x","lingua":"pt"}\n' > "$G7/proj/practice-project/.sandbox-kit.json"
-( WS_CUR=9; SN_9=""; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=en; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
+( WS_CUR=9; SN_9=""; WS_P1=arena; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=en; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
 grep -q '^~/workshop-claude/demo-project is in Portuguese, and the workshop texts are now in English' "$WS_TMP/g7.out" &&
   grep -q '^~/workshop-claude/practice-project is in Portuguese' "$WS_TMP/g7.out" && ok || ko "s9: nota dos projetos noutra lingua [$(cat "$WS_TMP/g7.out")]"
-( WS_CUR=9; SN_9=""; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=pt; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
+( WS_CUR=9; SN_9=""; WS_P1=arena; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=pt; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
 eq "$(grep -c . "$WS_TMP/g7.out")" 0 "s9: projetos na lingua do kit, sem nota"
+# Com o Canivete (o Projeto 1 por defeito) conta a marca dele; uma Arena antiga ao lado nao da nota.
+mkdir -p "$G7/proj/canivete-project"; printf '{"version":"v1","language":"pt"}\n' > "$G7/proj/canivete-project/.canivete-kit.json"
+( WS_CUR=9; SN_9=""; WS_P1=canivete; WS_PROJ="$G7/proj"; WS_PROJ_SHOW='~/workshop-claude'; WS_LANG_KIT=en; ws_s9_lang_check; printf '%s' "$SN_9" ) > "$WS_TMP/g7.out"
+grep -q '^~/workshop-claude/canivete-project is in Portuguese' "$WS_TMP/g7.out" && ! grep -q 'demo-project' "$WS_TMP/g7.out" && ok || ko "s9: nota do Canivete noutra lingua, sem a Arena [$(cat "$WS_TMP/g7.out")]"
+rm -rf "$G7/proj/canivete-project"
+# --- Projeto 1 (WORKSHOP_P1, A4): Canivete por defeito, Arena com WORKSHOP_P1=arena, Arena num kit sem o
+# assemble-canivete.mjs
+P1K="$WS_TMP/p1kit"; mkdir -p "$P1K/new/installer" "$P1K/old/installer"; : > "$P1K/new/installer/assemble-canivete.mjs"
+p1() { ( if [ "$1" = UNSET ]; then unset WORKSHOP_P1; else WORKSHOP_P1=$1; fi; KIT_SRC="$P1K/$2"; ws_p1_pick; printf '%s|%s|%s|%s' "$WS_P1" "$WS_P1_IGNORADO" "$(ws_p1_dir)" "$(ws_p1_mark)" ); }
+eq "$(p1 UNSET new)" "canivete||canivete-project|.canivete-kit.json" "ws_p1_pick: sem WORKSHOP_P1, o Canivete"
+eq "$(p1 '' new)" "canivete||canivete-project|.canivete-kit.json" "ws_p1_pick: WORKSHOP_P1 vazio, o Canivete"
+eq "$(p1 canivete new)" "canivete||canivete-project|.canivete-kit.json" "ws_p1_pick: canivete"
+eq "$(p1 CANIVETE new)" "canivete||canivete-project|.canivete-kit.json" "ws_p1_pick: CANIVETE"
+eq "$(p1 arena new)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: arena"
+eq "$(p1 ARENA new)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: ARENA"
+eq "$(p1 ' Arena ' new)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: espacos a volta nao contam"
+eq "$(p1 pocket new)" "canivete|pocket|canivete-project|.canivete-kit.json" "ws_p1_pick: valor invalido, o Canivete e o valor ignorado"
+eq "$(p1 "$(printf 'x[31my')" new)" "canivete|x[31my|canivete-project|.canivete-kit.json" "ws_p1_pick: o valor ignorado sem caracteres de controlo"
+eq "$(p1 "$(printf 'a%.0s' $(seq 60))" new | cut -d'|' -f2 | wc -c | tr -d ' ')" 41 "ws_p1_pick: o valor ignorado fica com 40 caracteres"
+eq "$(p1 UNSET old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, a Arena"
+eq "$(p1 canivete old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, a Arena mesmo com canivete"
+eq "$(p1 xpto old)" "arena||demo-project|.arena-kit.json" "ws_p1_pick: kit sem assemble-canivete.mjs, sem nota"
 # (6) a contagem dos testes da app nao depende do locale (no C o [#ℹ] do sed apanhava so o primeiro byte)
 NODE_OUT=$(printf '✔ pass 3 a test named pass\nℹ tests 16\nℹ pass 16\nℹ fail 0\n')
 for loc in C en_US.utf8 en_US.UTF-8 ''; do
@@ -975,10 +998,36 @@ p9() { ( HOME="$PF/h"; WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop
   ws_assemble() { printf '%s\n' "$*" | sed "s#$HOME#~#g" >> "$PF/asm"; }
   : > "$PF/asm"; ws_s9_install; cat "$PF/asm" ); }
 r=$(p9); case "$r" in *missions*) ko "s9: sem assemble-missions.mjs nao monta as missoes [$r]" ;; *) ok ;; esac
+eq "$(printf '%s\n' "$r" | head -n 1)" "assemble-demo.mjs ~/workshop-claude/demo-project .arena-kit.json refs/tags/arena-start --node node --language pt" "s9: kit sem assemble-canivete.mjs monta a Arena"
 : > "$PF/k9/installer/assemble-missions.mjs"
 eq "$(p9)" "assemble-demo.mjs ~/workshop-claude/demo-project .arena-kit.json refs/tags/arena-start --node node --language pt
 assemble-sandbox.mjs ~/workshop-claude/practice-project .sandbox-kit.json HEAD --language pt
 assemble-missions.mjs ~/workshop-claude/missions-project .missions-kit.json HEAD --language pt --kit-dir ~/.workshop-claude/kit" "s9: Arena, treino e missoes, por esta ordem"
+# Com o assemble-canivete.mjs, o Projeto 1 por defeito e o Canivete; a Arena so com WORKSHOP_P1=arena.
+: > "$PF/k9/installer/assemble-canivete.mjs"
+eq "$(p9)" "assemble-canivete.mjs ~/workshop-claude/canivete-project .canivete-kit.json refs/tags/canivete-start --node node --language pt
+assemble-sandbox.mjs ~/workshop-claude/practice-project .sandbox-kit.json HEAD --language pt
+assemble-missions.mjs ~/workshop-claude/missions-project .missions-kit.json HEAD --language pt --kit-dir ~/.workshop-claude/kit" "s9: Canivete (por defeito), treino e missoes, por esta ordem"
+eq "$(WORKSHOP_P1=Arena p9 | head -n 1)" "assemble-demo.mjs ~/workshop-claude/demo-project .arena-kit.json refs/tags/arena-start --node node --language pt" "s9: WORKSHOP_P1=Arena monta a Arena"
+r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; WS_PROJ_SHOW='~/workshop-claude'; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""; SD_9=""; SN_9=""
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_s9_lang_check() { :; }; ws_proj_state() { echo ok; }
+  WORKSHOP_P1=kanivete ws_s9_detect >/dev/null; printf '%s|%s|%s' "$?" "$SD_9" "$SN_9" )
+eq "$r" "0|Pocketknife at ~/workshop-claude/canivete-project|WORKSHOP_P1=kanivete is not canivete or arena, so I ignored it and set up the Pocketknife (the default)." "s9 detect: detalhe do Canivete e nota do WORKSHOP_P1 ignorado"
+r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; WS_PROJ_SHOW='~/workshop-claude'; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""; SD_9=""; SN_9=""
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_s9_lang_check() { :; }; ws_proj_state() { echo ok; }
+  WORKSHOP_P1=arena ws_s9_detect >/dev/null; printf '%s|%s|%s' "$?" "$SD_9" "$SN_9" )
+eq "$r" "0|Security Arena at ~/workshop-claude/demo-project|" "s9 detect: detalhe da Arena"
+r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_proj_state() { case "$1" in (*canivete-project) echo vazia ;; (*) echo ok ;; esac; }
+  ws_s9_detect >/dev/null; printf '%s|%s' "$?" "$SF_9" )
+eq "$r" "1|E-DEMO-01|$PF/h/workshop-claude/canivete-project" "s9 detect: sem o Canivete falta montar (mesmo com a Arena montada)"
+r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""
+  ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_proj_state() { case "$1" in (*canivete-project) echo propria ;; (*) echo ok ;; esac; }
+  ws_s9_detect >/dev/null; printf '%s|%s|%s' "$?" "$SF_9" "$SW_9" )
+eq "$r" "0||E-DEMO-06|~/workshop-claude/canivete-project" "s9 detect: Canivete com historico proprio e o aviso E-DEMO-06"
+r=$( WS_CUR=9; SN_9=""; SF_9=""; WS_P1=canivete; WS_PROJ="$PF/sem-gen"; ws_s9_tests; printf '%s|%s|%s' "$?" "$SF_9" "$SN_9" )
+eq "$r" "0||The Pocketknife doesn't have tools/gen.mjs yet. I skipped the check." "s9 testes: Canivete sem tools/gen.mjs salta a verificacao"
+rm -f "$PF/k9/installer/assemble-canivete.mjs"
 r=$( HOME="$PF/h"; WS_PROJ="$HOME/workshop-claude"; KIT_SRC="$PF/k9"; WS_MODE=install; WS_CUR=9; SF_9=""; SW_9=""; rm -rf "$WS_PROJ"
   ws_kit_ensure() { return 0; }; ws_s9_migrate() { :; }; ws_proj_state() { case "$1" in (*missions-project) echo vazia ;; (*) echo ok ;; esac; }
   ws_s9_detect >/dev/null; printf '%s|%s' "$?" "$SF_9" )
@@ -994,10 +1043,11 @@ if [ -n "$NODE" ]; then
   g5e() { # funcao do passo 9 -> rc#SF#SW#SN
     ( export HOME="$EH" GIT_CONFIG_GLOBAL="$HH/gitconfig" GIT_CONFIG_NOSYSTEM=1; mkdir -p "$HOME/.workshop-claude"
       WS_HOME="$HOME/.workshop-claude"; WS_PROJ="$HOME/workshop-claude"; WS_PROJ_SHOW='~/workshop-claude'
-      WS_NODE="$NODE"; KIT_SRC="$ROOT"; WS_LANG_KIT=en; WS_CUR=9; WS_MODE=install; WS_STEP_LOG="$G5/e.log"; : > "$WS_STEP_LOG"
+      WORKSHOP_P1=${G5_P1-arena}
+      WS_NODE="$NODE"; KIT_SRC="$ROOT"; WS_LANG_KIT=en; WS_CUR=9; WS_MODE=${G5_MODE:-install}; WS_STEP_LOG="$G5/e.log"; : > "$WS_STEP_LOG"
       SF_9=""; SW_9=""; SN_9=""; SD_9=""
       ws_kit_ensure() { return 0; }
-      "$1"; printf '%s#%s#%s#%s' "$?" "$SF_9" "$SW_9" "$SN_9" )
+      "$1"; printf '%s#%s#%s#%s#%s' "$?" "$SF_9" "$SW_9" "$SN_9" "$SD_9" )
   }
   A="$EH/workshop-claude/demo-project"; P="$EH/workshop-claude/practice-project"
   r=$(g5e ws_s9_install); case "$r" in '0###'*) ok ;; *) ko "s9 git hostil: instala [$r] $(grep ERROR "$G5/e.log" | head -n 2)" ;; esac
@@ -1018,6 +1068,22 @@ if [ -n "$NODE" ]; then
   r=$(g5e ws_s9_install); case "$r" in *'Your previous folder is saved in ~/.workshop-claude/backup/'*'/practice-project.'*) ok ;; *) ko "s9 sem .git: nota do backup [$r]" ;; esac
   # shellcheck disable=SC2012
   [ "$(cat "$EH"/.workshop-claude/backup/*/practice-project/MY-NOTES.md 2>/dev/null)" = mine ] && [ ! -e "$P/MY-NOTES.md" ] && ok || ko "s9 sem .git: o trabalho esta no backup"
+  # Canivete (o Projeto 1 por defeito) com o assemble-canivete.mjs do repositorio: monta-se ao lado da Arena da
+  # instalacao anterior, que fica como estava, e o --check corre o "node tools/gen.mjs --check".
+  CV="$EH/workshop-claude/canivete-project"
+  r=$(G5_P1="" g5e ws_s9_install)
+  case "$r" in '0###Pocketknife check: the specs and tests of the '*' tools are up to date.'*'#Pocketknife at ~/workshop-claude/canivete-project') ok ;; *) ko "s9 Canivete: instala [$r] $(grep ERROR "$G5/e.log" | head -n 2)" ;; esac
+  eq "$(g5git -C "$CV" cat-file -t canivete-start 2>/dev/null)" commit "s9 Canivete: tag canivete-start leve"
+  [ -f "$CV/.canivete-kit.json" ] && [ -f "$CV/tools/gen.mjs" ] && ok || ko "s9 Canivete: marca e tools/gen.mjs"
+  [ "$(cat "$A/MY-NOTES.md" 2>/dev/null)" = mine ] && [ -f "$A/.arena-kit.json" ] && ok || ko "s9 Canivete: a Arena anterior ficou como estava"
+  r=$(G5_P1="" G5_MODE=check g5e ws_s9_detect); case "$r" in '0##E-DEMO-04|'*'Pocketknife check:'*) ko "s9 Canivete --check: a Arena nao escolhida nao da aviso [$r]" ;; '0###Pocketknife check:'*) ok ;; *) ko "s9 Canivete --check [$r]" ;; esac
+  printf '\nchanged\n' >> "$CV/TASKS.md"
+  r=$(G5_P1="" G5_MODE=check g5e ws_s9_detect); case "$r" in '0#E-DEMO-05|node tools/gen.mjs --check#'*) ok ;; *) ko "s9 Canivete --check: TASKS.md alterado e o E-DEMO-05 [$r]" ;; esac
+  g5git -C "$CV" checkout -q -- TASKS.md >/dev/null 2>&1
+  r=$(G5_P1="" G5_MODE=check g5e ws_s9_detect); case "$r" in '0###'*) ok ;; *) ko "s9 Canivete --check: reposto, verde outra vez [$r]" ;; esac
+  # Historico proprio no Canivete (sem a tag canivete-start): fica como esta, com o aviso E-DEMO-06.
+  g5git -C "$CV" tag -d canivete-start >/dev/null 2>&1
+  r=$(G5_P1="" g5e ws_s9_install); case "$r" in '0##E-DEMO-06|~/workshop-claude/canivete-project'*) ok ;; *) ko "s9 Canivete historico proprio: aviso E-DEMO-06 [$r]" ;; esac
 fi
 # --- chaos G6-lifecycle: lock, interrupcao, copia guardada, restos de sudo, settings.json, pastas sem escrita
 G6="$WS_TMP/g6"; mkdir -p "$G6"

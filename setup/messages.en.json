@@ -148,11 +148,15 @@
     "s8_painel_off": "Workshop panel: off. To turn it on, run: {CMD} (A or B: your room)",
     "s8_painel_mantido": "Workshop panel: as you chose before. To see it: {CMD}",
     "s8_painel_acessivel": "Workshop panel: on (room {SALA}), and it answers from this network.",
-    "s9_ja": "{PROJETOS}",
     "s9_backup": "Your previous folder is saved in {PASTA}.",
     "s9_testes_ok": "App tests: {OK} passed.",
     "s9_sem_testes": "The project doesn't have test/app.test.js yet. I skipped the tests.",
     "s9_lingua_diferente": "{CAMINHO} is in {LINGUA}, and the workshop texts are now in {KIT}. I left it as it was, with your work. To have it in {KIT}: rename that folder and run the setup again (it builds a new one; the renamed folder keeps your work).",
+    "s9_p1_canivete": "Pocketknife at {CAMINHO}",
+    "s9_p1_arena": "Security Arena at {CAMINHO}",
+    "s9_p1_ignorado": "WORKSHOP_P1={VALOR} is not canivete or arena, so I ignored it and set up the Pocketknife (the default).",
+    "s9_canivete_ok": "Pocketknife check: the specs and tests of the {N} tools are up to date.",
+    "s9_sem_gen": "The Pocketknife doesn't have tools/gen.mjs yet. I skipped the check.",
     "s10_ja": "agent-memory {VERSAO}",
     "s10_ok": "Agent Memory app {VERSAO} (Python {PY} managed by uv, FTS5 ok)",
     "s10_update": "To update the app later: agent-memory update. On Windows, close Claude Code first; the update finishes in a new PowerShell window.",
@@ -1283,6 +1287,37 @@
       ],
       "windows": [
         "Rename-Item {PROJETOS}\\demo-project demo-project-old"
+      ]
+    },
+    "E-DEMO-05": {
+      "titulo": "The Pocketknife specs and tests are not the generated ones",
+      "so": "todos",
+      "causa": "node tools/gen.mjs --check found a tool spec.md, a tool.test.js or TASKS.md that no longer matches specs/tools.json (or a specs/my-tool.json with an error). The tools themselves are only built later, by the swarm.",
+      "fazer": [
+        "Run the check by hand: it names each file that is out of date.",
+        "If you changed specs/tools.json or specs/my-tool.json on purpose, run node tools/gen.mjs (without --check) to generate the files again.",
+        "Otherwise send the result to the organizer."
+      ],
+      "mac": [
+        "cd {PROJETOS}/canivete-project && node tools/gen.mjs --check"
+      ],
+      "windows": [
+        "cd {PROJETOS}\\canivete-project; node tools/gen.mjs --check"
+      ]
+    },
+    "E-DEMO-06": {
+      "titulo": "The Pocketknife has its own git history: I left it as it is",
+      "so": "todos",
+      "causa": "The Pocketknife has commits but not the canivete-start tag (its starting point), so /demo-reset cannot take it back to the start. The setup never deletes your work.",
+      "fazer": [
+        "Nothing to do if you want to keep working in this Pocketknife.",
+        "To get a fresh Pocketknife, rename this folder and run the setup again."
+      ],
+      "mac": [
+        "mv {PROJETOS}/canivete-project {PROJETOS}/canivete-project-old"
+      ],
+      "windows": [
+        "Rename-Item {PROJETOS}\\canivete-project canivete-project-old"
       ]
     },
     "E-MEM-01": {

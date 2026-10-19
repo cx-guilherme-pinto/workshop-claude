@@ -3688,6 +3688,46 @@ $script:PracticeDirOld = 'exemplo-projeto-real'
 # Workshop v2: o projeto das missoes (%USERPROFILE%\workshop-claude\missions-project), so nos kits com o
 # assemble-missions.mjs.
 $script:MissionsDir = 'missions-project'
+# Workshop v2 (A4): o Projeto 1 e o Canivete (%USERPROFILE%\workshop-claude\canivete-project, tag canivete-start);
+# a Arena (demo-project) so com WORKSHOP_P1=arena. Uma Arena ja montada numa instalacao anterior fica como esta
+# (nunca e apagada): com o Canivete, monta-se ao lado dela.
+$script:CaniveteDir = 'canivete-project'
+$script:P1 = 'arena'
+$script:P1Ignored = ''
+
+function Select-WsP1 {
+  # WORKSHOP_P1 (maiusculas ou minusculas, espacos a volta nao contam) -> 'canivete' | 'arena' (ver ws_p1_pick no
+  # setup-mac.sh): vazio ou canivete -> canivete; arena -> arena; outra coisa -> canivete e $script:P1Ignored (para
+  # a nota do passo 9). Um kit sem o installer\assemble-canivete.mjs (anterior ao v2) monta a Arena, como antes.
+  param([string]$Value, [string]$KitSrc)
+  $script:P1Ignored = ''
+  if (-not $KitSrc -or -not (Test-Path -LiteralPath (Join-Path $KitSrc 'installer\assemble-canivete.mjs') -PathType Leaf)) { return 'arena' }
+  $v = ([string]$Value).Trim().ToLowerInvariant()
+  if ($v -eq '' -or $v -eq 'canivete') { return 'canivete' }
+  if ($v -eq 'arena') { return 'arena' }
+  $raw = [string]$Value
+  if ($raw.Length -gt 40) { $raw = $raw.Substring(0, 40) }
+  $script:P1Ignored = ($raw -replace '[\x00-\x1F\x7F]', '')
+  return 'canivete'
+}
+
+function Initialize-WsP1 {
+  $script:P1 = Select-WsP1 $env:WORKSHOP_P1 $script:KitSrc
+  $ig = ''
+  if ($script:P1Ignored) { $ig = ' (WORKSHOP_P1 ignored: ' + $script:P1Ignored + ')' }
+  Write-WsLog ('project 1: ' + $script:P1 + $ig)
+}
+
+# A pasta e a marca do Projeto 1 escolhido ($script:P1).
+function Get-WsP1Dir { if ($script:P1 -eq 'arena') { return 'demo-project' }; return $script:CaniveteDir }
+function Get-WsP1Mark { if ($script:P1 -eq 'arena') { return '.arena-kit.json' }; return '.canivete-kit.json' }
+
+function Set-WsStep9Detail {
+  # O detalhe do passo 9 diz qual e o Projeto 1 e onde esta; um WORKSHOP_P1 nao reconhecido fica numa nota.
+  if ($script:P1 -eq 'arena') { Set-WsDetail (M 's9_p1_arena' @{ CAMINHO = ($script:ProjShow + '\demo-project') }) }
+  else { Set-WsDetail (M 's9_p1_canivete' @{ CAMINHO = ($script:ProjShow + '\' + $script:CaniveteDir) }) }
+  if ($script:P1Ignored) { Add-WsNote (M 's9_p1_ignorado' @{ VALOR = $script:P1Ignored }) }
+}
 
 function Invoke-WsStep9Migrate {
   $demo = Join-Path $script:Proj 'demo-project'
@@ -3719,17 +3759,27 @@ function Test-WsStep9 {
   if (-not (Initialize-WsKit)) { Set-WsFail 'E-KIT-01' ''; return $false }
   $demo = Join-Path $script:Proj 'demo-project'
   $sb = Join-Path $script:Proj $script:PracticeDir
+  Initialize-WsP1
   # Ao instalar, as migracoes (arena-inicial -> arena-start, a pasta do projeto de treino) vem antes do estado: sem
   # elas uma Arena antiga e intacta parecia historico da pessoa (E-DEMO-04). No -Check, que nao muda nada, a tag
   # antiga conta como a nova (o /demo-reset dessa Arena usa a arena-inicial).
   $arenaRef = 'refs/tags/arena-start'
   if ($script:Mode -eq 'install') { Invoke-WsStep9Migrate }
   elseif ((Test-Path -LiteralPath (Join-Path $demo '.git')) -and -not (Test-WsGitTag $demo $arenaRef)) { $arenaRef = 'refs/tags/arena-inicial' }
-  # Uma Arena com historico proprio (commits, sem a tag arena-start) e um aviso e fica como esta.
-  switch (Get-WsProjState $demo '.arena-kit.json' $arenaRef) {
-    'ok' { }
-    'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $demo) }
-    default { Set-WsFail 'E-DEMO-01' $demo; return $false }
+  # Um Projeto 1 com historico proprio (commits, sem a tag arena-start ou canivete-start) e um aviso e fica como esta.
+  if ($script:P1 -eq 'arena') {
+    switch (Get-WsProjState $demo '.arena-kit.json' $arenaRef) {
+      'ok' { }
+      'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $demo) }
+      default { Set-WsFail 'E-DEMO-01' $demo; return $false }
+    }
+  } else {
+    $cv = Join-Path $script:Proj $script:CaniveteDir
+    switch (Get-WsProjState $cv '.canivete-kit.json' 'refs/tags/canivete-start') {
+      'ok' { }
+      'propria' { Set-WsWarn 'E-DEMO-06' (Format-WsShowPath $cv) }
+      default { Set-WsFail 'E-DEMO-01' $cv; return $false }
+    }
   }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if ((Get-WsProjState $sb '.sandbox-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $sb; return $false }
@@ -3738,7 +3788,7 @@ function Test-WsStep9 {
     $mp = Join-Path $script:Proj $script:MissionsDir
     if ((Get-WsProjState $mp '.missions-kit.json' 'HEAD') -ne 'ok') { Set-WsFail 'E-DEMO-01' $mp; return $false }
   }
-  Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
+  Set-WsStep9Detail
   Add-WsStep9LangNote
   if ($script:Mode -ne 'install') { return (Test-WsAppTests) }
   return $true
@@ -3746,8 +3796,9 @@ function Test-WsStep9 {
 
 function Add-WsStep9LangNote {
   # Os projetos ja montados nao mudam de lingua sozinhos (tem o trabalho da pessoa): se a lingua do kit mudou
-  # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado.
-  foreach ($p in @(@('demo-project', '.arena-kit.json'), @($script:PracticeDir, '.sandbox-kit.json'), @($script:MissionsDir, '.missions-kit.json'))) {
+  # (WORKSHOP_LANG), diz-se como os ter na lingua nova em vez de um "Already done" calado. Do Projeto 1 so conta o
+  # escolhido ($script:P1): uma Arena antiga ao lado do Canivete nao faz parte deste workshop.
+  foreach ($p in @(@((Get-WsP1Dir), (Get-WsP1Mark)), @($script:PracticeDir, '.sandbox-kit.json'), @($script:MissionsDir, '.missions-kit.json'))) {
     $f = Join-Path (Join-Path $script:Proj $p[0]) $p[1]
     if (-not (Test-Path -LiteralPath $f)) { continue }
     $l = ''
@@ -3764,7 +3815,11 @@ function Add-WsStep9LangNote {
   }
 }
 
+# Os testes do Projeto 1 escolhido: os da app da Arena, ou o "node tools/gen.mjs --check" do Canivete (as specs e
+# os testes das ferramentas sao os gerados). Os tool.test.js do Canivete nao correm aqui: as ferramentas so existem
+# depois do swarm.
 function Test-WsAppTests {
+  if ($script:P1 -ne 'arena') { return (Test-WsCaniveteCheck) }
   $demo = Join-Path $script:Proj 'demo-project'
   if (-not (Test-Path -LiteralPath (Join-Path $demo 'test\app.test.js'))) { Add-WsNote (M 's9_sem_testes'); return $true }
   $r = Invoke-WsProcess $script:NodeExe @('--test', 'test/app.test.js') -WorkingDirectory $demo -TimeoutSec 300
@@ -3773,6 +3828,16 @@ function Test-WsAppTests {
   if ($m.Count -gt 0) { $n = $m[$m.Count - 1].Groups[1].Value }
   if ($r.ExitCode -eq 0) { Add-WsNote (M 's9_testes_ok' @{ OK = $n }); return $true }
   Set-WsFail 'E-DEMO-02' 'node --test test/app.test.js'
+  return $false
+}
+
+function Test-WsCaniveteCheck {
+  $cv = Join-Path $script:Proj $script:CaniveteDir
+  if (-not (Test-Path -LiteralPath (Join-Path $cv 'tools\gen.mjs') -PathType Leaf)) { Add-WsNote (M 's9_sem_gen'); return $true }
+  $r = Invoke-WsProcess $script:NodeExe @('tools/gen.mjs', '--check') -WorkingDirectory $cv -TimeoutSec 300
+  $n = @(Get-ChildItem -LiteralPath (Join-Path $cv 'tools') -Directory -ErrorAction SilentlyContinue | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'spec.md') -PathType Leaf }).Count
+  if ($r.ExitCode -eq 0) { Add-WsNote (M 's9_canivete_ok' @{ N = $n }); return $true }
+  Set-WsFail 'E-DEMO-05' 'node tools/gen.mjs --check'
   return $false
 }
 
@@ -3786,7 +3851,13 @@ function Invoke-WsAssemble {
   switch (Get-WsProjState $Dest $Mark $Ref) {
     'alheia' { Set-WsFail 'E-DEMO-03' $Dest; return $false }
     'incompleta' { $force = @('--force') }
-    'propria' { Set-WsWarn 'E-DEMO-04' (Format-WsShowPath $Dest); Register-WsExtra 'projeto' (Split-Path $Dest -Leaf) $Dest '' ''; return $true }
+    'propria' {
+      $code = 'E-DEMO-04'
+      if ($Mark -eq '.canivete-kit.json') { $code = 'E-DEMO-06' }
+      Set-WsWarn $code (Format-WsShowPath $Dest)
+      Register-WsExtra 'projeto' (Split-Path $Dest -Leaf) $Dest '' ''
+      return $true
+    }
     'semgit' { Set-WsFail 'E-DEMO-01' ('git rev-parse HEAD: ' + $Dest); return $false }
   }
   $a = @((Join-Path $script:KitSrc ('installer\' + $Script)), '--dest', $Dest) + $Extra + $force
@@ -3817,7 +3888,12 @@ function Install-WsStep9 {
   New-Item -ItemType Directory -Path $script:Proj -Force | Out-Null
   if (-not $script:GitExe) { $script:GitExe = Get-WsGit }
   Invoke-WsStep9Migrate
-  if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' 'refs/tags/arena-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
+  Initialize-WsP1
+  if ($script:P1 -eq 'arena') {
+    if (-not (Invoke-WsAssemble 'assemble-demo.mjs' (Join-Path $script:Proj 'demo-project') '.arena-kit.json' 'refs/tags/arena-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
+  } else {
+    if (-not (Invoke-WsAssemble 'assemble-canivete.mjs' (Join-Path $script:Proj $script:CaniveteDir) '.canivete-kit.json' 'refs/tags/canivete-start' @('--node', $script:NodeExe, '--language', $script:LangKit))) { return $false }
+  }
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-sandbox.mjs')) {
     if (-not (Invoke-WsAssemble 'assemble-sandbox.mjs' (Join-Path $script:Proj $script:PracticeDir) '.sandbox-kit.json' 'HEAD' @('--language', $script:LangKit))) { return $false }
   }
@@ -3825,7 +3901,7 @@ function Install-WsStep9 {
   if (Test-Path -LiteralPath (Join-Path $script:KitSrc 'installer\assemble-missions.mjs')) {
     if (-not (Invoke-WsAssemble 'assemble-missions.mjs' (Join-Path $script:Proj $script:MissionsDir) '.missions-kit.json' 'HEAD' @('--language', $script:LangKit, '--kit-dir', (Join-Path $script:WsHome 'kit')))) { return $false }
   }
-  Set-WsDetail (M 's9_ja' @{ PROJETOS = $script:ProjShow })
+  Set-WsStep9Detail
   Add-WsStep9LangNote
   return (Test-WsAppTests)
 }
