@@ -46,7 +46,7 @@ const TEXTS = {
     examples: 'Exemplos (o teste verifica-os)',
     exampleCols: ['entrada', 'saída'],
     seed: (s) => `seed ${s}`,
-    check: { length: (n) => `${n} itens`, unique: 'sem repetidos', match: (r) => `cada um corresponde a \`${r}\``, charsets: (c) => `com ${c.join(', ')}`, from: (f) => `todos vêm de \`${f}\``, min_length: (n) => `pelo menos ${n} caracteres` },
+    check: { length: (n, o) => (o?.type === 'list' ? `${n} itens` : `${n} caracteres`), unique: 'sem repetidos', match: (r) => `cada um corresponde a \`${r}\``, charsets: (c) => `com ${c.join(', ')}`, from: (f) => `todos vêm de \`${f}\``, min_length: (n) => `pelo menos ${n} caracteres` },
     errors: 'Entradas inválidas (devolve `{ error }` com esta mensagem)',
     errorCols: ['entrada', 'error'],
     doneWhen: 'Feito quando',
@@ -94,7 +94,7 @@ const TEXTS = {
     examples: 'Examples (the test checks them)',
     exampleCols: ['input', 'output'],
     seed: (s) => `seed ${s}`,
-    check: { length: (n) => `${n} items`, unique: 'no repeats', match: (r) => `each one matches \`${r}\``, charsets: (c) => `with ${c.join(', ')}`, from: (f) => `all come from \`${f}\``, min_length: (n) => `at least ${n} characters` },
+    check: { length: (n, o) => (o?.type === 'list' ? `${n} items` : `${n} characters`), unique: 'no repeats', match: (r) => `each one matches \`${r}\``, charsets: (c) => `with ${c.join(', ')}`, from: (f) => `all come from \`${f}\``, min_length: (n) => `at least ${n} characters` },
     errors: 'Invalid inputs (returns `{ error }` with this message)',
     errorCols: ['input', 'error'],
     doneWhen: 'Done when',
@@ -184,7 +184,7 @@ const j = (v) => JSON.stringify(v);
 const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const tableRow = (cols) => '| ' + cols.map(cell).join(' | ') + ' |';
 const inText = (o) => Object.entries(o || {}).map(([k, v]) => `${k}: ${j(v)}`).join(', ') || '—';
-const checkText = (c) => Object.entries(c).map(([k, v]) => (k === 'unique' ? TEXTS.check.unique : TEXTS.check[k]?.(v) ?? `${k}: ${j(v)}`)).join('; ');
+const checkText = (c, o) => Object.entries(c).map(([k, v]) => (k === 'unique' ? TEXTS.check.unique : TEXTS.check[k]?.(v, o) ?? `${k}: ${j(v)}`)).join('; ');
 
 function specMd(t) {
   const X = TEXTS;
@@ -202,7 +202,7 @@ function specMd(t) {
   for (const g of NO_GAPS ? t.spec_gaps || [] : []) L.push(`- ${g.rule}`);
   L.push('', `## ${X.examples}`, '', tableRow(X.exampleCols), tableRow(['---', '---']));
   const examples = [...t.examples, ...(NO_GAPS ? (t.spec_gaps || []).flatMap((g) => g.cases) : [])];
-  for (const ex of examples) L.push(tableRow([inText(ex.in) + (ex.seed !== undefined ? ` (${X.seed(ex.seed)})` : ''), ex.check ? checkText(ex.check) : `\`${j(ex.out)}\``]));
+  for (const ex of examples) L.push(tableRow([inText(ex.in) + (ex.seed !== undefined ? ` (${X.seed(ex.seed)})` : ''), ex.check ? checkText(ex.check, t.output) : `\`${j(ex.out)}\``]));
   if (t.errors?.length) {
     L.push('', `## ${X.errors}`, '', tableRow(X.errorCols), tableRow(['---', '---']));
     for (const e of t.errors) L.push(tableRow([inText(e.in), e.error]));
