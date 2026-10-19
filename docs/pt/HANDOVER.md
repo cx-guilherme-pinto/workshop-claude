@@ -26,7 +26,7 @@ O kit e a app foram construídos noutra máquina, contra um Gitea privado (`repo
 | Projeto 2 (`/task-*`) | Jira pelo MCP, com o `acli` de reserva (D-19); Confluence pelo MCP ou pelo `acli`; GitHub pelo `gh` | Ponta a ponta no projeto de treino (D-18). **Nunca correu num Jira, Confluence ou GitHub corporativo reais** |
 | App Agent Memory | v0.4: 4 línguas, registo das chamadas MCP, app portátil (chamava-se Memória). v0.5.0: o nome novo e nomes em inglês para o comando (`agent-memory`), o servidor e as ferramentas MCP e os campos das notas; as notas antigas continuam a ser lidas (D-25) | v0.4.0: 227 testes, selftest e instalação isolada |
 | Nomes em inglês (D-25) | Ficheiros, pastas, comandos, opções, marcadores, ids das tarefas da Arena e ferramentas MCP da memória em inglês, nas duas línguas; os nomes antigos continuam a funcionar como sinónimos | Testes do kit. O vídeo do swarm e duas capturas dos slides ainda mostram os nomes antigos (ver abaixo) |
-| Slides | 47 slides, 90 min, em pt e en | Render no LibreOffice |
+| Slides | 44 slides, 90 min, em pt e en (revisão do organizador: conceitos mais curtos, "Escreve o teu cartão", "Porque é que este cartão falhou?", hook e statusline como hands-on, projeto de treino como caminho do Projeto 2) | Render no Quick Look (sem LibreOffice neste Mac) |
 | Releases | `v1.0.0-dev.3` no Gitea | O `--check` a partir da release |
 
 ## O que falta (por ordem)

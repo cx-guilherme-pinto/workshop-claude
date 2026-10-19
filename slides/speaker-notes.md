@@ -12,45 +12,42 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 6 | 2 | 8:30 | Instalar | Algum passo falhou? |  |
 | 7 | 0,5 | 10:30 | Conceitos | Conceitos |  |
 | 8 | 1,5 | 11:00 | Conceitos | O Claude Code trabalha no teu projeto |  |
-| 9 | 2 | 12:30 | Conceitos | Uma skill é uma receita com nome |  |
-| 10 | 2 | 14:30 | Conceitos | Subagentes: contexto e modelo próprios |  |
-| 11 | 2 | 16:30 | Conceitos | A regra económica |  |
-| 12 | 2 | 18:30 | Conceitos | Tarefa → grafo → waves |  |
-| 13 | 1,5 | 20:30 | Conceitos | Quem decide o grafo é um script |  |
-| 14 | 1,5 | 22:00 | Conceitos | Medir, não adivinhar |  |
-| 15 | 1 | 23:30 | Conceitos | O ciclo de cada tarefa |  |
-| 16 | 1 | 24:30 | Preview | O que vamos construir: a Arena de Segurança |  |
-| 17 | 0,5 | 25:30 | Preview | O swarm em ação |  |
-| 18 | 2,5 | 26:00 | Preview | 100 agentes a construir a Arena |  |
-| 19 | 1 | 28:30 | Preview | O resultado: o jogo pronto para usar |  |
-| 20 | 0,5 | 29:30 | Projeto 1 | Projeto 1 |  |
-| 21 | 1 | 30:00 | Projeto 1 | O que vamos fazer neste projeto hoje |  |
-| 22 | 1,5 | 31:00 | Projeto 1 | O que faz o /demo-plan |  |
-| 23 | 3 | 32:30 | Projeto 1 | Planeia o swarm |  |
-| 24 | 1,5 | 35:30 | Projeto 1 | O teu plano: 4 waves |  |
-| 25 | 1,5 | 37:00 | Projeto 1 | O que faz o /demo-swarm |  |
-| 26 | 2 | 38:30 | Projeto 1 | Solta o swarm |  |
-| 27 | 2 | 40:30 | Projeto 1 | Pergunta sem interromper |  |
-| 28 | 1,5 | 42:30 | Projeto 1 | Hooks: o Claude Code avisa, um script reage |  |
-| 29 | 1 | 44:00 | Projeto 1 | Statusline: a linha de estado é um script |  |
-| 30 | 3 | 45:00 | Projeto 1 | Num terceiro terminal: três funcionalidades |  |
-| 31 | 1,5 | 48:00 | Projeto 1 | Worktrees e rotinas | PODE SALTAR |
-| 32 | 2 | 49:30 | Projeto 1 | Até ficar tudo verde |  |
-| 33 | 2 | 51:30 | Projeto 1 | O gate de segurança |  |
-| 34 | 2 | 53:30 | Projeto 1 | Quanto custou? |  |
-| 35 | 2 | 55:30 | Projeto 1 | Joga o que o swarm construiu |  |
-| 36 | 2 | 57:30 | Memória | A memória do que fizeste |  |
-| 37 | 3 | 59:30 | Memória | Abre o teu primeiro grafo |  |
-| 38 | 0,5 | 62:30 | Projeto 2 | Projeto 2 |  |
-| 39 | 1,5 | 63:00 | Projeto 2 | O mesmo ciclo, no teu repositório |  |
-| 40 | 4 | 64:30 | Projeto 2 | Traz a tua tarefa |  |
-| 41 | 5 | 68:30 | Projeto 2 | O planner decide quantos agentes |  |
-| 42 | 10 | 73:30 | Projeto 2 | Põe o swarm a trabalhar |  |
-| 43 | 1 | 83:30 | Projeto 2 | Jira e GitHub | PODE SALTAR |
-| 44 | 2 | 84:30 | Projeto 2 | Depois do workshop |  |
-| 45 | 2 | 86:30 | Encerramento | Cinco ideias para levar |  |
-| 46 | 1 | 88:30 | Encerramento | Amanhã |  |
-| 47 | 0,5 | 89:30 | Encerramento | Perguntas |  |
+| 9 | 1,5 | 12:30 | Conceitos | Uma skill é uma receita com nome |  |
+| 10 | 1,5 | 14:00 | Conceitos | Subagentes: contexto e modelo próprios |  |
+| 11 | 1,5 | 15:30 | Conceitos | A regra económica |  |
+| 12 | 1 | 17:00 | Conceitos | O ciclo de cada tarefa |  |
+| 13 | 1 | 18:00 | Preview | O que vamos construir: a Arena de Segurança |  |
+| 14 | 0,5 | 19:00 | Preview | O swarm em ação |  |
+| 15 | 2,5 | 19:30 | Preview | O swarm a construir a Arena |  |
+| 16 | 1 | 22:00 | Preview | O resultado: o jogo pronto para usar |  |
+| 17 | 0,5 | 23:00 | Projeto 1 | Projeto 1 |  |
+| 18 | 1 | 23:30 | Projeto 1 | O que vamos fazer neste projeto hoje |  |
+| 19 | 5 | 24:30 | Projeto 1 | Escreve o teu cartão |  |
+| 20 | 1,5 | 29:30 | Projeto 1 | O que faz o /demo-plan |  |
+| 21 | 1,5 | 31:00 | Projeto 1 | Tarefa → grafo → waves |  |
+| 22 | 3 | 32:30 | Projeto 1 | Planeia o swarm |  |
+| 23 | 1,5 | 35:30 | Projeto 1 | O que faz o /demo-swarm |  |
+| 24 | 2 | 37:00 | Projeto 1 | Solta o swarm |  |
+| 25 | 2 | 39:00 | Projeto 1 | Pergunta sem interromper |  |
+| 26 | 3 | 41:00 | Projeto 1 | Num terceiro terminal: três funcionalidades |  |
+| 27 | 2 | 44:00 | Projeto 1 | Cria um hook PostToolUse |  |
+| 28 | 2 | 46:00 | Projeto 1 | Faz a tua statusline |  |
+| 29 | 5 | 48:00 | Projeto 1 | Porque é que este cartão falhou? |  |
+| 30 | 2 | 53:00 | Projeto 1 | O gate de segurança |  |
+| 31 | 1 | 55:00 | Projeto 1 | Medir, não adivinhar |  |
+| 32 | 2 | 56:00 | Projeto 1 | Quanto custou? |  |
+| 33 | 2 | 58:00 | Projeto 1 | Joga o que o swarm construiu |  |
+| 34 | 2 | 60:00 | Memória | A memória do que fizeste |  |
+| 35 | 3 | 62:00 | Memória | Abre o teu primeiro grafo |  |
+| 36 | 0,5 | 65:00 | Projeto 2 | Projeto 2 |  |
+| 37 | 1,5 | 65:30 | Projeto 2 | O mesmo ciclo, noutro repositório |  |
+| 38 | 3 | 67:00 | Projeto 2 | Começa pela issue EX-1 |  |
+| 39 | 4 | 70:00 | Projeto 2 | O planner decide quantos agentes |  |
+| 40 | 11 | 74:00 | Projeto 2 | Põe o swarm a trabalhar |  |
+| 41 | 2 | 85:00 | Projeto 2 | Depois do workshop |  |
+| 42 | 1,5 | 87:00 | Encerramento | Cinco ideias para levar |  |
+| 43 | 1 | 88:30 | Encerramento | Amanhã |  |
+| 44 | 0,5 | 89:30 | Encerramento | Perguntas |  |
 
 Total: 90 min.
 
@@ -60,7 +57,7 @@ Total: 90 min.
 
 [0:00 → 1:00] 1 min · deves estar aqui aos 0 min
 
-Boas-vindas. Em 90 minutos vamos pôr um swarm de agentes a construir um jogo e, depois, a trabalhar numa tarefa real de cada um.
+Boas-vindas. Em 90 minutos vamos pôr um swarm de agentes a construir um jogo e, depois, a trabalhar numa tarefa a sério, num repositório com testes.
 
 ### 2. Vais sair do workshop com isto
 
@@ -72,7 +69,7 @@ Três resultados concretos. Tudo fica instalado no portátil de cada um e contin
 
 [2:30 → 4:00] 1,5 min · deves estar aqui aos 3 min
 
-O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o alvo, aparece um aviso e a pessoa continua a trabalhar.
+O orçamento é garantido pelo benchmark, não por cortes. Se alguém passar o alvo, aparece um aviso e a pessoa continua a trabalhar. Os números do rodapé são os da execução de referência do Projeto 1 (8 agentes em paralelo, como no portátil de cada um): são os mesmos que aparecem no resto da apresentação.
 
 ### 4. Instala o kit
 
@@ -96,7 +93,7 @@ O doctor verifica tudo e, se algum passo falhou, pede um diagnóstico ao Claude:
 
 [10:30 → 11:00] 0,5 min · deves estar aqui aos 11 min
 
-Quinze minutos de ideias, um conceito por slide.
+Sete minutos de ideias, um conceito por slide. O grafo de tarefas e a medição do custo ficam para o Projeto 1, ao lado do sítio onde se usam.
 
 ### 8. O Claude Code trabalha no teu projeto
 
@@ -106,235 +103,217 @@ O Claude Code não é um chat: é um agente que age no repositório. Tudo o que 
 
 ### 9. Uma skill é uma receita com nome
 
-[12:30 → 14:30] 2 min · deves estar aqui aos 13 min
+[12:30 → 14:00] 1,5 min · deves estar aqui aos 13 min
 
 As skills substituíram os slash commands antigos. O frontmatter fixa o modelo e as ferramentas autorizadas. Hoje vamos usar dois conjuntos: os /demo-* na Arena e os /task-* no dia a dia. As skills do kit estão em inglês e mandam o Claude responder na língua do participante.
 
 ### 10. Subagentes: contexto e modelo próprios
 
-[14:30 → 16:30] 2 min · deves estar aqui aos 15 min
+[14:00 → 15:30] 1,5 min · deves estar aqui aos 14 min
 
 Um subagente é uma instância do Claude com contexto limpo, ferramentas próprias e o modelo que quisermos. É definido num ficheiro .claude/agents/<nome>.md. O comando /agents já não abre um assistente: edita-se o ficheiro.
 
 ### 11. A regra económica
 
-[16:30 → 18:30] 2 min · deves estar aqui aos 17 min
+[15:30 → 17:00] 1,5 min · deves estar aqui aos 16 min
 
-O swarm barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha.
+O swarm barato é o de muitos agentes pequenos com instruções claras. O que custa é a coordenação. Por isso o orquestrador é um script e os workers respondem com uma linha. Os dois números vêm da execução de referência do Projeto 1.
 
-### 12. Tarefa → grafo → waves
+### 12. O ciclo de cada tarefa
 
-[18:30 → 20:30] 2 min · deves estar aqui aos 19 min
+[17:00 → 18:00] 1 min · deves estar aqui aos 17 min
 
-O plano é um grafo de dependências. Executamos por waves: tudo o que está pronto corre em paralelo. As três tarefas de criptografia esperam pelo lib-hash, uma dependência real dentro da wave 1.
+É o mesmo ciclo nos dois projetos: planear com Opus, executar em swarm, um gate de segurança, medir e guardar o que se aprendeu. Cada passo volta a aparecer no Projeto 1, no sítio em que se usa.
 
-### 13. Quem decide o grafo é um script
+### 13. O que vamos construir: a Arena de Segurança
 
-[20:30 → 22:00] 1,5 min · deves estar aqui aos 21 min
-
-Com 8 chamadas em paralelo, um modelo esquece dependências ou reescreve prompts. O script é reproduzível: é isso que torna o custo previsível e o benchmark comparável.
-
-### 14. Medir, não adivinhar
-
-[22:00 → 23:30] 1,5 min · deves estar aqui aos 22 min
-
-Os hooks são comandos que o Claude Code corre em eventos. O nosso só mede: lê os tokens reais do transcript, multiplica pelos preços publicados e acrescenta uma linha. Nunca bloqueia nada.
-
-### 15. O ciclo de cada tarefa
-
-[23:30 → 24:30] 1 min · deves estar aqui aos 24 min
-
-É o mesmo ciclo nos dois projetos: planear com Opus, executar em swarm, um gate de segurança, medir e guardar o que se aprendeu.
-
-### 16. O que vamos construir: a Arena de Segurança
-
-[24:30 → 25:30] 1 min · deves estar aqui aos 25 min
+[18:00 → 19:00] 1 min · deves estar aqui aos 18 min
 
 Antes do vídeo, dizer o que vai ser construído. A Arena é um mini-jogo de segurança: cada tarefa cria um desafio pequeno (encontrar a linha que expõe um segredo, escolher o site verdadeiro, ordenar as partes de um URL, escrever uma resposta). A casca da app e os testes já existem; os agentes escrevem os desafios, uma tarefa cada. Explicar as cores agora, porque vão aparecer em todo o lado: cada quadrado é uma tarefa, cinzento à espera, amarelo enquanto um agente trabalha nele, verde quando o teste passa, vermelho quando falha.
 
-### 17. O swarm em ação
+### 14. O swarm em ação
 
-[25:30 → 26:00] 0,5 min · deves estar aqui aos 26 min
+[19:00 → 19:30] 0,5 min · deves estar aqui aos 19 min
 
-Ponte para o Projeto 1. O que vão ver é o ciclo do slide anterior (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa constrói a mesma Arena, com até 8 agentes em paralelo.
+Ponte para o Projeto 1. O que vão ver é o ciclo dos conceitos (plan → swarm → review → cost → memória) numa execução real com 100 tarefas. Logo a seguir cada pessoa constrói a mesma Arena, com até 8 agentes em paralelo.
 
-### 18. 100 agentes a construir a Arena
+### 15. O swarm a construir a Arena
 
-[26:00 → 28:30] 2,5 min · deves estar aqui aos 26 min
+[19:30 → 22:00] 2,5 min · deves estar aqui aos 20 min
 
-Vídeo acelerado de uma execução real com 100 tarefas. À esquerda, a página /status: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. O tempo e o custo são os reais. Plano B se o vídeo falhar: abrir /status?replay=recording na Arena gravada.
+Vídeo acelerado de uma execução real com 100 tarefas, gravada em modo apresentador: 16 agentes em paralelo, por isso os números do rodapé não são os do Projeto 1 (no portátil de cada um correm 8 em paralelo; ver o slide do custo). À esquerda, a página /status: cada quadrado é uma tarefa, amarelo enquanto um agente trabalha e verde quando o teste passa. À direita, o terminal com os lotes de agentes. Plano B se o vídeo falhar: abrir /status?replay=recording na Arena gravada.
 
-### 19. O resultado: o jogo pronto para usar
+### 16. O resultado: o jogo pronto para usar
 
-[28:30 → 29:30] 1 min · deves estar aqui aos 29 min
+[22:00 → 23:00] 1 min · deves estar aqui aos 22 min
 
 Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta certa, ordenar os passos e escrever a resposta. Cada desafio explica o porquê no fim. No fim do Projeto 1 cada pessoa joga a sua.
 
-### 20. Projeto 1
+### 17. Projeto 1
 
-[29:30 → 30:00] 0,5 min · deves estar aqui aos 30 min
+[23:00 → 23:30] 0,5 min · deves estar aqui aos 23 min
 
-25 minutos de hands-on. Na medição, o swarm das 100 tarefas demorou 6,5 min (a sessão completa, 9 min); em modo interativo e com contas novas pode demorar mais. Usamos esse tempo para ver funcionalidades.
+37 minutos de hands-on. Na execução de referência, o swarm das 100 tarefas demorou 6,5 min (a sessão completa, 9 min); em modo interativo e com contas novas pode demorar mais. Os slides entre "Solta o swarm" e "Porque é que este cartão falhou?" (9 minutos) cobrem essa espera: são todos para fazer enquanto o swarm trabalha.
 
-### 21. O que vamos fazer neste projeto hoje
+### 18. O que vamos fazer neste projeto hoje
 
-[30:00 → 31:00] 1 min · deves estar aqui aos 30 min
+[23:30 → 24:30] 1 min · deves estar aqui aos 24 min
 
-Os testes já existem: cada agente só tem de pôr o seu teste verde. É isto que deixa o Haiku fazer o grosso do trabalho com segurança.
+Os testes já existem: cada agente só tem de pôr o seu teste verde. É isto que deixa o Haiku fazer o grosso do trabalho com segurança. São 105 tarefas; com o cartão de cada um, 106.
 
-### 22. O que faz o /demo-plan
+### 19. Escreve o teu cartão
+
+[24:30 → 29:30] 5 min · deves estar aqui aos 25 min
+
+O exemplo já tem todos os campos: basta mudar o texto. O template escolhe o formato: spot-the-flaw (apontar a linha insegura), choice (escolher a resposta), order (ordenar os passos) ou answer (escrever a resposta); cada um tem os seus campos, e o exemplo mostra-os. O gen.mjs escreve a spec e o teste do cartão (cards/my-01/), e o /demo-plan junta-o às outras tarefas: passam a ser 101 cartões. Quem não quiser escrever salta este passo e fica com 100. No Windows, o cp funciona no PowerShell.
+
+### 20. O que faz o /demo-plan
+
+[29:30 → 31:00] 1,5 min · deves estar aqui aos 30 min
+
+Explicar antes de correr. Uma skill não é magia: é uma receita em Markdown que o Claude segue. Aqui ela chama um script que gera o grafo (sempre o mesmo, a partir das tarefas, incluindo o teu cartão) e um agente Opus que só o revê. O resultado fica em ficheiros que podem abrir e ler (o PLAN.md tem as waves, as dependências e a estimativa).
+
+### 21. Tarefa → grafo → waves
 
 [31:00 → 32:30] 1,5 min · deves estar aqui aos 31 min
 
-Explicar antes de correr. Uma skill não é magia: é uma receita em Markdown que o Claude segue. Aqui ela chama um script que gera o grafo (sempre o mesmo, a partir das tarefas) e um agente Opus que só o revê. O resultado fica em ficheiros que podem abrir e ler.
+O plano é um grafo de dependências. Executamos por waves: tudo o que está pronto corre em paralelo. Na wave 1, o lib-hash e os desafios arrancam juntos; as três tarefas de criptografia esperam pelo lib-hash (uma dependência real dentro da wave 1) e entram assim que ele fica verde. É isto que o /demo-plan vai desenhar no slide seguinte.
 
-### 23. Planeia o swarm
+### 22. Planeia o swarm
 
 [32:30 → 35:30] 3 min · deves estar aqui aos 33 min
 
-O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. Nas versões recentes do Claude Code, como a Arena pré-aprova permissões, a opção já selecionada é "No, exit": quem carregar Enter sai. Mostrar a seta para baixo. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever.
+O diálogo de confiança é importante: sem ele, as permissões do projeto ficam desligadas. Nas versões recentes do Claude Code, como a Arena pré-aprova permissões, a opção já selecionada é "No, exit": quem carregar Enter sai. Mostrar a seta para baixo. O /demo-plan consulta a memória, gera o grafo e pede ao planner (Opus) para o rever. Depois, mostrar o plano de alguém no projetor. Decisão de custo opcional: com --crypto haiku ou --crypto sonnet cada pessoa escolhe o modelo das tarefas de criptografia; no fim, no /demo-cost, compara o custo e os verdes com o vizinho que escolheu o outro.
 
-### 24. O teu plano: 4 waves
+### 23. O que faz o /demo-swarm
 
 [35:30 → 37:00] 1,5 min · deves estar aqui aos 36 min
 
-Mostrar o plano de alguém no projetor. Na wave 1, o lib-hash e as tarefas dos desafios arrancam juntos; os de criptografia entram assim que o hash fica verde.
+Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Com 8 chamadas em paralelo, um modelo esquece dependências ou reescreve prompts; o script é reproduzível, e é isso que torna o custo previsível e o benchmark comparável. O grade.mjs corre o teste de cada tarefa e decide: verde ou vermelho. Se uma tarefa falhar, o script repete-a com a mensagem de erro e, à terceira, com Sonnet.
 
-### 25. O que faz o /demo-swarm
+### 24. Solta o swarm
 
-[37:00 → 38:30] 1,5 min · deves estar aqui aos 37 min
+[37:00 → 39:00] 2 min · deves estar aqui aos 37 min
 
-Explicar antes de correr. O ponto importante: quem escolhe o que corre é um script, não o modelo. Por isso o custo e o tempo são previsíveis. Se uma tarefa falhar, o script repete-o com a mensagem de erro e, à terceira, com Sonnet.
+Previsão, antes de carregar em Enter: cada pessoa escreve no Teams quanto acha que vai custar e quantos cartões vão ficar vermelhos. A partir daqui o swarm trabalha alguns minutos (6,5 min na execução de referência; mais com contas novas). Os próximos quatro slides (9 minutos) fazem-se durante essa espera; quem acabar primeiro joga a Arena.
 
-### 26. Solta o swarm
+### 25. Pergunta sem interromper
 
-[38:30 → 40:30] 2 min · deves estar aqui aos 39 min
-
-A partir daqui o swarm trabalha alguns minutos (6,5 min na medição; mais com contas novas). Os próximos slides usam esse tempo; quem acabar primeiro joga a Arena.
-
-### 27. Pergunta sem interromper
-
-[40:30 → 42:30] 2 min · deves estar aqui aos 41 min
+[39:00 → 41:00] 2 min · deves estar aqui aos 39 min
 
 O /btw responde ao lado, sem entrar na conversa. Atenção: enquanto o painel da resposta está aberto, os resultados dos agentes ficam à espera (o Claude Code mostra "background task updates waiting while this panel is open"). Lê e carrega em Esc para o swarm continuar.
 
-### 28. Hooks: o Claude Code avisa, um script reage
+### 26. Num terceiro terminal: três funcionalidades
 
-[42:30 → 44:00] 1,5 min · deves estar aqui aos 43 min
+[41:00 → 44:00] 3 min · deves estar aqui aos 41 min
 
-Sem entrar no código. A ideia: o hook é um "quando acontecer X, corre Y", configurado no settings.json. O Claude escreve hooks muito bem: basta descrever o que se quer. Mostrar o /hooks para ver os que estão ativos.
+Ainda durante o swarm. Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc abre o rewind: repõe código e conversa até um checkpoint, mas não o que foi feito por Bash nem a maior parte do que os subagentes fizeram. Se perguntarem por worktrees: claude -w <nome> abre uma cópia isolada do repositório num branch próprio, e isolation: worktree põe um subagente no seu worktree quando as tarefas mexem nos mesmos ficheiros.
 
-### 29. Statusline: a linha de estado é um script
+### 27. Cria um hook PostToolUse
 
-[44:00 → 45:00] 1 min · deves estar aqui aos 44 min
+[44:00 → 46:00] 2 min · deves estar aqui aos 44 min
 
-Mostrar a statusline a mudar enquanto os agentes terminam. O hook grava, a statusline mostra: as duas peças juntas dão o custo ao vivo. O /usage do Claude Code pode mostrar mais, porque algumas versões ainda não conhecem os preços mais recentes; o /demo-cost usa os preços publicados.
+Ainda durante o swarm, e fora da Arena, para não mexer na sessão do swarm. O hook é um "quando acontecer X, corre Y", configurado num settings.json; o Claude escreve hooks muito bem, basta descrever o que se quer. O settings.local.json é só desta pasta e não vai para o git. No Projeto 2 (o projeto de treino) o hook dispara também para os agentes do /task-swarm: abrir o edits.log e ver os ficheiros a aparecer. O kit usa o SubagentStop para gravar o custo de cada agente (ver "Medir, não adivinhar").
 
-### 30. Num terceiro terminal: três funcionalidades
+### 28. Faz a tua statusline
 
-[45:00 → 48:00] 3 min · deves estar aqui aos 45 min
+[46:00 → 48:00] 2 min · deves estar aqui aos 46 min
 
-Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc abre o rewind: repõe código e conversa até um checkpoint, mas não o que foi feito por Bash nem a maior parte do que os subagentes fizeram.
+Ainda durante o swarm. A statusline do kit lê o que o hook gravou e mostra o custo da sessão e do projeto, ao vivo, face ao alvo de US$ 5: mostrar a do Terminal 1 a mudar enquanto os agentes terminam. Pedir para gravar em .claude/settings.local.json é importante: sem isso, o /statusline grava nas definições do utilizador e substitui a do kit em todos os projetos. Para voltar à do kit neste projeto, apaga o statusLine do settings.local.json. O /usage do Claude Code pode mostrar mais, porque algumas versões ainda não conhecem os preços mais recentes; o /demo-cost usa os preços publicados.
 
-### 31. Worktrees e rotinas
+### 29. Porque é que este cartão falhou?
 
-[48:00 → 49:30] 1,5 min · PODE SALTAR · deves estar aqui aos 48 min
+[48:00 → 53:00] 5 min · deves estar aqui aos 48 min
 
-Saltar se houver atraso. Exemplo de rotina: uma revisão de segurança diária com node tools/routine.mjs --install --yes (sem --yes só mostra o que faria), que regista no launchd ou no Agendador de Tarefas um claude -p "/demo-review --auto".
+A lição do Projeto 1: o agente não adivinha o que a spec não diz. O teste mostra o que esperava e o que recebeu; a spec do cartão não o dizia, por isso nem o Haiku nem o Sonnet (que entra à terceira tentativa) o acertam. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).
 
-### 32. Até ficar tudo verde
+### 30. O gate de segurança
 
-[49:30 → 51:30] 2 min · deves estar aqui aos 50 min
+[53:00 → 55:00] 2 min · deves estar aqui aos 53 min
 
-O /loop repete um prompt a cada intervalo, com a sessão aberta. Esc cancela.
+Um jogo de segurança com falhas de segurança seria o pior exemplo. O gate liga cada verificação ao OWASP Top 10. Com cartões ainda vermelhos, o gate diz GATE: REJECTED e quais faltam: voltar ao slide anterior.
 
-### 33. O gate de segurança
+### 31. Medir, não adivinhar
 
-[51:30 → 53:30] 2 min · deves estar aqui aos 52 min
+[55:00 → 56:00] 1 min · deves estar aqui aos 55 min
 
-Um jogo de segurança com falhas de segurança seria o pior exemplo. O gate liga cada verificação ao OWASP Top 10.
+Antes do /demo-cost: de onde vêm os números. O hook do kit é como o que criaram, mas noutro evento: lê os tokens reais do transcript, multiplica pelos preços publicados e acrescenta uma linha. Nunca bloqueia nada. A statusline e o /demo-cost só leem essas linhas.
 
-### 34. Quanto custou?
+### 32. Quanto custou?
 
-[53:30 → 55:30] 2 min · deves estar aqui aos 54 min
+[56:00 → 58:00] 2 min · deves estar aqui aos 56 min
 
-O relatório usa tokens reais e preços publicados. No fim grava as lições na app de memória.
+O relatório usa tokens reais e preços publicados. No fim grava as lições na app de memória. Quem usou --crypto haiku compara com quem usou --crypto sonnet: custo e verdes. Duelo: cada sala junta no Teams o custo e os cartões verdes de todos, e as duas salas comparam no fim (e com a previsão de antes do swarm).
 
-### 35. Joga o que o swarm construiu
+### 33. Joga o que o swarm construiu
 
-[55:30 → 57:30] 2 min · deves estar aqui aos 56 min
+[58:00 → 60:00] 2 min · deves estar aqui aos 58 min
 
 Os testes também correm no browser. É o mesmo teste que decidiu a cor do quadrado.
 
-### 36. A memória do que fizeste
+### 34. A memória do que fizeste
 
-[57:30 → 59:30] 2 min · deves estar aqui aos 58 min
+[60:00 → 62:00] 2 min · deves estar aqui aos 60 min
 
 São ficheiros Markdown em ~/.agent-memory, com um índice SQLite. Fica tudo só no teu portátil. Cada memória fica ligada ao ticket do Jira ou do GitHub e ao seu épico: procurar ABC-123 traz tudo desse ticket e do épico. O /task-intake e o /task-plan consultam-na antes de planear ("da última vez neste épico, não fazer X").
 
-### 37. Abre o teu primeiro grafo
+### 35. Abre o teu primeiro grafo
 
-[59:30 → 62:30] 3 min · deves estar aqui aos 60 min
+[62:00 → 65:00] 3 min · deves estar aqui aos 62 min
 
-A app abre na tua língua nativa e tem um seletor de língua. Rotinas, worktrees e o modo headless já foram vistos nos momentos de espera.
+A app abre na tua língua nativa e tem um seletor de língua. A lição sobre o cartão que falhou deve estar lá.
 
-### 38. Projeto 2
+### 36. Projeto 2
 
-[62:30 → 63:00] 0,5 min · deves estar aqui aos 63 min
+[65:00 → 65:30] 0,5 min · deves estar aqui aos 65 min
 
-25 minutos. A tarefa pode não terminar aqui: o objetivo é sair com a orquestração a correr e saber continuar.
+22 minutos. O caminho de todos é o projeto de treino: a Biblioteca Municipal, uma API pequena com testes e as issues EX-1 a EX-3 em JSON, sem login no Jira nem MCP. Quem já tem o Jira ou o GitHub a funcionar pode trazer uma tarefa sua. A tarefa pode não terminar aqui: o objetivo é sair com a orquestração a correr e saber continuar.
 
-### 39. O mesmo ciclo, no teu repositório
+### 37. O mesmo ciclo, noutro repositório
 
-[63:00 → 64:30] 1,5 min · deves estar aqui aos 63 min
+[65:30 → 67:00] 1,5 min · deves estar aqui aos 66 min
 
-Os /task-* estão instalados ao nível do utilizador e funcionam em qualquer repositório. Toda a escrita no Jira ou no GitHub pede confirmação.
+Os /task-* estão instalados ao nível do utilizador e funcionam em qualquer repositório. Toda a escrita no Jira ou no GitHub pede confirmação; no projeto de treino não há nada para publicar.
 
-### 40. Traz a tua tarefa
+### 38. Começa pela issue EX-1
 
-[64:30 → 68:30] 4 min · deves estar aqui aos 65 min
+[67:00 → 70:00] 3 min · deves estar aqui aos 67 min
 
-Para o Jira é preciso ter feito login no /mcp (atlassian). O GitHub usa o gh. O intake só lê; não escreve nada.
+Quem ainda tem o Claude aberto no Terminal 3 (do hook) só escreve a última linha. A EX-1 é pequena: validar o ISBN e o email ao criar livros e leitores. O intake só lê; não escreve nada. Com um repositório próprio: o Jira precisa de login no /mcp (atlassian) e o GitHub usa o gh.
 
-### 41. O planner decide quantos agentes
+### 39. O planner decide quantos agentes
 
-[68:30 → 73:30] 5 min · deves estar aqui aos 69 min
+[70:00 → 74:00] 4 min · deves estar aqui aos 70 min
 
-O planner (Opus) propõe o grafo e um script valida-o: ids, dependências, ciclos e agentes conhecidos. As tarefas que mexem nos mesmos ficheiros ficam em lotes diferentes, na altura do swarm. A integração e a revisão são acrescentadas automaticamente.
+O planner (Opus) propõe o grafo e um script valida-o: ids, dependências, ciclos e agentes conhecidos. As tarefas que mexem nos mesmos ficheiros ficam em lotes diferentes, na altura do swarm. A integração e a revisão são acrescentadas automaticamente. Uma tarefa grande (a EX-2) dá mais agentes.
 
-### 42. Põe o swarm a trabalhar
+### 40. Põe o swarm a trabalhar
 
-[73:30 → 83:30] 10 min · deves estar aqui aos 74 min
+[74:00 → 85:00] 11 min · deves estar aqui aos 74 min
 
-O estado fica em .workshop/. Voltar a correr /task-swarm retoma. Tarefas que mexem nos mesmos ficheiros vão em lotes diferentes, ou em git worktrees se o planner o decidir.
+O estado fica em .workshop/. Voltar a correr /task-swarm retoma. Tarefas que mexem nos mesmos ficheiros vão em lotes diferentes, ou em git worktrees se o planner o decidir. O hook do Projeto 1 está a funcionar: abrir o ~/workshop-claude/edits.log e ver os ficheiros que os agentes editam. Quem acabar a EX-1 segue para a EX-3 (pequena, de segurança: um leitor vê os empréstimos de outro) ou para a EX-2 (média, mais agentes), e pode correr o /task-gate.
 
-### 43. Jira e GitHub
+### 41. Depois do workshop
 
-[83:30 → 84:30] 1 min · PODE SALTAR · deves estar aqui aos 84 min
+[85:00 → 87:00] 2 min · deves estar aqui aos 85 min
 
-Saltar se houver atraso. O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo. Se o MCP falhar, as skills usam o Atlassian CLI oficial (acli), que o setup já instalou: lê a issue e publica os comentários; as horas registam-se à mão.
+Para usar com as tuas issues: o Jira usa o MCP da Atlassian, com login no /mcp; se falhar, o Atlassian CLI (acli auth login), que o setup já instalou, lê a issue e publica os comentários (as horas registam-se à mão). O MCP da Atlassian gasta créditos Rovo da empresa e o administrador pode limitá-lo. O GitHub usa o gh (gh auth login): gasta menos contexto do que um MCP e não partilha tokens. Exemplo de comentário: agente ws-worker-07 · Haiku · 5 s · US$ 0,004.
 
-### 44. Depois do workshop
+### 42. Cinco ideias para levar
 
-[84:30 → 86:30] 2 min · deves estar aqui aos 85 min
+[87:00 → 88:30] 1,5 min · deves estar aqui aos 87 min
 
-Exemplo de comentário: agente ws-worker-07 · Haiku · 5 s · US$ 0,004.
+Resumo em cinco frases. A terceira junta as duas lições do Projeto 1: o orquestrador é um script e o cartão que falhou falhou pela spec.
 
-### 45. Cinco ideias para levar
-
-[86:30 → 88:30] 2 min · deves estar aqui aos 87 min
-
-Resumo em cinco frases.
-
-### 46. Amanhã
+### 43. Amanhã
 
 [88:30 → 89:30] 1 min · deves estar aqui aos 89 min
 
 Três ações concretas.
 
-### 47. Perguntas
+### 44. Perguntas
 
 [89:30 → 90:00] 0,5 min · deves estar aqui aos 90 min
 
-As perguntas podem passar dos 90 minutos. Quem não fez o setup instala agora.
+As perguntas podem passar dos 90 minutos. Quem não fez o setup instala agora. Se der tempo: o resultado do duelo entre as duas salas.
 

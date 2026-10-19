@@ -26,7 +26,7 @@ The kit and the app were built on another machine, against a private Gitea (`rep
 | Project 2 (`/task-*`) | Jira through the MCP, with `acli` as the fallback (D-19); Confluence through the MCP or `acli`; GitHub through `gh` | End to end on the practice project (D-18). **Never run against a real corporate Jira, Confluence or GitHub** |
 | Agent Memory app | v0.4: 4 languages, log of the MCP calls, portable app. v0.5.0: the new name and English names for the command (`agent-memory`), the MCP server and tools and the note fields; old notes are still read (D-25) | v0.4.0: 227 tests, selftest and an isolated install |
 | English names (D-25) | Files, folders, commands, flags, markers, Arena task ids and the memory MCP tools are in English in both languages; the old names still work as aliases | Kit tests. The swarm video and two screenshots in the slides still show the old names (see below) |
-| Slides | 47 slides, 90 min, in pt and en | Rendered in LibreOffice |
+| Slides | 44 slides, 90 min, in pt and en (organizer review: shorter concepts, "Write your card", "Why did this card fail?", hook and statusline as hands-on, practice project as the Project 2 default) | Rendered with Quick Look (no LibreOffice on this Mac) |
 | Releases | `v1.0.0-dev.3` on Gitea | `--check` from the release |
 
 ## What is left (in order)
