@@ -54,6 +54,8 @@ export async function startServer({ port = 8787, host = '127.0.0.1', data = join
     ['/replays/', join(HERE, 'replays')],
     ['/', join(HERE, 'public')],
   ];
+  // The page's replay mode runs the same aggregate in the browser (tools/deploy-panel.sh copies these to the Pages).
+  const shared = { '/aggregate.mjs': join(HERE, 'aggregate.mjs'), '/schema.mjs': join(HERE, '..', 'telemetry', 'schema.mjs'), '/allowlist.json': join(HERE, '..', 'telemetry', 'allowlist.json') };
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -73,7 +75,7 @@ export async function startServer({ port = 8787, host = '127.0.0.1', data = join
         }
         return res.end();
       }
-      const f = req.method === 'GET' ? staticFile(roots, url.pathname) : null;
+      const f = req.method === 'GET' ? shared[url.pathname] || staticFile(roots, url.pathname) : null;
       if (!f) {
         res.writeHead(404, { 'Content-Type': 'text/plain', ...SECURITY });
         return res.end('not found');

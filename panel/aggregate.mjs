@@ -11,6 +11,14 @@
 // checks this list against missions/rules.json.
 export const MISSIONS = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10'];
 export const PHASES = ['opening', 'missions', 'p1', 'p2', 'closing'];
+// The agenda (spec 3): the minute each block starts. A replay moves the view by it.
+export const AGENDA = [
+  ['opening', 0],
+  ['missions', 8],
+  ['p1', 23],
+  ['p2', 47],
+  ['closing', 87],
+];
 export const ROOMS = ['A', 'B'];
 export const ACTIVE_MS = 10 * 60 * 1000;
 export const BUDGET_USD = 5;

@@ -11,13 +11,9 @@
 import { writeFileSync } from 'node:fs';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 
-export const AGENDA = [
-  ['opening', 0],
-  ['missions', 8],
-  ['p1', 23],
-  ['p2', 47],
-  ['closing', 87],
-];
+import { AGENDA } from './aggregate.mjs';
+
+export { AGENDA };
 const GUIDED = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
 const FEATURE = { M1: 'plan_mode', M2: 'model_switch', M3: 'subagent', M4: 'skill_user', M5: 'hook_user', M6: 'loop', M8: 'statusline_user', M9: 'headless', M10: 'memory_write' };
 const NICKS = ['Ana', 'Rui', 'Marta', 'Joao', 'Ines', 'Pedro', 'Sara', 'Tiago', 'Rita', 'Nuno', 'Lara', 'Hugo'];
