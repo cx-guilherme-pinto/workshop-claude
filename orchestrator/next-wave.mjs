@@ -215,7 +215,10 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry 
   const maus = [...estados.values()].filter((s) => s.corrupto).map((s) => s.corrupto);
   if (maus.length) throw new Error(T.corrupto(maus.join(', ')));
   // A retry whose task is not running yet starts here; one whose task is running is a later call of the same retry.
-  const comecaRetry = !!repetir && estados.get(repetir.id).estado !== 'em_curso';
+  // run.retry marca o retry aberto: as chamadas seguintes do mesmo /demo-swarm --retry (o SubagentStop pode ja ter
+  // dado a nota antes delas) fecham-no em vez de o recomecar. So um retry fechado (STATE: DONE) se abre outra vez.
+  const aberto = !!repetir && run.retry?.tarefa === repetir.id && !run.retry.fechado;
+  const comecaRetry = !!repetir && !aberto && estados.get(repetir.id).estado !== 'em_curso';
   if (comecaRetry) {
     const espera = (repetir.depende || []).filter((d) => !TERMINAL_OK.has(estados.get(d)?.estado));
     if (espera.length) throw new Error(T.retryEspera(repetir.id, espera.join(', ')));
@@ -227,6 +230,7 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry 
     const antes = estados.get(repetir.id);
     gravarEstado(c, { tarefa: repetir.id, estado: 'por_fazer', tentativa: 0, repeticoes: (antes.repeticoes || 0) + 1 });
     evento(c, { tipo: 'retry', tarefa: repetir.id, antes: antes.estado, tentativa: antes.tentativa || 0 });
+    run.retry = { tarefa: repetir.id, inicio: new Date().toISOString(), fechado: false };
   }
   estados = todosEstados(c, plano);
 
@@ -275,6 +279,11 @@ async function proximaOndaSemLock({ projeto, plano: caminhoPlano, max, l, retry 
   if (!lote.length && pendentes === 0 && !run.fim) {
     run.fim = new Date().toISOString();
     evento(c, { tipo: 'fim', contagem: f.contagem, custo: f.custo });
+  }
+  // O retry acaba quando a tarefa fica verde ou falha de vez (e nada dela esta a correr): fica fechado.
+  if (repetir && run.retry?.tarefa === repetir.id && !lote.length) {
+    const e = estados.get(repetir.id)?.estado;
+    if (TERMINAL_OK.has(e) || e === 'falhou') run.retry.fechado = true;
   }
   escreverJson(c.run, run);
   return { plano, f, loteAnterior, lote, chamadas, pendentes, run, retry: repetir?.id ?? null };

@@ -33,7 +33,7 @@ export const SLIDES = [
       { valor: 'US$ 10', rotulo: 'safety cap, never the goal' },
       { valor: '0', rotulo: 'sessions stopped because of cost' },
     ],
-    rodape: 'Project 1, in one real end-to-end run: {{P1_CUSTO}}, {{P1_AGENTES}} agents, swarm in {{P1_SWARM}}, session in {{P1_SESSAO}}.',
+    rodape: 'Reference run: Project 1 {{P1_CUSTO}} ({{P1_AGENTES}} agents, swarm in {{P1_SWARM}}); the whole day, with Project 2, {{DIA_CUSTO}}.',
     notas: 'The budget is backed by the benchmark, not by cuts. If someone goes over the target, a warning shows up and they keep working. The footer numbers come from the Project 1 reference run ({{P1_PARALELO}} agents in parallel, as on everyone\'s laptop): they are the same numbers used in the rest of the deck.',
   },
 
@@ -293,14 +293,14 @@ Answer in the participant's language.`,
   {
     seccao: 'Project 1', tipo: 'faca', min: 5,
     titulo: 'Why did this card fail?',
-    intro: '4 cards fail on purpose: their spec leaves out the rule that decides the answer, so the agent guesses.',
+    intro: 'The spec of 4 cards leaves out the rule that decides the answer: the agent guesses, and almost always gets at least one wrong.',
     passos: ['Open /status and click a red square', 'Read what the agent produced and what the spec does not decide', 'Decide the right value from the prompt and the concept', 'Write it in cards/<id>/spec.md', 'Run /demo-swarm --retry <id>'],
     comandos: [
       { rotulo: 'Browser', cmd: 'http://localhost:3000/status' },
       { rotulo: 'Terminal 1', cmd: '/demo-swarm --retry <id>' },
     ],
     esperado: 'Green; or the same message with your value, if you decided wrong',
-    notas: 'The lesson of Project 1: what the spec does not decide, the agent guesses. In the 4 cards (pv-07, rd-09, cr-07 and sc-08) two answers are plausible and the spec lacks the rule that picks one; the test only keeps a short hash of the right one, so neither the agent nor the message gives it away. The message says what the agent produced and what the spec does not decide; the decision is the person\'s, from the prompt and the concept. These cards fail at once, with no new attempts. If the person decides wrong, the agent follows the spec and the same message comes back with that value: think again. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).',
+    notas: 'The lesson of Project 1: what the spec does not decide, the agent guesses. In the reference run (pt and en), Haiku got 3 of the 4 right and failed pv-07: an ambiguous spec sometimes passes by luck, which is what makes it dangerous. Anyone with no red card opens cards/pv-07/spec.md and looks for the missing rule. In the 4 cards (pv-07, rd-09, cr-07 and sc-08) two answers are plausible and the spec lacks the rule that picks one; the test only keeps a short hash of the right one, so neither the agent nor the message gives it away. The message says what the agent produced and what the spec does not decide; the decision is the person\'s, from the prompt and the concept. These cards fail at once, with no new attempts. If the person decides wrong, the agent follows the spec and the same message comes back with that value: think again. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).',
   },
   {
     seccao: 'Project 1', tipo: 'faca', min: 2,

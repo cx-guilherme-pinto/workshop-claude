@@ -153,7 +153,7 @@ Gravação a jogar a Arena final: apontar a linha insegura, escolher a resposta 
 
 [23:00 → 23:30] 0,5 min · deves estar aqui aos 23 min
 
-37 minutos de hands-on. Na execução de referência, o swarm das 100 tarefas demorou 7,9 min (a sessão completa, 14 min); em modo interativo e com contas novas pode demorar mais. Os slides entre "Solta o swarm" e "Porque é que este cartão falhou?" (9 minutos) cobrem essa espera: são todos para fazer enquanto o swarm trabalha.
+37 minutos de hands-on. Na execução de referência, o swarm das 100 tarefas demorou 6,1 min (a sessão completa, 7,8 min); em modo interativo e com contas novas pode demorar mais. Os slides entre "Solta o swarm" e "Porque é que este cartão falhou?" (9 minutos) cobrem essa espera: são todos para fazer enquanto o swarm trabalha.
 
 ### 18. O que vamos fazer neste projeto hoje
 
@@ -195,7 +195,7 @@ Explicar antes de correr. O ponto importante: quem escolhe o que corre é um scr
 
 [37:00 → 39:00] 2 min · deves estar aqui aos 37 min
 
-Previsão, antes de carregar em Enter: cada pessoa escreve no Teams quanto acha que vai custar e quantos cartões vão ficar vermelhos. A partir daqui o swarm trabalha alguns minutos (7,9 min na execução de referência; mais com contas novas). Os próximos quatro slides (9 minutos) fazem-se durante essa espera; quem acabar primeiro joga a Arena.
+Previsão, antes de carregar em Enter: cada pessoa escreve no Teams quanto acha que vai custar e quantos cartões vão ficar vermelhos. A partir daqui o swarm trabalha alguns minutos (6,1 min na execução de referência; mais com contas novas). Os próximos quatro slides (9 minutos) fazem-se durante essa espera; quem acabar primeiro joga a Arena.
 
 ### 25. Pergunta sem interromper
 
@@ -225,7 +225,7 @@ Ainda durante o swarm. A statusline do kit lê o que o hook gravou e mostra o cu
 
 [48:00 → 53:00] 5 min · deves estar aqui aos 48 min
 
-A lição do Projeto 1: o que a spec não decide, o agente adivinha. Nos 4 cartões (pv-07, rd-09, cr-07 e sc-08) há duas respostas plausíveis e a spec não tem a regra que escolhe uma; o teste só guarda um hash curto da certa, por isso nem o agente nem a mensagem a revelam. A mensagem diz o que o agente produziu e o que a spec não decide; a decisão é da pessoa, a partir do enunciado e do conceito. Estes cartões falham à primeira, sem novas tentativas. Se a pessoa decidir mal, o agente segue a spec e volta a mesma mensagem com esse valor: pensar outra vez. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).
+A lição do Projeto 1: o que a spec não decide, o agente adivinha. Na execução de referência (pt e en), o Haiku acertou 3 dos 4 e falhou o pv-07: uma spec ambígua às vezes passa por sorte, e é por isso que é perigosa. Quem não tiver nenhum vermelho abre cards/pv-07/spec.md e procura a regra que falta. Nos 4 cartões (pv-07, rd-09, cr-07 e sc-08) há duas respostas plausíveis e a spec não tem a regra que escolhe uma; o teste só guarda um hash curto da certa, por isso nem o agente nem a mensagem a revelam. A mensagem diz o que o agente produziu e o que a spec não decide; a decisão é da pessoa, a partir do enunciado e do conceito. Estes cartões falham à primeira, sem novas tentativas. Se a pessoa decidir mal, o agente segue a spec e volta a mesma mensagem com esse valor: pensar outra vez. Quem acabar repete para os outros vermelhos: o gate só aprova com tudo verde. Comparar com a previsão do Teams: quantos vermelhos esperavam? Extra opcional, para quem quiser automatizar: /loop 2m corre node tools/workshop/orchestrator/grade.mjs --all e corrige a primeira tarefa vermelha com o agente implementer; termina quando estiver tudo verde (o /loop repete um prompt a cada intervalo; Esc cancela).
 
 ### 30. O gate de segurança
 

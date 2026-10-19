@@ -153,7 +153,7 @@ Recording of someone playing the final Arena: point at the insecure line, pick t
 
 [23:00 → 23:30] 0.5 min · you should be here at 23 min
 
-37 minutes of hands-on. In the reference run, the 100-task swarm took 7.4 min (the full session, 14 min); in interactive mode and with new accounts it can take longer. The slides between "Release the swarm" and "Why did this card fail?" (9 minutes) cover that wait: they are all done while the swarm works.
+37 minutes of hands-on. In the reference run, the 100-task swarm took 7.5 min (the full session, 11.6 min); in interactive mode and with new accounts it can take longer. The slides between "Release the swarm" and "Why did this card fail?" (9 minutes) cover that wait: they are all done while the swarm works.
 
 ### 18. What we will do in this project today
 
@@ -195,7 +195,7 @@ Explain before running it. The key point: a script picks what runs, not the mode
 
 [37:00 → 39:00] 2 min · you should be here at 37 min
 
-Prediction, before pressing Enter: each person writes in Teams how much they think it will cost and how many cards will end up red. From here the swarm works for a few minutes (7.4 min in the reference run; longer with new accounts). The next four slides (9 minutes) happen during that wait; whoever finishes first plays the Arena.
+Prediction, before pressing Enter: each person writes in Teams how much they think it will cost and how many cards will end up red. From here the swarm works for a few minutes (7.5 min in the reference run; longer with new accounts). The next four slides (9 minutes) happen during that wait; whoever finishes first plays the Arena.
 
 ### 25. Ask without interrupting
 
@@ -225,7 +225,7 @@ Still during the swarm. The kit statusline reads what the hook recorded and show
 
 [48:00 → 53:00] 5 min · you should be here at 48 min
 
-The lesson of Project 1: what the spec does not decide, the agent guesses. In the 4 cards (pv-07, rd-09, cr-07 and sc-08) two answers are plausible and the spec lacks the rule that picks one; the test only keeps a short hash of the right one, so neither the agent nor the message gives it away. The message says what the agent produced and what the spec does not decide; the decision is the person's, from the prompt and the concept. These cards fail at once, with no new attempts. If the person decides wrong, the agent follows the spec and the same message comes back with that value: think again. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).
+The lesson of Project 1: what the spec does not decide, the agent guesses. In the reference run (pt and en), Haiku got 3 of the 4 right and failed pv-07: an ambiguous spec sometimes passes by luck, which is what makes it dangerous. Anyone with no red card opens cards/pv-07/spec.md and looks for the missing rule. In the 4 cards (pv-07, rd-09, cr-07 and sc-08) two answers are plausible and the spec lacks the rule that picks one; the test only keeps a short hash of the right one, so neither the agent nor the message gives it away. The message says what the agent produced and what the spec does not decide; the decision is the person's, from the prompt and the concept. These cards fail at once, with no new attempts. If the person decides wrong, the agent follows the spec and the same message comes back with that value: think again. Whoever finishes repeats it for the other red cards: the gate only approves when everything is green. Compare with the Teams prediction: how many red cards did they expect? Optional extra, for anyone who wants to automate it: /loop 2m run node tools/workshop/orchestrator/grade.mjs --all and fix the first red task with the implementer agent; stop when everything is green (/loop repeats a prompt at each interval; Esc cancels).
 
 ### 30. The security gate
 

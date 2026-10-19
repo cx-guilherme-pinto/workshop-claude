@@ -1,70 +1,70 @@
 {
   "note": "Typical tokens per agent (benchmark average). 'orchestrator_<mode>' is per batch of the main session. 'margin' is added to the total so the estimate does not fall below the real cost.",
-  "calibrated_on": "2026-10-16",
+  "calibrated_on": "2026-10-19",
   "profiles": {
     "worker": {
       "requests": 3,
-      "input": 6,
-      "cache_write_5m": 6193,
+      "input": 5,
+      "cache_write_5m": 8295,
       "cache_write_1h": 0,
-      "cache_read": 27987,
-      "output": 1361
+      "cache_read": 29638,
+      "output": 865
     },
     "implementer": {
       "requests": 3,
-      "input": 5,
-      "cache_write_5m": 9642,
+      "input": 6,
+      "cache_write_5m": 11546,
       "cache_write_1h": 0,
-      "cache_read": 16403,
-      "output": 1530
+      "cache_read": 20765,
+      "output": 1450
     },
     "integrator": {
-      "requests": 4,
+      "requests": 5,
       "input": 9,
-      "cache_write_5m": 5683,
+      "cache_write_5m": 17587,
       "cache_write_1h": 0,
-      "cache_read": 31547,
-      "output": 736
+      "cache_read": 55501,
+      "output": 725
     },
     "reviewer": {
       "requests": 3,
       "input": 6,
-      "cache_write_5m": 48882,
+      "cache_write_5m": 56539,
       "cache_write_1h": 0,
-      "cache_read": 20634,
-      "output": 2325
+      "cache_read": 24254,
+      "output": 2090
     },
     "planner": {
       "requests": 2,
       "input": 4,
-      "cache_write_5m": 2049,
+      "cache_write_5m": 8977,
       "cache_write_1h": 0,
-      "cache_read": 4489,
-      "output": 991
+      "cache_read": 6238,
+      "output": 720
     },
     "orchestrator": {
-      "requests": 3,
-      "input": 9,
+      "requests": 5,
+      "input": 14,
       "cache_write_5m": 0,
-      "cache_write_1h": 5281,
-      "cache_read": 182518,
-      "output": 1142
+      "cache_write_1h": 10844,
+      "cache_read": 713831,
+      "output": 2087
     },
     "memory-extractor": {
-      "requests": 3,
-      "input": 7,
-      "cache_write_5m": 3745,
+      "requests": 1,
+      "input": 2,
+      "cache_write_5m": 7783,
       "cache_write_1h": 0,
-      "cache_read": 13601,
-      "output": 2825
+      "cache_read": 0,
+      "output": 261
     },
     "orchestrator_participant": {
       "requests": 5,
-      "input": 17,
+      "input": 14,
       "cache_write_5m": 0,
-      "cache_write_1h": 9665,
-      "cache_read": 752968,
-      "output": 2055
+      "cache_write_1h": 10844,
+      "cache_read": 713831,
+      "output": 2087
     },
     "orchestrator_presenter": {
       "requests": 4,
@@ -75,6 +75,6 @@
       "output": 2481
     }
   },
-  "calibration": "11 benchmark runs (participant and presenter); orchestrator_participant: an interactive run with 100 tasks (17 Oct 2026)",
+  "calibration": "2 benchmark runs (participant, kit v1.0.0-rc.4): 20261019-122609-day-pt-participant-1 to 20261019-123755-day-en-participant-1",
   "margin": 0.15
 }

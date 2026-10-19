@@ -407,7 +407,7 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
 - **Execução de referência** (19 out., uma em cada língua, num HOME limpo, como um participante: cartão próprio, swarm, as 4 specs corrigidas com `--retry`, revisão e custo): 106/106 tarefas verdes, gate aprovado, US$ 4,33 (pt) e 4,30 (en), swarm em 7,9 e 7,4 min, sessão de 14 min, 120 agentes. Os 4 cartões falharam com o Haiku nas duas línguas, e cada `--retry` ficou verde em 30 a 60 s. Estas execuções ainda tinham 3 tentativas por cartão partido; com a falha imediata o custo real deve ficar um pouco abaixo (não medido).
 - **Encontrado nas execuções:** um `grep` com o caminho absoluto de uma pasta com espaço (`Ana Demo`) parava o swarm num pedido de permissão; os agentes passam a usar caminhos relativos e as ferramentas Read/Grep/Glob.
 
-## D-29 · Benchmark do dia completo, preparado e não corrido (19 out. 2026)
+## D-29 · Benchmark do dia completo (19 out. 2026)
 
 - **Pedido:** medir o que um participante gasta no workshop todo, numa linha por língua, antes de o organizador aprovar a despesa.
 - **Um comando:** `BENCH_LINGUA=pt benchmark/run-benchmark.sh` (e `BENCH_LINGUA=en`). Por defeito `--scope day`, `--n 1` (antes `--n 10`, que no dia completo seriam cerca de US$ 50):
@@ -422,3 +422,8 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
 - **`--dry-run`** (grátis): monta a Arena e o projeto de treino, cria o cartão, corrige as 4 specs e mostra cada `claude -p` (o token aparece como `<Keychain:…>`), sem chamar o Claude nem escrever no CSV. Corrido em pt e em en.
 - **Não medido:** os exercícios ao lado durante o swarm (`/btw`, plan mode, `claude -p` com Haiku, hook e statusline, perguntar "porque é que este cartão falhou?"), que são interativos; com o Sonnet a escrever o hook e a statusline, devem somar algumas dezenas de cêntimos (não medido).
 - **Estimativa por execução:** cerca de US$ 5 e 25 min (P1 ~US$ 4,3, D-28; P2 ~US$ 0,6, D-18).
+
+- **Resultado (19 out., uma execução por língua, Claude Code 2.1.292 e Agent Memory 0.5.0 do kit, isolado):** dia completo US$ 4,56 em pt (Projeto 1 3,76 + Projeto 2 0,80) e US$ 4,02 em en (3,37 + 0,65), abaixo do alvo de US$ 5; 117 agentes; 0 permissões negadas, 0 erros 429, os dois gates aprovados. A falha imediata dos cartões partidos baixou o Projeto 1 de US$ 4,33 (D-28) para 3,76.
+- **Cartões partidos com a resposta só em hash:** o Haiku acertou 3 dos 4 (rd-09, cr-07 e sc-08) nas duas línguas e falhou o pv-07. O slide passa a dizer que o agente "quase sempre erra pelo menos um" e as notas dizem o que fazer a quem não tiver nenhum vermelho.
+- **Encontrado:** na execução em inglês o `/demo-swarm --retry pv-07` ficou num ciclo: o hook SubagentStop dava a nota antes da chamada seguinte do mesmo `next-wave --retry`, que a tomava por um retry novo e repunha a tarefa. Corrigido com um retry aberto/fechado em `run.json` (teste em `orchestrator/test/retry.test.mjs`).
+- **Estimativa recalibrada** (`benchmark/calibrar.mjs`): US$ 4,16 no plano (média medida do Projeto 1 US$ 3,56, margem de 15%). O `benchmark/REPORT.md` foi gerado de novo com estas execuções.

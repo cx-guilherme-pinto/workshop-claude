@@ -1,11 +1,11 @@
 {
   "CUSTO_CARTAO": "US$ 0,0019",
   "PESO_ORQ": "79%",
-  "ESTIMATIVA": "US$ 3,98",
-  "P1_CUSTO": "US$ 4,33",
-  "P1_SWARM": "7,9 min",
-  "P1_SESSAO": "14 min",
-  "P1_AGENTES": "120",
+  "ESTIMATIVA": "US$ 4,16",
+  "P1_CUSTO": "US$ 3,76",
+  "P1_SWARM": "6,1 min",
+  "P1_SESSAO": "7,8 min",
+  "P1_AGENTES": "110",
   "P1_PARALELO": "8",
   "APRES_DURACAO": "6,9 min",
   "APRES_CUSTO": "US$ 2,55",
@@ -16,7 +16,10 @@
   "APRES_AGENTES@en": "107",
   "CUSTO_CARTAO@en": "US$ 0.0014",
   "PESO_ORQ@en": "80%",
-  "P1_CUSTO@en": "US$ 4.30",
-  "P1_SWARM@en": "7.4 min",
-  "APRES_PARALELO@en": "8"
+  "P1_CUSTO@en": "US$ 3.37",
+  "P1_SWARM@en": "7.5 min",
+  "APRES_PARALELO@en": "8",
+  "P1_SESSAO@en": "11.6 min",
+  "DIA_CUSTO": "US$ 4,56",
+  "DIA_CUSTO@en": "US$ 4.02"
 }

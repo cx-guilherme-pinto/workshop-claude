@@ -201,3 +201,27 @@ test('a plan without the flag: the broken-card message of the test (new and old 
     }
   }
 });
+
+test('--retry: when the SubagentStop hook grades the task before the next call, that call closes the retry (no loop)', async () => {
+  const p = project([{ id: 'x', test: WHEN_FIXED }, { id: 'y', test: OK }]);
+  try {
+    await untilDone(p);
+    writeFileSync(join(p.dir, 'ok.txt'), '');
+    let r = await run(p, { retry: 'x' });
+    assert.equal(r.chamadas.length, 1, 'the retry launches one agent');
+    // The hook grades it first (as in a real session), then the skill calls the same command again.
+    const { grade } = await import('../grade.mjs');
+    const plan = JSON.parse(readFileSync(p.plan, 'utf8'));
+    await grade(p.dir, plan, plan.tasks.find((t) => t.id === 'x'));
+    assert.equal(state(p.dir, 'x').estado, 'verde');
+    r = await run(p, { retry: 'x' });
+    assert.equal(r.chamadas.length, 0, 'no new attempt: the retry is closed');
+    assert.equal(state(p.dir, 'x').estado, 'verde');
+    assert.match(textoOnda(r, 'en'), /STATE: DONE/);
+    // A later, new /demo-swarm --retry x starts again.
+    r = await run(p, { retry: 'x' });
+    assert.equal(r.chamadas.length, 1, 'a new retry after the closed one starts again');
+  } finally {
+    rmSync(p.dir, { recursive: true, force: true });
+  }
+});

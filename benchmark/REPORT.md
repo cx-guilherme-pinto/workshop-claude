@@ -1,6 +1,73 @@
 # Benchmark de custo e tempo
 
-Gerado em 2026-10-19 11:09 a partir de `benchmark/results.csv` (`benchmark/run-benchmark.sh`). O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13). Alvo por participante: US$ 5,00; teto: US$ 10,00 (nunca se corta por custo, só há avisos).
+Gerado em 2026-10-19 11:52 a partir de `benchmark/results.csv` (`benchmark/run-benchmark.sh`). O custo é medido com os tokens reais e os preços de `pricing.json`. A coluna "Claude Code" é o `total_cost_usd` do CLI, que sobrestima nesta versão (ver DECISIONS D-13). Alvo por participante: US$ 5,00; teto: US$ 10,00 (nunca se corta por custo, só há avisos).
+
+## Resumo
+
+| escopo | língua | modo | kit | criptografia | execuções | sucesso | média | máximo | P1 · P2 (média) | face ao alvo e ao teto |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Dia completo (Projeto 1 + Projeto 2) | en | participante | v1.0.0-rc.4 | sonnet | 1 | 1/1 | US$ 4,02 | US$ 4,02 | US$ 3,37 · US$ 0,65 | média US$ 4,02: dentro do alvo de US$ 5,00 (80%); máximo US$ 4,02: abaixo do teto de US$ 10,00 |
+| Dia completo (Projeto 1 + Projeto 2) | pt | participante | v1.0.0-rc.4 | sonnet | 1 | 1/1 | US$ 4,56 | US$ 4,56 | US$ 3,76 · US$ 0,80 | média US$ 4,56: dentro do alvo de US$ 5,00 (91%); máximo US$ 4,56: abaixo do teto de US$ 10,00 |
+
+## Dia completo (Projeto 1 + Projeto 2) · en · participante · v1.0.0-rc.4 · criptografia sonnet (1 execução)
+
+| métrica | mínimo | média | máximo | desvio padrão |
+|---|---|---|---|---|
+| custo do dia | US$ 4,02 | US$ 4,02 | US$ 4,02 | US$ 0,00 |
+| custo do Projeto 1 | US$ 3,37 | US$ 3,37 | US$ 3,37 | US$ 0,00 |
+| custo do Projeto 2 | US$ 0,65 | US$ 0,65 | US$ 0,65 | US$ 0,00 |
+| custo Haiku | US$ 0,17 | US$ 0,17 | US$ 0,17 | US$ 0,00 |
+| custo Sonnet | US$ 3,22 | US$ 3,22 | US$ 3,22 | US$ 0,00 |
+| custo Opus | US$ 0,64 | US$ 0,64 | US$ 0,64 | US$ 0,00 |
+| duração (P1 + P2) | 14,6 min | 14,6 min | 14,6 min | 0,0 min |
+| duração do Projeto 1 | 11,6 min | 11,6 min | 11,6 min | 0,0 min |
+| swarm do Projeto 1 | 7,5 min | 7,5 min | 7,5 min | 0,0 min |
+| duração do Projeto 2 | 3,0 min | 3,0 min | 3,0 min | 0,0 min |
+| agentes | 117 | 117 | 117 | 0 |
+| agentes do Projeto 1 | 110 | 110 | 110 | 0 |
+| agentes do Projeto 2 | 7 | 7 | 7 | 0 |
+| tentativas a mais (P1 + P2) | 0 | 0 | 0 | 0 |
+| --retry dos cartões partidos | 1 | 1 | 1 | 0 |
+| erros 429 | 0 | 0 | 0 | 0 |
+| custo segundo o Claude Code | US$ 12,15 | US$ 12,15 | US$ 12,15 | US$ 0,00 |
+
+Execuções com sucesso (sem permissões negadas, gate APPROVED nos dois projetos e sem passos com erro): **1/1**.
+Face ao alvo e ao teto: média US$ 4,02: dentro do alvo de US$ 5,00 (80%); máximo US$ 4,02: abaixo do teto de US$ 10,00.
+Critério de aceitação (todas com sucesso e custo máximo ≤ US$ 10,00; média idealmente ≤ US$ 5,00): **CUMPRIDO**.
+
+| execução | custo do dia | duração | P1 | P1 duração | P1 verdes | --retry (verdes) | testes | veredito P1 | gate P1 | P2 | P2 duração | P2 verdes | veredito P2 | gate P2 | Haiku | Sonnet | Opus | agentes | 429 | negações | resultado |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 20261019-123755-day-en-participant-1 | US$ 4,02 | 14,6 min | US$ 3,37 | 11,6 min | 105 | 1 (0) | 662/662 | approved_with_reservations | approved | US$ 0,65 | 3,0 min | 5 | approved_with_reservations | approved | US$ 0,17 | US$ 3,22 | US$ 0,64 | 117 | 0 | 0 | ok |
+
+## Dia completo (Projeto 1 + Projeto 2) · pt · participante · v1.0.0-rc.4 · criptografia sonnet (1 execução)
+
+| métrica | mínimo | média | máximo | desvio padrão |
+|---|---|---|---|---|
+| custo do dia | US$ 4,56 | US$ 4,56 | US$ 4,56 | US$ 0,00 |
+| custo do Projeto 1 | US$ 3,76 | US$ 3,76 | US$ 3,76 | US$ 0,00 |
+| custo do Projeto 2 | US$ 0,80 | US$ 0,80 | US$ 0,80 | US$ 0,00 |
+| custo Haiku | US$ 0,20 | US$ 0,20 | US$ 0,20 | US$ 0,00 |
+| custo Sonnet | US$ 3,71 | US$ 3,71 | US$ 3,71 | US$ 0,00 |
+| custo Opus | US$ 0,65 | US$ 0,65 | US$ 0,65 | US$ 0,00 |
+| duração (P1 + P2) | 11,7 min | 11,7 min | 11,7 min | 0,0 min |
+| duração do Projeto 1 | 7,8 min | 7,8 min | 7,8 min | 0,0 min |
+| swarm do Projeto 1 | 6,1 min | 6,1 min | 6,1 min | 0,0 min |
+| duração do Projeto 2 | 4,0 min | 4,0 min | 4,0 min | 0,0 min |
+| agentes | 117 | 117 | 117 | 0 |
+| agentes do Projeto 1 | 110 | 110 | 110 | 0 |
+| agentes do Projeto 2 | 7 | 7 | 7 | 0 |
+| tentativas a mais (P1 + P2) | 0 | 0 | 0 | 0 |
+| --retry dos cartões partidos | 1 | 1 | 1 | 0 |
+| erros 429 | 0 | 0 | 0 | 0 |
+| custo segundo o Claude Code | US$ 14,22 | US$ 14,22 | US$ 14,22 | US$ 0,00 |
+
+Execuções com sucesso (sem permissões negadas, gate APPROVED nos dois projetos e sem passos com erro): **1/1**.
+Face ao alvo e ao teto: média US$ 4,56: dentro do alvo de US$ 5,00 (91%); máximo US$ 4,56: abaixo do teto de US$ 10,00.
+Critério de aceitação (todas com sucesso e custo máximo ≤ US$ 10,00; média idealmente ≤ US$ 5,00): **CUMPRIDO**.
+
+| execução | custo do dia | duração | P1 | P1 duração | P1 verdes | --retry (verdes) | testes | veredito P1 | gate P1 | P2 | P2 duração | P2 verdes | veredito P2 | gate P2 | Haiku | Sonnet | Opus | agentes | 429 | negações | resultado |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 20261019-122609-day-pt-participant-1 | US$ 4,56 | 11,7 min | US$ 3,76 | 7,8 min | 106 | 1 (1) | 662/662 | approved_with_reservations | approved | US$ 0,80 | 4,0 min | 5 | approved_with_reservations | approved | US$ 0,20 | US$ 3,71 | US$ 0,65 | 117 | 0 | 0 | ok |
 
 ## Execuções anteriores (só o Projeto 1, antes da v1.0.0-rc.4; D-16)
 
