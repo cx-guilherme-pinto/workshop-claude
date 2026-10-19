@@ -3,7 +3,7 @@
 # before each step. The admin token is a secret the organizer types: wrangler secret put ADMIN_TOKEN.
 name = "workshop-panel"
 main = "index.mjs"
-compatibility_date = "2026-10-01"
+compatibility_date = "2026-08-01"
 workers_dev = true
 
 # No request logs (spec 6.6: the server keeps no IPs or headers).

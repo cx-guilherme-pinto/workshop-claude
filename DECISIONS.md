@@ -508,3 +508,50 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - Sair com um `/loop` ativo abre o diálogo "Background work is running"; a opção 1 para o loop.
   - A statusline da M8 substitui a do kit nesse projeto.
   - A M5 só fica marcada no evento seguinte ao `edits.log`; o `/missions` também atualiza.
+
+## D-32 · Workshop v2, Fase 2: painel ao vivo (envio, Worker + Durable Object, página) (19 out. 2026)
+
+- **Entregue:**
+  - `panel/aggregate.mjs`, puro: as métricas da secção 6.3 e um snapshot para o Durable Object.
+  - `panel/api.mjs`, partilhada pela Worker e pelo Node: `POST /e`, `/state`, `/stream` em SSE, `/admin/phase|hide|reset` e `/health`.
+  - `panel/server.mjs` e `store-file.mjs` (servidor local para ensaios e plano B).
+  - `panel/worker/` (Worker + Durable Object em SQLite, `wrangler.toml` com os logs desligados).
+  - `panel/public/` (a página: 6 vistas, replay no browser, SSE com polling de reserva, teclas do apresentador).
+  - `panel/simulate.mjs` e `panel/replays/simulated.jsonl`.
+  - `telemetry/send.mjs`; eventos `cost` dos hooks de custo; `ctl.mjs show` com o que foi enviado.
+  - `tools/deploy-panel.sh` (pergunta antes de cada passo) e `docs/PRIVACY.md`, em pt e en.
+  - O painel e o deploy no `ORGANIZER`.
+  - Setup: o `--check` testa o painel (`E-TEL-01`, só aviso) e envia `check_ok`; o passo 8 mostra o estado real.
+- **Decisões:**
+  - **Pasta e endpoints em inglês** (D-30): `panel/`, `/admin/phase`, `?room=` (o `?sala=` também é aceite), `PANEL_URL` e `PANEL_PAGE_URL` no `repos.conf`.
+  - **API:**
+    - um evento repetido (o reenvio depois de um timeout) é ignorado pela chave única do evento, por isso nada conta duas vezes;
+    - o rate limit responde 429 com `{processed: n}`, e o envio guarda o resto;
+    - lotes de 50 no máximo e corpo de 64 KB no máximo;
+    - `?lite=1` dá 1 atualização por segundo.
+  - **Worker:** guarda os eventos e um snapshot do agregado a cada 2 s, para não refazer todos os eventos no arranque. Passa ao objeto só os cabeçalhos de que a API precisa, por isso nem o User-Agent nem os cookies lá chegam.
+  - **Página:**
+    - o replay corre no browser, sem a API;
+    - o token de admin vem só do fragmento `#admin=` e fica no `sessionStorage`;
+    - as alcunhas escondidas não aparecem no `/state` público;
+    - CSP estrita, sem inline.
+  - **Cobertura de uma missão:** quem a fez, sobre as pessoas presentes (ativas ou que já a fizeram).
+  - **`compatibility_date` 2026-08-01:** é o que o workerd local desta versão do wrangler suporta.
+- **Testes:**
+  - novos: `panel.test.mjs` (9: métricas, API, SSE, store SQLite da Worker com node:sqlite, envio sem duplicados offline e online, ponta a ponta `record` → envio → painel, carga de 250 pessoas) e `panel-page.test.mjs` (10);
+  - `test-mac` 737;
+  - Pester 333;
+  - PSSA sem erros;
+  - shellcheck limpo;
+  - `test-all` verde.
+- **Aceitação:**
+  - O simulador com 250 pessoas e 2 salas, a 10× e em tempo real, contra o servidor local: 7493 eventos, 0 erros, o painel atualizado no máximo 0,52 s depois (o limite é 2 s).
+  - A mesma Worker no `wrangler dev` local (workerd e Durable Object, sem deploy), com 100 pessoas: 3015 eventos sem erros; 403 sem código ou sem token; CORS só para a origem da página; SSE atualizado em 0,5 s; o estado sobrevive a um reinício.
+  - As 6 vistas a 640 × 1080, mais uma larga e uma em inglês, em `dev/panel-screenshots/`.
+- **Por fazer, ou para as fases seguintes:**
+  - O deploy no Cloudflare: só com o "sim" do organizador.
+  - A "% em Haiku" inclui a sessão principal, mas a spec pede só os agentes; o evento `cost` não distingue. Proposta: um campo `agent` na allowlist.
+  - A Arena (e o Canivete, se copiar os hooks para o projeto) não envia custos: a cópia dos hooks não tem `telemetry/` ao lado (Fase 3).
+  - O `frame-ancestors` para o `palco.html` (Fase 5).
+  - Não se sabe se o plano grátis da Workers aguenta o limite de CPU por pedido; o snapshot foi pensado para isso.
+  - Os proxies das empresas podem bloquear `*.workers.dev`; o `--check` do pré-trabalho avisa (`E-TEL-01`).
