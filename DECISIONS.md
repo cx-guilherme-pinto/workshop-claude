@@ -427,3 +427,34 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
 - **Cartões partidos com a resposta só em hash:** o Haiku acertou 3 dos 4 (rd-09, cr-07 e sc-08) nas duas línguas e falhou o pv-07. O slide passa a dizer que o agente "quase sempre erra pelo menos um" e as notas dizem o que fazer a quem não tiver nenhum vermelho.
 - **Encontrado:** na execução em inglês o `/demo-swarm --retry pv-07` ficou num ciclo: o hook SubagentStop dava a nota antes da chamada seguinte do mesmo `next-wave --retry`, que a tomava por um retry novo e repunha a tarefa. Corrigido com um retry aberto/fechado em `run.json` (teste em `orchestrator/test/retry.test.mjs`).
 - **Estimativa recalibrada** (`benchmark/calibrar.mjs`): US$ 4,16 no plano (média medida do Projeto 1 US$ 3,56, margem de 15%). O `benchmark/REPORT.md` foi gerado de novo com estas execuções.
+
+## D-30 · Workshop v2: decisões iniciais e Fase 0 (observabilidade) (19 out. 2026)
+
+- **Especificação:** `docs/pt/WORKSHOP-V2-SPEC.md` (fonte única), na branch `workshop-v2`.
+- **Respostas do organizador às decisões em aberto:**
+  - **A1, alojamento do painel:** Cloudflare. A API (`POST /e`, `/state`, `/stream`, `/admin/*`) fica numa Worker, com o estado e o registo append-only num Durable Object (SQLite) por workshop. A página fica no Cloudflare Pages. Os domínios são os `*.workers.dev` e `*.pages.dev`, por isso há CORS só para a origem da página. O `aggregate.mjs` é o mesmo código na Worker, nos testes, no simulador e num servidor local (replay e plano B). O wrangler é só do organizador, não é dependência do kit. O `PRIVACY.md` diz que o Cloudflare vê os IPs na rede dele, que o nosso código não os grava e que os logs da Worker ficam desligados. Risco: os proxies de algumas empresas bloqueiam `*.workers.dev`; o `--check` do pré-trabalho testa-o.
+  - **Nomes:** em inglês, como na D-25: eventos, campos e chaves JSON (`room`, `forecast_min`, `cost_usd`, `duration_s`…), `?room=`, `/admin/phase` e as pastas. "Canivete" é o nome do produto em pt.
+  - **Âmbito do hook de telemetria:** só os projetos do workshop (`missions-project`, Canivete, Arena, `practice-project` e repositórios com `.workshop/` criado pelo `/task-intake`). Nos outros projetos não faz nada.
+  - **"Leaderboard":** o painel compara as salas, nunca pessoas (princípio 2.3.3).
+- **Fase 0** (Claude Code 2.1.292, kit rc.5 instalado pelo one-liner num HOME isolado, duas sessões interativas conduzidas por pty e um `claude -p`; custo US$ 0,46): resultados e proposta de validação em `docs/OBSERVABILITY.md`.
+  - **Observáveis por hook:**
+    - plan mode: `permission_mode`;
+    - troca de modelo: `PostModelSwitch`, só depois de confirmar o diálogo;
+    - subagente: `SubagentStart`, com o `agent_type`;
+    - skill do utilizador: `UserPromptExpansion` com `command_source`, ou `PostToolUse` `Skill`;
+    - hook e statusline do utilizador: `ConfigChange` `local_settings`;
+    - `/loop`: `UserPromptExpansion` `loop` e `CronCreate`;
+    - `claude -p`: `CLAUDE_CODE_ENTRYPOINT=sdk-cli` no ambiente do hook;
+    - escrita na memória: `PostToolUse` `mcp__agent-memory__memory_add`, dentro do subagente.
+  - **Não observáveis:** o `/btw` (M7 passa a dica, fora da grelha) e o rewind.
+  - **`"async": true`** funciona: um hook que dorme 4 s não atrasa o turno.
+  - **Mudanças à secção 4.2:**
+    - **M3:** exclui os subagentes lançados pelo `/statusline` e pelas skills do kit.
+    - **M4:** precisa de reiniciar a sessão depois de criar a skill.
+    - **M6:** deixa de exigir "≥ 2 turnos sem prompt", porque nenhum campo diz quem começou o turno.
+    - **M7:** sai da grelha, que fica com 9 missões.
+  - **Encontrado:**
+    - o alias `haiku` da 2.1.292 é o Haiku 4.5, que o `pricing.json` não conhece (o custo aparece "?");
+    - o `--model claude-haiku-5-5` no `claude -p` avisa no stderr que o modelo não está no catálogo desta versão;
+    - o `/model` grava o modelo como defeito das sessões novas;
+    - o ciclo do Shift+Tab é default → accept edits → plan mode → auto mode.
