@@ -22,7 +22,7 @@ const TEXTOS = {
     decimal: ',',
     porMedir: 'por medir', porGravar: 'por gravar', pesoOrq: 'a maior parte',
     ondas: [
-      ['Wave 1', 'lib-hash e 100 tarefas'],
+      ['Wave 1', 'lib-hash e os desafios'],
       ['Wave 2', 'categorias e pontuação'],
       ['Wave 3', 'integração e suite de testes'],
       ['Wave 4', 'revisão e veredito'],
@@ -49,7 +49,7 @@ const TEXTOS = {
     decimal: '.',
     porMedir: 'to be measured', porGravar: 'to be recorded', pesoOrq: 'most',
     ondas: [
-      ['Wave 1', 'lib-hash and 100 tasks'],
+      ['Wave 1', 'lib-hash and the challenges'],
       ['Wave 2', 'categories and scoring'],
       ['Wave 3', 'integration and test suite'],
       ['Wave 4', 'review and verdict'],
@@ -112,11 +112,14 @@ function valores() {
     ONE_LINER_WIN: d.ONE_LINER_WINDOWS,
     WORKSHOP_REPO: d.WORKSHOP_REPO_URL.replace(/\.git$/, ''),
     WORKSHOP_VERSION: d.WORKSHOP_VERSION,
-    PRICING_DATA: pricing.consultado_em,
-    PRICING_URL: String(pricing.fonte || '').replace(/^https?:\/\//, ''),
+    // pricing.json tem as chaves em ingles desde a D-25 (source, checked_on); as antigas continuam a ser lidas.
+    PRICING_DATA: pricing.checked_on ?? pricing.consultado_em ?? T.porMedir,
+    PRICING_URL: String(pricing.source || pricing.fonte || '').replace(/^https?:\/\//, ''),
     BENCH_N: '10', BENCH_MEDIA: T.porMedir, BENCH_MAX: T.porMedir,
     CUSTO_CARTAO: dec('US$ 0.003'), PESO_ORQ: T.pesoOrq, ESTIMATIVA: 'US$ 2',
-    APRES_DURACAO: T.porGravar, APRES_CUSTO: T.porMedir, APRES_AGENTES: '100',
+    APRES_DURACAO: T.porGravar, APRES_CUSTO: T.porMedir, APRES_AGENTES: T.porMedir, APRES_PARALELO: '16',
+    // Projeto 1: todos os numeros vem de UMA execucao de referencia (dados.json), nunca escritos no content.
+    P1_CUSTO: T.porMedir, P1_SWARM: T.porMedir, P1_SESSAO: T.porMedir, P1_AGENTES: T.porMedir, P1_PARALELO: '8',
   };
   const usd = (x) => 'US$ ' + dec(Number(x).toFixed(2));
   const csv = join(KIT, 'benchmark', 'results.csv');
@@ -142,7 +145,12 @@ function valores() {
 }
 
 const minutos = (m) => String(m).replace('.', T.decimal); // 1.5 -> "1,5" em pt
-const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? `{{${k}}}`) : s);
+const FALTAM = new Set(); // {{...}} sem valor: o build avisa no fim
+const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? (FALTAM.add(k), `{{${k}}}`)) : s);
+// Letra minima dos blocos de codigo, para a ultima fila ler (o build avisa abaixo disto).
+const CODIGO_MIN = 16;
+const PEQUENOS = [];
+let SLIDE_ATUAL = '';
 
 // ---------- Apresentacao e layouts ----------
 function novaApresentacao() {
@@ -279,28 +287,29 @@ function linhasCodigo(codigo) {
 }
 function fonteCodigo(codigo, w) {
   const longo = Math.max(...codigo.split('\n').map((l) => l.length));
-  // ~0.0083" por caracter a 1pt em Courier New; deixa partir linhas muito longas (soft wrap).
-  return Math.max(14, Math.min(20, Math.floor((w - 0.5) / (Math.min(longo, 70) * 0.0083))));
+  // ~0.0083" por caracter a 1pt em Courier New; deixa partir linhas muito longas (soft wrap) em vez de descer dos 16 pt.
+  return Math.max(16, Math.min(20, Math.floor((w - 0.5) / (Math.min(longo, 70) * 0.0083))));
 }
 // Linhas que um texto ocupa com porLinha caracteres: as linhas longas partem nos espacos, o que gasta mais uma.
 const partidas = (codigo, porLinha) => codigo.split('\n').reduce((n, l) => n + (l.length <= porLinha ? 1 : Math.ceil(l.length / porLinha) + 1), 0);
 function alturaCodigo(codigo, w, rotulo) {
   const fs = fonteCodigo(codigo, w);
   const porLinha = Math.floor((w - 0.5) / (fs * 0.0083));
-  return 0.4 + (rotulo ? 0.38 : 0) + partidas(codigo, porLinha) * fs * 0.0185;
+  return 0.4 + (rotulo ? 0.42 : 0) + partidas(codigo, porLinha) * fs * 0.0185;
 }
 function blocoCodigo(s, x, y, w, h, codigo, rotulo) {
   s.addShape(pres.shapes.RECTANGLE, { x, y, w, h, fill: { color: COR.ink }, line: { color: COR.ink, width: 0 }, objectName: 'code-background' });
   let yy = y + 0.2;
   if (rotulo) {
-    texto(s, rotulo, { x: x + 0.25, y: yy, w: w - 0.5, h: 0.3, fontSize: 13, bold: true, color: COR.lilas, objectName: 'code-label' });
-    yy += 0.38;
+    texto(s, rotulo, { x: x + 0.25, y: yy, w: w - 0.5, h: 0.32, fontSize: 15, bold: true, color: COR.lilas, objectName: 'code-label' });
+    yy += 0.42;
   }
   const disponivel = Math.max(0.3, h - (yy - y) - 0.15);
   // Maior letra (ate 20) em que as linhas, ja partidas pela largura, cabem na altura.
   const cabe = (fs) => partidas(codigo, Math.floor((w - 0.5) / (fs * 0.0083))) * fs * 0.0185 <= disponivel;
   let fs = Math.min(20, fonteCodigo(codigo, w));
   while (fs > 10 && !cabe(fs)) fs--;
+  if (fs < CODIGO_MIN) PEQUENOS.push(`${SLIDE_ATUAL}: codigo a ${fs} pt`);
   texto(s, codigo, { x: x + 0.25, y: yy, w: w - 0.5, h: disponivel, fontFace: FONTE_CODIGO, fontSize: fs, color: COR.escuroInk, objectName: 'code', paraSpaceAfter: 0 });
 }
 
@@ -344,7 +353,7 @@ const R = {
       cartao(s, x, 1.85, w, 3.9, `column-${i}`);
       marca(s, c, i, x + 0.35, 2.2, 0.6, `mark-${i}`);
       texto(s, sub(c.titulo), { x: x + 0.35, y: 3.05, w: w - 0.7, h: 0.95, fontFace: FONTE_TITULO, fontSize: 26, bold: true, objectName: `column-title-${i}` });
-      texto(s, sub(c.texto), { x: x + 0.35, y: 4.05, w: w - 0.7, h: 1.6, fontSize: 19, color: COR.ink, objectName: `column-text-${i}` });
+      texto(s, sub(c.texto), { x: x + 0.35, y: 4.05, w: w - 0.7, h: 1.65, fontSize: 20, color: COR.ink, objectName: `column-text-${i}` });
     });
   },
   stats(s, d) {
@@ -363,10 +372,10 @@ const R = {
   },
   codigo(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
-    texto(s, sub(d.intro), { x: M, y: 1.6, w: W - 2 * M, h: 0.6, fontSize: 20, objectName: 'intro' });
+    texto(s, sub(d.intro), { x: M, y: 1.5, w: W - 2 * M, h: 0.55, fontSize: 20, objectName: 'intro' });
     const cod = sub(d.codigo);
-    blocoCodigo(s, M, 2.35, W - 2 * M, Math.min(3.8, alturaCodigo(cod, W - 2 * M)), cod);
-    if (d.depois) texto(s, sub(d.depois), { x: M, y: 6.3, w: W - 2 * M, h: 0.55, fontSize: 15, color: COR.muted, objectName: 'after' });
+    blocoCodigo(s, M, 2.15, W - 2 * M, Math.min(4.1, alturaCodigo(cod, W - 2 * M)), cod);
+    if (d.depois) texto(s, sub(d.depois), { x: M, y: 6.25, w: W - 2 * M, h: 0.6, fontSize: 17, color: COR.muted, objectName: 'after' });
   },
   modelos(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -375,13 +384,13 @@ const R = {
     const w = (W - 2 * M - gap * (n - 1)) / n;
     d.modelos.forEach((m, i) => {
       const x = M + i * (w + gap);
-      cartao(s, x, 1.85, w, 4.1, `model-${i}`);
-      icone(s, m.icone, x + 0.35, 2.2, 0.6, COR.accent, `model-icon-${i}`);
-      texto(s, m.nome, { x: x + 0.35, y: 2.95, w: w - 0.7, h: 1.0, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: `model-name-${i}` });
-      texto(s, m.papel, { x: x + 0.35, y: 4.05, w: w - 0.7, h: 0.9, fontSize: 20, objectName: `model-role-${i}` });
-      texto(s, m.preco, { x: x + 0.35, y: 5.1, w: w - 0.7, h: 0.5, fontSize: 18, bold: true, color: COR.muted, objectName: `model-price-${i}` });
+      cartao(s, x, 1.75, w, 3.95, `model-${i}`);
+      icone(s, m.icone, x + 0.35, 2.05, 0.6, COR.accent, `model-icon-${i}`);
+      texto(s, m.nome, { x: x + 0.35, y: 2.8, w: w - 0.7, h: 0.95, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: `model-name-${i}` });
+      texto(s, m.papel, { x: x + 0.35, y: 3.85, w: w - 0.7, h: 0.9, fontSize: 22, objectName: `model-role-${i}` });
+      texto(s, m.preco, { x: x + 0.35, y: 4.9, w: w - 0.7, h: 0.55, fontSize: 22, bold: true, color: COR.muted, objectName: `model-price-${i}` });
     });
-    if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.2, w: W - 2 * M, h: 0.5, fontSize: 14, color: COR.muted, objectName: 'footer' });
+    if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 5.88, w: W - 2 * M, h: 0.9, fontSize: 18, color: COR.ink, objectName: 'footer' });
   },
   // As 4 ondas do plano. Os quadrados sao tarefas (cor = estado, com legenda); o icone ao lado do nome e o modelo.
   dag(s, d) {
@@ -462,15 +471,18 @@ const R = {
     s.addShape(pres.shapes.RECTANGLE, { x: M, y: 0.42, w: 3.1, h: 0.42, fill: { color: COR.accent }, line: { color: COR.accent, width: 0 }, objectName: 'do-it-tag' });
     texto(s, T.faca(minutos(d.min)), { x: M + 0.15, y: 0.42, w: 2.8, h: 0.42, fontFace: FONTE_TITULO, fontSize: 16, color: COR.accentInk, valign: 'middle', objectName: 'do-it-label' });
     s.addText(d.titulo, { placeholder: 'title' });
-    texto(s, d.passos.map((p, i) => ({ text: sub(p), options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: 2.1, w: 4.4, h: 3.6, fontSize: 20, paraSpaceAfter: 12, objectName: 'do-it-steps' });
+    // Uma frase opcional por baixo do titulo (o conceito que se pratica); empurra o resto para baixo.
+    const y0 = d.intro ? 2.45 : 2.1;
+    if (d.intro) texto(s, sub(d.intro), { x: M, y: 1.72, w: W - 2 * M, h: 0.6, fontSize: 19, color: COR.muted, objectName: 'do-it-intro' });
+    texto(s, d.passos.map((p, i) => ({ text: sub(p), options: { bullet: { type: 'number' }, breakLine: i < d.passos.length - 1 } })), { x: M, y: y0, w: 4.4, h: 5.85 - y0, fontSize: 20, paraSpaceAfter: 12, objectName: 'do-it-steps' });
     const xc = M + 4.8;
     const wc = W - M - xc;
     // Os blocos de comandos cabem entre o titulo e o "Resultado esperado": se forem altos demais, encolhem.
     const cmds = d.comandos.map((c) => ({ ...c, cmd: sub(c.cmd) }));
     const altos = cmds.map((c) => Math.min(3.6, alturaCodigo(c.cmd, wc, c.rotulo)));
-    const livre = 5.85 - 2.1 - 0.25 * (cmds.length - 1);
+    const livre = 5.85 - y0 - 0.25 * (cmds.length - 1);
     const escala = Math.min(1, livre / altos.reduce((a, b) => a + b, 0));
-    let yc = 2.1;
+    let yc = y0;
     cmds.forEach((c, i) => {
       const h = altos[i] * escala;
       blocoCodigo(s, xc, yc, wc, h, c.cmd, c.rotulo);
@@ -499,7 +511,7 @@ const R = {
       grelhaEstado(s, M + 0.5, 2.1, 20, 5, 0.42, 0.12);
       texto(s, T.videoFalta, { x: M + 0.5, y: 5.5, w: 10, h: 0.5, fontSize: 16, color: COR.escuroMuted, objectName: 'video-notice' });
     }
-    texto(s, sub(d.legenda), { x: M, y: yl, w: W - 2 * M, h: 0.3, fontSize: 14, color: COR.muted, valign: 'middle', objectName: 'caption' });
+    texto(s, sub(d.legenda), { x: M, y: yl, w: W - 2 * M, h: 0.36, fontSize: 16, color: COR.muted, valign: 'middle', objectName: 'caption' });
   },
   imagem(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });
@@ -556,13 +568,14 @@ const R = {
     const wp = W - M - xp;
     const n = d.pontos.length;
     const alto = 4.75 / n;
+    // Texto a 18 pt no minimo (a ultima fila tem de ler): cada ponto leva uma frase curta.
     d.pontos.forEach((p, i) => {
       const y = 1.65 + i * alto;
-      marca(s, p, i, xp, y, 0.45, `anatomy-mark-${i}`);
-      texto(s, sub(p.titulo), { x: xp + 0.65, y: y + 0.02, w: wp - 0.65, h: 0.42, fontFace: FONTE_TITULO, fontSize: 20, bold: true, objectName: `anatomy-title-${i}` });
-      texto(s, sub(p.texto), { x: xp + 0.65, y: y + 0.47, w: wp - 0.65, h: alto - 0.55, fontSize: 15, color: COR.ink, objectName: `anatomy-text-${i}`, fit: 'shrink' });
+      marca(s, p, i, xp, y, 0.48, `anatomy-mark-${i}`);
+      texto(s, sub(p.titulo), { x: xp + 0.68, y: y + 0.02, w: wp - 0.68, h: 0.46, fontFace: FONTE_TITULO, fontSize: 22, bold: true, objectName: `anatomy-title-${i}` });
+      texto(s, sub(p.texto), { x: xp + 0.68, y: y + 0.52, w: wp - 0.68, h: alto - 0.58, fontSize: 18, color: COR.ink, objectName: `anatomy-text-${i}` });
     });
-    if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.45, w: W - 2 * M, h: 0.4, fontSize: 14, color: COR.muted, objectName: 'footer' });
+    if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 6.45, w: W - 2 * M, h: 0.4, fontSize: 16, color: COR.muted, objectName: 'footer' });
   },
   // Lista numerada; a altura de cada item segue o numero de linhas que o texto ocupa.
   lista(s, d) {
@@ -599,6 +612,7 @@ async function construir(lingua) {
   const detalhe = [];
 
   SLIDES.forEach((d, i) => {
+    SLIDE_ATUAL = `${i + 1}. ${d.titulo}`;
     if (d.seccao !== seccaoAtual) {
       pres.addSection({ title: d.seccao });
       seccaoAtual = d.seccao;
@@ -619,6 +633,9 @@ async function construir(lingua) {
     detalhe.push(`### ${i + 1}. ${d.titulo}`, '', `${cab}`, '', sub(d.notas), '');
   });
   if (Math.abs(relogio - 90) > 0.01) console.warn(T.aviso(relogio));
+  if (FALTAM.size) console.warn(`AVISO: {{...}} sem valor: ${[...FALTAM].join(', ')}`);
+  for (const p of PEQUENOS.splice(0)) console.warn(`AVISO: letra pequena: ${p}`);
+  FALTAM.clear();
   notasMd.push('', T.total(relogio), '', T.porSlide, '', ...detalhe);
 
   await pres.writeFile({ fileName: join(AQUI, T.pptx) });
