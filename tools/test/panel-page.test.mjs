@@ -1,7 +1,9 @@
 // The live panel page (panel/public/, docs/pt/WORKSHOP-V2-SPEC.md, sections 6.1 and 6.2) without a browser:
 // strict CSP (no inline scripts or styles, no HTML from strings, no eval), relative imports only, the same text
 // keys in pt and en, projector legibility in the CSS (text 24px or more, short animations, none with reduced
-// motion or ?lite=1), the URL options, and the local server serving every file the page needs under its CSP.
+// motion or ?lite=1), the URL options, the leaderboard by person (D-34: the main element of every view, ranked by the
+// aggregate's points, never by spend, hidden names as "—"), and the local server serving every file the page needs
+// under its CSP.
 // The screenshots (a real browser) are tools/record/panel-screenshots.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,8 +89,79 @@ test('the texts: the same keys in pt and en, no empty text, the same {placeholde
   }
   // every t('key') used in panel.js exists
   for (const m of JS.matchAll(/\bt\(\s*'([\w.]+)'/g)) assert.ok(kp.includes(m[1]), m[1]);
-  // no ranking of people, ever
-  for (const k of kp) for (const l of ['pt', 'en']) assert.doesNotMatch(at(TEXT[l], k), /ranking|leaderboard|classifica|top \d/i, k);
+  // the leaderboard's texts (D-34), and a name for every stage it can show
+  for (const k of ['boardHead', 'boardNote', 'boardEmpty', 'boardPeople', 'namesHead', 'namesEmpty', 'registeredHead', 'readyHead', 'noStage', 'noName']) assert.ok(kp.includes(k), k);
+  for (const l of ['pt', 'en']) {
+    for (const s of page.P1_STAGES) assert.ok(TEXT[l].p1Stages[s], `${l} p1 ${s}`);
+    for (const s of page.P2_STAGES) assert.ok(TEXT[l].p2Stages[s], `${l} p2 ${s}`);
+  }
+  // the leaderboard is by points, never by spend: no text puts cost or money next to it
+  for (const k of kp.filter((x) => /^board/.test(x))) for (const l of ['pt', 'en']) assert.doesNotMatch(at(TEXT[l], k), /cust|cost|US\$/i, k);
+});
+
+// The source of one top-level function of panel.js.
+function source(name) {
+  const i = JS.indexOf(`function ${name}(`);
+  assert.ok(i >= 0, name);
+  return JS.slice(i, JS.indexOf('\n}\n', i));
+}
+
+test('panel.js: the leaderboard (D-34) is the main element of every view, ranked by the aggregate, never by spend', () => {
+  // every view builds the leaderboard (or, at the Opening, the list of registered names) as its .main element
+  for (const v of ['missions', 'p1', 'p2', 'closing']) {
+    const body = JS.slice(JS.indexOf(`view.${v} = `), JS.indexOf('\n};\n', JS.indexOf(`view.${v} = `)));
+    assert.match(body, /boardBlock\(root, ctx, \{ mode: '(missions|p1|p2|points)'/, v);
+  }
+  assert.match(JS.slice(JS.indexOf('view.opening = ')), /section\(root, null, 'main names'\)/);
+  assert.match(source('boardBlock'), /`main board/);
+  // the rows come from state.board as the aggregate sorted them: the page neither sorts them nor reads any cost
+  const board = source('boardBlock');
+  assert.match(board, /state\.board\?\.\[ctx\.focus \|\| 'all'\]/);
+  assert.doesNotMatch(board, /\.sort\(|cost/);
+  // ?room filters; there is no room-vs-room comparison any more
+  assert.doesNotMatch(JS, /roomRows|ctx\.other/);
+  // names: "name" (not the old "nickname"), "—" when hidden, H + click posts {name} to /admin/hide
+  assert.doesNotMatch(JS, /nickname/);
+  assert.match(source('nameEl'), /'—'/);
+  assert.match(JS, /post\('\/admin\/hide', \{ name, on: true \}\)/);
+  // ranks 1 to 3 are highlighted through a class (tokens in the CSS), never a medal or an emoji
+  assert.match(board, /podium/);
+  assert.match(CSS, /\.brow\.podium\s*\{[^}]*var\(--accent\)/);
+  assert.doesNotMatch(JS + CSS, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+});
+
+test('the stages of the leaderboard are the ones the aggregate writes', async () => {
+  const { Aggregate } = await import('../../panel/aggregate.mjs');
+  const { simulate } = await import('../../panel/simulate.mjs');
+  const events = simulate({ people: 60, start: Date.parse('2026-11-20T09:00:00Z'), registrations: true });
+  const agg = new Aggregate();
+  const seen = { p1: new Set(), p2: new Set() };
+  for (const [i, e] of events.entries()) {
+    agg.apply(e);
+    if (i % 200) continue;
+    for (const r of agg.state(Date.parse(e.t)).board.all.top) {
+      seen.p1.add(r.p1);
+      seen.p2.add(r.p2);
+    }
+  }
+  for (const s of seen.p1) assert.ok(s === null || page.P1_STAGES.includes(s), `p1 ${s}`);
+  for (const s of seen.p2) assert.ok(s === null || page.P2_STAGES.includes(s), `p2 ${s}`);
+  assert.ok(seen.p1.has('approved') && seen.p2.has('approved'));
+  assert.equal(page.stageStep(page.P1_STAGES, null), 0);
+  assert.equal(page.stageStep(page.P1_STAGES, 'approved'), page.P1_STAGES.length);
+  assert.equal(page.stageStep(page.P2_STAGES, 'intake'), 1);
+});
+
+test('the Opening\'s names: the first state keeps the leaderboard order, a later name goes on top, hidden ones never', () => {
+  const row = (name, room = 'A') => ({ rank: 1, name, room, points: 0, missions: [], p1: null, p2: null });
+  const seen = new Map();
+  let n = page.trackNames(seen, { board: { all: { top: [row('Ana'), row('Rui', 'B'), row(null)] }, A: { top: [row('Ana')] }, B: { top: [row('Rui', 'B')] } } }, 0);
+  const order = () => [...seen].sort((a, b) => b[1].seq - a[1].seq).map(([k]) => k);
+  assert.deepEqual(order(), ['Ana', 'Rui']);
+  n = page.trackNames(seen, { board: { all: { top: [row('Ana'), row('Rui', 'B'), row('Zé', 'B')] } } }, n);
+  assert.deepEqual(order(), ['Zé', 'Ana', 'Rui']);
+  assert.equal(seen.get('Zé').room, 'B');
+  assert.equal(page.trackNames(seen, null, n), n, 'a broken state changes nothing');
 });
 
 test('the URL options: language, room (with the pt aliases), lite, replay, speed and start minute', () => {
