@@ -528,6 +528,217 @@
       ]
     },
     {
+      "id": "dn-02",
+      "category": "money",
+      "template": "calc",
+      "title": "IVA: com e sem (23 %, 13 %, 6 %)",
+      "concept": "A partir de um valor com ou sem IVA, mostra o valor sem IVA, o IVA e o valor com IVA, às taxas de Portugal continental.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Valor (€)", "min": 0 },
+        { "name": "rate", "type": "choice", "label": "Taxa de IVA", "default": "23", "options": [{ "value": "23", "label": "23 % (normal)" }, { "value": "13", "label": "13 % (intermédia)" }, { "value": "6", "label": "6 % (reduzida)" }] },
+        { "name": "mode", "type": "choice", "label": "O valor é", "default": "net", "options": [{ "value": "net", "label": "sem IVA" }, { "value": "gross", "label": "com IVA" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "net", "label": "Sem IVA (€)" },
+          { "name": "vat", "label": "IVA (€)" },
+          { "name": "gross", "label": "Com IVA (€)" }
+        ]
+      },
+      "rules": [
+        "As taxas são as de Portugal continental: 23 % (normal), 13 % (intermédia) e 6 % (reduzida). `rate` chega como texto (\"23\", \"13\" ou \"6\"); sem nada escolhido usa \"23\".",
+        "Valor sem IVA (`mode` = \"net\", o que se usa sem nada escolhido): net = valor; vat = valor × taxa / 100, arredondado ao cêntimo; gross = net + vat.",
+        "Valor com IVA (`mode` = \"gross\"): gross = valor; net = valor / (1 + taxa / 100), arredondado ao cêntimo; vat = gross − net.",
+        "Os três campos são números em euros arredondados ao cêntimo (Math.round(v × 100) / 100). Um valor 0 dá tudo 0."
+      ],
+      "examples": [
+        { "in": { "amount": "100", "rate": "23", "mode": "net" }, "out": { "net": 100, "vat": 23, "gross": 123 } },
+        { "in": { "amount": "123", "rate": "23", "mode": "gross" }, "out": { "net": 100, "vat": 23, "gross": 123 } },
+        { "in": { "amount": "50", "rate": "6", "mode": "net" }, "out": { "net": 50, "vat": 3, "gross": 53 } },
+        { "in": { "amount": "10", "rate": "13", "mode": "gross" }, "out": { "net": 8.85, "vat": 1.15, "gross": 10 } },
+        { "in": { "amount": "19,99", "rate": "23", "mode": "net" }, "out": { "net": 19.99, "vat": 4.6, "gross": 24.59 } },
+        { "in": { "amount": "0", "rate": "6", "mode": "gross" }, "out": { "net": 0, "vat": 0, "gross": 0 } }
+      ],
+      "errors": [
+        { "in": { "amount": "-5", "rate": "23", "mode": "net" }, "error": "Valor (€): o mínimo é 0." },
+        { "in": { "amount": "100", "rate": "20", "mode": "net" }, "error": "Taxa de IVA: escolhe uma das opções." }
+      ]
+    },
+    {
+      "id": "dn-03",
+      "category": "money",
+      "template": "calc",
+      "title": "Juros compostos",
+      "concept": "Quanto vale um depósito ao fim de alguns anos com juros compostos, sem entregas pelo meio.",
+      "inputs": [
+        { "name": "principal", "type": "number", "label": "Capital inicial (€)", "min": 0 },
+        { "name": "rate", "type": "number", "label": "Taxa de juro anual (%)", "min": 0, "max": 100 },
+        { "name": "years", "type": "integer", "label": "Anos", "min": 1, "max": 100 },
+        { "name": "compounding", "type": "choice", "label": "Capitalização", "default": "1", "options": [{ "value": "1", "label": "Anual" }, { "value": "4", "label": "Trimestral" }, { "value": "12", "label": "Mensal" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "final", "label": "Valor final (€)" },
+          { "name": "interest", "label": "Juros ganhos (€)" }
+        ]
+      },
+      "rules": [
+        "final = capital × (1 + taxa / 100 / n)^(n × anos), em que n é o número de capitalizações por ano: 1 (anual), 4 (trimestral) ou 12 (mensal). `compounding` chega como texto (\"1\", \"4\" ou \"12\"); sem nada escolhido usa \"1\".",
+        "interest = final − capital, calculado com o final já arredondado.",
+        "Os dois resultados são números em euros arredondados ao cêntimo (Math.round(v × 100) / 100).",
+        "Taxa 0 dá o próprio capital e 0 de juros. Não há impostos nem entregas extra."
+      ],
+      "examples": [
+        { "in": { "principal": "1000", "rate": "5", "years": "10", "compounding": "1" }, "out": { "final": 1628.89, "interest": 628.89 } },
+        { "in": { "principal": "1000", "rate": "5", "years": "10", "compounding": "12" }, "out": { "final": 1647.01, "interest": 647.01 } },
+        { "in": { "principal": "2000", "rate": "3", "years": "1", "compounding": "4" }, "out": { "final": 2060.68, "interest": 60.68 } },
+        { "in": { "principal": "10000", "rate": "2,5", "years": "5", "compounding": "" }, "out": { "final": 11314.08, "interest": 1314.08 } },
+        { "in": { "principal": "5000", "rate": "0", "years": "3", "compounding": "1" }, "out": { "final": 5000, "interest": 0 } }
+      ],
+      "errors": [
+        { "in": { "principal": "1000", "rate": "5", "years": "0", "compounding": "1" }, "error": "Anos: o mínimo é 1." },
+        { "in": { "principal": "1000", "rate": "5", "years": "2,5", "compounding": "1" }, "error": "Anos: escreve um número inteiro." },
+        { "in": { "principal": "1000", "rate": "", "years": "10", "compounding": "1" }, "error": "Falta preencher: Taxa de juro anual (%)." }
+      ]
+    },
+    {
+      "id": "dn-04",
+      "category": "money",
+      "template": "calc",
+      "title": "Prestação de um empréstimo",
+      "concept": "A prestação mensal de um empréstimo a taxa fixa (casa, carro…) e quanto se paga ao todo.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Montante do empréstimo (€)", "min": 0 },
+        { "name": "rate", "type": "number", "label": "Taxa de juro anual (%)", "min": 0, "max": 100 },
+        { "name": "years", "type": "integer", "label": "Prazo (anos)", "min": 1, "max": 50 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "monthly", "label": "Prestação mensal (€)" },
+          { "name": "total", "label": "Total pago (€)" },
+          { "name": "interest", "label": "Total de juros (€)" }
+        ]
+      },
+      "rules": [
+        "Prestação constante (sistema francês), paga no fim de cada mês: i = taxa / 100 / 12 e n = anos × 12; monthly = montante × i / (1 − (1 + i)^(−n)).",
+        "Com taxa 0: monthly = montante / n.",
+        "monthly arredonda ao cêntimo. total = monthly já arredondada × n, arredondado ao cêntimo. interest = total − montante, arredondado ao cêntimo. Todos são números em euros (Math.round(v × 100) / 100).",
+        "Sem seguros, comissões nem impostos. Um montante 0 é um erro."
+      ],
+      "examples": [
+        { "in": { "amount": "150000", "rate": "3", "years": "30" }, "out": { "monthly": 632.41, "total": 227667.6, "interest": 77667.6 } },
+        { "in": { "amount": "10000", "rate": "6", "years": "5" }, "out": { "monthly": 193.33, "total": 11599.8, "interest": 1599.8 } },
+        { "in": { "amount": "200000", "rate": "3,5", "years": "35" }, "out": { "monthly": 826.58, "total": 347163.6, "interest": 147163.6 } },
+        { "in": { "amount": "12000", "rate": "0", "years": "2" }, "out": { "monthly": 500, "total": 12000, "interest": 0 } },
+        { "in": { "amount": "5000", "rate": "7,5", "years": "1" }, "out": { "monthly": 433.79, "total": 5205.48, "interest": 205.48 } }
+      ],
+      "errors": [
+        { "in": { "amount": "0", "rate": "3", "years": "30" }, "error": "O montante tem de ser maior que 0." },
+        { "in": { "amount": "150000", "rate": "3", "years": "0" }, "error": "Prazo (anos): o mínimo é 1." },
+        { "in": { "amount": "150000", "rate": "101", "years": "30" }, "error": "Taxa de juro anual (%): o máximo é 100." }
+      ]
+    },
+    {
+      "id": "dn-05",
+      "category": "money",
+      "template": "calc",
+      "title": "Descontos em cascata",
+      "concept": "O preço final depois de vários descontos aplicados um a seguir ao outro (20 % e depois mais 10 %, por exemplo) e quanto se poupou.",
+      "inputs": [
+        { "name": "price", "type": "number", "label": "Preço inicial (€)", "min": 0 },
+        { "name": "discounts", "type": "list", "label": "Descontos (%)" }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "final", "label": "Preço final (€)" },
+          { "name": "saved", "label": "Poupança (€)" },
+          { "name": "total_percent", "label": "Desconto total (%)" }
+        ]
+      },
+      "rules": [
+        "Os descontos aplicam-se em cascata, pela ordem da lista, cada um sobre o preço que sobrou do anterior: final = preço × (1 − d1 / 100) × (1 − d2 / 100) × …. Não se somam: 20 % e depois 10 % dá 28 %, não 30 %.",
+        "`discounts` chega como lista de textos (o modelo separa-os por vírgulas ou linhas). Cada desconto é um número de 0 a 100 escrito só com algarismos e, se precisar, um ponto decimal (12.5), porque a vírgula separa os descontos. Qualquer outro texto (letras, o sinal %, um sinal −, mais de 100) é o erro da tabela.",
+        "final = o preço final arredondado ao cêntimo. saved = preço − final (o final já arredondado), ao cêntimo. total_percent = (1 − produto dos fatores (1 − d / 100)) × 100, arredondado a 2 casas decimais; vem dos descontos, não dos preços arredondados.",
+        "Todos os campos são números (Math.round(v × 100) / 100)."
+      ],
+      "examples": [
+        { "in": { "price": "100", "discounts": "20, 10" }, "out": { "final": 72, "saved": 28, "total_percent": 28 } },
+        { "in": { "price": "80", "discounts": "50" }, "out": { "final": 40, "saved": 40, "total_percent": 50 } },
+        { "in": { "price": "59,99", "discounts": "30, 20, 10" }, "out": { "final": 30.23, "saved": 29.76, "total_percent": 49.6 } },
+        { "in": { "price": "40", "discounts": "12.5" }, "out": { "final": 35, "saved": 5, "total_percent": 12.5 } },
+        { "in": { "price": "200", "discounts": "0" }, "out": { "final": 200, "saved": 0, "total_percent": 0 } },
+        { "in": { "price": "100", "discounts": "100, 50" }, "out": { "final": 0, "saved": 100, "total_percent": 100 } }
+      ],
+      "errors": [
+        { "in": { "price": "100", "discounts": "20, abc" }, "error": "Cada desconto tem de ser um número de 0 a 100." },
+        { "in": { "price": "100", "discounts": "120" }, "error": "Cada desconto tem de ser um número de 0 a 100." },
+        { "in": { "price": "100", "discounts": "" }, "error": "Falta preencher: Descontos (%)." }
+      ]
+    },
+    {
+      "id": "dv-01",
+      "category": "dev",
+      "template": "text",
+      "title": "Formatar JSON",
+      "concept": "Arruma um JSON em várias linhas indentadas, ou junta-o numa linha só, e avisa quando não é válido.",
+      "inputs": [
+        { "name": "json", "type": "multiline", "label": "JSON" },
+        { "name": "indent", "type": "choice", "label": "Indentação", "default": "2", "options": [{ "value": "2", "label": "2 espaços" }, { "value": "4", "label": "4 espaços" }, { "value": "0", "label": "Compacto (uma linha)" }] }
+      ],
+      "output": { "type": "text", "label": "JSON formatado" },
+      "rules": [
+        "Lê o texto com JSON.parse e devolve JSON.stringify(valor, null, n), com n = 2, 4 ou 0 conforme `indent` (\"2\", \"4\" ou \"0\"; sem nada escolhido usa \"2\"). Com 0 fica tudo numa linha, sem espaços.",
+        "As chaves ficam pela ordem original e os valores ficam como o JSON.stringify os escreve (o número 1.50 fica 1.5). O texto devolvido não acaba em mudança de linha.",
+        "Os espaços e as mudanças de linha à volta do JSON não contam. Um texto que o JSON.parse não aceita (chaves sem aspas, aspas simples, vírgula a mais no fim…) é o erro da tabela."
+      ],
+      "examples": [
+        { "in": { "json": "{\"nome\":\"Ana\",\"idade\":30}", "indent": "2" }, "out": "{\n  \"nome\": \"Ana\",\n  \"idade\": 30\n}" },
+        { "in": { "json": "{ \"a\": [1, 2], \"b\": null }", "indent": "0" }, "out": "{\"a\":[1,2],\"b\":null}" },
+        { "in": { "json": "{\"preco\":1.50,\"tags\":[\"novo\"]}", "indent": "4" }, "out": "{\n    \"preco\": 1.5,\n    \"tags\": [\n        \"novo\"\n    ]\n}" },
+        { "in": { "json": "  []  ", "indent": "2" }, "out": "[]" },
+        { "in": { "json": "\"olá\"", "indent": "" }, "out": "\"olá\"" }
+      ],
+      "errors": [
+        { "in": { "json": "{nome: 'Ana'}", "indent": "2" }, "error": "O JSON não é válido." },
+        { "in": { "json": "{\"a\":1,}", "indent": "2" }, "error": "O JSON não é válido." },
+        { "in": { "json": "", "indent": "2" }, "error": "Falta preencher: JSON." }
+      ]
+    },
+    {
+      "id": "dv-02",
+      "category": "dev",
+      "template": "convert",
+      "title": "Base64 codificar e descodificar",
+      "concept": "Codifica um texto em Base64 e descodifica Base64 de volta para texto, com acentos e emojis.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Texto" },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "encode", "options": [{ "value": "encode", "label": "Codificar (texto → Base64)" }, { "value": "decode", "label": "Descodificar (Base64 → texto)" }] }
+      ],
+      "output": { "type": "text", "label": "Resultado" },
+      "rules": [
+        "Codificar (`direction` = \"encode\"): passa o texto a bytes UTF-8 e escreve-os em Base64 normal (alfabeto A–Z, a–z, 0–9, + e /), com = no fim até o tamanho ser múltiplo de 4, numa linha só. O texto conta tal como está, com os espaços e as mudanças de linha.",
+        "Descodificar (`direction` = \"decode\"): tira primeiro todos os espaços e mudanças de linha. O que fica tem de usar só esse alfabeto, ter no máximo dois = e só no fim, e ter um tamanho múltiplo de 4; senão é o erro «Isto não é Base64 válido.». Se os bytes não forem UTF-8 válido, é o erro «O Base64 não é texto UTF-8 válido.».",
+        "Tem de funcionar no browser e no Node: usa TextEncoder e TextDecoder(\"utf-8\", { fatal: true }) para o UTF-8 e faz o Base64 à mão (ou com btoa/atob sobre os bytes). Não uses Buffer (só existe no Node) nem passes ao btoa texto com acentos (dá erro)."
+      ],
+      "examples": [
+        { "in": { "text": "Olá, mundo!", "direction": "encode" }, "out": "T2zDoSwgbXVuZG8h" },
+        { "in": { "text": "T2zDoSwgbXVuZG8h", "direction": "decode" }, "out": "Olá, mundo!" },
+        { "in": { "text": "a", "direction": "encode" }, "out": "YQ==" },
+        { "in": { "text": "🙂", "direction": "encode" }, "out": "8J+Zgg==" },
+        { "in": { "text": "linha 1\nlinha 2", "direction": "encode" }, "out": "bGluaGEgMQpsaW5oYSAy" },
+        { "in": { "text": "T2zD\noQ==", "direction": "decode" }, "out": "Olá" }
+      ],
+      "errors": [
+        { "in": { "text": "não é base64!", "direction": "decode" }, "error": "Isto não é Base64 válido." },
+        { "in": { "text": "/w==", "direction": "decode" }, "error": "O Base64 não é texto UTF-8 válido." },
+        { "in": { "text": "", "direction": "encode" }, "error": "Falta preencher: Texto." }
+      ]
+    },
+    {
       "id": "dv-03",
       "category": "dev",
       "template": "generate",
@@ -545,6 +756,227 @@
         { "in": { "count": "5" }, "seed": 7, "check": { "length": 5, "unique": true, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } }
       ],
       "errors": [{ "in": { "count": "21" }, "error": "Quantos: o máximo é 20." }]
+    },
+    {
+      "id": "dv-04",
+      "category": "dev",
+      "template": "convert",
+      "title": "Cor HEX ↔ RGB",
+      "concept": "Converte uma cor de HEX (#ff8800) para RGB (255, 136, 0) e de RGB para HEX.",
+      "inputs": [
+        { "name": "color", "type": "text", "label": "Cor" },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "hex_to_rgb", "options": [{ "value": "hex_to_rgb", "label": "HEX → RGB" }, { "value": "rgb_to_hex", "label": "RGB → HEX" }] }
+      ],
+      "output": { "type": "text", "label": "Cor convertida" },
+      "rules": [
+        "HEX → RGB (`direction` = \"hex_to_rgb\"): aceita 6 ou 3 dígitos hexadecimais, com ou sem # no início, em maiúsculas ou minúsculas. Com 3 dígitos, cada um repete-se (f80 = ff8800). Devolve \"rgb(R, G, B)\", com vírgula e espaço entre os números.",
+        "RGB → HEX (`direction` = \"rgb_to_hex\"): aceita três números inteiros de 0 a 255 separados por vírgulas e/ou espaços, com ou sem \"rgb(\" e \")\" à volta (rgb em maiúsculas ou minúsculas). Devolve \"#rrggbb\" em minúsculas, com 2 dígitos por número.",
+        "Os espaços no início e no fim não contam. Não há transparência (alfa). Uma cor que não segue estas regras dá o erro da tabela do sentido escolhido."
+      ],
+      "examples": [
+        { "in": { "color": "#1e90ff", "direction": "hex_to_rgb" }, "out": "rgb(30, 144, 255)" },
+        { "in": { "color": "F80", "direction": "hex_to_rgb" }, "out": "rgb(255, 136, 0)" },
+        { "in": { "color": "#FFFFFF", "direction": "hex_to_rgb" }, "out": "rgb(255, 255, 255)" },
+        { "in": { "color": "255, 136, 0", "direction": "rgb_to_hex" }, "out": "#ff8800" },
+        { "in": { "color": "RGB(0, 128, 255)", "direction": "rgb_to_hex" }, "out": "#0080ff" },
+        { "in": { "color": "12 34 56", "direction": "rgb_to_hex" }, "out": "#0c2238" }
+      ],
+      "errors": [
+        { "in": { "color": "#ggg", "direction": "hex_to_rgb" }, "error": "Escreve uma cor HEX como #ff8800 ou #f80." },
+        { "in": { "color": "300, 0, 0", "direction": "rgb_to_hex" }, "error": "Escreve três números de 0 a 255, como 255, 136, 0." },
+        { "in": { "color": "", "direction": "hex_to_rgb" }, "error": "Falta preencher: Cor." }
+      ]
+    },
+    {
+      "id": "dv-05",
+      "category": "dev",
+      "template": "text",
+      "title": "Validar um email (regras simples)",
+      "concept": "Diz se um endereço de email parece válido segundo umas regras simples e, se não parecer, porquê.",
+      "inputs": [{ "name": "email", "type": "text", "label": "Email" }],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "valid", "label": "Válido" },
+          { "name": "reason", "label": "Motivo" }
+        ]
+      },
+      "rules": [
+        "valid é true ou false (um booleano) e reason é um destes textos exatos. As regras verificam-se por esta ordem e a primeira que falha dá o motivo (e valid false):",
+        "(1) Não tem espaços nenhuns (os do início e do fim já não contam): senão «Não pode ter espaços.».",
+        "(2) Tem exatamente um @: senão «Tem de ter exatamente um @.».",
+        "(3) A parte antes do @ tem 1 a 64 caracteres, só letras sem acento (a–z, A–Z), algarismos e . _ % + -, e não começa nem acaba em ponto nem tem dois pontos seguidos: senão «A parte antes do @ não é válida.».",
+        "(4) O domínio depois do @ tem pelo menos duas partes separadas por pontos; cada parte tem 1 a 63 caracteres, só letras sem acento, algarismos e hífen, e não começa nem acaba em hífen; a última parte só tem letras, pelo menos 2: senão «O domínio depois do @ não é válido.».",
+        "Se passa as 4 regras: valid true e reason «Parece um email válido.». Maiúsculas e minúsculas aceitam-se em todo o lado."
+      ],
+      "examples": [
+        { "in": { "email": "ana.silva@exemplo.pt" }, "out": { "valid": true, "reason": "Parece um email válido." } },
+        { "in": { "email": "Rui+compras@Mail.Empresa.COM" }, "out": { "valid": true, "reason": "Parece um email válido." } },
+        { "in": { "email": "ana silva@exemplo.pt" }, "out": { "valid": false, "reason": "Não pode ter espaços." } },
+        { "in": { "email": "ana@@exemplo.pt" }, "out": { "valid": false, "reason": "Tem de ter exatamente um @." } },
+        { "in": { "email": "ana..silva@exemplo.pt" }, "out": { "valid": false, "reason": "A parte antes do @ não é válida." } },
+        { "in": { "email": "ana@exemplo" }, "out": { "valid": false, "reason": "O domínio depois do @ não é válido." } }
+      ],
+      "errors": [{ "in": { "email": "  " }, "error": "Falta preencher: Email." }]
+    },
+    {
+      "id": "dd-01",
+      "category": "daily",
+      "template": "convert",
+      "title": "Medidas de cozinha (chávena, colher, g)",
+      "concept": "Converte medidas de receita (chávena, colher de sopa, colher de chá) em gramas, e gramas em medidas, para alguns ingredientes.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Quantidade", "min": 0 },
+        { "name": "unit", "type": "choice", "label": "Medida", "default": "cup", "options": [{ "value": "cup", "label": "Chávena (240 ml)" }, { "value": "tbsp", "label": "Colher de sopa (15 ml)" }, { "value": "tsp", "label": "Colher de chá (5 ml)" }] },
+        { "name": "ingredient", "type": "choice", "label": "Ingrediente", "default": "flour", "options": [{ "value": "water", "label": "Água ou leite" }, { "value": "flour", "label": "Farinha" }, { "value": "sugar", "label": "Açúcar" }, { "value": "butter", "label": "Manteiga" }] },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "to_grams", "options": [{ "value": "to_grams", "label": "Medida → gramas" }, { "value": "to_measure", "label": "Gramas → medida" }] }
+      ],
+      "output": { "type": "number", "label": "gramas (Medida → gramas) ou quantas medidas (Gramas → medida)" },
+      "rules": [
+        "Volumes fixos (`unit`): chávena (\"cup\") = 240 ml, colher de sopa (\"tbsp\") = 15 ml, colher de chá (\"tsp\") = 5 ml.",
+        "Gramas numa chávena, por ingrediente (`ingredient`): água ou leite (\"water\") 240 g, farinha (\"flour\") 120 g, açúcar (\"sugar\") 200 g, manteiga (\"butter\") 225 g. Gramas por medida = ml da medida × gramas numa chávena / 240 (uma colher de sopa de açúcar = 15 × 200 / 240 = 12,5 g).",
+        "Medida → gramas (`direction` = \"to_grams\"): `amount` é o número de medidas e o resultado = amount × gramas por medida, arredondado a 1 casa decimal (Math.round(v × 10) / 10).",
+        "Gramas → medida (`direction` = \"to_measure\"): `amount` são gramas e o resultado = amount / gramas por medida, arredondado a 2 casas decimais (Math.round(v × 100) / 100).",
+        "Devolve um número. Uma quantidade 0 dá 0."
+      ],
+      "examples": [
+        { "in": { "amount": "1,5", "unit": "cup", "ingredient": "flour", "direction": "to_grams" }, "out": 180 },
+        { "in": { "amount": "1", "unit": "tbsp", "ingredient": "sugar", "direction": "to_grams" }, "out": 12.5 },
+        { "in": { "amount": "3", "unit": "tsp", "ingredient": "water", "direction": "to_grams" }, "out": 15 },
+        { "in": { "amount": "1", "unit": "tbsp", "ingredient": "butter", "direction": "to_grams" }, "out": 14.1 },
+        { "in": { "amount": "100", "unit": "cup", "ingredient": "flour", "direction": "to_measure" }, "out": 0.83 },
+        { "in": { "amount": "50", "unit": "tsp", "ingredient": "sugar", "direction": "to_measure" }, "out": 12 }
+      ],
+      "errors": [
+        { "in": { "amount": "-1", "unit": "cup", "ingredient": "flour", "direction": "to_grams" }, "error": "Quantidade: o mínimo é 0." },
+        { "in": { "amount": "1", "unit": "cup", "ingredient": "mel", "direction": "to_grams" }, "error": "Ingrediente: escolhe uma das opções." }
+      ]
+    },
+    {
+      "id": "dd-02",
+      "category": "daily",
+      "template": "calc",
+      "title": "Consumo de combustível (l/100 km)",
+      "concept": "O consumo do carro numa viagem, em litros aos 100 km e em km por litro, e quanto custou o combustível.",
+      "inputs": [
+        { "name": "distance", "type": "number", "label": "Distância (km)", "min": 0 },
+        { "name": "fuel", "type": "number", "label": "Combustível gasto (l)", "min": 0 },
+        { "name": "price", "type": "number", "label": "Preço por litro (€)", "min": 0 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "l_per_100km", "label": "Litros aos 100 km" },
+          { "name": "km_per_l", "label": "Km por litro" },
+          { "name": "cost", "label": "Custo (€)" }
+        ]
+      },
+      "rules": [
+        "l_per_100km = combustível / distância × 100, arredondado a 2 casas decimais.",
+        "km_per_l = distância / combustível, arredondado a 2 casas decimais.",
+        "cost = combustível × preço por litro, arredondado ao cêntimo.",
+        "Cada conta usa os valores escritos, não os resultados já arredondados (Math.round(v × 100) / 100 no fim). A distância e o combustível têm de ser maiores que 0 (0 dá o erro da tabela); um preço 0 dá custo 0."
+      ],
+      "examples": [
+        { "in": { "distance": "500", "fuel": "35", "price": "1,80" }, "out": { "l_per_100km": 7, "km_per_l": 14.29, "cost": 63 } },
+        { "in": { "distance": "100", "fuel": "5,5", "price": "1,70" }, "out": { "l_per_100km": 5.5, "km_per_l": 18.18, "cost": 9.35 } },
+        { "in": { "distance": "320", "fuel": "24,8", "price": "1,659" }, "out": { "l_per_100km": 7.75, "km_per_l": 12.9, "cost": 41.14 } },
+        { "in": { "distance": "42,5", "fuel": "3", "price": "0" }, "out": { "l_per_100km": 7.06, "km_per_l": 14.17, "cost": 0 } }
+      ],
+      "errors": [
+        { "in": { "distance": "0", "fuel": "5", "price": "1,80" }, "error": "A distância tem de ser maior que 0." },
+        { "in": { "distance": "100", "fuel": "0", "price": "1,80" }, "error": "O combustível gasto tem de ser maior que 0." },
+        { "in": { "distance": "100", "fuel": "5", "price": "" }, "error": "Falta preencher: Preço por litro (€)." }
+      ]
+    },
+    {
+      "id": "dd-03",
+      "category": "daily",
+      "template": "generate",
+      "title": "Gerador de password",
+      "concept": "Gera uma password ao acaso com o comprimento e os tipos de caracteres que escolheres.",
+      "inputs": [
+        { "name": "length", "type": "integer", "label": "Comprimento", "default": "16", "min": 4, "max": 64 },
+        { "name": "digits", "type": "choice", "label": "Algarismos", "default": "yes", "options": [{ "value": "yes", "label": "Sim" }, { "value": "no", "label": "Não" }] },
+        { "name": "symbols", "type": "choice", "label": "Símbolos", "default": "yes", "options": [{ "value": "yes", "label": "Sim" }, { "value": "no", "label": "Não" }] }
+      ],
+      "output": { "type": "text", "label": "Password" },
+      "rules": [
+        "Tem sempre letras minúsculas (a–z) e maiúsculas (A–Z). `digits` = \"yes\" junta os algarismos (0–9) e `symbols` = \"yes\" junta estes 12 símbolos: `!@#$%&*-_=+?`. Com \"no\", esse tipo não aparece. Sem nada escolhido: 16 caracteres, com algarismos e símbolos.",
+        "A password tem exatamente `length` caracteres (4 a 64) e pelo menos um de cada tipo escolhido; os outros saem ao acaso de todos os tipos escolhidos juntos. Uma forma: um caráter de cada tipo, o resto do conjunto todo e no fim baralhar (Fisher–Yates).",
+        "Usa o randomInt(n) (ou o random()) que o run recebe, nunca Math.random nem crypto, para o resultado ser igual com a mesma seed."
+      ],
+      "examples": [
+        { "in": { "length": "16", "digits": "yes", "symbols": "yes" }, "seed": 1, "check": { "length": 16, "charsets": ["lower", "upper", "digit", "symbol"], "match": "^[A-Za-z0-9!@#$%&*_=+?-]+$" } },
+        { "in": { "length": "8", "digits": "yes", "symbols": "no" }, "seed": 2, "check": { "length": 8, "charsets": ["lower", "upper", "digit"], "match": "^[A-Za-z0-9]+$" } },
+        { "in": { "length": "4", "digits": "no", "symbols": "no" }, "seed": 3, "check": { "length": 4, "charsets": ["lower", "upper"], "match": "^[A-Za-z]+$" } },
+        { "in": {}, "seed": 5, "check": { "length": 16, "charsets": ["lower", "upper", "digit", "symbol"], "match": "^[A-Za-z0-9!@#$%&*_=+?-]+$" } },
+        { "in": { "length": "64", "digits": "no", "symbols": "yes" }, "seed": 9, "check": { "length": 64, "charsets": ["lower", "upper", "symbol"], "match": "^[A-Za-z!@#$%&*_=+?-]+$" } }
+      ],
+      "errors": [
+        { "in": { "length": "3" }, "error": "Comprimento: o mínimo é 4." },
+        { "in": { "length": "65" }, "error": "Comprimento: o máximo é 64." },
+        { "in": { "length": "12", "symbols": "talvez" }, "error": "Símbolos: escolhe uma das opções." }
+      ]
+    },
+    {
+      "id": "dd-04",
+      "category": "daily",
+      "template": "convert",
+      "title": "Celsius ↔ Fahrenheit",
+      "concept": "Converte temperaturas de graus Celsius para Fahrenheit e de Fahrenheit para Celsius.",
+      "inputs": [
+        { "name": "value", "type": "number", "label": "Temperatura" },
+        { "name": "direction", "type": "choice", "label": "Sentido", "default": "c_to_f", "options": [{ "value": "c_to_f", "label": "°C → °F" }, { "value": "f_to_c", "label": "°F → °C" }] }
+      ],
+      "output": { "type": "number", "label": "temperatura convertida" },
+      "rules": [
+        "°C → °F (`direction` = \"c_to_f\"): F = C × 9 / 5 + 32.",
+        "°F → °C (`direction` = \"f_to_c\"): C = (F − 32) × 5 / 9.",
+        "Devolve um número arredondado a 1 casa decimal (Math.round(v × 10) / 10).",
+        "Abaixo do zero absoluto é o erro da tabela: menos de -273,15 °C, ou menos de -459,67 °F (o próprio zero absoluto aceita-se)."
+      ],
+      "examples": [
+        { "in": { "value": "100", "direction": "c_to_f" }, "out": 212 },
+        { "in": { "value": "-40", "direction": "c_to_f" }, "out": -40 },
+        { "in": { "value": "98,6", "direction": "f_to_c" }, "out": 37 },
+        { "in": { "value": "36,6", "direction": "c_to_f" }, "out": 97.9 },
+        { "in": { "value": "0", "direction": "f_to_c" }, "out": -17.8 },
+        { "in": { "value": "-273,15", "direction": "c_to_f" }, "out": -459.7 }
+      ],
+      "errors": [
+        { "in": { "value": "-300", "direction": "c_to_f" }, "error": "Abaixo do zero absoluto (-273,15 °C ou -459,67 °F)." },
+        { "in": { "value": "-500", "direction": "f_to_c" }, "error": "Abaixo do zero absoluto (-273,15 °C ou -459,67 °F)." },
+        { "in": { "value": "", "direction": "c_to_f" }, "error": "Falta preencher: Temperatura." }
+      ]
+    },
+    {
+      "id": "dd-05",
+      "category": "daily",
+      "template": "generate",
+      "title": "Sorteio de nomes",
+      "concept": "Sorteia um ou mais nomes de uma lista, sem repetir, para decidir quem faz o quê.",
+      "inputs": [
+        { "name": "names", "type": "list", "label": "Nomes" },
+        { "name": "count", "type": "integer", "label": "Quantos sortear", "default": "1", "min": 1, "max": 100 }
+      ],
+      "output": { "type": "list", "label": "os nomes sorteados" },
+      "rules": [
+        "`names` chega como lista (nomes separados por vírgulas ou linhas, já sem espaços à volta). Os nomes repetidos sem contar maiúsculas e minúsculas (Ana, ana, ANA) contam uma vez só, com a forma que aparece primeiro.",
+        "Devolve uma lista com `count` nomes diferentes (sem nada escolhido, 1), pela ordem em que saíram. Se `count` for maior do que o número de nomes diferentes, é o erro da tabela.",
+        "Cada nome tem a mesma probabilidade de sair. Uma forma: Fisher–Yates parcial com o randomInt(n) que o run recebe (nunca Math.random), para o resultado ser igual com a mesma seed."
+      ],
+      "examples": [
+        { "in": { "names": "Ana, Rui, Sofia, Marta, João", "count": "2" }, "seed": 1, "check": { "length": 2, "unique": true, "match": "^(Ana|Rui|Sofia|Marta|João)$" } },
+        { "in": { "names": "Ana\nRui\nSofia", "count": "3" }, "seed": 5, "check": { "length": 3, "unique": true, "match": "^(Ana|Rui|Sofia)$" } },
+        { "in": { "names": "Ana, ana, ANA, Rui", "count": "2" }, "seed": 2, "check": { "length": 2, "unique": true, "match": "^(Ana|Rui)$" } },
+        { "in": { "names": "Pedro", "count": "" }, "seed": 4, "check": { "length": 1, "match": "^Pedro$" } }
+      ],
+      "errors": [
+        { "in": { "names": "Ana, Rui, ana", "count": "3" }, "error": "Pediste mais nomes do que os nomes diferentes da lista." },
+        { "in": { "names": "", "count": "1" }, "error": "Falta preencher: Nomes." },
+        { "in": { "names": "Ana, Rui", "count": "0" }, "error": "Quantos sortear: o mínimo é 1." }
+      ]
     }
   ]
 }
