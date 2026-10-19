@@ -1,0 +1,718 @@
+{
+  "description": "Synthetic run of the 30 tools with 8 in parallel on Haiku, to rehearse /status. Not a real recording.",
+  "synthetic": true,
+  "generated_at": "2026-10-19T10:09:02.000Z",
+  "mode": "participant",
+  "start": "2026-10-19T10:00:00.000Z",
+  "end": "2026-10-19T10:09:00.000Z",
+  "total": 33,
+  "counts": {
+    "todo": 0,
+    "working": 0,
+    "green": 30,
+    "red": 0,
+    "failed": 3
+  },
+  "cost": {
+    "total": 0.6671,
+    "main": 0.1308,
+    "subagents": 0.5363
+  },
+  "budget": {
+    "target_usd": 5,
+    "cap_usd": 10
+  },
+  "tasks": [
+    {
+      "id": "tx-01",
+      "title": "Word count and reading time",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 48,
+      "cost_usd": 0.0052,
+      "test": {
+        "command": "node --test tools/tx-01/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 129
+      }
+    },
+    {
+      "id": "tx-02",
+      "title": "Title case",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 64,
+      "cost_usd": 0.014,
+      "test": {
+        "command": "node --test tools/tx-02/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "for {\"text\":\"the lord of the rings\"} the tool returned \"The Lord Of The Rings\", but that is not the result the test expects.",
+        "ms": 99
+      }
+    },
+    {
+      "id": "tx-03",
+      "title": "URL slug",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-03",
+      "model": "claude-haiku-5-5",
+      "seconds": 55,
+      "cost_usd": 0.0038,
+      "test": {
+        "command": "node --test tools/tx-03/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 92
+      }
+    },
+    {
+      "id": "tx-04",
+      "title": "Remove accents",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 29,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/tx-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 127
+      }
+    },
+    {
+      "id": "tx-05",
+      "title": "Count a word",
+      "group": "text",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 28,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/tx-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 133
+      }
+    },
+    {
+      "id": "nm-01",
+      "title": "X % of Y and Y is what % of X",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 23,
+      "cost_usd": 0.005,
+      "test": {
+        "command": "node --test tools/nm-01/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 125
+      }
+    },
+    {
+      "id": "nm-02",
+      "title": "Rule of three",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 32,
+      "cost_usd": 0.0041,
+      "test": {
+        "command": "node --test tools/nm-02/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 87
+      }
+    },
+    {
+      "id": "nm-03",
+      "title": "Round to decimal places",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 59,
+      "cost_usd": 0.0078,
+      "test": {
+        "command": "node --test tools/nm-03/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "for {\"value\":\"1.005\",\"places\":\"2\"} the tool returned 1, but that is not the result the test expects.",
+        "ms": 115
+      }
+    },
+    {
+      "id": "nm-04",
+      "title": "Mean and median of a list",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 47,
+      "cost_usd": 0.0045,
+      "test": {
+        "command": "node --test tools/nm-04/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 83
+      }
+    },
+    {
+      "id": "nm-05",
+      "title": "Roman ↔ Arabic numerals",
+      "group": "numbers",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 26,
+      "cost_usd": 0.0026,
+      "test": {
+        "command": "node --test tools/nm-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 111
+      }
+    },
+    {
+      "id": "dt-01",
+      "title": "Days between two dates",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0048,
+      "test": {
+        "command": "node --test tools/dt-01/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 63
+      }
+    },
+    {
+      "id": "dt-02",
+      "title": "Age on a date",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0018,
+      "test": {
+        "command": "node --test tools/dt-02/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 96
+      }
+    },
+    {
+      "id": "dt-03",
+      "title": "Day of the week of a date",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 20,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dt-03/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 88
+      }
+    },
+    {
+      "id": "dt-04",
+      "title": "Add days to a date",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 33,
+      "cost_usd": 0.0021,
+      "test": {
+        "command": "node --test tools/dt-04/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 87
+      }
+    },
+    {
+      "id": "dt-05",
+      "title": "Time in another time zone (fixed offset)",
+      "group": "dates",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 38,
+      "cost_usd": 0.0047,
+      "test": {
+        "command": "node --test tools/dt-05/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 110
+      }
+    },
+    {
+      "id": "dn-01",
+      "title": "Tip and bill split",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "failed",
+      "attempt": 3,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 41,
+      "cost_usd": 0.0132,
+      "test": {
+        "command": "node --test tools/dn-01/tool.test.js",
+        "code": 1,
+        "passed": 7,
+        "failed": 1,
+        "excerpt": "for {\"total\":\"100\",\"tip\":\"0\",\"people\":\"3\"} the tool returned {\"tip\":0,\"total\":100,\"per_person\":33.33}, but that is not the result the test expects.",
+        "ms": 136
+      }
+    },
+    {
+      "id": "dn-02",
+      "title": "VAT: with and without",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 50,
+      "cost_usd": 0.0046,
+      "test": {
+        "command": "node --test tools/dn-02/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 100
+      }
+    },
+    {
+      "id": "dn-03",
+      "title": "Compound interest",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 29,
+      "cost_usd": 0.0038,
+      "test": {
+        "command": "node --test tools/dn-03/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 79
+      }
+    },
+    {
+      "id": "dn-04",
+      "title": "Loan payment",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 27,
+      "cost_usd": 0.0052,
+      "test": {
+        "command": "node --test tools/dn-04/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 136
+      }
+    },
+    {
+      "id": "dn-05",
+      "title": "Stacked discounts",
+      "group": "money",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 36,
+      "cost_usd": 0.0033,
+      "test": {
+        "command": "node --test tools/dn-05/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 83
+      }
+    },
+    {
+      "id": "dv-01",
+      "title": "Format JSON",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 43,
+      "cost_usd": 0.0037,
+      "test": {
+        "command": "node --test tools/dv-01/tool.test.js",
+        "code": 0,
+        "passed": 8,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 134
+      }
+    },
+    {
+      "id": "dv-02",
+      "title": "Base64 encode and decode",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 31,
+      "cost_usd": 0.0034,
+      "test": {
+        "command": "node --test tools/dv-02/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 71
+      }
+    },
+    {
+      "id": "dv-03",
+      "title": "Generate a UUID v4",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-01",
+      "model": "claude-haiku-5-5",
+      "seconds": 44,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dv-03/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 116
+      }
+    },
+    {
+      "id": "dv-04",
+      "title": "HEX ↔ RGB color",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-08",
+      "model": "claude-haiku-5-5",
+      "seconds": 51,
+      "cost_usd": 0.002,
+      "test": {
+        "command": "node --test tools/dv-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 93
+      }
+    },
+    {
+      "id": "dv-05",
+      "title": "Check an email address (simple rules)",
+      "group": "dev",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-03",
+      "model": "claude-haiku-5-5",
+      "seconds": 38,
+      "cost_usd": 0.0051,
+      "test": {
+        "command": "node --test tools/dv-05/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 86
+      }
+    },
+    {
+      "id": "dd-01",
+      "title": "Kitchen measures (cup, spoon, g)",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-02",
+      "model": "claude-haiku-5-5",
+      "seconds": 25,
+      "cost_usd": 0.0041,
+      "test": {
+        "command": "node --test tools/dd-01/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 130
+      }
+    },
+    {
+      "id": "dd-02",
+      "title": "Fuel consumption (l/100 km)",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-04",
+      "model": "claude-haiku-5-5",
+      "seconds": 50,
+      "cost_usd": 0.0021,
+      "test": {
+        "command": "node --test tools/dd-02/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 103
+      }
+    },
+    {
+      "id": "dd-03",
+      "title": "Password generator",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-06",
+      "model": "claude-haiku-5-5",
+      "seconds": 53,
+      "cost_usd": 0.0023,
+      "test": {
+        "command": "node --test tools/dd-03/tool.test.js",
+        "code": 0,
+        "passed": 9,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 103
+      }
+    },
+    {
+      "id": "dd-04",
+      "title": "Celsius ↔ Fahrenheit",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-07",
+      "model": "claude-haiku-5-5",
+      "seconds": 32,
+      "cost_usd": 0.002,
+      "test": {
+        "command": "node --test tools/dd-04/tool.test.js",
+        "code": 0,
+        "passed": 7,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 112
+      }
+    },
+    {
+      "id": "dd-05",
+      "title": "Name draw",
+      "group": "daily",
+      "group_type": "tool",
+      "wave": 1,
+      "state": "green",
+      "attempt": 1,
+      "agent": "worker-05",
+      "model": "claude-haiku-5-5",
+      "seconds": 28,
+      "cost_usd": 0.0049,
+      "test": {
+        "command": "node --test tools/dd-05/tool.test.js",
+        "code": 0,
+        "passed": 6,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 88
+      }
+    },
+    {
+      "id": "index-page",
+      "title": "Search and categories page",
+      "group": "page",
+      "group_type": "page",
+      "wave": 2,
+      "state": "green",
+      "attempt": 1,
+      "agent": "implementer-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 74,
+      "cost_usd": 0.0612,
+      "test": {
+        "command": "node --test pages/catalog.test.js",
+        "code": 0,
+        "passed": 20,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 448
+      }
+    },
+    {
+      "id": "integration",
+      "title": "Integration and full suite",
+      "group": "integration",
+      "group_type": "integration",
+      "wave": 3,
+      "state": "green",
+      "attempt": 1,
+      "agent": "integrator-01",
+      "model": "claude-sonnet-5-5",
+      "seconds": 52,
+      "cost_usd": 0.0488,
+      "test": {
+        "command": "node tools/check-integration.mjs",
+        "code": 0,
+        "passed": 163,
+        "failed": 0,
+        "excerpt": "",
+        "ms": 1776
+      }
+    },
+    {
+      "id": "review",
+      "title": "Security and quality review",
+      "group": "review",
+      "group_type": "review",
+      "wave": 4,
+      "state": "green",
+      "attempt": 1,
+      "agent": "reviewer-01",
+      "model": "claude-opus-5-5",
+      "seconds": 96,
+      "cost_usd": 0.2914,
+      "test": {
+        "file": ".workshop/verdict.json",
+        "value": "approved_with_reservations",
+        "excerpt": "",
+        "ms": 9
+      }
+    }
+  ]
+}

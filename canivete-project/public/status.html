@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-PT" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Estado do swarm do Canivete: uma tarefa por quadrado, ao vivo.">
+  <title>Estado do swarm · Canivete</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/status.css">
+  <script type="module" src="/status.js"></script>
+</head>
+<body class="status-page">
+  <a class="skip-link" href="#board">Saltar para as tarefas</a>
+  <header class="top-bar">
+    <a class="brand" href="/">Canivete</a>
+    <nav class="nav" aria-label="Principal">
+      <a href="/">Ferramentas</a>
+      <a href="/status" aria-current="page">Estado do swarm</a>
+    </nav>
+  </header>
+  <main id="content">
+    <section class="status-top" aria-labelledby="status-title">
+      <div class="status-row">
+        <div class="status-titles">
+          <h1 class="section-title" id="status-title">Estado do swarm</h1>
+          <p class="note" id="status-sub" aria-live="polite">A ligar ao servidor…</p>
+        </div>
+        <div class="replay" id="replay" hidden></div>
+      </div>
+      <dl class="counters">
+        <div class="counter" data-state="green"><dt>verdes</dt><dd class="number" id="n-green">0</dd></div>
+        <div class="counter" data-state="working"><dt>a trabalhar</dt><dd class="number" id="n-working">0</dd></div>
+        <div class="counter" data-state="red"><dt>vermelhos</dt><dd class="number" id="n-red">0</dd></div>
+        <div class="counter" data-state="todo"><dt>por fazer</dt><dd class="number" id="n-todo">0</dd></div>
+      </dl>
+      <dl class="meters">
+        <div class="meter">
+          <dt>tempo desde o início</dt>
+          <dd><span class="number meter-value" id="time">0:00</span> <span class="note number" id="time-note"></span></dd>
+        </div>
+        <div class="meter">
+          <dt id="cost-label">custo total, alvo US$ 5,00</dt>
+          <dd><span class="number meter-value" id="cost">US$ 0,00</span> <span class="note number" id="cost-note"></span></dd>
+          <dd class="cost-bar" id="cost-bar" role="meter" aria-labelledby="cost-label" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><span class="cost-bar-value" id="cost-bar-value"></span></dd>
+        </div>
+      </dl>
+    </section>
+    <section class="board" id="board" tabindex="-1" aria-label="Tarefas do swarm">
+      <ul class="squares" id="squares" role="list" data-density="large"></ul>
+      <div class="board-empty" id="board-empty" hidden>
+        <h2 class="section-title">Ainda não há plano</h2>
+        <p>No Claude Code, corre <strong>/demo-plan</strong> e depois <strong>/demo-swarm</strong>. Cada ferramenta aparece aqui como um quadrado e muda de cor ao vivo.</p>
+        <a class="button" id="see-example" href="/status?replay=example" hidden>Ver a repetição de exemplo</a>
+      </div>
+    </section>
+  </main>
+  <dialog class="panel" id="panel" aria-labelledby="panel-title"></dialog>
+</body>
+</html>
