@@ -43,6 +43,26 @@ If the organizer provides access (by inviting people to their Console organizati
 - **Plan B for the video:** if the MP4 fails on the projector, open `/status?replay=recording` in the recorded Arena (`presenter-replay/`), which replays the real run without calling the API.
 - **Pace:** `slides/speaker-notes.en.md` (English deck, `slides/workshop.en.pptx`) has the running clock and the slides you can skip. The Portuguese deck has its own, `slides/speaker-notes.md`.
 
+## The live panel (workshop v2)
+
+The panel is a page projected next to the slides, fed by anonymous events from the laptops whose owners said yes in the setup (`docs/PRIVACY.md`). It runs on Cloudflare (D-30): the API on a Worker with a Durable Object, the page on Pages.
+
+- **Publish** (at least 3 days before), from this repository, logged in to `wrangler`:
+  1. Set `WORKSHOP_CODE` (a new one for each workshop) and `WORKSHOP_DATE` in `repos.conf`.
+  2. Run `tools/deploy-panel.sh --dry-run`, then `tools/deploy-panel.sh`. It asks before each step: the Worker, the admin token (wrangler asks for it; it never goes on the command line) and the page.
+  3. Put the two addresses it prints in `repos.conf` (`PANEL_URL`, `PANEL_PAGE_URL`), run `node tools/render.mjs` and build the release again, so the laptops send to the panel.
+  4. Run `tools/deploy-panel.sh` again: the Worker now accepts the page's address (CORS).
+- **Rehearse:** `node panel/simulate.mjs --people 100 --rooms 2 --speed 10 --url <PANEL_URL> --ws <code>` (with `PANEL_ADMIN_TOKEN` in the environment it also moves the views). Or run everything locally with `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` and open `http://127.0.0.1:8787/?room=A`.
+- **On the day:**
+  - Each room opens `<page>/?room=A` or `?room=B`; the closing uses `?room=all`.
+  - The presenter adds `#admin=<token>` once: the token stays in the browser and keys 1 to 5 change the view in both rooms (Opening, Missions, Project 1, Project 2, Closing).
+  - To hide a nickname from the feed, press `H` and click it.
+  - On a slow projector, use `?lite=1`.
+- **Plan B:**
+  - Without network or the Worker, use `<page>/?replay=simulated&x=10`. After the rehearsal, use `?replay=rehearsal`, from `panel/replays/rehearsal.jsonl`.
+  - The laptops keep their events in the queue and send them later. Their mission book keeps working.
+- **After:** clear the workshop's events within 7 days: `POST <PANEL_URL>/admin/reset` with the header `X-Admin-Token`. Then change `WORKSHOP_CODE` and the token before the next workshop.
+
 ## After
 
 - `agent-memory update` updates the Agent Memory app without touching the notes.

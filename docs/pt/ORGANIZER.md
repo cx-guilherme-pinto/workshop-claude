@@ -43,6 +43,26 @@ Se for o organizador a dar acesso (convidando as pessoas para a sua organizaçã
 - **Plano B para o vídeo:** se o MP4 falhar no projetor, abre `/status?replay=recording` na Arena gravada (`presenter-replay/`), que reproduz a execução real sem chamar a API.
 - **Ritmo:** o `slides/speaker-notes.md` (apresentação em português, `slides/workshop.pptx`) tem o relógio acumulado e os slides que se podem saltar. A apresentação em inglês tem o seu, `slides/speaker-notes.en.md`.
 
+## O painel ao vivo (workshop v2)
+
+O painel é uma página projetada ao lado dos slides, alimentada por eventos anónimos dos portáteis de quem disse que sim no setup (`docs/pt/PRIVACY.md`). Corre no Cloudflare (D-30): a API numa Worker com um Durable Object, e a página nas Pages.
+
+- **Publicar** (pelo menos 3 dias antes), a partir deste repositório e com sessão iniciada no `wrangler`:
+  1. Põe um `WORKSHOP_CODE` novo (um por workshop) e a `WORKSHOP_DATE` no `repos.conf`.
+  2. Corre `tools/deploy-panel.sh --dry-run` e depois `tools/deploy-panel.sh`. O script pergunta antes de cada passo: a Worker, o token de admin (pedido pelo wrangler; nunca vai para a linha de comandos) e a página.
+  3. Põe no `repos.conf` os dois endereços que o script mostra (`PANEL_URL` e `PANEL_PAGE_URL`), corre `node tools/render.mjs` e volta a construir a release, para os portáteis enviarem para o painel.
+  4. Corre outra vez `tools/deploy-panel.sh`: a Worker passa a aceitar o endereço da página (CORS).
+- **Ensaiar:** `node panel/simulate.mjs --people 100 --rooms 2 --speed 10 --url <PANEL_URL> --ws <código>` (com `PANEL_ADMIN_TOKEN` no ambiente, também muda as vistas). Ou corre tudo localmente com `PANEL_ADMIN_TOKEN=<t> node panel/server.mjs` e abre `http://127.0.0.1:8787/?room=A`.
+- **No dia:**
+  - Cada sala abre `<página>/?room=A` ou `?room=B`; o fecho usa `?room=all`.
+  - O apresentador acrescenta `#admin=<token>` uma vez: o token fica no browser e as teclas 1 a 5 mudam a vista nas duas salas (Abertura, Missões, Projeto 1, Projeto 2, Fecho).
+  - Para esconder uma alcunha do feed, carrega em `H` e clica nela.
+  - Num projetor lento, usa `?lite=1`.
+- **Plano B:**
+  - Sem rede ou sem a Worker, usa `<página>/?replay=simulated&x=10`. Depois do ensaio, usa `?replay=rehearsal`, a partir de `panel/replays/rehearsal.jsonl`.
+  - Os portáteis guardam os eventos na fila e enviam-nos depois. A caderneta continua a funcionar.
+- **Depois:** apaga os eventos do workshop até 7 dias depois: `POST <PANEL_URL>/admin/reset` com o cabeçalho `X-Admin-Token`. Depois muda o `WORKSHOP_CODE` e o token antes do workshop seguinte.
+
 ## Depois
 
 - `agent-memory update` atualiza a app Agent Memory sem tocar nas notas.

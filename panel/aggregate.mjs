@@ -160,11 +160,13 @@ export class Aggregate {
     const active = ps.filter((p) => p.last !== null && now - p.last <= ACTIVE_MS);
     const withCost = ps.filter((p) => p.cost.total > 0);
     const costTotal = withCost.reduce((a, p) => a + p.cost.total, 0);
-    const denom = Math.max(active.length, 1);
+    // Coverage of a mission: who did it, out of the people present (active now, or who did it earlier).
+    const isActive = new Set(active);
     const missions = {};
     for (const m of MISSIONS) {
       const n = ps.filter((p) => p.missions.has(m)).length;
-      missions[m] = { done: n, pct: active.length ? pct(n, denom) : 0 };
+      const present = ps.filter((p) => isActive.has(p) || p.missions.has(m)).length;
+      missions[m] = { done: n, pct: pct(n, present) };
     }
     const started = ps.filter((p) => p.missions.size);
     const least = active.length ? MISSIONS.reduce((a, m) => (missions[m].done < missions[a].done ? m : a), MISSIONS[0]) : null;
@@ -228,8 +230,8 @@ export class Aggregate {
       budget_usd: BUDGET_USD,
       missions: MISSIONS,
       rooms: { A: this.room('A', now), B: this.room('B', now), all: this.room(null, now) },
+      // hidden nicknames are not listed: /state is public, and a hidden nickname must not be readable there
       feed: this.feed.slice(-FEED_MAX).map((f) => ({ ...f, nickname: f.nickname && !this.hidden.has(f.nickname) ? f.nickname : null })),
-      hidden: [...this.hidden],
     };
   }
 

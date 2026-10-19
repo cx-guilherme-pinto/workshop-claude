@@ -189,7 +189,7 @@ export function kickSender(P = paths(), cfg = readConfig(P), env = process.env) 
     const t = new Date();
     utimesSync(P.sendStamp, t, t);
     const ca = join(dirname(P.dir), 'ca.pem');
-    const childEnv = { ...env, NODE_USE_ENV_PROXY: '1', ...(!env.NODE_EXTRA_CA_CERTS && existsSync(ca) ? { NODE_EXTRA_CA_CERTS: ca } : {}) };
+    const childEnv = { ...env, WORKSHOP_TELEMETRY_DIR: P.dir, NODE_USE_ENV_PROXY: '1', ...(!env.NODE_EXTRA_CA_CERTS && existsSync(ca) ? { NODE_EXTRA_CA_CERTS: ca } : {}) };
     const c = spawn(process.execPath, [join(HERE, 'send.mjs')], { detached: true, stdio: 'ignore', windowsHide: true, env: childEnv });
     c.unref();
     return true;
