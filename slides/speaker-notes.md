@@ -29,12 +29,12 @@ Relógio acumulado: "deves estar aqui aos X min". Os slides marcados com **PODE 
 | 23 | 1,5 | 35:30 | Projeto 1 | O que faz o /demo-swarm |  |
 | 24 | 2 | 37:00 | Projeto 1 | Solta o swarm |  |
 | 25 | 2 | 39:00 | Projeto 1 | Pergunta sem interromper |  |
-| 26 | 3 | 41:00 | Projeto 1 | Num terceiro terminal: três funcionalidades |  |
+| 26 | 3 | 41:00 | Projeto 1 | Num terceiro terminal: três funcionalidades | PODE SALTAR |
 | 27 | 2 | 44:00 | Projeto 1 | Cria um hook PostToolUse |  |
 | 28 | 2 | 46:00 | Projeto 1 | Faz a tua statusline |  |
 | 29 | 5 | 48:00 | Projeto 1 | Porque é que este cartão falhou? |  |
 | 30 | 2 | 53:00 | Projeto 1 | O gate de segurança |  |
-| 31 | 1 | 55:00 | Projeto 1 | Medir, não adivinhar |  |
+| 31 | 1 | 55:00 | Projeto 1 | Medir, não adivinhar | PODE SALTAR |
 | 32 | 2 | 56:00 | Projeto 1 | Quanto custou? |  |
 | 33 | 2 | 58:00 | Projeto 1 | Joga o que o swarm construiu |  |
 | 34 | 2 | 60:00 | Memória | A memória do que fizeste |  |
@@ -205,7 +205,7 @@ O /btw responde ao lado, sem entrar na conversa. Atenção: enquanto o painel da
 
 ### 26. Num terceiro terminal: três funcionalidades
 
-[41:00 → 44:00] 3 min · deves estar aqui aos 41 min
+[41:00 → 44:00] 3 min · PODE SALTAR · deves estar aqui aos 41 min
 
 Ainda durante o swarm. Plan mode só lê e propõe. O claude -p é a base dos scripts e do CI. Esc Esc abre o rewind: repõe código e conversa até um checkpoint, mas não o que foi feito por Bash nem a maior parte do que os subagentes fizeram. Se perguntarem por worktrees: claude -w <nome> abre uma cópia isolada do repositório num branch próprio, e isolation: worktree põe um subagente no seu worktree quando as tarefas mexem nos mesmos ficheiros.
 
@@ -235,7 +235,7 @@ Um jogo de segurança com falhas de segurança seria o pior exemplo. O gate liga
 
 ### 31. Medir, não adivinhar
 
-[55:00 → 56:00] 1 min · deves estar aqui aos 55 min
+[55:00 → 56:00] 1 min · PODE SALTAR · deves estar aqui aos 55 min
 
 Antes do /demo-cost: de onde vêm os números. O hook do kit é como o que criaram, mas noutro evento: lê os tokens reais do transcript, multiplica pelos preços publicados e acrescenta uma linha. Nunca bloqueia nada. A statusline e o /demo-cost só leem essas linhas.
 

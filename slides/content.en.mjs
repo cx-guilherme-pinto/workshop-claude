@@ -260,7 +260,7 @@ Answer in the participant's language.`,
     notas: '/btw answers on the side, outside the conversation. Careful: while the answer panel is open, the agents\' results wait (Claude Code shows "background task updates waiting while this panel is open"). Read it and press Esc so the swarm carries on.',
   },
   {
-    seccao: 'Project 1', tipo: 'faca', min: 3,
+    seccao: 'Project 1', tipo: 'faca', saltar: true, min: 3,
     titulo: 'In a third terminal: three features',
     passos: ['Open a third terminal in the Arena folder', 'Plan mode: Shift+Tab until "plan mode"', 'Headless: a question without opening a session', 'Rewind: Esc Esc to go back'],
     comandos: [
@@ -311,7 +311,7 @@ Answer in the participant's language.`,
     notas: 'A security game with security flaws would be the worst example. The gate links each check to the OWASP Top 10. With cards still red, the gate says GATE: REJECTED and lists what is missing: go back to the previous slide.',
   },
   {
-    seccao: 'Project 1', tipo: 'fluxo', min: 1,
+    seccao: 'Project 1', tipo: 'fluxo', saltar: true, min: 1,
     titulo: 'Measure, don\'t guess',
     passos: [
       { titulo: 'The subagent finishes', texto: 'every swarm agent, when it is done' },

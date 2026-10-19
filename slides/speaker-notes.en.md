@@ -29,12 +29,12 @@ Running clock: "you should be here at X min". Slides marked **CAN SKIP** can be 
 | 23 | 1.5 | 35:30 | Project 1 | What /demo-swarm does |  |
 | 24 | 2 | 37:00 | Project 1 | Release the swarm |  |
 | 25 | 2 | 39:00 | Project 1 | Ask without interrupting |  |
-| 26 | 3 | 41:00 | Project 1 | In a third terminal: three features |  |
+| 26 | 3 | 41:00 | Project 1 | In a third terminal: three features | CAN SKIP |
 | 27 | 2 | 44:00 | Project 1 | Create a PostToolUse hook |  |
 | 28 | 2 | 46:00 | Project 1 | Make your own statusline |  |
 | 29 | 5 | 48:00 | Project 1 | Why did this card fail? |  |
 | 30 | 2 | 53:00 | Project 1 | The security gate |  |
-| 31 | 1 | 55:00 | Project 1 | Measure, don't guess |  |
+| 31 | 1 | 55:00 | Project 1 | Measure, don't guess | CAN SKIP |
 | 32 | 2 | 56:00 | Project 1 | How much did it cost? |  |
 | 33 | 2 | 58:00 | Project 1 | Play what the swarm built |  |
 | 34 | 2 | 60:00 | Memory | The memory of what you did |  |
@@ -205,7 +205,7 @@ Prediction, before pressing Enter: each person writes in Teams how much they thi
 
 ### 26. In a third terminal: three features
 
-[41:00 → 44:00] 3 min · you should be here at 41 min
+[41:00 → 44:00] 3 min · CAN SKIP · you should be here at 41 min
 
 Still during the swarm. Plan mode only reads and proposes. claude -p is the basis for scripts and CI. Esc Esc opens rewind: it restores code and conversation to a checkpoint, but not what was done through Bash nor most of what the subagents did. If someone asks about worktrees: claude -w <name> opens an isolated copy of the repository on its own branch, and isolation: worktree gives a subagent its own worktree when tasks touch the same files.
 
@@ -235,7 +235,7 @@ A security game with security flaws would be the worst example. The gate links e
 
 ### 31. Measure, don't guess
 
-[55:00 → 56:00] 1 min · you should be here at 55 min
+[55:00 → 56:00] 1 min · CAN SKIP · you should be here at 55 min
 
 Before /demo-cost: where the numbers come from. The kit hook is like the one they created, on a different event: it reads the real tokens from the transcript, multiplies them by the published prices and appends one line. It never blocks anything. The statusline and /demo-cost only read those lines.
 

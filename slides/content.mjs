@@ -260,7 +260,7 @@ Answer in the participant's language.`,
     notas: 'O /btw responde ao lado, sem entrar na conversa. Atenção: enquanto o painel da resposta está aberto, os resultados dos agentes ficam à espera (o Claude Code mostra "background task updates waiting while this panel is open"). Lê e carrega em Esc para o swarm continuar.',
   },
   {
-    seccao: 'Projeto 1', tipo: 'faca', min: 3,
+    seccao: 'Projeto 1', tipo: 'faca', saltar: true, min: 3,
     titulo: 'Num terceiro terminal: três funcionalidades',
     passos: ['Abre um terceiro terminal na pasta da Arena', 'Plan mode: Shift+Tab até "plan mode"', 'Headless: uma pergunta sem abrir sessão', 'Rewind: Esc Esc para voltar atrás'],
     comandos: [
@@ -311,7 +311,7 @@ Answer in the participant's language.`,
     notas: 'Um jogo de segurança com falhas de segurança seria o pior exemplo. O gate liga cada verificação ao OWASP Top 10. Com cartões ainda vermelhos, o gate diz GATE: REJECTED e quais faltam: voltar ao slide anterior.',
   },
   {
-    seccao: 'Projeto 1', tipo: 'fluxo', min: 1,
+    seccao: 'Projeto 1', tipo: 'fluxo', saltar: true, min: 1,
     titulo: 'Medir, não adivinhar',
     passos: [
       { titulo: 'O subagente termina', texto: 'cada agente do swarm, quando acaba' },
