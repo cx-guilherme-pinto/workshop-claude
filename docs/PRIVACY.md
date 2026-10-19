@@ -2,32 +2,35 @@
 
 The kit has a **mission book** that lives only on your computer, and an optional **live panel** that the presenters project next to the slides. This page covers what the panel receives, what never leaves your laptop and how to turn it off. The rules come from the specification (`docs/pt/WORKSHOP-V2-SPEC.md`, section 6.6) and from decisions D-30 and D-31 in `DECISIONS.md`.
 
-## Your choice
+## Registration (decision D-34)
 
-- **The setup asks once** (step 8): "Send anonymous events to the workshop panel? Only the name of the Claude Code feature you used, never what you type." The default is **no**.
-  - With no terminal (an automated install), or with `--yes`, the answer is no.
-  - If you say yes, you choose your room (A or B).
-- **You can change it at any time:**
-  - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` shows your current choice;
-  - `ctl.mjs on A` or `ctl.mjs on B` turns it on;
-  - `ctl.mjs off` turns it off and deletes the events still waiting to be sent;
+- **Everyone is on the panel.** The setup registers you right after the GitHub login (step 6). There is no question to answer.
+- **How the registration works:**
+  - the kit reads your gh token with `gh auth token`, in memory only (never on the command line, in a file or in a log), and sends it once, over HTTPS, to the workshop panel's Worker;
+  - the Worker uses it for two reads of the GitHub API (your profile and your emails), checks that the account has a **verified email of the company domain** (`PANEL_EMAIL_DOMAIN`, checkmarx.com), and throws the token away. It never stores or logs it.
+- **What the panel keeps:** your GitHub name (as it appears on the leaderboard), a hash of your GitHub account id (so a second laptop or a new setup keeps your place) and your room. Never your email, your login or the token.
+- **Without a company email:** you do the workshop all the same; you just do not appear on the leaderboard.
+- **Your commands:**
+  - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` shows your registration;
+  - `ctl.mjs register A` (or `B`) registers again;
   - `ctl.mjs show` prints the last 20 events, exactly as they leave your computer.
-- **Off or on, the mission book works the same** (`/missions` and the statusline). With participation off you simply do not appear in the room's numbers.
+- **The scope it needs:** the GitHub login of the setup asks for the `user:email` scope, so that the panel can see your verified emails.
+- **The mission book** (`/missions` and the statusline) works the same, registered or not.
 
-## What is sent (only with participation on)
+## What is sent (once registered)
 
 Only the events and fields in `telemetry/allowlist.json`. Nothing else can be sent: the kit drops any other field before writing the queue, and the server refuses it again. Every event has:
 - the format version;
 - the workshop code;
 - your room (A or B);
-- a random id (16 random bytes created at install time, not derived from you or your machine);
+- the participant id the panel gave you at registration;
 - the event name, the time and the kit version.
 
 The events add:
 
 | Event | Extra fields |
 |---|---|
-| `join` | language (pt/en), system (mac/win), nickname only if you set one |
+| `join` | language (pt/en), system (mac/win) |
 | `check_ok` | — |
 | `feature` | the name of a Claude Code feature you used once in a session: `plan_mode`, `model_switch`, `subagent`, `skill_user`, `hook_user`, `loop`, `statusline_user`, `headless`, `memory_write` |
 | `mission_done` | the mission id (M1 to M10) |
@@ -41,8 +44,8 @@ The events add:
 - Your prompts, Claude's answers and your code.
 - File names, paths, the working folder and `transcript_path`.
 - Repository names and real issue keys.
-- Tokens.
-- Your email, user name and machine name.
+- Tokens, with one exception: the gh token goes once to the panel's Worker at registration, which uses it to read your profile and emails and throws it away (see "Registration").
+- Your email, your GitHub login and your machine name. Only your GitHub name reaches the leaderboard.
 
 **How the kit makes sure:**
 - The telemetry hook reads Claude Code's hook input, keeps only the name of the feature and discards the rest without writing it anywhere.
@@ -50,14 +53,21 @@ The events add:
 - It never does network itself. A separate sender posts the queue in batches.
 - A test (`tools/test/telemetry-privacy.test.mjs`) feeds it the real inputs of Claude Code 2.1.292 with markers in every free-text value, and fails if any marker reaches a file.
 
-## Nickname
+## The leaderboard
 
-Off by default. With `ctl.mjs nickname <name>` (1 to 16 characters: letters without accents, digits, space, `_`, `-`), your nickname can appear in the panel's milestone feed, for example "Ana was the first in room A to finish M4". The presenter can hide any nickname. The panel never shows a ranking of people: it shows the room and the comparison between the two rooms.
+The panel shows one leaderboard of people, with the GitHub name, ranked by points:
+- each validated mission: 1 point;
+- each project's swarm done: 1 point;
+- a spec you fixed: 1 point;
+- each gate approved: 2 points;
+- the Project 2 report: 1 point.
+
+Ties go to whoever got there first. The cost never counts: spending more cannot give points. The presenter can hide any name (it stays ranked, as "—").
 
 ## The server
 
 - **Where it runs:** a Cloudflare Worker with a Durable Object (the API) and Cloudflare Pages (the page), on `workers.dev` and `pages.dev` addresses (D-30).
-- **What our code stores:** the allowed events. It never stores your IP address, the request headers or Cloudflare's request data, and the Worker's logs are off.
+- **What our code stores:** the allowed events and the registrations (GitHub name, the hash of the account id, room). It never stores your IP address, the request headers, Cloudflare's request data, your email or your token, and the Worker's logs are off.
 - **What Cloudflare sees:** your IP address, at the network level, like any website you open.
 - **How long it keeps the events:** they are deleted 7 days after the workshop. The organizer resets the workshop with `POST /admin/reset`, and the workshop code and the admin token change for each workshop.
 

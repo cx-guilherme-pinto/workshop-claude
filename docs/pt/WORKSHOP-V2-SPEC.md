@@ -743,3 +743,14 @@ Escolher Sonnet e 12 agentes no Projeto 1 pode fazer passar a linha do Projeto 1
 - Enviar qualquer dado do participante fora da allowlist, mesmo "só para depurar".
 - Mudar o orçamento, a agenda ou o número de missões.
 - Publicar uma release ou fazer push para um repositório público.
+
+## 12. Alterações decididas depois (19 out. 2026)
+
+Decisões do Guilherme durante a construção. Prevalecem sobre o texto acima; o detalhe está no `DECISIONS.md`.
+
+| # | Muda | O que fica | Decisão |
+|---|---|---|---|
+| D-30 | Alojamento do painel (A1) | Cloudflare: Worker + Durable Object (SQLite) para a API e Cloudflare Pages para a página, em `*.workers.dev` e `*.pages.dev`. Nomes técnicos em inglês (`panel/`, `?room=`, `/admin/phase`) | D-30 |
+| D-34 | Princípio 2.3.3 ("sem ranking de pessoas") e secção 6.6 (participação opcional e anónima, alcunhas) | **Board de liderança por pessoa**, não por sala (as salas têm 70 e 30 pessoas). Pontos por cobertura e qualidade, nunca por gasto: missão validada 1; swarm acabado 1 por projeto; spec corrigida 1; gate aprovado 2 por projeto; relatório do Projeto 2 1. Desempate: quem chegou primeiro | D-34 |
+| D-34 | Secção 6.6 (opt-in, id anónimo) | **Participação obrigatória com registo pelo GitHub.** O setup regista toda a gente logo a seguir ao login do `gh` (passo 6, com o scope `user:email`): o token do `gh` vai uma vez, por HTTPS, para a Worker, que confirma um email verificado `@checkmarx.com` (`PANEL_EMAIL_DOMAIN`), guarda só o nome do GitHub, um hash do id da conta e a sala, e deita o token fora. Quem não tiver email da empresa faz o workshop igual, sem aparecer no board. As alcunhas (A3) deixam de existir | D-34 |
+| D-34 | Setup | Comando novo `--cleanup` (`-Cleanup` no Windows): apaga os dados do workshop (projetos de exercício, caderneta, fila e registo do painel, memórias desses projetos) e deixa o projeto do Projeto 2 e as ferramentas | D-34 |
