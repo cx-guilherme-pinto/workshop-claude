@@ -16,7 +16,7 @@
 // next run; --force moves an existing project to the backup folder.
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { isMain } from './lib/is-main.mjs';
 import { clearForAssembly, initKitRepo, isIncomplete, kitGit, writeIncompleteMark } from './lib/kit-repo.mjs';
@@ -96,10 +96,14 @@ function copy(src, dst, { without = [] } = {}) {
   cpSync(src, dst, { recursive: true, filter: (p) => !NOISE.test(p) && !without.includes(resolve(p)) });
 }
 
-// canivete-project/ (without i18n/) with i18n/<l>/ on top, and the generated specs and tests.
-export function copyCanivete(dest, l, { src = join(KIT, CANIVETE_DIR) } = {}) {
+// canivete-project/ (without i18n/) with i18n/<l>/ on top, and the generated specs and tests. The catalogue goes in
+// without the answers of the tools broken on purpose (tools/gaps.mjs): only their hashes, as in the tests.
+export async function copyCanivete(dest, l, { src = join(KIT, CANIVETE_DIR) } = {}) {
   copy(src, dest, { without: [resolve(src, 'i18n')] });
   if (l !== 'pt') copy(join(src, 'i18n', l), dest);
+  const { withoutAnswers } = await import(pathToFileURL(join(src, 'tools', 'gaps.mjs')).href);
+  const cat = join(dest, 'specs', 'tools.json');
+  writeFileSync(cat, JSON.stringify(withoutAnswers(JSON.parse(readFileSync(cat, 'utf8'))), null, 2) + '\n');
   const r = spawnSync(process.execPath, [join('tools', 'gen.mjs')], { cwd: dest, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`tools/gen.mjs failed: ${r.stderr || r.stdout}`);
 }
@@ -112,7 +116,7 @@ function readMark(f) {
   }
 }
 
-export function montar(o) {
+export async function montar(o) {
   const mark = join(o.dest, MARK);
   let backup = null;
   if (existsSync(o.dest) && readdirSync(o.dest).length) {
@@ -125,7 +129,7 @@ export function montar(o) {
   const l = normalizar(o.lingua) || lingua();
   mkdirSync(o.dest, { recursive: true });
   writeIncompleteMark(mark, l);
-  copyCanivete(o.dest, l);
+  await copyCanivete(o.dest, l);
   const engine = join(o.dest, 'tools', 'workshop');
   for (const d of ENGINE) copy(join(KIT, d), join(engine, d), { without: [resolve(KIT, d, 'test'), resolve(KIT, 'hooks', 'telemetry.mjs')] });
   cpSync(join(KIT, 'pricing.json'), join(engine, 'pricing.json'));
@@ -150,7 +154,7 @@ export function montar(o) {
 
 if (isMain(import.meta.url)) {
   try {
-    console.log(JSON.stringify(montar(args(process.argv.slice(2)))));
+    console.log(JSON.stringify(await montar(args(process.argv.slice(2)))));
   } catch (e) {
     console.error(`ERROR: ${e.message}`);
     process.exit(1);

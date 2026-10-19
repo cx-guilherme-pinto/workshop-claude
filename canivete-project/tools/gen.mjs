@@ -20,6 +20,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readMyTool, myToolReport, MY_TOOL_ID } from './my-tool.mjs';
+import { gapHash } from './gaps.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
@@ -146,7 +147,14 @@ export function problemsOf(t, { reserved = true } = {}) {
     if (Object.keys(ex.in || {}).some((k) => !names.has(k))) p.push(M.exampleInput(t.id, i + 1));
     if (t.template === 'generate' && (!Number.isInteger(ex.seed) || !ex.check)) p.push(M.generateCheck(t.id, i + 1));
   });
-  for (const g of t.spec_gaps || []) if (!g.what || !g.rule || !Array.isArray(g.cases) || !g.cases.length || !Array.isArray(g.obvious) || g.obvious.length !== g.cases.length) p.push(M.gap(t.id));
+  // A gap is complete (what, rule, cases with out, obvious) in the kit's catalogue; in an assembled project the
+  // installer keeps only what the test needs (what and cases with the hash "right"), so no answer is on disk.
+  for (const g of t.spec_gaps || []) {
+    const cases = Array.isArray(g.cases) && g.cases.length ? g.cases : null;
+    const full = g.rule && cases?.every((c) => c.out !== undefined) && Array.isArray(g.obvious) && g.obvious.length === cases.length;
+    const hashed = cases?.every((c) => /^[0-9a-f]{8}$/.test(c.right || ''));
+    if (!g.what || !cases || !(full || hashed) || (NO_GAPS && !full)) p.push(M.gap(t.id));
+  }
   return p;
 }
 
@@ -207,22 +215,13 @@ function specMd(t) {
 
 // The canonical form of an output for the hash: numbers with 12 significant digits (no float noise), JSON.
 const CANON_JS = `(v) => JSON.stringify(v, (k, x) => (typeof x === 'number' ? Number(x.toPrecision(12)) : x))`;
-const canon = (v) => JSON.stringify(v, (k, x) => (typeof x === 'number' ? Number(x.toPrecision(12)) : x));
-// FNV-1a (32 bits) of "<id>:<canonical output>": the same function goes into the test.
+// FNV-1a (32 bits) of "<id>:<canonical output>": the same function goes into the test (tools/gaps.mjs).
 const HASH_JS = `(v) => {
   const s = SPEC.id + ':' + v;
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(16).padStart(8, '0');
 }`;
-export function fnv(id, v) {
-  const s = id + ':' + v;
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
-  return h.toString(16).padStart(8, '0');
-}
-export const gapHash = (id, out) => fnv(id, canon(out));
-
 const q = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
 function testJs(t) {
@@ -234,7 +233,7 @@ function testJs(t) {
     inputs: t.inputs.map((d) => d.name),
     examples: t.examples,
     errors: t.errors || [],
-    gaps: gaps.map((g) => ({ cases: g.cases.map((c) => ({ in: c.in, right: gapHash(t.id, c.out) })) })),
+    gaps: gaps.map((g) => ({ cases: g.cases.map((c) => ({ in: c.in, right: c.right ?? gapHash(t.id, c.out) })) })),
     what: gaps.map((g) => g.what),
   };
   return `${X.generated}
