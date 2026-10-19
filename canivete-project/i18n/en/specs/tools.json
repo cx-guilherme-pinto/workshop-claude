@@ -164,6 +164,217 @@
       ]
     },
     {
+      "id": "dn-02",
+      "category": "money",
+      "template": "calc",
+      "title": "VAT: with and without",
+      "concept": "From an amount with or without VAT, shows the amount before VAT, the VAT and the amount with VAT, at the rates of mainland Portugal.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Amount", "min": 0 },
+        { "name": "rate", "type": "choice", "label": "VAT rate", "default": "23", "options": [{ "value": "23", "label": "23 % (standard, Portugal)" }, { "value": "13", "label": "13 % (intermediate, Portugal)" }, { "value": "6", "label": "6 % (reduced, Portugal)" }] },
+        { "name": "mode", "type": "choice", "label": "The amount is", "default": "net", "options": [{ "value": "net", "label": "before VAT" }, { "value": "gross", "label": "with VAT included" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "net", "label": "Before VAT" },
+          { "name": "vat", "label": "VAT" },
+          { "name": "gross", "label": "With VAT" }
+        ]
+      },
+      "rules": [
+        "The rates are those of mainland Portugal: 23 % (standard), 13 % (intermediate) and 6 % (reduced). `rate` arrives as text (\"23\", \"13\" or \"6\"); with nothing chosen, use \"23\".",
+        "Amount before VAT (`mode` = \"net\", used when nothing is chosen): net = amount; vat = amount × rate / 100, rounded to the cent; gross = net + vat.",
+        "Amount with VAT included (`mode` = \"gross\"): gross = amount; net = amount / (1 + rate / 100), rounded to the cent; vat = gross − net.",
+        "All three fields are numbers rounded to the cent (Math.round(v × 100) / 100). An amount of 0 gives 0 everywhere."
+      ],
+      "examples": [
+        { "in": { "amount": "100", "rate": "23", "mode": "net" }, "out": { "net": 100, "vat": 23, "gross": 123 } },
+        { "in": { "amount": "123", "rate": "23", "mode": "gross" }, "out": { "net": 100, "vat": 23, "gross": 123 } },
+        { "in": { "amount": "50", "rate": "6", "mode": "net" }, "out": { "net": 50, "vat": 3, "gross": 53 } },
+        { "in": { "amount": "10", "rate": "13", "mode": "gross" }, "out": { "net": 8.85, "vat": 1.15, "gross": 10 } },
+        { "in": { "amount": "19.99", "rate": "23", "mode": "net" }, "out": { "net": 19.99, "vat": 4.6, "gross": 24.59 } },
+        { "in": { "amount": "0", "rate": "6", "mode": "gross" }, "out": { "net": 0, "vat": 0, "gross": 0 } }
+      ],
+      "errors": [
+        { "in": { "amount": "-5", "rate": "23", "mode": "net" }, "error": "Amount: the minimum is 0." },
+        { "in": { "amount": "100", "rate": "20", "mode": "net" }, "error": "VAT rate: pick one of the options." }
+      ]
+    },
+    {
+      "id": "dn-03",
+      "category": "money",
+      "template": "calc",
+      "title": "Compound interest",
+      "concept": "How much a deposit is worth after a few years of compound interest, with no extra deposits along the way.",
+      "inputs": [
+        { "name": "principal", "type": "number", "label": "Starting amount", "min": 0 },
+        { "name": "rate", "type": "number", "label": "Annual interest rate (%)", "min": 0, "max": 100 },
+        { "name": "years", "type": "integer", "label": "Years", "min": 1, "max": 100 },
+        { "name": "compounding", "type": "choice", "label": "Compounding", "default": "1", "options": [{ "value": "1", "label": "Yearly" }, { "value": "4", "label": "Quarterly" }, { "value": "12", "label": "Monthly" }] }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "final", "label": "Final amount" },
+          { "name": "interest", "label": "Interest earned" }
+        ]
+      },
+      "rules": [
+        "final = principal × (1 + rate / 100 / n)^(n × years), where n is the number of times interest is compounded per year: 1 (yearly), 4 (quarterly) or 12 (monthly). `compounding` arrives as text (\"1\", \"4\" or \"12\"); with nothing chosen, use \"1\".",
+        "interest = final − principal, computed with the final amount already rounded.",
+        "Both results are numbers rounded to the cent (Math.round(v × 100) / 100).",
+        "A rate of 0 gives the principal itself and 0 interest. No taxes and no extra deposits."
+      ],
+      "examples": [
+        { "in": { "principal": "1000", "rate": "5", "years": "10", "compounding": "1" }, "out": { "final": 1628.89, "interest": 628.89 } },
+        { "in": { "principal": "1000", "rate": "5", "years": "10", "compounding": "12" }, "out": { "final": 1647.01, "interest": 647.01 } },
+        { "in": { "principal": "2000", "rate": "3", "years": "1", "compounding": "4" }, "out": { "final": 2060.68, "interest": 60.68 } },
+        { "in": { "principal": "10000", "rate": "2.5", "years": "5", "compounding": "" }, "out": { "final": 11314.08, "interest": 1314.08 } },
+        { "in": { "principal": "5000", "rate": "0", "years": "3", "compounding": "1" }, "out": { "final": 5000, "interest": 0 } }
+      ],
+      "errors": [
+        { "in": { "principal": "1000", "rate": "5", "years": "0", "compounding": "1" }, "error": "Years: the minimum is 1." },
+        { "in": { "principal": "1000", "rate": "5", "years": "2.5", "compounding": "1" }, "error": "Years: type a whole number." },
+        { "in": { "principal": "1000", "rate": "", "years": "10", "compounding": "1" }, "error": "Missing: Annual interest rate (%)." }
+      ]
+    },
+    {
+      "id": "dn-04",
+      "category": "money",
+      "template": "calc",
+      "title": "Loan monthly payment",
+      "concept": "The monthly payment of a fixed-rate loan (a mortgage, a car…) and how much is paid in total.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Loan amount", "min": 0 },
+        { "name": "rate", "type": "number", "label": "Annual interest rate (%)", "min": 0, "max": 100 },
+        { "name": "years", "type": "integer", "label": "Term (years)", "min": 1, "max": 50 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "monthly", "label": "Monthly payment" },
+          { "name": "total", "label": "Total paid" },
+          { "name": "interest", "label": "Total interest" }
+        ]
+      },
+      "rules": [
+        "A fixed payment (an annuity loan), paid at the end of each month: i = rate / 100 / 12 and n = years × 12; monthly = amount × i / (1 − (1 + i)^(−n)).",
+        "With a rate of 0: monthly = amount / n.",
+        "monthly is rounded to the cent. total = the rounded monthly × n, rounded to the cent. interest = total − amount, rounded to the cent. All are numbers (Math.round(v × 100) / 100).",
+        "No insurance, fees or taxes. An amount of 0 is an error."
+      ],
+      "examples": [
+        { "in": { "amount": "150000", "rate": "3", "years": "30" }, "out": { "monthly": 632.41, "total": 227667.6, "interest": 77667.6 } },
+        { "in": { "amount": "10000", "rate": "6", "years": "5" }, "out": { "monthly": 193.33, "total": 11599.8, "interest": 1599.8 } },
+        { "in": { "amount": "200000", "rate": "3.5", "years": "35" }, "out": { "monthly": 826.58, "total": 347163.6, "interest": 147163.6 } },
+        { "in": { "amount": "12000", "rate": "0", "years": "2" }, "out": { "monthly": 500, "total": 12000, "interest": 0 } },
+        { "in": { "amount": "5000", "rate": "7.5", "years": "1" }, "out": { "monthly": 433.79, "total": 5205.48, "interest": 205.48 } }
+      ],
+      "errors": [
+        { "in": { "amount": "0", "rate": "3", "years": "30" }, "error": "The loan amount must be more than 0." },
+        { "in": { "amount": "150000", "rate": "3", "years": "0" }, "error": "Term (years): the minimum is 1." },
+        { "in": { "amount": "150000", "rate": "101", "years": "30" }, "error": "Annual interest rate (%): the maximum is 100." }
+      ]
+    },
+    {
+      "id": "dn-05",
+      "category": "money",
+      "template": "calc",
+      "title": "Stacked discounts",
+      "concept": "The final price after several discounts applied one after the other (20 % and then another 10 %, for example) and how much was saved.",
+      "inputs": [
+        { "name": "price", "type": "number", "label": "Starting price", "min": 0 },
+        { "name": "discounts", "type": "list", "label": "Discounts (%)" }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "final", "label": "Final price" },
+          { "name": "saved", "label": "Saved" },
+          { "name": "total_percent", "label": "Total discount (%)" }
+        ]
+      },
+      "rules": [
+        "The discounts stack, in the order of the list, each one on the price left by the one before: final = price × (1 − d1 / 100) × (1 − d2 / 100) × …. They do not add up: 20 % and then 10 % is 28 %, not 30 %.",
+        "`discounts` arrives as a list of texts (the template splits them at commas or lines). Each discount is a number from 0 to 100 written only with digits and, if needed, a decimal point (12.5). Any other text (letters, the % sign, a minus sign, more than 100) is the error in the table.",
+        "final = the final price rounded to the cent. saved = price − final (the rounded final), to the cent. total_percent = (1 − the product of the factors (1 − d / 100)) × 100, rounded to 2 decimal places; it comes from the discounts, not from the rounded prices.",
+        "All fields are numbers (Math.round(v × 100) / 100)."
+      ],
+      "examples": [
+        { "in": { "price": "100", "discounts": "20, 10" }, "out": { "final": 72, "saved": 28, "total_percent": 28 } },
+        { "in": { "price": "80", "discounts": "50" }, "out": { "final": 40, "saved": 40, "total_percent": 50 } },
+        { "in": { "price": "59.99", "discounts": "30, 20, 10" }, "out": { "final": 30.23, "saved": 29.76, "total_percent": 49.6 } },
+        { "in": { "price": "40", "discounts": "12.5" }, "out": { "final": 35, "saved": 5, "total_percent": 12.5 } },
+        { "in": { "price": "200", "discounts": "0" }, "out": { "final": 200, "saved": 0, "total_percent": 0 } },
+        { "in": { "price": "100", "discounts": "100, 50" }, "out": { "final": 0, "saved": 100, "total_percent": 100 } }
+      ],
+      "errors": [
+        { "in": { "price": "100", "discounts": "20, abc" }, "error": "Each discount must be a number from 0 to 100." },
+        { "in": { "price": "100", "discounts": "120" }, "error": "Each discount must be a number from 0 to 100." },
+        { "in": { "price": "100", "discounts": "" }, "error": "Missing: Discounts (%)." }
+      ]
+    },
+    {
+      "id": "dv-01",
+      "category": "dev",
+      "template": "text",
+      "title": "Format JSON",
+      "concept": "Lays out a JSON over several indented lines, or squeezes it into one line, and says when it is not valid.",
+      "inputs": [
+        { "name": "json", "type": "multiline", "label": "JSON" },
+        { "name": "indent", "type": "choice", "label": "Indentation", "default": "2", "options": [{ "value": "2", "label": "2 spaces" }, { "value": "4", "label": "4 spaces" }, { "value": "0", "label": "Compact (one line)" }] }
+      ],
+      "output": { "type": "text", "label": "formatted JSON" },
+      "rules": [
+        "Reads the text with JSON.parse and returns JSON.stringify(value, null, n), with n = 2, 4 or 0 according to `indent` (\"2\", \"4\" or \"0\"; with nothing chosen, use \"2\"). With 0 everything is on one line, with no spaces.",
+        "The keys keep their original order and the values are written as JSON.stringify writes them (the number 1.50 becomes 1.5). The returned text does not end with a line break.",
+        "Spaces and line breaks around the JSON do not count. A text JSON.parse does not accept (unquoted keys, single quotes, a trailing comma…) is the error in the table."
+      ],
+      "examples": [
+        { "in": { "json": "{\"name\":\"Ann\",\"age\":30}", "indent": "2" }, "out": "{\n  \"name\": \"Ann\",\n  \"age\": 30\n}" },
+        { "in": { "json": "{ \"a\": [1, 2], \"b\": null }", "indent": "0" }, "out": "{\"a\":[1,2],\"b\":null}" },
+        { "in": { "json": "{\"price\":1.50,\"tags\":[\"new\"]}", "indent": "4" }, "out": "{\n    \"price\": 1.5,\n    \"tags\": [\n        \"new\"\n    ]\n}" },
+        { "in": { "json": "  []  ", "indent": "2" }, "out": "[]" },
+        { "in": { "json": "\"café\"", "indent": "" }, "out": "\"café\"" }
+      ],
+      "errors": [
+        { "in": { "json": "{name: 'Ann'}", "indent": "2" }, "error": "The JSON is not valid." },
+        { "in": { "json": "{\"a\":1,}", "indent": "2" }, "error": "The JSON is not valid." },
+        { "in": { "json": "", "indent": "2" }, "error": "Missing: JSON." }
+      ]
+    },
+    {
+      "id": "dv-02",
+      "category": "dev",
+      "template": "convert",
+      "title": "Base64 encode and decode",
+      "concept": "Encodes a text as Base64 and decodes Base64 back into text, accents and emoji included.",
+      "inputs": [
+        { "name": "text", "type": "multiline", "label": "Text" },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "encode", "options": [{ "value": "encode", "label": "Encode (text → Base64)" }, { "value": "decode", "label": "Decode (Base64 → text)" }] }
+      ],
+      "output": { "type": "text", "label": "result" },
+      "rules": [
+        "Encode (`direction` = \"encode\"): turns the text into UTF-8 bytes and writes them as standard Base64 (alphabet A–Z, a–z, 0–9, + and /), with = at the end until the length is a multiple of 4, on a single line. The text counts exactly as typed, spaces and line breaks included.",
+        "Decode (`direction` = \"decode\"): first removes every space and line break. What is left must use only that alphabet, have at most two = and only at the end, and have a length that is a multiple of 4; otherwise it is the error \"This is not valid Base64.\". If the bytes are not valid UTF-8, it is the error \"The Base64 is not valid UTF-8 text.\".",
+        "It must work in the browser and in Node: use TextEncoder and TextDecoder(\"utf-8\", { fatal: true }) for UTF-8 and do the Base64 by hand (or with btoa/atob over the bytes). Do not use Buffer (it only exists in Node) and do not give btoa text with accents (it throws)."
+      ],
+      "examples": [
+        { "in": { "text": "Hello, world!", "direction": "encode" }, "out": "SGVsbG8sIHdvcmxkIQ==" },
+        { "in": { "text": "SGVsbG8sIHdvcmxkIQ==", "direction": "decode" }, "out": "Hello, world!" },
+        { "in": { "text": "a", "direction": "encode" }, "out": "YQ==" },
+        { "in": { "text": "🙂", "direction": "encode" }, "out": "8J+Zgg==" },
+        { "in": { "text": "line 1\nline 2", "direction": "encode" }, "out": "bGluZSAxCmxpbmUgMg==" },
+        { "in": { "text": "Y2Fm\nw6k=", "direction": "decode" }, "out": "café" }
+      ],
+      "errors": [
+        { "in": { "text": "not base64!", "direction": "decode" }, "error": "This is not valid Base64." },
+        { "in": { "text": "/w==", "direction": "decode" }, "error": "The Base64 is not valid UTF-8 text." },
+        { "in": { "text": "", "direction": "encode" }, "error": "Missing: Text." }
+      ]
+    },
+    {
       "id": "dv-03",
       "category": "dev",
       "template": "generate",
@@ -181,6 +392,227 @@
         { "in": { "count": "5" }, "seed": 7, "check": { "length": 5, "unique": true, "match": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" } }
       ],
       "errors": [{ "in": { "count": "21" }, "error": "How many: the maximum is 20." }]
+    },
+    {
+      "id": "dv-04",
+      "category": "dev",
+      "template": "convert",
+      "title": "HEX ↔ RGB colour",
+      "concept": "Converts a colour from HEX (#ff8800) to RGB (255, 136, 0) and from RGB to HEX.",
+      "inputs": [
+        { "name": "color", "type": "text", "label": "Colour" },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "hex_to_rgb", "options": [{ "value": "hex_to_rgb", "label": "HEX → RGB" }, { "value": "rgb_to_hex", "label": "RGB → HEX" }] }
+      ],
+      "output": { "type": "text", "label": "converted colour" },
+      "rules": [
+        "HEX → RGB (`direction` = \"hex_to_rgb\"): accepts 6 or 3 hexadecimal digits, with or without a leading #, upper or lower case. With 3 digits, each one is doubled (f80 = ff8800). Returns \"rgb(R, G, B)\", with a comma and a space between the numbers.",
+        "RGB → HEX (`direction` = \"rgb_to_hex\"): accepts three whole numbers from 0 to 255 separated by commas and/or spaces, with or without \"rgb(\" and \")\" around them (rgb in upper or lower case). Returns \"#rrggbb\" in lower case, with 2 digits per number.",
+        "Spaces at the start and at the end do not count. There is no transparency (alpha). A colour that does not follow these rules gives the error in the table for the chosen direction."
+      ],
+      "examples": [
+        { "in": { "color": "#1e90ff", "direction": "hex_to_rgb" }, "out": "rgb(30, 144, 255)" },
+        { "in": { "color": "F80", "direction": "hex_to_rgb" }, "out": "rgb(255, 136, 0)" },
+        { "in": { "color": "#FFFFFF", "direction": "hex_to_rgb" }, "out": "rgb(255, 255, 255)" },
+        { "in": { "color": "255, 136, 0", "direction": "rgb_to_hex" }, "out": "#ff8800" },
+        { "in": { "color": "RGB(0, 128, 255)", "direction": "rgb_to_hex" }, "out": "#0080ff" },
+        { "in": { "color": "12 34 56", "direction": "rgb_to_hex" }, "out": "#0c2238" }
+      ],
+      "errors": [
+        { "in": { "color": "#ggg", "direction": "hex_to_rgb" }, "error": "Type a HEX colour such as #ff8800 or #f80." },
+        { "in": { "color": "300, 0, 0", "direction": "rgb_to_hex" }, "error": "Type three numbers from 0 to 255, such as 255, 136, 0." },
+        { "in": { "color": "", "direction": "hex_to_rgb" }, "error": "Missing: Colour." }
+      ]
+    },
+    {
+      "id": "dv-05",
+      "category": "dev",
+      "template": "text",
+      "title": "Validate an email (simple rules)",
+      "concept": "Says whether an email address looks valid by a few simple rules and, if it does not, why.",
+      "inputs": [{ "name": "email", "type": "text", "label": "Email" }],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "valid", "label": "Valid" },
+          { "name": "reason", "label": "Reason" }
+        ]
+      },
+      "rules": [
+        "valid is true or false (a boolean) and reason is one of these exact texts. The rules are checked in this order and the first one that fails gives the reason (and valid false):",
+        "(1) No spaces at all (those at the start and at the end already do not count): otherwise \"It cannot have spaces.\".",
+        "(2) Exactly one @: otherwise \"It must have exactly one @.\".",
+        "(3) The part before the @ has 1 to 64 characters, only unaccented letters (a–z, A–Z), digits and . _ % + -, and does not start or end with a dot or have two dots in a row: otherwise \"The part before the @ is not valid.\".",
+        "(4) The domain after the @ has at least two parts separated by dots; each part has 1 to 63 characters, only unaccented letters, digits and hyphens, and does not start or end with a hyphen; the last part has only letters, at least 2: otherwise \"The domain after the @ is not valid.\".",
+        "If it passes the 4 rules: valid true and reason \"Looks like a valid email.\". Upper and lower case are accepted everywhere."
+      ],
+      "examples": [
+        { "in": { "email": "ann.smith@example.com" }, "out": { "valid": true, "reason": "Looks like a valid email." } },
+        { "in": { "email": "Bob+shopping@Mail.Company.CO.UK" }, "out": { "valid": true, "reason": "Looks like a valid email." } },
+        { "in": { "email": "ann smith@example.com" }, "out": { "valid": false, "reason": "It cannot have spaces." } },
+        { "in": { "email": "ann@@example.com" }, "out": { "valid": false, "reason": "It must have exactly one @." } },
+        { "in": { "email": "ann..smith@example.com" }, "out": { "valid": false, "reason": "The part before the @ is not valid." } },
+        { "in": { "email": "ann@example" }, "out": { "valid": false, "reason": "The domain after the @ is not valid." } }
+      ],
+      "errors": [{ "in": { "email": "  " }, "error": "Missing: Email." }]
+    },
+    {
+      "id": "dd-01",
+      "category": "daily",
+      "template": "convert",
+      "title": "Kitchen measures (cup, spoon, g)",
+      "concept": "Converts recipe measures (cup, tablespoon, teaspoon) into grams, and grams into measures, for a few ingredients.",
+      "inputs": [
+        { "name": "amount", "type": "number", "label": "Amount", "min": 0 },
+        { "name": "unit", "type": "choice", "label": "Measure", "default": "cup", "options": [{ "value": "cup", "label": "Cup (240 ml)" }, { "value": "tbsp", "label": "Tablespoon (15 ml)" }, { "value": "tsp", "label": "Teaspoon (5 ml)" }] },
+        { "name": "ingredient", "type": "choice", "label": "Ingredient", "default": "flour", "options": [{ "value": "water", "label": "Water or milk" }, { "value": "flour", "label": "Flour" }, { "value": "sugar", "label": "Sugar" }, { "value": "butter", "label": "Butter" }] },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "to_grams", "options": [{ "value": "to_grams", "label": "Measure → grams" }, { "value": "to_measure", "label": "Grams → measure" }] }
+      ],
+      "output": { "type": "number", "label": "grams (Measure → grams) or how many measures (Grams → measure)" },
+      "rules": [
+        "Fixed volumes (`unit`): cup (\"cup\") = 240 ml, tablespoon (\"tbsp\") = 15 ml, teaspoon (\"tsp\") = 5 ml.",
+        "Grams in a cup, per ingredient (`ingredient`): water or milk (\"water\") 240 g, flour (\"flour\") 120 g, sugar (\"sugar\") 200 g, butter (\"butter\") 225 g. Grams per measure = ml of the measure × grams in a cup / 240 (a tablespoon of sugar = 15 × 200 / 240 = 12.5 g).",
+        "Measure → grams (`direction` = \"to_grams\"): `amount` is the number of measures and the result = amount × grams per measure, rounded to 1 decimal place (Math.round(v × 10) / 10).",
+        "Grams → measure (`direction` = \"to_measure\"): `amount` is grams and the result = amount / grams per measure, rounded to 2 decimal places (Math.round(v × 100) / 100).",
+        "Returns a number. An amount of 0 gives 0."
+      ],
+      "examples": [
+        { "in": { "amount": "1.5", "unit": "cup", "ingredient": "flour", "direction": "to_grams" }, "out": 180 },
+        { "in": { "amount": "1", "unit": "tbsp", "ingredient": "sugar", "direction": "to_grams" }, "out": 12.5 },
+        { "in": { "amount": "3", "unit": "tsp", "ingredient": "water", "direction": "to_grams" }, "out": 15 },
+        { "in": { "amount": "1", "unit": "tbsp", "ingredient": "butter", "direction": "to_grams" }, "out": 14.1 },
+        { "in": { "amount": "100", "unit": "cup", "ingredient": "flour", "direction": "to_measure" }, "out": 0.83 },
+        { "in": { "amount": "50", "unit": "tsp", "ingredient": "sugar", "direction": "to_measure" }, "out": 12 }
+      ],
+      "errors": [
+        { "in": { "amount": "-1", "unit": "cup", "ingredient": "flour", "direction": "to_grams" }, "error": "Amount: the minimum is 0." },
+        { "in": { "amount": "1", "unit": "cup", "ingredient": "honey", "direction": "to_grams" }, "error": "Ingredient: pick one of the options." }
+      ]
+    },
+    {
+      "id": "dd-02",
+      "category": "daily",
+      "template": "calc",
+      "title": "Fuel consumption (l/100 km)",
+      "concept": "How much fuel the car used on a trip, in litres per 100 km and in km per litre, and what the fuel cost.",
+      "inputs": [
+        { "name": "distance", "type": "number", "label": "Distance (km)", "min": 0 },
+        { "name": "fuel", "type": "number", "label": "Fuel used (l)", "min": 0 },
+        { "name": "price", "type": "number", "label": "Price per litre", "min": 0 }
+      ],
+      "output": {
+        "type": "fields",
+        "fields": [
+          { "name": "l_per_100km", "label": "Litres per 100 km" },
+          { "name": "km_per_l", "label": "Km per litre" },
+          { "name": "cost", "label": "Cost" }
+        ]
+      },
+      "rules": [
+        "l_per_100km = fuel / distance × 100, rounded to 2 decimal places.",
+        "km_per_l = distance / fuel, rounded to 2 decimal places.",
+        "cost = fuel × price per litre, rounded to the cent.",
+        "Each sum uses the values as typed, not results already rounded (Math.round(v × 100) / 100 at the end). The distance and the fuel must be more than 0 (0 is the error in the table); a price of 0 gives a cost of 0."
+      ],
+      "examples": [
+        { "in": { "distance": "500", "fuel": "35", "price": "1.80" }, "out": { "l_per_100km": 7, "km_per_l": 14.29, "cost": 63 } },
+        { "in": { "distance": "100", "fuel": "5.5", "price": "1.70" }, "out": { "l_per_100km": 5.5, "km_per_l": 18.18, "cost": 9.35 } },
+        { "in": { "distance": "320", "fuel": "24.8", "price": "1.659" }, "out": { "l_per_100km": 7.75, "km_per_l": 12.9, "cost": 41.14 } },
+        { "in": { "distance": "42.5", "fuel": "3", "price": "0" }, "out": { "l_per_100km": 7.06, "km_per_l": 14.17, "cost": 0 } }
+      ],
+      "errors": [
+        { "in": { "distance": "0", "fuel": "5", "price": "1.80" }, "error": "The distance must be more than 0." },
+        { "in": { "distance": "100", "fuel": "0", "price": "1.80" }, "error": "The fuel used must be more than 0." },
+        { "in": { "distance": "100", "fuel": "5", "price": "" }, "error": "Missing: Price per litre." }
+      ]
+    },
+    {
+      "id": "dd-03",
+      "category": "daily",
+      "template": "generate",
+      "title": "Password generator",
+      "concept": "Generates a random password with the length and the kinds of characters you choose.",
+      "inputs": [
+        { "name": "length", "type": "integer", "label": "Length", "default": "16", "min": 4, "max": 64 },
+        { "name": "digits", "type": "choice", "label": "Digits", "default": "yes", "options": [{ "value": "yes", "label": "Yes" }, { "value": "no", "label": "No" }] },
+        { "name": "symbols", "type": "choice", "label": "Symbols", "default": "yes", "options": [{ "value": "yes", "label": "Yes" }, { "value": "no", "label": "No" }] }
+      ],
+      "output": { "type": "text", "label": "password" },
+      "rules": [
+        "It always has lower-case (a–z) and upper-case (A–Z) letters. `digits` = \"yes\" adds the digits (0–9) and `symbols` = \"yes\" adds these 12 symbols: `!@#$%&*-_=+?`. With \"no\", that kind does not appear. With nothing chosen: 16 characters, with digits and symbols.",
+        "The password has exactly `length` characters (4 to 64) and at least one of each chosen kind; the others are drawn at random from all the chosen kinds together. One way: one character of each kind, the rest from the whole set, then a shuffle (Fisher–Yates).",
+        "Use the randomInt(n) (or the random()) that run receives, never Math.random or crypto, so that the same seed gives the same result."
+      ],
+      "examples": [
+        { "in": { "length": "16", "digits": "yes", "symbols": "yes" }, "seed": 1, "check": { "length": 16, "charsets": ["lower", "upper", "digit", "symbol"], "match": "^[A-Za-z0-9!@#$%&*_=+?-]+$" } },
+        { "in": { "length": "8", "digits": "yes", "symbols": "no" }, "seed": 2, "check": { "length": 8, "charsets": ["lower", "upper", "digit"], "match": "^[A-Za-z0-9]+$" } },
+        { "in": { "length": "4", "digits": "no", "symbols": "no" }, "seed": 3, "check": { "length": 4, "charsets": ["lower", "upper"], "match": "^[A-Za-z]+$" } },
+        { "in": {}, "seed": 5, "check": { "length": 16, "charsets": ["lower", "upper", "digit", "symbol"], "match": "^[A-Za-z0-9!@#$%&*_=+?-]+$" } },
+        { "in": { "length": "64", "digits": "no", "symbols": "yes" }, "seed": 9, "check": { "length": 64, "charsets": ["lower", "upper", "symbol"], "match": "^[A-Za-z!@#$%&*_=+?-]+$" } }
+      ],
+      "errors": [
+        { "in": { "length": "3" }, "error": "Length: the minimum is 4." },
+        { "in": { "length": "65" }, "error": "Length: the maximum is 64." },
+        { "in": { "length": "12", "symbols": "maybe" }, "error": "Symbols: pick one of the options." }
+      ]
+    },
+    {
+      "id": "dd-04",
+      "category": "daily",
+      "template": "convert",
+      "title": "Celsius ↔ Fahrenheit",
+      "concept": "Converts temperatures from degrees Celsius to Fahrenheit and from Fahrenheit to Celsius.",
+      "inputs": [
+        { "name": "value", "type": "number", "label": "Temperature" },
+        { "name": "direction", "type": "choice", "label": "Direction", "default": "c_to_f", "options": [{ "value": "c_to_f", "label": "°C → °F" }, { "value": "f_to_c", "label": "°F → °C" }] }
+      ],
+      "output": { "type": "number", "label": "converted temperature" },
+      "rules": [
+        "°C → °F (`direction` = \"c_to_f\"): F = C × 9 / 5 + 32.",
+        "°F → °C (`direction` = \"f_to_c\"): C = (F − 32) × 5 / 9.",
+        "Returns a number rounded to 1 decimal place (Math.round(v × 10) / 10).",
+        "Below absolute zero is the error in the table: less than -273.15 °C, or less than -459.67 °F (absolute zero itself is accepted)."
+      ],
+      "examples": [
+        { "in": { "value": "100", "direction": "c_to_f" }, "out": 212 },
+        { "in": { "value": "-40", "direction": "c_to_f" }, "out": -40 },
+        { "in": { "value": "98.6", "direction": "f_to_c" }, "out": 37 },
+        { "in": { "value": "36.6", "direction": "c_to_f" }, "out": 97.9 },
+        { "in": { "value": "0", "direction": "f_to_c" }, "out": -17.8 },
+        { "in": { "value": "-273.15", "direction": "c_to_f" }, "out": -459.7 }
+      ],
+      "errors": [
+        { "in": { "value": "-300", "direction": "c_to_f" }, "error": "Below absolute zero (-273.15 °C or -459.67 °F)." },
+        { "in": { "value": "-500", "direction": "f_to_c" }, "error": "Below absolute zero (-273.15 °C or -459.67 °F)." },
+        { "in": { "value": "", "direction": "c_to_f" }, "error": "Missing: Temperature." }
+      ]
+    },
+    {
+      "id": "dd-05",
+      "category": "daily",
+      "template": "generate",
+      "title": "Draw names",
+      "concept": "Draws one or more names from a list, without repeats, to decide who does what.",
+      "inputs": [
+        { "name": "names", "type": "list", "label": "Names" },
+        { "name": "count", "type": "integer", "label": "How many to draw", "default": "1", "min": 1, "max": 100 }
+      ],
+      "output": { "type": "list", "label": "the names drawn" },
+      "rules": [
+        "`names` arrives as a list (names separated by commas or lines, already without spaces around them). Names repeated ignoring upper and lower case (Ann, ann, ANN) count only once, with the spelling that comes first.",
+        "Returns a list of `count` different names (1 with nothing chosen), in the order they were drawn. If `count` is more than the number of different names, it is the error in the table.",
+        "Every name has the same chance of being drawn. One way: a partial Fisher–Yates with the randomInt(n) that run receives (never Math.random), so that the same seed gives the same result."
+      ],
+      "examples": [
+        { "in": { "names": "Ann, Bob, Sophie, Mark, John", "count": "2" }, "seed": 1, "check": { "length": 2, "unique": true, "match": "^(Ann|Bob|Sophie|Mark|John)$" } },
+        { "in": { "names": "Ann\nBob\nSophie", "count": "3" }, "seed": 5, "check": { "length": 3, "unique": true, "match": "^(Ann|Bob|Sophie)$" } },
+        { "in": { "names": "Ann, ann, ANN, Bob", "count": "2" }, "seed": 2, "check": { "length": 2, "unique": true, "match": "^(Ann|Bob)$" } },
+        { "in": { "names": "Peter", "count": "" }, "seed": 4, "check": { "length": 1, "match": "^Peter$" } }
+      ],
+      "errors": [
+        { "in": { "names": "Ann, Bob, ann", "count": "3" }, "error": "You asked for more names than there are different names in the list." },
+        { "in": { "names": "", "count": "1" }, "error": "Missing: Names." },
+        { "in": { "names": "Ann, Bob", "count": "0" }, "error": "How many to draw: the minimum is 1." }
+      ]
     }
   ]
 }
