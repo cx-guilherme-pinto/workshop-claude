@@ -18,24 +18,24 @@ Do this **before** the workshop. It takes 10 to 20 minutes. You don't need admin
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/setup-mac.sh | bash
 ```
 
-Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh)`
+Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/setup-mac.sh)`
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/bootstrap-windows.ps1 | iex
 ```
 
 Use Windows PowerShell, not PowerShell ISE. Behind a company proxy that answers `(407) Proxy Authentication Required`, use this one instead (it sends your Windows login to the proxy):
 
 ```powershell
-[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/bootstrap-windows.ps1 | iex
 ```
 
-If PowerShell blocks the command above, download [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-windows.ps1) and run, in the folder where you saved it:
+If PowerShell blocks the command above, download [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/setup-windows.ps1) and run, in the folder where you saved it:
 
 ```powershell
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
@@ -64,4 +64,4 @@ Then close and reopen the terminal (and VS Code).
 
 ## Verify before running (optional)
 
-The SHA-256 checksums of every release file are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/SHA256SUMS. Release page: https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.1.0-rc.1.
+The SHA-256 checksums of every release file are at https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/SHA256SUMS. Release page: https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.1.0-rc.2.
