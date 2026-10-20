@@ -281,6 +281,11 @@ Describe 'tabela de estados' {
     Test-WsMissingCode 'E-NODE-01' | Should -BeTrue
     Test-WsMissingCode 'E-AUTH-01' | Should -BeFalse
   }
+  It 'no -Check, um projeto em falta diz qual e (o detalhe do E-DEMO-01 fica a seguir ao codigo)' {
+    $text = [IO.File]::ReadAllText((Join-Path $script:Root 'setup/setup-windows.ps1'))
+    $text | Should -Match ([regex]::Escape("if (`$fd) { `$why = `$why + ': ' + (Format-WsHomePath `$fd `$script:UserHome) }"))
+    $text | Should -Match ([regex]::Escape("Set-WsFail 'E-SETUP-01' `$why"))
+  }
 }
 
 Describe 'mensagens' {

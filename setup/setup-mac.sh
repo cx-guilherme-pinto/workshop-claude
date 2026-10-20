@@ -983,7 +983,12 @@ ws_step() { # numero deps...
     ws_fail_reclass
     # "Ainda nao instalado": a causa real da ultima instalacao (se falhou) vem do setup.log, porque o
     # --check e o --doctor nao voltam a correr a instalacao.
-    if ws_is_missing_code "${!f%%|*}"; then prev=$(ws_last_install_result "$n"); ws_fail E-SETUP-01 "${!f%%|*}"; fi
+    # o detalhe do que falta (ex.: a pasta de um projeto) fica a seguir ao codigo, para a pessoa saber o que e
+    if ws_is_missing_code "${!f%%|*}"; then
+      prev=$(ws_last_install_result "$n")
+      local fd=""; case "${!f}" in *"|"*) fd=${!f#*|} ;; esac
+      ws_fail E-SETUP-01 "${!f%%|*}${fd:+: $(ws_tilde "$fd")}"
+    fi
     if ws_nonblocking "$n"; then ws_set ST "$n" aviso; ws_warn "${!f%%|*}" "${!f#*|}"; ws_set SF "$n" ""
     else ws_set ST "$n" falta; fi
     [ -n "$prev" ] && ws_warn "${prev%%|*}" "${prev#*|}"

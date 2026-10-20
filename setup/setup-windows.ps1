@@ -1804,7 +1804,14 @@ function Invoke-WsStep {
     # "Ainda nao instalado": a causa real da ultima instalacao (se falhou) vem do setup.log, porque o -Check e o
     # -Doctor nao voltam a correr a instalacao.
     $prev = $null
-    if (Test-WsMissingCode $script:T[$key].Falha[0]) { $prev = Get-WsLastInstallResult $key $script:LogFile; Set-WsFail 'E-SETUP-01' $script:T[$key].Falha[0] }
+    # o detalhe do que falta (ex.: a pasta de um projeto) fica a seguir ao codigo, para a pessoa saber o que e
+    if (Test-WsMissingCode $script:T[$key].Falha[0]) {
+      $prev = Get-WsLastInstallResult $key $script:LogFile
+      $fd = $script:T[$key].Falha[1]
+      $why = $script:T[$key].Falha[0]
+      if ($fd) { $why = $why + ': ' + (Format-WsHomePath $fd $script:UserHome) }
+      Set-WsFail 'E-SETUP-01' $why
+    }
     $s = $script:T[$key]
     if ($nonBlocking) { $s.Estado = 'aviso'; $s.Avisos += , $s.Falha; $s.Falha = $null } else { $s.Estado = 'falta' }
     if ($prev) { Set-WsWarn $prev[0] $prev[1] }

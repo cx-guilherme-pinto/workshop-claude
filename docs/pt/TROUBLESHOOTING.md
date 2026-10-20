@@ -130,7 +130,7 @@ Cada erro do setup tem um **código** (por exemplo, `E-NET-01`). O setup mostra 
 Comando (macOS):
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-01"></a>
@@ -236,7 +236,7 @@ curl -sv https://api.anthropic.com -o /dev/null
 Comando (macOS):
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-net-08"></a>
@@ -252,7 +252,7 @@ curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/downlo
 Comandos (macOS):
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
 grep -n -i proxy ~/.claude/settings.json
 ```
 
@@ -841,7 +841,7 @@ mv ~/.config/uv/uv.toml ~/.config/uv/uv.toml.bak
 Comando (macOS):
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | UV_NO_CONFIG=1 bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | UV_NO_CONFIG=1 bash
 ```
 
 <a id="mac-e-gh-01"></a>
@@ -965,7 +965,7 @@ pbpaste | acli jira auth login --site <empresa>.atlassian.net --email <o teu ema
 Comando (macOS):
 
 ```
-curl -sSI https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/workshop-kit-v1.0.0-rc.5.tar.gz
+curl -sSI https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/workshop-kit-v1.1.0-rc.1.tar.gz
 ```
 
 <a id="mac-e-kit-02"></a>
@@ -1052,7 +1052,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 Comando (macOS):
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
 ```
 
 <a id="mac-e-demo-01"></a>
@@ -1431,7 +1431,7 @@ xcode-select --install
 Comando (Windows):
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-01"></a>
@@ -1483,7 +1483,7 @@ Remove-Item Env:HTTPS_PROXY, Env:HTTP_PROXY, Env:ALL_PROXY -ErrorAction Silently
 [Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')
 $env:HTTPS_PROXY = 'http://proxy.empresa:8080'
 $env:NO_PROXY = 'localhost,127.0.0.1'
-[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+[Net.WebRequest]::DefaultWebProxy.Credentials = [Net.CredentialCache]::DefaultNetworkCredentials; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-04"></a>
@@ -1538,7 +1538,7 @@ Test-NetConnection api.anthropic.com -Port 443
 Comando (Windows):
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-net-08"></a>
@@ -1554,7 +1554,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 Comandos (Windows):
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 Select-String -Path "$env:USERPROFILE\.claude\settings.json" -Pattern proxy
 ```
 
@@ -1678,7 +1678,7 @@ Unblock-File -LiteralPath .\setup-windows.ps1
 Comando (Windows):
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-so-09"></a>
@@ -2196,7 +2196,7 @@ Comandos (Windows):
 
 ```
 $env:UV_NO_CONFIG = '1'
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-gh-01"></a>
@@ -2320,7 +2320,7 @@ Get-Clipboard | acli jira auth login --site <empresa>.atlassian.net --email <o t
 Comando (Windows):
 
 ```
-Invoke-WebRequest -UseBasicParsing -Method Head https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/workshop-kit-v1.0.0-rc.5.zip
+Invoke-WebRequest -UseBasicParsing -Method Head https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/workshop-kit-v1.1.0-rc.1.zip
 ```
 
 <a id="windows-e-kit-02"></a>
@@ -2407,7 +2407,7 @@ gh auth login --hostname github.com --git-protocol https --web --scopes user:ema
 Comando (Windows):
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 <a id="windows-e-demo-01"></a>

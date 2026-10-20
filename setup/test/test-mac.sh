@@ -1241,6 +1241,10 @@ eq "$(WS_LOG="$G6/setup.log"; ws_last_step_output 10 | grep -c UnknownIssuer)" 1
 ( WS_MODE=check; WS_LOG="$G6/setup.log"; WS_TMP=$G6; WS_SEM_DESKTOP=0; WS_COLOR=0; ws_s10_detect() { ws_fail E-MEM-01 ""; return 1; }
   ws_step 10 >/dev/null; printf '%s' "$SW_10" ) > "$G6/o"
 eq "$(cat "$G6/o")" "$(printf 'E-SETUP-01|E-MEM-01\nE-MEM-03|uv tool install')" "--check: mostra a falha da ultima instalacao"
+# --check: um projeto em falta diz qual e (o detalhe do E-DEMO-01 fica a seguir ao codigo, com ~)
+( HOME=$PH; WS_MODE=check; WS_LOG="$G6/setup.log"; WS_TMP=$G6; WS_COLOR=0; ws_s9_detect() { ws_fail E-DEMO-01 "$PH/workshop-claude/missions-project"; return 1; }
+  ws_step 9 >/dev/null; printf '%s' "$SF_9" ) > "$G6/o"
+eq "$(cat "$G6/o")" "E-SETUP-01|E-DEMO-01: ~/workshop-claude/missions-project" "--check: o projeto em falta aparece pelo nome"
 printf '10:06:00 result step 10: ja \n' >> "$G6/setup.log"
 eq "$(WS_LOG="$G6/setup.log"; ws_last_install_result 10)" "" "ultima instalacao: depois de correr bem, nada"
 # resumo: passo com aviso e sem detalhe mostra o titulo do aviso

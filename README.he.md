@@ -4,7 +4,7 @@
 
 [English](README.md) · [Português](README.pt.md) · [हिन्दी](README.hi.md) · **עברית**
 
-ערכת הסדנה: setup בפקודה אחת, ה-skills וה-agents, ה-hooks למדידת עלויות, ה-statusline, ה-orchestrator והפרויקטים המעשיים (ה-Security Arena ופרויקט התרגול). גרסת הערכה: **v1.0.0-rc.5**.
+ערכת הסדנה: setup בפקודה אחת, ה-skills וה-agents, ה-hooks למדידת עלויות, ה-statusline, ה-orchestrator והפרויקטים המעשיים (ה-Security Arena ופרויקט התרגול). גרסת הערכה: **v1.1.0-rc.1**.
 
 ## התקנה (למשתתפים)
 
@@ -13,13 +13,13 @@
 **ב-macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash
 ```
 
 **ב-Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex
 ```
 
 ה-setup לוקח 10 עד 20 דקות. אם הוא נעצר באמצע, פשוט הריצו שוב את אותה פקודה: שלבים שכבר הסתיימו מדולגים. המדריך המלא, כולל ההכנות מראש: [docs/he/INSTALL.md](docs/he/INSTALL.md).
@@ -33,7 +33,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 | הסרת ההתקנה | `bash ~/.workshop-claude/setup-mac.sh --uninstall` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Uninstall` |
 | ניקוי אחרי הסדנה (פרויקט התרגול והכלים נשארים) | `bash ~/.workshop-claude/setup-mac.sh --cleanup` | `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Cleanup` |
 
-אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | bash -s -- --check` (ב-macOS) או `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/bootstrap-windows.ps1 | iex` (ב-Windows).
+אם לא הותקן כלום קודם, אפשר להריץ את הבדיקה גם ישירות: `curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | bash -s -- --check` (ב-macOS) או `$env:WORKSHOP_SETUP_ARGS='-Check'; irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/bootstrap-windows.ps1 | iex` (ב-Windows).
 
 משהו נכשל? לכל שגיאה יש קוד. ראו [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) (באנגלית).
 
@@ -57,7 +57,7 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 
 כל מה שמותקן נרשם ב-`~/.workshop-claude/manifest.json`. גיבוי של `settings.json` נשמר ב-`~/.workshop-claude/backup/`. ה-log (בלי secrets) נמצא ב-`~/.workshop-claude/setup.log`.
 
-**שפות.** ה-setup מדבר רק אנגלית, וגם האופציות שלו באנגלית (האופציות הישנות בפורטוגזית עדיין עובדות), כך שכל ההודעות שתראו על המסך יהיו באנגלית. הוא מזהה את שפת המחשב, ואם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills וה-agents כתובים באנגלית ועונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר. כדי לבחור את השפה בעצמכם, תנו ל-setup את `WORKSHOP_LANG` עם `pt-BR`, `pt-PT`, `en`, `hi` או `he`: ב-macOS כתבו אותו אחרי ה-pipe, ממש לפני `bash` (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` מגיע רק ל-`curl`), וב-Windows הריצו קודם `$env:WORKSHOP_LANG='pt-BR'`. השפה שנבחרה בהתקנה נשמרת גם כשמריצים את ה-setup שוב; רק `WORKSHOP_LANG` משנה אותה, וה-setup מתעלם מערך שהוא לא מכיר ומציג על כך הערה.
+**שפות.** ה-setup מדבר רק אנגלית, וגם האופציות שלו באנגלית (האופציות הישנות בפורטוגזית עדיין עובדות), כך שכל ההודעות שתראו על המסך יהיו באנגלית. הוא מזהה את שפת המחשב, ואם עדיין לא הוגדר אצלכם ה-setting `language` של Claude Code, הוא כותב אותו (פורטוגזית, אנגלית, הינדי או עברית). ה-skills וה-agents כתובים באנגלית ועונים בשפה שלכם. ה-Arena, ה-orchestrator וה-statusline בפורטוגזית במחשב שמוגדר לפורטוגזית, ובאנגלית בכל השאר. כדי לבחור את השפה בעצמכם, תנו ל-setup את `WORKSHOP_LANG` עם `pt-BR`, `pt-PT`, `en`, `hi` או `he`: ב-macOS כתבו אותו אחרי ה-pipe, ממש לפני `bash` (`curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/setup-mac.sh | WORKSHOP_LANG=pt-BR bash`; `WORKSHOP_LANG=pt-BR curl …` מגיע רק ל-`curl`), וב-Windows הריצו קודם `$env:WORKSHOP_LANG='pt-BR'`. השפה שנבחרה בהתקנה נשמרת גם כשמריצים את ה-setup שוב; רק `WORKSHOP_LANG` משנה אותה, וה-setup מתעלם מערך שהוא לא מכיר ומציג על כך הערה.
 
 ## מבנה התיקיות
 
@@ -74,9 +74,9 @@ irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0
 ## למארגנים
 
 - כל ה-URLs והגרסאות נמצאים ב-`repos.conf`. ה-README הזה נוצר אוטומטית: ערכו את ה-templates ב-`tools/templates/<language>/` (`en`, `pt`, `hi`, `he`) והריצו `node tools/render.mjs`.
-- יצירת release: `tools/build-release.sh v1.0.0-rc.5` (יוצר את `dist/v1.0.0-rc.5/`) ו-`tools/publish-release.sh v1.0.0-rc.5` (יוצר את ה-release בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.0.0-rc.5).
+- יצירת release: `tools/build-release.sh v1.1.0-rc.1` (יוצר את `dist/v1.1.0-rc.1/`) ו-`tools/publish-release.sh v1.1.0-rc.1` (יוצר את ה-release בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.1.0-rc.1).
 - בדיקת ה-repository: `node tools/check-repo.mjs`. טסטים: `node --test tools/test/` ו-`bash setup/test/test-mac.sh`.
 - מעבר ל-repositories הציבוריים: [docs/PUBLISHING.md](docs/PUBLISHING.md) (באנגלית).
 - החלטות ומקורות (בפורטוגזית): [DECISIONS.md](DECISIONS.md).
 
-אם רוצים לאמת לפני שמריצים, ה-checksums של SHA-256 נמצאים בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.0.0-rc.5/SHA256SUMS.
+אם רוצים לאמת לפני שמריצים, ה-checksums של SHA-256 נמצאים בכתובת https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.1/SHA256SUMS.
