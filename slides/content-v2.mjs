@@ -1,4 +1,4 @@
-// Conteudo do deck v2 (pt-PT), docs/pt/WORKSHOP-V2-SPEC.md seccao 8: 29 slides em 1280 x 1080, cada um com a fase do
+// Conteudo do deck v2 (pt-PT), docs/pt/WORKSHOP-V2-SPEC.md seccao 8: 32 slides em 1280 x 1080, cada um com a fase do
 // painel. O build-v2.mjs transforma isto em workshop-v2.pptx, speaker-notes-v2.md e palco.html. A versao inglesa
 // (content-v2.en.mjs) tem a mesma forma: mudar um slide aqui = mudar o mesmo slide la.
 //
@@ -7,6 +7,7 @@
 //   tipo 'titulo' | 'regras' | 'perguntas'  as 3 excecoes da regra de interatividade (seccao 2.2)
 //   tipo 'faca'    passos[], comandos[{rotulo, cmd}], esperado; opcional: intro, preve {pergunta, onde}, painel (frase)
 //   tipo 'missao'  id (M1-M6), conceito, e o mesmo que 'faca'
+//   tipo 'conceito' intro, blocos[{titulo, texto}], opcional: rodape, comandos[], esperado, faz (a etiqueta e "Faz agora")
 //   tipo 'decide'  pergunta, opcoes[{titulo, efeito, cmd}] (no maximo 3), opcional: rodape, painel
 //   tipo 'painel'  pergunta, opcional: apoio (frase), comandos[] (um comando pequeno para comecar)
 //   saltar         pode saltar-se se houver atraso
@@ -20,7 +21,7 @@ const CANIVETE = 'cd ~/workshop-claude/canivete-project\nclaude';
 const TREINO = 'cd ~/workshop-claude/practice-project\nclaude';
 
 export const SLIDES = [
-  // ---------------- Abertura (0–8)
+  // ---------------- Abertura (0–11)
   {
     min: 0.5, bloco: 'Abertura', fase: 'opening', tipo: 'titulo',
     titulo: 'Orquestração de agentes com Claude',
@@ -51,6 +52,61 @@ export const SLIDES = [
       dizer: ['O alvo é US$ 5 por pessoa para o dia todo; a US$ 5 e a US$ 10 aparece um aviso, e ninguém é cortado.', 'O painel só recebe contagens e decisões, nunca prompts nem código. Os pontos vêm de cobertura e qualidade, nunca de gastar mais.', 'Tudo o que o painel guardou hoje é apagado à meia-noite.'],
       painel: ['Se alguém perguntar pela privacidade: "está tudo em docs/PRIVACY.md, e node ~/.workshop-claude/kit/telemetry/ctl.mjs show mostra os últimos 20 eventos tal como saem do teu portátil".'],
       falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Abertura', fase: 'opening', tipo: 'conceito',
+    titulo: 'O que vamos fazer hoje',
+    intro: 'Três blocos, sempre no teu portátil, sempre a fazer:',
+    blocos: [
+      { titulo: 'Missões · 15 min', texto: '10 missões curtas: plan mode, modelos, subagentes, skills, hooks e /loop, uma de cada vez.' },
+      { titulo: 'Projeto 1 · 24 min', texto: 'Um swarm de agentes constrói o Canivete: 30 ferramentas e a tua. Tu decides quantos agentes e que modelo.' },
+      { titulo: 'Projeto 2 · 37 min', texto: 'O mesmo ciclo numa tarefa a sério: uma issue do projeto de treino, ou do teu Jira ou GitHub.' },
+    ],
+    rodape: 'Levas para casa: o kit instalado, uma memória com o que aprendeste e um ciclo para usar amanhã.',
+    notas: {
+      objetivo: 'Dar o mapa do dia antes de começar.',
+      dizer: ['Não há bloco de teoria: cada conceito aprende-se numa missão de 2 minutos.', 'Os dois projetos são o mesmo ciclo: primeiro num projeto feito para o workshop, depois numa tarefa a sério.', 'Tudo fica instalado e continua a funcionar depois de hoje.'],
+      painel: ['O painel ainda está vazio: "vai encher-se à medida que fizerem cada coisa".'],
+      falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Abertura', fase: 'opening', tipo: 'conceito',
+    titulo: 'Como vamos trabalhar',
+    intro: 'O mesmo ciclo nos dois projetos:',
+    blocos: [
+      { titulo: 'Tu decides', texto: 'a spec, quantos agentes e que modelo.' },
+      { titulo: 'Os agentes fazem', texto: 'em paralelo, cada um com a sua tarefa e o seu teste.' },
+      { titulo: 'O gate verifica', texto: 'os testes, os segredos, o código perigoso e a revisão do Opus.' },
+      { titulo: 'O painel mostra', texto: 'o que a sala já fez, ao vivo (nunca os teus prompts).' },
+      { titulo: 'A memória aprende', texto: 'as lições de cada projeto, para a próxima vez.' },
+    ],
+    notas: {
+      objetivo: 'Explicar o ciclo que se repete nos dois projetos.',
+      dizer: ['O teu trabalho é decidir e verificar; o dos agentes é fazer.', 'O custo é medido em cada passo, com os tokens reais.'],
+      painel: [],
+      falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Abertura', fase: 'opening', tipo: 'conceito', faz: true,
+    titulo: 'A tua memória aprende contigo',
+    intro: 'A app Agent Memory guarda, no teu portátil, o que aprendes ao longo do dia:',
+    blocos: [
+      { titulo: 'Lê antes de planear', texto: '/demo-plan, /task-intake e /task-plan procuram primeiro o que já sabes.' },
+      { titulo: 'Guarda no fim', texto: '/demo-cost e /task-report guardam as lições de cada projeto; /memory guarda uma tua.' },
+    ],
+    comandos: [{ rotulo: 'Num terminal', cmd: 'agent-memory-gui' }],
+    esperado: 'A app abre com o grafo ainda vazio; no fim do dia tem as lições do Canivete e da EX-1',
+    notas: {
+      objetivo: 'Apresentar a memória e explicar que vai crescer com o trabalho de cada um.',
+      dizer: ['São ficheiros Markdown em ~/.agent-memory, com um índice: fica tudo só no teu portátil.', 'Cada lição fica ligada ao projeto, à tarefa e aos ficheiros: amanhã, o /task-intake de outra issue já a encontra.', 'Vamos voltar a esta janela no fim de cada projeto.'],
+      painel: [],
+      falhas: [
+        { falha: 'agent-memory-gui não existe', resposta: 'o --check mostra o passo 10; sem a app, tudo o resto funciona (MEMORY UNAVAILABLE)' },
+        { falha: 'A janela não abre (Windows sem WebView2)', resposta: 'a app abre a mesma interface no browser' },
+      ],
     },
   },
   {
@@ -94,7 +150,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Missões (8–23)
+  // ---------------- Missões (11–26)
   {
     min: 1, bloco: 'Missões', fase: 'missions', tipo: 'painel',
     titulo: '10 missões, uma grelha vazia',
@@ -212,7 +268,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Projeto 1 (23–47)
+  // ---------------- Projeto 1 (26–50)
   {
     min: 2, bloco: 'Projeto 1', fase: 'p1', tipo: 'painel',
     titulo: 'O que vamos construir: o Canivete',
@@ -345,7 +401,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Projeto 2 (47–87)
+  // ---------------- Projeto 2 (50–87)
   {
     min: 2, bloco: 'Projeto 2', fase: 'p2', tipo: 'painel',
     titulo: 'O mesmo ciclo, noutro repositório',
@@ -440,7 +496,7 @@ export const SLIDES = [
     },
   },
   {
-    min: 7, bloco: 'Projeto 2', fase: 'p2', tipo: 'faca',
+    min: 4, bloco: 'Projeto 2', fase: 'p2', tipo: 'faca',
     titulo: 'Agora sozinho: EX-3',
     passos: ['Repete o ciclo na EX-3, sem slides', 'intake → plan → swarm → gate → report', 'Ainda na EX-1? Continua nela'],
     comandos: [{ rotulo: 'Terminal 3 · Claude Code', cmd: '/task-intake issues/EX-3.json\n/task-plan\n/task-swarm\n/task-gate\n/task-report' }],

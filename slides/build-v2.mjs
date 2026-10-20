@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// O deck v2 (docs/pt/WORKSHOP-V2-SPEC.md, seccao 8): 29 slides em 1280 x 1080 (o terco direito do ecra e do painel),
+// O deck v2 (docs/pt/WORKSHOP-V2-SPEC.md, seccao 8 e D-36): 32 slides em 1280 x 1080 (o terco direito do ecra e do painel),
 // a partir de content-v2.mjs / content-v2.en.mjs + repos.conf:
 //   pt: slides/workshop-v2.pptx    + slides/speaker-notes-v2.md
 //   en: slides/workshop-v2.en.pptx + slides/speaker-notes-v2.en.md
@@ -25,7 +25,7 @@ const TEXTOS = {
     conteudo: './content-v2.mjs', pptx: 'workshop-v2.pptx', notas: 'speaker-notes-v2.md',
     titulo: 'Orquestração de agentes com Claude',
     decimal: ',',
-    tipo: { faca: 'Faz agora', missao: 'Missão', decide: 'Decide', painel: 'Painel', preve: 'Prevê' },
+    tipo: { faca: 'Faz agora', missao: 'Missão', decide: 'Decide', painel: 'Painel', preve: 'Prevê', conceito: 'Conceito' },
     esperado: 'Resultado esperado: ',
     painelSeta: 'Olha para o painel',
     custoTitulo: 'O custo', painelVeTitulo: 'O que o painel vê',
@@ -42,7 +42,7 @@ const TEXTOS = {
     conteudo: './content-v2.en.mjs', pptx: 'workshop-v2.en.pptx', notas: 'speaker-notes-v2.en.md',
     titulo: 'Agent orchestration with Claude',
     decimal: '.',
-    tipo: { faca: 'Do it now', missao: 'Mission', decide: 'Decide', painel: 'Panel', preve: 'Predict' },
+    tipo: { faca: 'Do it now', missao: 'Mission', decide: 'Decide', painel: 'Panel', preve: 'Predict', conceito: 'Concept' },
     esperado: 'Expected result: ',
     painelSeta: 'Look at the panel',
     custoTitulo: 'The cost', painelVeTitulo: 'What the panel sees',
@@ -180,11 +180,11 @@ const linhasCodigo = (t, w, fs) => String(t).split('\n').reduce((n, l) => { cons
 
 // A etiqueta do topo: "Faz agora · 4 min", "Missão M3 · 2 min"… e o bloco a direita.
 function etiqueta(s, d) {
-  const tipo = d.tipo === 'missao' ? `${T.tipo.missao} ${d.id}` : T.tipo[d.tipo] || '';
+  const tipo = d.tipo === 'missao' ? `${T.tipo.missao} ${d.id}` : d.faz ? T.tipo.faca : T.tipo[d.tipo] || '';
   const extra = d.preve ? ` + ${T.tipo.preve}` : '';
   const t = `${tipo}${extra} · ${minutos(d.min)} min`;
   const w = 0.6 + t.length * 0.19;
-  caixa(s, M, 0.45, w, 0.55, d.tipo === 'painel' ? COR.laranja : COR.accent, 'tag');
+  caixa(s, M, 0.45, w, 0.55, d.tipo === 'painel' ? COR.laranja : d.tipo === 'conceito' && !d.faz ? COR.ink : COR.accent, 'tag');
   texto(s, t, { x: M + 0.2, y: 0.45, w: w - 0.3, h: 0.55, fontSize: 24, bold: true, color: COR.accentInk, valign: 'middle', wrap: false, objectName: 'tag-label' });
   if (d.saltar) {
     caixa(s, M + w + 0.2, 0.45, 2.6, 0.55, COR.ink, 'skip');
@@ -337,6 +337,41 @@ const R = {
     }
     pe(s, d, Math.max(yy, RODAPE_Y - 1.2));
   },
+  // Conceito: a ideia num paragrafo e 2 a 5 blocos numerados; com faz, tambem o comando e o resultado esperado.
+  conceito(s, d) {
+    etiqueta(s, d);
+    s.addText(d.titulo, { placeholder: 'title' });
+    let y = 2.55;
+    if (d.intro) {
+      const t = sub(d.intro);
+      const h = linhas(t, W - 2 * M, 28) * 0.47 + 0.1;
+      texto(s, t, { x: M, y, w: W - 2 * M, h, fontSize: 28, color: COR.muted, objectName: 'intro' });
+      y += h + 0.3;
+    }
+    const pes = (d.esperado ? 0.95 : 0) + (d.rodape ? 1.2 : 0);
+    const cmds = (d.comandos || []).map((c) => ({ ...c, cmd: sub(c.cmd) }));
+    const hc = cmds.reduce((a, c) => a + alturaCodigo(c.cmd, W - 2 * M, c.rotulo) + 0.2, 0);
+    const livre = RODAPE_Y - 0.3 - pes - hc - y;
+    const alto = Math.min(1.75, livre / d.blocos.length);
+    d.blocos.forEach((b, i) => {
+      const yy = y + i * alto;
+      caixa(s, M, yy, W - 2 * M, alto - 0.18, COR.surface, `block-${i}`);
+      numero(s, i + 1, M + 0.25, yy + (alto - 0.18 - 0.6) / 2, 0.6, `block-number-${i}`);
+      texto(s, [{ text: `${sub(b.titulo)}  `, options: { bold: true, fontFace: FONTE_TITULO } }, { text: sub(b.texto) }], { x: M + 1.1, y: yy, w: W - 2 * M - 1.35, h: alto - 0.18, fontSize: 26, valign: 'middle', objectName: `block-text-${i}` });
+    });
+    y += d.blocos.length * alto + 0.15;
+    for (const c of cmds) {
+      const h = alturaCodigo(c.cmd, W - 2 * M, c.rotulo);
+      blocoCodigo(s, M, y, W - 2 * M, h, c.cmd, c.rotulo);
+      y += h + 0.2;
+    }
+    if (d.rodape) {
+      caixa(s, M, y, W - 2 * M, 1.0, COR.ink, 'takeaway');
+      texto(s, sub(d.rodape), { x: M + 0.3, y, w: W - 2 * M - 0.6, h: 1.0, fontFace: FONTE_TITULO, fontSize: 26, color: COR.escuroInk, valign: 'middle', objectName: 'takeaway-text' });
+      y += 1.2;
+    }
+    pe(s, d, Math.max(y, RODAPE_Y - 0.95));
+  },
   painel(s, d) {
     etiqueta(s, d);
     s.addText(d.titulo, { placeholder: 'title' });
@@ -388,7 +423,7 @@ function notas(d, cab, relogioIni) {
 function paraPalco(d, i, cab, nota) {
   const c = (x) => (Array.isArray(x) ? x.map(c) : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, c(v)])) : sub(x));
   const { notas: _n, ...resto } = d;
-  return { ...c(resto), n: i + 1, cab, notas: nota, rotulo: d.tipo === 'missao' ? `${T.tipo.missao} ${d.id}` : T.tipo[d.tipo] || '' };
+  return { ...c(resto), n: i + 1, cab, notas: nota, rotulo: d.tipo === 'missao' ? `${T.tipo.missao} ${d.id}` : d.faz ? T.tipo.faca : T.tipo[d.tipo] || '' };
 }
 
 async function construir(lingua, bg) {

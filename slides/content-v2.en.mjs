@@ -1,4 +1,4 @@
-// Content of the v2 deck (English), docs/pt/WORKSHOP-V2-SPEC.md section 8: 29 slides at 1280 x 1080, each with
+// Content of the v2 deck (English), docs/pt/WORKSHOP-V2-SPEC.md section 8: 32 slides at 1280 x 1080, each with
 // the panel phase. build-v2.mjs turns it into workshop-v2.en.pptx, speaker-notes-v2.en.md and palco.html. Same
 // shape as content-v2.mjs: change a slide here = change the same slide there. The fields are described there.
 // {{...}} come from repos.conf (installer/lib/conf.mjs).
@@ -10,7 +10,7 @@ const POCKETKNIFE = 'cd ~/workshop-claude/canivete-project\nclaude';
 const PRACTICE = 'cd ~/workshop-claude/practice-project\nclaude';
 
 export const SLIDES = [
-  // ---------------- Opening (0–8)
+  // ---------------- Opening (0–11)
   {
     min: 0.5, bloco: 'Opening', fase: 'opening', tipo: 'titulo',
     titulo: 'Agent orchestration with Claude',
@@ -41,6 +41,61 @@ export const SLIDES = [
       dizer: ['The target is US$ 5 per person for the whole day; at US$ 5 and US$ 10 a warning shows, and nobody is cut off.', 'The panel only gets counts and decisions, never prompts or code. Points come from coverage and quality, never from spending more.', 'Everything the panel kept today is deleted at midnight.'],
       painel: ['If someone asks about privacy: "it is all in docs/PRIVACY.md, and node ~/.workshop-claude/kit/telemetry/ctl.mjs show prints the last 20 events exactly as they leave your laptop".'],
       falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Opening', fase: 'opening', tipo: 'conceito',
+    titulo: 'What we will do today',
+    intro: 'Three blocks, always on your laptop, always hands-on:',
+    blocos: [
+      { titulo: 'Missions · 15 min', texto: '10 short missions: plan mode, models, subagents, skills, hooks and /loop, one at a time.' },
+      { titulo: 'Project 1 · 24 min', texto: 'A swarm of agents builds the Pocketknife: 30 tools plus yours. You decide how many agents and which model.' },
+      { titulo: 'Project 2 · 37 min', texto: 'The same cycle on a real task: an issue from the practice project, or from your Jira or GitHub.' },
+    ],
+    rodape: 'You take home: the kit installed, a memory of what you learned and a cycle to use tomorrow.',
+    notas: {
+      objetivo: 'Give the map of the day before starting.',
+      dizer: ['There is no theory block: each concept is learned in a 2-minute mission.', 'The two projects are the same cycle: first on a project made for the workshop, then on a real task.', 'Everything stays installed and keeps working after today.'],
+      painel: ['The panel is still empty: "it fills up as you do each thing".'],
+      falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Opening', fase: 'opening', tipo: 'conceito',
+    titulo: 'How we will work',
+    intro: 'The same cycle in both projects:',
+    blocos: [
+      { titulo: 'You decide', texto: 'the spec, how many agents and which model.' },
+      { titulo: 'The agents do', texto: 'in parallel, each with its own task and its own test.' },
+      { titulo: 'The gate checks', texto: 'the tests, secrets, dangerous code and the Opus review.' },
+      { titulo: 'The panel shows', texto: 'what the room has done, live (never your prompts).' },
+      { titulo: 'The memory learns', texto: 'the lessons of each project, for next time.' },
+    ],
+    notas: {
+      objetivo: 'Explain the cycle that repeats in both projects.',
+      dizer: ['Your job is to decide and to check; the agents’ job is to do.', 'The cost is measured at every step, from the real tokens.'],
+      painel: [],
+      falhas: [],
+    },
+  },
+  {
+    min: 1, bloco: 'Opening', fase: 'opening', tipo: 'conceito', faz: true,
+    titulo: 'Your memory learns with you',
+    intro: 'The Agent Memory app keeps, on your laptop, what you learn during the day:',
+    blocos: [
+      { titulo: 'It reads before planning', texto: '/demo-plan, /task-intake and /task-plan first look for what you already know.' },
+      { titulo: 'It saves at the end', texto: '/demo-cost and /task-report save the lessons of each project; /memory saves one of yours.' },
+    ],
+    comandos: [{ rotulo: 'In a terminal', cmd: 'agent-memory-gui' }],
+    esperado: 'The app opens with an empty graph; by the end of the day it has the lessons of the Pocketknife and EX-1',
+    notas: {
+      objetivo: 'Introduce the memory and explain that it grows with each person’s work.',
+      dizer: ['They are Markdown files in ~/.agent-memory, with an index: everything stays on your laptop.', 'Each lesson is linked to the project, the task and the files: tomorrow, /task-intake on another issue already finds it.', 'We come back to this window at the end of each project.'],
+      painel: [],
+      falhas: [
+        { falha: 'agent-memory-gui does not exist', resposta: '--check shows step 10; without the app everything else works (MEMORY UNAVAILABLE)' },
+        { falha: 'The window does not open (Windows without WebView2)', resposta: 'the app opens the same interface in the browser' },
+      ],
     },
   },
   {
@@ -84,7 +139,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Missions (8–23)
+  // ---------------- Missions (11–26)
   {
     min: 1, bloco: 'Missions', fase: 'missions', tipo: 'painel',
     titulo: '10 missions, an empty grid',
@@ -202,7 +257,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Project 1 (23–47)
+  // ---------------- Project 1 (26–50)
   {
     min: 2, bloco: 'Project 1', fase: 'p1', tipo: 'painel',
     titulo: 'What we will build: the Pocketknife',
@@ -335,7 +390,7 @@ export const SLIDES = [
     },
   },
 
-  // ---------------- Project 2 (47–87)
+  // ---------------- Project 2 (50–87)
   {
     min: 2, bloco: 'Project 2', fase: 'p2', tipo: 'painel',
     titulo: 'The same cycle, in another repository',
@@ -430,7 +485,7 @@ export const SLIDES = [
     },
   },
   {
-    min: 7, bloco: 'Project 2', fase: 'p2', tipo: 'faca',
+    min: 4, bloco: 'Project 2', fase: 'p2', tipo: 'faca',
     titulo: 'Now on your own: EX-3',
     passos: ['Repeat the cycle on EX-3, with no slides', 'intake → plan → swarm → gate → report', 'Still on EX-1? Carry on with it'],
     comandos: [{ rotulo: 'Terminal 3 · Claude Code', cmd: '/task-intake issues/EX-3.json\n/task-plan\n/task-swarm\n/task-gate\n/task-report' }],

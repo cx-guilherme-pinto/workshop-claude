@@ -644,7 +644,7 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
 
 - **Pedido do organizador:** avançar com a Fase 5 antes da 4 e garantir a apresentação atualizada em pt e en.
 - **O deck** segue a secção 8 da especificação:
-  - 29 slides em 1280 × 1080 (13,333 × 11,25 pol.), 90 min: Abertura 8, Missões 15, Projeto 1 24, Projeto 2 40, Fecho 3;
+  - 32 slides em 1280 × 1080 (13,333 × 11,25 pol.), 90 min: Abertura 11, Missões 15, Projeto 1 24, Projeto 2 37, Fecho 3 (os 29 da especificação e os 3 da abertura, abaixo);
   - cada slide tem uma fase do painel (`opening`, `missions`, `p1`, `p2`, `closing`) e um tipo da secção 2.2 (Faz agora, Missão, Decide, Prevê, Painel); só 3 são exceções (título, regras, perguntas);
   - corpo ≥ 24 pt e código ≥ 20 pt: o `build-v2.mjs` avisa abaixo disso;
   - a identidade da Checkmarx: os fundos do modelo cortados para 1280 × 1080 (a parte da direita, onde está o motivo), as cores e as letras do deck atual;
@@ -657,3 +657,8 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - a página do painel nas Pages deixa de ter `frame-ancestors 'self'`: um `palco.html` aberto do disco é `file://` e nenhuma origem o deixava mostrar o painel num iframe. É preciso voltar a publicar a página (`tools/deploy-panel.sh`).
 - **Depende da Fase 4:** o slide 26 diz que o `/task-report` escreve `report.md` no projeto de treino, o que só acontece com a Fase 4; e o funil do Projeto 2 no painel só se enche com os eventos `p2_*`.
 - **Notas do apresentador** pela ordem da secção 8.4: objetivo, o que dizer (≤ 3 frases), olha para o painel (frases condicionais), falhas típicas com o comando, e o relógio.
+- **A abertura (pedido do organizador, 20 out.):** "vamos apresentar o app de memória logo ao início" e "uma explicação melhor no começo do que vamos estar fazendo, 2 slides":
+  - "O que vamos fazer hoje": os 3 blocos e o que se leva para casa; "Como vamos trabalhar": o ciclo decide → agentes fazem → gate verifica → painel mostra → memória aprende. São do tipo Conceito-flash (secção 2.2), 1 min cada;
+  - "A tua memória aprende contigo" (Faz agora, 1 min): abrir a app com `agent-memory-gui` e explicar quando lê (`/demo-plan`, `/task-intake`, `/task-plan`) e quando guarda (`/demo-cost`, `/task-report`, `/memory`);
+  - os 3 minutos saem da EX-3 (de 7 para 4), que é opcional por natureza; a abertura passa a 11 min e o Projeto 2 a 37;
+  - os dois Conceitos seguidos fogem à regra "um conceito-flash é sempre seguido de uma ação": aceite pelo organizador, porque o segundo é seguido da app de memória (Faz agora).

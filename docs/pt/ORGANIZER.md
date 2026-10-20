@@ -45,7 +45,7 @@ Se for o organizador a dar acesso (convidando as pessoas para a sua organizaçã
 
 ## O deck v2 e o palco (workshop v2)
 
-O deck v2 tem 29 slides em 1280 × 1080: os slides ocupam os dois terços da esquerda de um ecrã de 1920 × 1080 e o painel ao vivo o terço da direita. Cada slide tem uma fase do painel, por isso a vista do painel acompanha os slides (D-36).
+O deck v2 tem 32 slides em 1280 × 1080: os slides ocupam os dois terços da esquerda de um ecrã de 1920 × 1080 e o painel ao vivo o terço da direita. Cada slide tem uma fase do painel, por isso a vista do painel acompanha os slides (D-36).
 - **Gerar** (em `slides/`, depois do `npm install`): `node build-v2.mjs`. Escreve `workshop-v2.pptx` e `workshop-v2.en.pptx`, `speaker-notes-v2.md` e `speaker-notes-v2.en.md`, e o `palco.html`. Com `--png` exporta também uma imagem por slide para `slides/palco/<língua>/`, com o LibreOffice (local, ou a imagem Docker: `docker build -t ws-libreoffice slides/libreoffice`). Sem as imagens, o palco desenha cada slide em HTML a partir do mesmo conteúdo.
 - **O palco:** abre `slides/palco.html?lang=pt#admin=<token>` no browser, em ecrã inteiro (F). As setas, o espaço e PageUp/PageDown mudam de slide. Quando a fase muda, o palco chama o `/admin/phase` da Worker com o token, que fica só nesse browser. A tecla N abre as notas do apresentador numa segunda janela (`palco.html?notas=1`), sincronizada com o palco.
 - **Notas do apresentador:** em cada slide, por esta ordem: o objetivo, o que dizer (no máximo 3 frases), o que ler no painel (frases prontas para cada caso), as falhas típicas com o comando que resolve, e o relógio.

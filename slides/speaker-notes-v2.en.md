@@ -6,33 +6,36 @@ Each slide: goal, what to say, what to read on the panel, typical failures and t
 |---|---|---|---|---|---|---|
 | 1 | 0.5 | 0:00 | Opening | opening | — | Agent orchestration with Claude |
 | 2 | 1.5 | 0:30 | Opening | opening | — | The rules: cost and what the panel sees |
-| 3 | 4 | 2:00 | Opening | opening | Do it now | Check and join the panel |
-| 4 | 2 | 6:00 | Opening | opening | Do it now | Did a step fail? |
-| 5 | 1 | 8:00 | Missions | missions | Panel | 10 missions, an empty grid |
-| 6 | 2 | 9:00 | Missions | missions | M1 | Plan without touching |
-| 7 | 2 | 11:00 | Missions | missions | M2 | The right model |
-| 8 | 2 | 13:00 | Missions | missions | M3 | A subagent |
-| 9 | 2 | 15:00 | Missions | missions | M4 | Your skill |
-| 10 | 2 | 17:00 | Missions | missions | M5 | Your hook |
-| 11 | 2 | 19:00 | Missions | missions | M6 | Until it is green |
-| 12 | 2 | 21:00 | Missions | missions | Panel | What the room is missing (and the bonus M7 to M10) |
-| 13 | 2 | 23:00 | Project 1 | p1 | Panel | What we will build: the Pocketknife |
-| 14 | 4 | 25:00 | Project 1 | p1 | Do it now | Invent your tool |
-| 15 | 2 | 29:00 | Project 1 | p1 | Decide | How many agents, and which model? |
-| 16 | 1 | 31:00 | Project 1 | p1 | Do it now | Plan |
-| 17 | 7 | 32:00 | Project 1 | p1 | Do it now | Release the swarm |
-| 18 | 4 | 39:00 | Project 1 | p1 | Do it now | Why did this tool fail? |
-| 19 | 2 | 43:00 | Project 1 | p1 | Do it now | Gate and cost: which decision won? |
-| 20 | 2 | 45:00 | Project 1 | p1 | Do it now | Use your Pocketknife |
-| 21 | 2 | 47:00 | Project 2 | p2 | Panel | The same cycle, in another repository |
-| 22 | 4 | 49:00 | Project 2 | p2 | Do it now | Read the issue |
-| 23 | 6 | 53:00 | Project 2 | p2 | Decide | How many agents? |
-| 24 | 12 | 59:00 | Project 2 | p2 | Do it now | Put the swarm to work |
-| 25 | 5 | 71:00 | Project 2 | p2 | Do it now | The gate |
-| 26 | 4 | 76:00 | Project 2 | p2 | Do it now | The report and the memory |
-| 27 | 7 | 80:00 | Project 2 | p2 | Do it now | Now on your own: EX-3 |
-| 28 | 2 | 87:00 | Closing | closing | Panel | The day in numbers, and 3 ideas to take home |
-| 29 | 1 | 89:00 | Closing | closing | — | Questions |
+| 3 | 1 | 2:00 | Opening | opening | Concept | What we will do today |
+| 4 | 1 | 3:00 | Opening | opening | Concept | How we will work |
+| 5 | 1 | 4:00 | Opening | opening | Concept | Your memory learns with you |
+| 6 | 4 | 5:00 | Opening | opening | Do it now | Check and join the panel |
+| 7 | 2 | 9:00 | Opening | opening | Do it now | Did a step fail? |
+| 8 | 1 | 11:00 | Missions | missions | Panel | 10 missions, an empty grid |
+| 9 | 2 | 12:00 | Missions | missions | M1 | Plan without touching |
+| 10 | 2 | 14:00 | Missions | missions | M2 | The right model |
+| 11 | 2 | 16:00 | Missions | missions | M3 | A subagent |
+| 12 | 2 | 18:00 | Missions | missions | M4 | Your skill |
+| 13 | 2 | 20:00 | Missions | missions | M5 | Your hook |
+| 14 | 2 | 22:00 | Missions | missions | M6 | Until it is green |
+| 15 | 2 | 24:00 | Missions | missions | Panel | What the room is missing (and the bonus M7 to M10) |
+| 16 | 2 | 26:00 | Project 1 | p1 | Panel | What we will build: the Pocketknife |
+| 17 | 4 | 28:00 | Project 1 | p1 | Do it now | Invent your tool |
+| 18 | 2 | 32:00 | Project 1 | p1 | Decide | How many agents, and which model? |
+| 19 | 1 | 34:00 | Project 1 | p1 | Do it now | Plan |
+| 20 | 7 | 35:00 | Project 1 | p1 | Do it now | Release the swarm |
+| 21 | 4 | 42:00 | Project 1 | p1 | Do it now | Why did this tool fail? |
+| 22 | 2 | 46:00 | Project 1 | p1 | Do it now | Gate and cost: which decision won? |
+| 23 | 2 | 48:00 | Project 1 | p1 | Do it now | Use your Pocketknife |
+| 24 | 2 | 50:00 | Project 2 | p2 | Panel | The same cycle, in another repository |
+| 25 | 4 | 52:00 | Project 2 | p2 | Do it now | Read the issue |
+| 26 | 6 | 56:00 | Project 2 | p2 | Decide | How many agents? |
+| 27 | 12 | 62:00 | Project 2 | p2 | Do it now | Put the swarm to work |
+| 28 | 5 | 74:00 | Project 2 | p2 | Do it now | The gate |
+| 29 | 4 | 79:00 | Project 2 | p2 | Do it now | The report and the memory |
+| 30 | 4 | 83:00 | Project 2 | p2 | Do it now | Now on your own: EX-3 |
+| 31 | 2 | 87:00 | Closing | closing | Panel | The day in numbers, and 3 ideas to take home |
+| 32 | 1 | 89:00 | Closing | closing | — | Questions |
 
 Total: 90 min.
 
@@ -69,9 +72,54 @@ Look at the panel:
 
 Clock: you should be here at 1 min.
 
-### 3. Check and join the panel
+### 3. What we will do today
 
-[2:00 → 6:00] 4 min · opening
+[2:00 → 3:00] 1 min · opening
+
+Goal: Give the map of the day before starting.
+
+What to say:
+- There is no theory block: each concept is learned in a 2-minute mission.
+- The two projects are the same cycle: first on a project made for the workshop, then on a real task.
+- Everything stays installed and keeps working after today.
+
+Look at the panel:
+- The panel is still empty: "it fills up as you do each thing".
+
+Clock: you should be here at 2 min.
+
+### 4. How we will work
+
+[3:00 → 4:00] 1 min · opening
+
+Goal: Explain the cycle that repeats in both projects.
+
+What to say:
+- Your job is to decide and to check; the agents’ job is to do.
+- The cost is measured at every step, from the real tokens.
+
+Clock: you should be here at 3 min.
+
+### 5. Your memory learns with you
+
+[4:00 → 5:00] 1 min · opening
+
+Goal: Introduce the memory and explain that it grows with each person’s work.
+
+What to say:
+- They are Markdown files in ~/.agent-memory, with an index: everything stays on your laptop.
+- Each lesson is linked to the project, the task and the files: tomorrow, /task-intake on another issue already finds it.
+- We come back to this window at the end of each project.
+
+Typical failures and the answer:
+- agent-memory-gui does not exist → --check shows step 10; without the app everything else works (MEMORY UNAVAILABLE)
+- The window does not open (Windows without WebView2) → the app opens the same interface in the browser
+
+Clock: you should be here at 4 min.
+
+### 6. Check and join the panel
+
+[5:00 → 9:00] 4 min · opening
 
 Goal: Everyone with the kit checked and registered on the panel.
 
@@ -88,11 +136,11 @@ Typical failures and the answer:
 - E-TEL-02: no verified company email → add it at github.com/settings/emails; the workshop works without it
 - The command does not exist: no setup yet → run the one-liner from the README now and pair with a neighbour while it installs
 
-Clock: you should be here at 2 min.
+Clock: you should be here at 5 min.
 
-### 4. Did a step fail?
+### 7. Did a step fail?
 
-[6:00 → 8:00] 2 min · opening
+[9:00 → 11:00] 2 min · opening
 
 Goal: Fix setup failures without stopping the room.
 
@@ -107,11 +155,11 @@ Typical failures and the answer:
 - Company proxy or network → switch to the event network or a hotspot and run --check again
 - Claude login missing → claude auth login --console
 
-Clock: you should be here at 6 min.
+Clock: you should be here at 9 min.
 
-### 5. 10 missions, an empty grid
+### 8. 10 missions, an empty grid
 
-[8:00 → 9:00] 1 min · missions
+[11:00 → 12:00] 1 min · missions
 
 Goal: Open the missions project and start the room race.
 
@@ -126,11 +174,11 @@ Look at the panel:
 Typical failures and the answer:
 - The missions-project folder does not exist → run --check: step 9 sets it up
 
-Clock: you should be here at 8 min.
+Clock: you should be here at 11 min.
 
-### 6. Plan without touching
+### 9. Plan without touching
 
-[9:00 → 11:00] 2 min · missions
+[12:00 → 14:00] 2 min · missions
 
 Goal: Show that you can think with Claude at no risk.
 
@@ -145,11 +193,11 @@ Typical failures and the answer:
 - "accept edits on" shows instead of plan mode → press Shift+Tab again
 - Claude asks "Would you like to proceed?" → Esc: we do not want to run it
 
-Clock: you should be here at 9 min.
+Clock: you should be here at 12 min.
 
-### 7. The right model
+### 10. The right model
 
-[11:00 → 13:00] 2 min · missions
+[14:00 → 16:00] 2 min · missions
 
 Goal: Choose the model by the task, not by habit.
 
@@ -163,11 +211,11 @@ Look at the panel:
 Typical failures and the answer:
 - It keeps asking for confirmation → Enter on the selected option
 
-Clock: you should be here at 11 min.
+Clock: you should be here at 14 min.
 
-### 8. A subagent
+### 11. A subagent
 
-[13:00 → 15:00] 2 min · missions
+[16:00 → 18:00] 2 min · missions
 
 Goal: Understand the building block of a swarm.
 
@@ -181,11 +229,11 @@ Look at the panel:
 Typical failures and the answer:
 - Claude answers without launching a subagent → ask explicitly: use an Explore subagent
 
-Clock: you should be here at 13 min.
+Clock: you should be here at 16 min.
 
-### 9. Your skill
+### 12. Your skill
 
-[15:00 → 17:00] 2 min · missions
+[18:00 → 20:00] 2 min · missions
 
 Goal: Show that a skill is just a file anyone can write.
 
@@ -199,11 +247,11 @@ Look at the panel:
 Typical failures and the answer:
 - /summary does not exist → check the file .claude/skills/summary/SKILL.md and reopen with claude -c
 
-Clock: you should be here at 15 min.
+Clock: you should be here at 18 min.
 
-### 10. Your hook
+### 13. Your hook
 
-[17:00 → 19:00] 2 min · missions
+[20:00 → 22:00] 2 min · missions
 
 Goal: Understand that hooks automate without asking the model.
 
@@ -219,11 +267,11 @@ Typical failures and the answer:
 - edits.log does not show up → the hook only runs on the next edit: ask for another one
 - The hook went into the kit’s settings.json → ask to move it to .claude/settings.local.json
 
-Clock: you should be here at 17 min.
+Clock: you should be here at 20 min.
 
-### 11. Until it is green
+### 14. Until it is green
 
-[19:00 → 21:00] 2 min · missions
+[22:00 → 24:00] 2 min · missions
 
 Goal: See Claude work on its own with a stop condition.
 
@@ -237,11 +285,11 @@ Look at the panel:
 Typical failures and the answer:
 - The loop does not stop → Esc and say: stop the loop
 
-Clock: you should be here at 19 min.
+Clock: you should be here at 22 min.
 
-### 12. What the room is missing (and the bonus M7 to M10)
+### 15. What the room is missing (and the bonus M7 to M10)
 
-[21:00 → 23:00] 2 min · missions
+[24:00 → 26:00] 2 min · missions
 
 Goal: Close the guided missions and point the bonus ones at the waits.
 
@@ -253,11 +301,11 @@ Look at the panel:
 - Read the blinking mission out loud and ask whoever has it to show their neighbour.
 - If the average coverage passes 70 %: "this room is faster than the rehearsal".
 
-Clock: you should be here at 21 min.
+Clock: you should be here at 24 min.
 
-### 13. What we will build: the Pocketknife
+### 16. What we will build: the Pocketknife
 
-[23:00 → 25:00] 2 min · p1
+[26:00 → 28:00] 2 min · p1
 
 Goal: Introduce the Pocketknife and plant the forecast.
 
@@ -271,11 +319,11 @@ Look at the panel:
 Typical failures and the answer:
 - The canivete-project folder does not exist → --check sets it up in step 9
 
-Clock: you should be here at 23 min.
+Clock: you should be here at 26 min.
 
-### 14. Invent your tool
+### 17. Invent your tool
 
-[25:00 → 29:00] 4 min · p1
+[28:00 → 32:00] 4 min · p1
 
 Goal: Give each person a tool that is only theirs.
 
@@ -290,11 +338,11 @@ Typical failures and the answer:
 - gen.mjs refuses my-tool.json → read the message: it names the field and gives an example
 - No ideas → use the example as it is: it works
 
-Clock: you should be here at 25 min.
+Clock: you should be here at 28 min.
 
-### 15. How many agents, and which model?
+### 18. How many agents, and which model?
 
-[29:00 → 31:00] 2 min · p1
+[32:00 → 34:00] 2 min · p1
 
 Goal: Get the room to split, so the comparison on the panel is rich.
 
@@ -305,11 +353,11 @@ What to say:
 Look at the panel:
 - No points yet: "in 10 minutes we will see who was right".
 
-Clock: you should be here at 29 min.
+Clock: you should be here at 32 min.
 
-### 16. Plan
+### 19. Plan
 
-[31:00 → 32:00] 1 min · p1
+[34:00 → 35:00] 1 min · p1
 
 Goal: Record the decision and the forecast before seeing the result.
 
@@ -323,11 +371,11 @@ Look at the panel:
 Typical failures and the answer:
 - ERROR: plan not found later → run /demo-plan first, in the canivete-project folder
 
-Clock: you should be here at 31 min.
+Clock: you should be here at 34 min.
 
-### 17. Release the swarm
+### 20. Release the swarm
 
-[32:00 → 39:00] 7 min · p1
+[35:00 → 42:00] 7 min · p1
 
 Goal: See a swarm work, and the effect of the room’s decisions.
 
@@ -344,11 +392,11 @@ Typical failures and the answer:
 - It asks for a permission halfway → the project must be trusted: the setup does it; accept and carry on
 - The swarm stopped → run /demo-swarm again: it resumes where it was
 
-Clock: you should be here at 32 min.
+Clock: you should be here at 35 min.
 
-### 18. Why did this tool fail?
+### 21. Why did this tool fail?
 
-[39:00 → 43:00] 4 min · p1
+[42:00 → 46:00] 4 min · p1
 
 Goal: Understand that what the spec does not decide, the agent guesses.
 
@@ -364,11 +412,11 @@ Typical failures and the answer:
 - It goes red again → the rule is ambiguous: write an example with the value
 - Does not know the rule → think like the person who asked for the tool: what is right for an accountant?
 
-Clock: you should be here at 39 min.
+Clock: you should be here at 42 min.
 
-### 19. Gate and cost: which decision won?
+### 22. Gate and cost: which decision won?
 
-[43:00 → 45:00] 2 min · p1
+[46:00 → 48:00] 2 min · p1
 
 Goal: Close the loop: quality and cost, measured.
 
@@ -383,11 +431,11 @@ Look at the panel:
 Typical failures and the answer:
 - GATE: REJECTED → read the reservations; usually it is a red one still to fix
 
-Clock: you should be here at 43 min.
+Clock: you should be here at 46 min.
 
-### 20. Use your Pocketknife
+### 23. Use your Pocketknife
 
-[45:00 → 47:00] 2 min · p1 · CAN SKIP
+[48:00 → 50:00] 2 min · p1 · CAN SKIP
 
 Goal: See the result and trust what was made.
 
@@ -397,11 +445,11 @@ What to say:
 Typical failures and the answer:
 - The page does not open → node server.js must be running in the other terminal
 
-Clock: you should be here at 45 min.
+Clock: you should be here at 48 min.
 
-### 21. The same cycle, in another repository
+### 24. The same cycle, in another repository
 
-[47:00 → 49:00] 2 min · p2
+[50:00 → 52:00] 2 min · p2
 
 Goal: Connect Project 2 to what they already did.
 
@@ -412,11 +460,11 @@ What to say:
 Look at the panel:
 - The funnel is empty: "in 30 minutes we want the whole room at the end".
 
-Clock: you should be here at 47 min.
+Clock: you should be here at 50 min.
 
-### 22. Read the issue
+### 25. Read the issue
 
-[49:00 → 53:00] 4 min · p2
+[52:00 → 56:00] 4 min · p2
 
 Goal: Get everyone a task that has been read.
 
@@ -430,11 +478,11 @@ Look at the panel:
 Typical failures and the answer:
 - Issue not found → run it in the practice-project folder: the path is issues/EX-1.json
 
-Clock: you should be here at 49 min.
+Clock: you should be here at 52 min.
 
-### 23. How many agents?
+### 26. How many agents?
 
-[53:00 → 59:00] 6 min · p2
+[56:00 → 62:00] 6 min · p2
 
 Goal: Decide on the why, not on the number.
 
@@ -448,11 +496,11 @@ Look at the panel:
 Typical failures and the answer:
 - PLAN INVALID → ask the planner to fix it: the message says what is missing
 
-Clock: you should be here at 53 min.
+Clock: you should be here at 56 min.
 
-### 24. Put the swarm to work
+### 27. Put the swarm to work
 
-[59:00 → 71:00] 12 min · p2
+[62:00 → 74:00] 12 min · p2
 
 Goal: See the swarm on a real task, with resume.
 
@@ -467,11 +515,11 @@ Typical failures and the answer:
 - A subtask fails 3 times → read the reason on the dashboard; fix the description and run --retry
 - The dashboard shows nothing → it has to run in the project folder
 
-Clock: you should be here at 59 min.
+Clock: you should be here at 62 min.
 
-### 25. The gate
+### 28. The gate
 
-[71:00 → 76:00] 5 min · p2
+[74:00 → 79:00] 5 min · p2
 
 Goal: Deliver nothing without verification.
 
@@ -485,11 +533,11 @@ Look at the panel:
 Typical failures and the answer:
 - GATE: REJECTED → fix what the reservations say and run /task-gate again
 
-Clock: you should be here at 71 min.
+Clock: you should be here at 74 min.
 
-### 26. The report and the memory
+### 29. The report and the memory
 
-[76:00 → 80:00] 4 min · p2
+[79:00 → 83:00] 4 min · p2
 
 Goal: Close the task and keep what was learned.
 
@@ -503,11 +551,11 @@ Look at the panel:
 Typical failures and the answer:
 - MEMORY UNAVAILABLE → the Agent Memory app is not installed: the rest works; --check shows step 10
 
-Clock: you should be here at 76 min.
+Clock: you should be here at 79 min.
 
-### 27. Now on your own: EX-3
+### 30. Now on your own: EX-3
 
-[80:00 → 87:00] 7 min · p2
+[83:00 → 87:00] 4 min · p2
 
 Goal: Run the cycle without help.
 
@@ -521,9 +569,9 @@ Look at the panel:
 Typical failures and the answer:
 - EX-1 is not finished → carry on with EX-1: EX-3 is optional
 
-Clock: you should be here at 80 min.
+Clock: you should be here at 83 min.
 
-### 28. The day in numbers, and 3 ideas to take home
+### 31. The day in numbers, and 3 ideas to take home
 
 [87:00 → 89:00] 2 min · closing
 
@@ -539,7 +587,7 @@ Look at the panel:
 
 Clock: you should be here at 87 min.
 
-### 29. Questions
+### 32. Questions
 
 [89:00 → 90:00] 1 min · closing
 
