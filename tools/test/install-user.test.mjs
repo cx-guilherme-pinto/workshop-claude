@@ -508,6 +508,10 @@ test('workshop v2: config.json da telemetria (sala, pasta, codigo, painel, domin
     r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
     assert.deepEqual(r.get('painel'), ['on']);
     assert.equal(cfg().participant.name, 'Ana');
+    // after ctl.mjs unregister, a new install of the same workshop keeps the person off the panel
+    writeFileSync(join(tel, 'config.json'), JSON.stringify({ ...cfg(), enabled: false, participant: null, unregistered_at: '2026-10-20T10:00:00.000Z' }));
+    r = run(home, ['instalar', '--node', node, '--kit-src', kit]);
+    assert.deepEqual([r.get('painel')[0], cfg().unregistered_at], ['off', '2026-10-20T10:00:00.000Z']);
     // another workshop code: the registration is for another panel and is dropped
     writeFileSync(join(kit, 'repos.conf'), 'WORKSHOP_VERSION=v9.9.9-teste\nWORKSHOP_CODE=porto-2\nPANEL_URL=https://panel.example\n');
     r = run(home, ['instalar', '--node', node, '--kit-src', kit]);

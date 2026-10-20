@@ -2537,12 +2537,14 @@ ws_s8_register() {
   ws_s8_register_result "$rc" "$cfg"
 }
 # No --check e no --doctor: sem registo (config.json sem "participant"), um aviso com o comando. So com a config em
-# vigor (depois do workshop nao ha nada a pedir).
+# vigor (depois do workshop nao ha nada a pedir) e sem o unregister da pessoa.
 ws_s8_register_check() {
   local cfg="$WS_HOME/telemetry/config.json"
   [ "${WS_MODE:-}" = install ] && return 0
   ws_part_kit && [ -f "$cfg" ] && ws_tel_active "$cfg" || return 0
   [ -n "$(ws_tel_participant "$cfg")" ] && return 0
+  # quem saiu do painel (ctl.mjs unregister) escolheu nao enviar: nada a pedir
+  [ -n "$(ws_json_field "$cfg" unregistered_at)" ] && { ws_log "panel: left the panel (unregister)"; return 0; }
   ws_warn E-TEL-04 "$(ws_s8_register_cmd)"
 }
 # A config em vigor: expira no fim do dia a seguir ao workshop (o kit deixa de gravar e de enviar). 0 = em vigor

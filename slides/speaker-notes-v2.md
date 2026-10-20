@@ -459,6 +459,7 @@ O que dizer:
 
 Olha para o painel:
 - O funil está vazio: "daqui a 30 minutos queremos a sala toda no fim".
+- Quem vai trabalhar no seu repositório e prefere que nada saia do portátil: "o unregister para os envios; a caderneta fica, e o register --again volta a ligar".
 
 Relógio: deves estar aqui aos 50 min.
 

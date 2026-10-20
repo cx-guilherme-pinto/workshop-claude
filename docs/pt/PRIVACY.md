@@ -15,6 +15,7 @@ O kit tem uma **caderneta de missões** que vive só no teu computador e um **pa
 - **Os teus comandos:**
   - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` mostra o teu registo;
   - `ctl.mjs register` volta a registar;
+  - `ctl.mjs unregister` deixa de enviar o que quer que seja ao painel, por exemplo no fim do Projeto 1, antes de trabalhares no teu repositório. Os eventos que ainda estavam à espera de sair são apagados; a caderneta de missões e os teus dados locais ficam. Voltar a correr o setup não te põe de volta: só o `ctl.mjs register --again`;
   - `ctl.mjs show` mostra os últimos 20 eventos, exatamente como saem do teu computador.
 - **O scope de que precisa:** o login do GitHub do setup pede o scope `user:email`, para o painel poder ver os teus emails verificados.
 - **A caderneta de missões** (`/missions` e a statusline) funciona igual, com ou sem registo.

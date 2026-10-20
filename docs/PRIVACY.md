@@ -15,6 +15,7 @@ The kit has a **mission book** that lives only on your computer, and a **live pa
 - **Your commands:**
   - `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` shows your registration;
   - `ctl.mjs register` registers again;
+  - `ctl.mjs unregister` stops sending anything to the panel, for example at the end of Project 1, before working in your own repository. The events still waiting to leave are deleted; your mission book and your local data stay. Running the setup again does not put you back: only `ctl.mjs register --again` does;
   - `ctl.mjs show` prints the last 20 events, exactly as they leave your computer.
 - **The scope it needs:** the GitHub login of the setup asks for the `user:email` scope, so that the panel can see your verified emails.
 - **The mission book** (`/missions` and the statusline) works the same, registered or not.

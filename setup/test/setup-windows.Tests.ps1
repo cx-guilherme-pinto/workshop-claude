@@ -4004,6 +4004,7 @@ Describe 'painel do workshop (passos 6 e 8, D-34) e projeto das missoes (passo 9
       @{ Name = 'config antiga com sala = o comando sem sala'; Cfg = '{"v":1,"room":"B"}'; Mode = 'doctor'; Want = 'E-TEL-04|node "$env:USERPROFILE\.workshop-claude\kit\telemetry\ctl.mjs" register' },
       @{ Name = 'registado = nada'; Cfg = '{"v":1,"participant":{"p":"0123456789abcdef0123456789abcdef","name":"x"}}'; Mode = 'check'; Want = '' },
       @{ Name = 'config expirada = nada'; Cfg = '{"v":1,"expires_at":"2020-01-01T00:00:00.000Z"}'; Mode = 'check'; Want = '' },
+      @{ Name = 'saiu do painel (unregister) = nada'; Cfg = '{"v":1,"expires_at":"2099-01-01T00:00:00.000Z","participant":null,"unregistered_at":"2026-10-20T10:00:00.000Z"}'; Mode = 'check'; Want = '' },
       @{ Name = 'o install nao usa o aviso do -Check'; Cfg = '{"v":1}'; Mode = 'install'; Want = '' }
     ) {
       $script:Mode = $Mode

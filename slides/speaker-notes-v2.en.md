@@ -459,6 +459,7 @@ What to say:
 
 Look at the panel:
 - The funnel is empty: "in 30 minutes we want the whole room at the end".
+- Whoever will work in their own repository and prefers that nothing leaves the laptop: "unregister stops the sending; your mission book stays, and register --again turns it back on".
 
 Clock: you should be here at 50 min.
 

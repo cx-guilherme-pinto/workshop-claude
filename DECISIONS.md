@@ -662,3 +662,9 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - "A tua memória aprende contigo" (Faz agora, 1 min): abrir a app com `agent-memory-gui` e explicar quando lê (`/demo-plan`, `/task-intake`, `/task-plan`) e quando guarda (`/demo-cost`, `/task-report`, `/memory`);
   - os 3 minutos saem da EX-3 (de 7 para 4), que é opcional por natureza; a abertura passa a 11 min e o Projeto 2 a 37;
   - os dois Conceitos seguidos fogem à regra "um conceito-flash é sempre seguido de uma ação": aceite pelo organizador, porque o segundo é seguido da app de memória (Faz agora).
+- **Sair do painel (pedido do organizador, 20 out.: "um comando para unregister, só para o fim do Projeto 1; não perde os dados, só garante que não envia mais nada"):**
+  - `ctl.mjs unregister` apaga a credencial e os eventos que ainda esperavam na fila, e grava `unregistered_at` no `config.json`. A caderneta local (`local.jsonl`, `missions.json`, `sent.jsonl`) fica, e as missões e o `/missions` continuam a funcionar;
+  - depois disso, os hooks gravam só no portátil e o `send.mjs` não envia nada (não há credencial). O que o painel já tem apaga-se à meia-noite, como tudo;
+  - o `ctl.mjs register` sem `--again` recusa-se (código 6). O setup corre-o sem argumentos no passo 8, por isso voltar a instalar não põe a pessoa de volta; o `install-user` mantém o `unregistered_at` numa reinstalação do mesmo workshop, e o `--check` deixa de pedir o registo (E-TEL-04);
+  - `ctl.mjs register --again` volta a registar;
+  - o comando aparece como opcional no slide "O mesmo ciclo, noutro repositório" (o início do Projeto 2, para quem vai trabalhar no seu repositório) e no `PRIVACY.md`.

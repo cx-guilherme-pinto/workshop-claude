@@ -3484,10 +3484,12 @@ function Invoke-WsStep8Register {
 
 function Test-WsStep8Register {
   # No -Check e no -Doctor: sem registo (config.json sem "participant"), um aviso com o comando. So com a config em
-  # vigor (depois do workshop nao ha nada a pedir).
+  # vigor (depois do workshop nao ha nada a pedir) e sem o unregister da pessoa.
   if ($script:Mode -eq 'install' -or -not (Test-WsTelemetryKit)) { return }
   $cfg = Read-WsTelemetryConfig
   if (-not $cfg -or -not (Test-WsTelActive $cfg) -or (Get-WsTelParticipant $cfg)) { return }
+  # quem saiu do painel (ctl.mjs unregister) escolheu nao enviar: nada a pedir
+  if ($cfg.PSObject.Properties['unregistered_at'] -and $cfg.unregistered_at) { Write-WsLog 'panel: left the panel (unregister)'; return }
   Set-WsWarn 'E-TEL-04' (Get-WsStep8RegisterCmd)
 }
 

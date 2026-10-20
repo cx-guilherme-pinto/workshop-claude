@@ -547,3 +547,46 @@ test('ctl.mjs register: the account checked on the laptop; only the name and the
     rmSync(data, { recursive: true, force: true });
   }
 });
+
+test('ctl.mjs unregister: nothing more is sent, the local book stays; register needs --again (the setup never brings the person back)', async () => {
+  const { ctl } = await import('../../telemetry/ctl.mjs');
+  const data = mkdtempSync(join(tmpdir(), 'ws-unreg-'));
+  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
+  const t = await telemetryHome(srv.url);
+  const out = [];
+  const print = (m) => out.push(m);
+  try {
+    const cfg0 = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    writeFileSync(t.P.config, JSON.stringify({ ...cfg0, email_domain: 'checkmarx.com' }));
+    assert.deepEqual(record('mission_done', { mission: 'M1' }, { P: t.P }), { recorded: true, queued: true });
+    queue(t.P, [ev(1, 'mission_done', 2, { mission: 'M2' })]);
+    assert.equal(await ctl(['unregister'], { P: t.P, print }), 0);
+    assert.match(out.at(-1), /register --again/);
+    const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    assert.deepEqual([c.enabled, c.participant], [false, null]);
+    assert.match(c.unregistered_at, /^\d{4}-/);
+    assert.ok(!existsSync(t.P.queue) && !existsSync(t.P.sending), 'the events still waiting are deleted');
+    const before = readLines(t.P.local).length;
+    assert.ok(before >= 1, 'the local book stays');
+    // afterwards: recorded locally, never queued, never sent
+    assert.deepEqual(record('mission_done', { mission: 'M3' }, { P: t.P }), { recorded: true, queued: false });
+    assert.equal(readLines(t.P.local).length, before + 1);
+    assert.equal((await sendQueue({ P: t.P })).sent, 0);
+    // register without --again (what the setup runs): refused, nothing leaves the laptop
+    const sent = [];
+    const spy = (u, o) => (sent.push(u), fetch(u, o));
+    const marta = { id: 7, name: 'Marta Reis', emails: [{ email: 'marta@checkmarx.com', verified: true }] };
+    assert.equal(await ctl(['register'], { P: t.P, print, fetchImpl: spy, account: () => marta }), 6);
+    assert.equal(sent.length, 0);
+    await ctl(['status'], { P: t.P, print });
+    assert.ok(out.some((l) => /unregister/.test(l)), 'status says the person left the panel');
+    // --again: back on the panel, and the flag is gone
+    assert.equal(await ctl(['register', '--again'], { P: t.P, print, fetchImpl: spy, account: () => marta }), 0);
+    const c2 = JSON.parse(readFileSync(t.P.config, 'utf8'));
+    assert.ok(c2.participant?.p && !('unregistered_at' in c2));
+  } finally {
+    await srv.close();
+    rmSync(t.base, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});

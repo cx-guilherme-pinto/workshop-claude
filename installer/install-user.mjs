@@ -136,6 +136,8 @@ export function telemetryConfig(flags, prev, { conf = {}, versao, lingua, home, 
   const panel = val('PANEL_URL') || '';
   // um registo de outro workshop ou de outro painel nao serve: fica para refazer
   const participant = prev?.participant?.p && prev.workshop === workshop && prev.panel_url === panel ? prev.participant : null;
+  // quem saiu do painel (ctl.mjs unregister) continua fora numa nova instalacao do mesmo workshop
+  const left = prev?.unregistered_at && prev.workshop === workshop && prev.panel_url === panel ? prev.unregistered_at : null;
   return {
     v: 1,
     enabled: !!participant,
@@ -147,6 +149,7 @@ export function telemetryConfig(flags, prev, { conf = {}, versao, lingua, home, 
     projects_dir: fwd(typeof flags['projects-dir'] === 'string' ? resolve(flags['projects-dir']) : prev?.projects_dir || join(home, 'workshop-claude')),
     expires_at: telemetryExpiry(val('WORKSHOP_DATE'), prev, now),
     participant,
+    ...(left && !participant ? { unregistered_at: left } : {}),
     created_at: prev?.created_at ?? now.toISOString(),
   };
 }

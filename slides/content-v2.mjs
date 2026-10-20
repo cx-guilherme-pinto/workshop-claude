@@ -407,11 +407,14 @@ export const SLIDES = [
     titulo: 'O mesmo ciclo, noutro repositório',
     pergunta: 'O que muda quando a tarefa é a sério?',
     apoio: 'intake → plan → swarm → gate → report → memória: a mesma orquestração, agora com as skills /task-*.',
-    comandos: [{ rotulo: 'Terminal 3 · projeto de treino', cmd: TREINO }],
+    comandos: [
+      { rotulo: 'Terminal 3 · projeto de treino', cmd: TREINO },
+      { rotulo: 'Opcional · deixar de enviar ao painel', cmd: 'cd "$HOME/.workshop-claude/kit/telemetry"\nnode ctl.mjs unregister' },
+    ],
     notas: {
       objetivo: 'Ligar o Projeto 2 ao que já fizeram.',
       dizer: ['O plan é o /demo-plan, o swarm é o /demo-swarm, o gate é o /demo-review: a diferença é que a tarefa vem de uma issue.', 'O caminho por defeito é a Biblioteca Municipal, sem login; quem tiver Jira ou GitHub a funcionar pode usar uma issue sua.'],
-      painel: ['O funil está vazio: "daqui a 30 minutos queremos a sala toda no fim".'],
+      painel: ['O funil está vazio: "daqui a 30 minutos queremos a sala toda no fim".', 'Quem vai trabalhar no seu repositório e prefere que nada saia do portátil: "o unregister para os envios; a caderneta fica, e o register --again volta a ligar".'],
       falhas: [],
     },
   },

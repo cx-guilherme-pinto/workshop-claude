@@ -396,11 +396,14 @@ export const SLIDES = [
     titulo: 'The same cycle, in another repository',
     pergunta: 'What changes when the task is real?',
     apoio: 'intake → plan → swarm → gate → report → memory: the same orchestration, now with the /task-* skills.',
-    comandos: [{ rotulo: 'Terminal 3 · practice project', cmd: PRACTICE }],
+    comandos: [
+      { rotulo: 'Terminal 3 · practice project', cmd: PRACTICE },
+      { rotulo: 'Optional · stop sending to the panel', cmd: 'cd "$HOME/.workshop-claude/kit/telemetry"\nnode ctl.mjs unregister' },
+    ],
     notas: {
       objetivo: 'Connect Project 2 to what they already did.',
       dizer: ['The plan is /demo-plan, the swarm is /demo-swarm, the gate is /demo-review: the difference is that the task comes from an issue.', 'The default path is the Municipal Library, with no login; whoever has Jira or GitHub working can use their own issue.'],
-      painel: ['The funnel is empty: "in 30 minutes we want the whole room at the end".'],
+      painel: ['The funnel is empty: "in 30 minutes we want the whole room at the end".', 'Whoever will work in their own repository and prefers that nothing leaves the laptop: "unregister stops the sending; your mission book stays, and register --again turns it back on".'],
       falhas: [],
     },
   },

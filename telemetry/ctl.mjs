@@ -2,6 +2,8 @@
 // The workshop panel on this computer (docs/pt/WORKSHOP-V2-SPEC.md, section 6; D-34):
 //
 //   node ~/.workshop-claude/kit/telemetry/ctl.mjs register   registers you on the panel's leaderboard
+//   node ctl.mjs unregister                                   stops sending anything to the panel (the local data stays)
+//   node ctl.mjs register --again                             back on the panel after an unregister
 //   node ctl.mjs status                                       registration, workshop, events
 //   node ctl.mjs show                                         the last 20 events, exactly as they leave
 //
@@ -12,6 +14,7 @@
 // (so the same account keeps its place). The panel answers with a participant id and a credential (an HMAC signature),
 // kept in config.json: that signature is all that goes with the events afterwards. The mission book works without it.
 import { spawnSync } from 'node:child_process';
+import { existsSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
@@ -34,7 +37,9 @@ const T = textos(
       contagem: 'Eventos na caderneta local: {local} · à espera de envio: {fila}',
       nada: 'Ainda não há eventos enviados.',
       mostrar: 'Os últimos {n} eventos, exatamente como saem do teu computador:',
-      uso: 'Uso: ctl.mjs register | status | show',
+      saiu: 'Saíste do painel: o kit não envia mais nada. A caderneta de missões e os teus dados locais ficam. Para voltar: ctl.mjs register --again',
+      fora: 'Saíste do painel em {data} (unregister): nada é enviado. Para voltar: ctl.mjs register --again',
+      uso: 'Uso: ctl.mjs register [--again] | unregister | status | show',
     },
     en: {
       semConfig: 'The workshop telemetry is not installed (run the kit setup).',
@@ -50,7 +55,9 @@ const T = textos(
       contagem: 'Events in the local book: {local} · waiting to be sent: {fila}',
       nada: 'No events sent yet.',
       mostrar: 'The last {n} events, exactly as they leave your computer:',
-      uso: 'Usage: ctl.mjs register | status | show',
+      saiu: 'You left the panel: the kit sends nothing more. Your mission book and your local data stay. To come back: ctl.mjs register --again',
+      fora: 'You left the panel on {data} (unregister): nothing is sent. To come back: ctl.mjs register --again',
+      uso: 'Usage: ctl.mjs register [--again] | unregister | status | show',
     },
   },
   lingua(),
@@ -86,11 +93,13 @@ export function githubAccount(gh = runGh) {
   return { id: user.id, name: user.name || user.login, emails: Array.isArray(emails) ? emails : [] };
 }
 
-// Exit codes: 0 registered · 3 not a company account · 4 gh missing/without the email scope · 5 network. An old
-// room argument (A|B, before D-34 dropped the rooms) is accepted and ignored.
-export async function register(_room, { P = paths(), print = console.log, fetchImpl = fetch, account = () => githubAccount(), now = new Date() } = {}) {
+// Exit codes: 0 registered · 3 not a company account · 4 gh missing/without the email scope · 5 network · 6 the
+// person left the panel (unregister) and did not say --again: the setup's own register (step 8) never brings them
+// back by itself. An old room argument (A|B, before D-34 dropped the rooms) is accepted and ignored.
+export async function register(_room, { P = paths(), print = console.log, fetchImpl = fetch, account = () => githubAccount(), now = new Date(), again = false } = {}) {
   const cfg = readConfig(P);
   if (!cfg) return print(T.semConfig), 1;
+  if (cfg.unregistered_at && !again) return print(fmt(T.fora, { data: day(cfg.unregistered_at) })), 6;
   if (!active(cfg, now)) return print(fmt(T.expirou, { data: day(cfg.expires_at) })), 1;
   if (!cfg.panel_url) return print(T.semPainel), 5;
   const acc = account();
@@ -113,12 +122,26 @@ export async function register(_room, { P = paths(), print = console.log, fetchI
   }
   const j = await r.json().catch(() => ({}));
   if (r.status === 200 && /^[0-9a-f]{32}$/.test(j.p || '') && j.credential) {
-    const { room: _old, ...rest } = cfg;
+    const { room: _old, unregistered_at: _left, ...rest } = cfg;
     writeJson(P.config, { ...rest, enabled: true, participant: { p: j.p, credential: j.credential, name: j.name, registered_at: now.toISOString() } });
     record('join', { lang: lingua(), os: process.platform === 'win32' ? 'win' : 'mac' }, { P, now });
     return print(fmt(T.registado, { nome: j.name })), 0;
   }
   return print(fmt(T.rede, { motivo: `HTTP ${r.status}` })), 5;
+}
+
+// Leaves the panel (D-34, the organizer's request: "so that nothing more is sent, for safety"): the credential and
+// the events still waiting to leave are deleted, and the config says so (unregistered_at), so that neither the hooks
+// nor a new run of the setup send or register again. The local book (local.jsonl, missions.json, sent.jsonl) stays:
+// the missions and /missions keep working. What the panel already has is deleted at midnight like everything else.
+export async function unregister({ P = paths(), print = console.log, now = new Date() } = {}) {
+  const cfg = readConfig(P);
+  if (!cfg) return print(T.semConfig), 1;
+  // a sender running right now finishes its batch first (at most a few seconds)
+  for (let i = 0; i < 50 && existsSync(P.sendLock); i++) await new Promise((ok) => setTimeout(ok, 100));
+  writeJson(P.config, { ...cfg, enabled: false, participant: null, unregistered_at: now.toISOString() });
+  for (const f of [P.queue, P.sending]) rmSync(f, { force: true });
+  return print(T.saiu), 0;
 }
 
 export async function ctl(args, { P = paths(), print = console.log, now = new Date(), ...rest } = {}) {
@@ -127,10 +150,12 @@ export async function ctl(args, { P = paths(), print = console.log, now = new Da
   if (!cfg) return print(T.semConfig), 1;
   switch (cmd) {
     case 'register':
-      return register(arg, { P, print, now, ...rest });
+      return register(arg === '--again' ? undefined : arg, { P, print, now, again: args.includes('--again'), ...rest });
+    case 'unregister':
+      return unregister({ P, print, now });
     case 'status': {
       if (!active(cfg, now)) print(fmt(T.expirou, { data: day(cfg.expires_at) }));
-      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name }) : T.naoRegistado);
+      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name }) : cfg.unregistered_at ? fmt(T.fora, { data: day(cfg.unregistered_at) }) : T.naoRegistado);
       print(fmt(T.workshop, { ws: cfg.workshop || '-', data: day(cfg.expires_at) }));
       print(fmt(T.contagem, { local: readLines(P.local).length, fila: readLines(P.queue).length + readLines(P.sending).length }));
       return 0;

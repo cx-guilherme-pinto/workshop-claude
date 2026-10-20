@@ -175,8 +175,21 @@ function icone(s, n, x, y, d, cor = COR.accent, obj = 'icon') {
 const numero = (s, n, x, y, d, obj) => s.addText(String(n), { shape: pres.shapes.OVAL, x, y, w: d, h: d, fill: { color: COR.accent }, line: { color: COR.accent, width: 0 }, margin: 0, align: 'center', valign: 'middle', fontFace: FONTE_TITULO, fontSize: 24, bold: true, color: COR.accentInk, objectName: obj });
 // Linhas que um texto ocupa numa largura (Arial: ~0,0078" por caracter e por ponto; Courier: 0,0083").
 const linhas = (t, w, fs, k = 0.0078) => String(t).split('\n').reduce((n, l) => n + Math.max(1, Math.ceil((l.length * fs * k) / w)), 0);
-// No codigo uma linha longa parte nos espacos e gasta mais do que a conta certa: mais uma linha por cada partida.
-const linhasCodigo = (t, w, fs) => String(t).split('\n').reduce((n, l) => { const k = Math.ceil((l.length * fs * 0.0083) / w); return n + (k <= 1 ? 1 : k + 1); }, 0);
+// No codigo uma linha longa parte nos espacos (a palavra que nao cabe desce inteira): simula-se a quebra por palavras.
+const linhasCodigo = (t, w, fs) => {
+  const max = Math.max(8, Math.floor(w / (fs * 0.0083)));
+  return String(t).split('\n').reduce((n, l) => {
+    let k = 1;
+    let col = 0;
+    for (const p of l.split(' ')) {
+      const len = p.length + (col ? 1 : 0);
+      if (col + len <= max) col += len;
+      else if (p.length > max) { k += Math.ceil((col + len) / max) - 1; col = (col + len) % max; }
+      else { k++; col = p.length; }
+    }
+    return n + k;
+  }, 0);
+};
 
 // A etiqueta do topo: "Faz agora · 4 min", "Missão M3 · 2 min"… e o bloco a direita.
 function etiqueta(s, d) {
@@ -377,16 +390,18 @@ const R = {
     s.addText(d.titulo, { placeholder: 'title' });
     const p = sub(d.pergunta);
     const hp = linhas(p, W - 2 * M - 2.2, 48, 0.0105) * 0.8 + 0.2;
-    texto(s, p, { x: M, y: 2.9, w: W - 2 * M - 2.2, h: hp, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: 'question' });
+    // um titulo de duas linhas empurra a pergunta para baixo
+    const y0 = linhas(d.titulo, W - 2 * M, 44, 0.0072) > 1 ? 3.1 : 2.55;
+    texto(s, p, { x: M, y: y0, w: W - 2 * M - 2.2, h: hp, fontFace: FONTE_TITULO, fontSize: 48, bold: true, objectName: 'question' });
     // a seta grande para o painel, a direita
-    icone(s, 'arrow-right', W - M - 1.4, 2.95, 1.4, COR.laranja, 'panel-arrow');
-    texto(s, T.painelSeta, { x: W - M - 2.2, y: 4.45, w: 2.2, h: 0.9, fontSize: 24, bold: true, color: COR.laranja, align: 'center', objectName: 'panel-arrow-label' });
-    let y = 2.9 + hp + 0.3;
+    icone(s, 'arrow-right', W - M - 1.4, y0 + 0.05, 1.4, COR.laranja, 'panel-arrow');
+    texto(s, T.painelSeta, { x: W - M - 2.2, y: y0 + 1.55, w: 2.2, h: 0.9, fontSize: 24, bold: true, color: COR.laranja, align: 'center', objectName: 'panel-arrow-label' });
+    let y = y0 + hp + 0.2;
     if (d.apoio) {
       const a = sub(d.apoio);
       const ha = linhas(a, W - 2 * M - 2.2, 28, 0.0085) * 0.47 + 0.1;
       texto(s, a, { x: M, y, w: W - 2 * M - 2.2, h: ha, fontSize: 28, color: COR.muted, objectName: 'support' });
-      y += ha + 0.35;
+      y += ha + 0.25;
     }
     if (d.ideias) {
       texto(s, T.ideias, { x: M, y, w: 8, h: 0.55, fontFace: FONTE_TITULO, fontSize: 30, bold: true, objectName: 'ideas-head' });
