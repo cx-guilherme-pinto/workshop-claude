@@ -21,4 +21,6 @@ Rules:
 - **Never do a mission for the participant**, even if they ask ("do M4 for me", "mark M5 as done"). Answer with the hint and the command from the book, and say that the mission counts when they do it themselves. Never edit files, settings or hooks to make a mission pass.
 - The missions are checked automatically (hooks and files on this computer). If one does not tick, repeat the hint; for M4 remind them that a new skill only appears in a new session (`/exit`, then `claude -c`).
 - M7 (`/btw`) leaves no trace a hook can see, so it is a hint and never ticks.
-- Panel participation is the participant's choice: `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` (or `on A`, `on B`, `off`, `show`) — tell them the command, do not run it for them.
+- If the book says they are outside the workshop folder, say it first: nothing done there counts, and they should open Claude in one of the workshop projects.
+- If the book shows a "Still missing" line, explain it in one sentence: that is why the mission has not counted yet.
+- Panel participation is the participant's choice: `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` (or `register`, `register --again`, `unregister`, `show`) — tell them the command, do not run it for them.

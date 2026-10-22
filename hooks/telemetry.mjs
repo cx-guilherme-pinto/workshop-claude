@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
-import { active, family, paths, readConfig, readJson, record, scope, writeJson } from '../telemetry/lib.mjs';
+import { active, family, kickSender, paths, pending, readConfig, readJson, record, scope, writeJson } from '../telemetry/lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LIMIT_MS = 1000;
@@ -169,6 +169,8 @@ export function handle(input, { env = process.env, P = paths(), now = new Date()
   const none = decide ? { novos: [], check: 0 } : [];
   const cfg = readConfig(P);
   if (!active(cfg, now)) return none;
+  // the queue never waits for a new event: whatever is there leaves at the next hook (at most once every 2 s)
+  if (pending(P)) kickSender(P, cfg, env);
   const sc = scope(env.CLAUDE_PROJECT_DIR || input?.cwd, cfg);
   if (!sc) return none;
   reRegister(P, cfg, env, now.getTime());

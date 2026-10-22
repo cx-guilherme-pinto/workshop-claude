@@ -44,6 +44,7 @@ export function paths(dir = telemetryDir()) {
     checkStamp: join(dir, 'check.stamp'),
     checkDelayed: join(dir, 'check.delayed'),
     registerStamp: join(dir, 'register.stamp'),
+    retryAt: join(dir, 'send.retry-at'),
     sending: join(dir, 'queue.sending.jsonl'),
     sent: join(dir, 'sent.jsonl'),
     sendLock: join(dir, 'send.lock'),
@@ -215,6 +216,19 @@ export function backfill({ P = paths(), now = new Date() } = {}) {
   return n;
 }
 
+// Something waiting to leave (the hooks call kickSender on every run, so the last event before the person closes
+// Claude, or what waited while offline, leaves at the next hook, not only at the next new event).
+export function pending(P = paths()) {
+  const size = (f) => {
+    try {
+      return statSync(f).size;
+    } catch {
+      return 0;
+    }
+  };
+  return size(P.queue) + size(P.sending) > 0;
+}
+
 // Starts send.mjs in the background, at most once every 2 s (spec 6.4). With HTTPS_PROXY in the environment (the
 // setup puts the company proxy in Claude Code's env, which the hooks inherit), Node's fetch uses it
 // (NODE_USE_ENV_PROXY); the company certificate comes from NODE_EXTRA_CA_CERTS or ~/.workshop-claude/ca.pem.
@@ -224,6 +238,12 @@ export function kickSender(P = paths(), cfg = readConfig(P), env = process.env) 
     if (Date.now() - statSync(P.sendStamp).mtimeMs < 2000) return false;
   } catch {
     /* first time */
+  }
+  // the panel said 429 with Retry-After: not before that time
+  try {
+    if (Date.now() < Number(readFileSync(P.retryAt, 'utf8'))) return false;
+  } catch {
+    /* no wait asked */
   }
   try {
     writeFileSync(P.sendStamp, '');

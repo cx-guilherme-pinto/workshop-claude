@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 import { lingua } from '../hooks/lib/language.mjs';
-import { active, homeDir, paths, readConfig, readJson, readLines, record, writeJson } from '../telemetry/lib.mjs';
+import { active, homeDir, paths, readConfig, readJson, readLines, record, scope, writeJson } from '../telemetry/lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const RULES = JSON.parse(readFileSync(join(HERE, 'rules.json'), 'utf8'));
@@ -193,18 +193,72 @@ export function check({ P = paths(), env = process.env, now = new Date(), runTes
   }
 }
 
+// Why a mission has not counted yet: one short sentence per condition that does not hold (for /missions).
+const WHY = {
+  pt: {
+    'feature:plan_mode': 'ainda não vi uma mensagem enviada em plan mode (Shift+Tab) num projeto do workshop',
+    'feature:model_switch': 'ainda não vi a troca para o Haiku (/model haiku, e confirmar)',
+    'feature:subagent': 'ainda não vi um subagente teu a arrancar (pede ao Claude para usar um subagente)',
+    'feature:skill_user': 'ainda não vi a tua skill a ser usada: /exit, claude -c e depois /<nome-da-skill>',
+    'feature:loop': 'ainda não vi o /loop',
+    'feature:headless': 'ainda não vi uma sessão claude -p na pasta do projeto',
+    'feature:memory_write': 'ainda não vi o Claude a guardar uma memória (memory_add)',
+    'file:skill': 'não encontro .claude/skills/<nome>/SKILL.md com name e description',
+    'file:user_hook': 'o teu hook PostToolUse ainda não está no .claude/settings.local.json',
+    'file:edits_log': 'o edits.log ainda está vazio: pede ao Claude uma edição',
+    'file:user_statusline': 'a tua statusLine ainda não está no .claude/settings.local.json',
+    'file:summary_txt': 'o resumo.txt (ou summary.txt) ainda não existe ou está vazio',
+    'file:memory_note': 'ainda não há uma nota da app de memória para o missions-project',
+    'tests:green_after_loop': 'os testes ainda não passaram todos depois do /loop (npm test)',
+  },
+  en: {
+    'feature:plan_mode': 'I have not seen a message sent in plan mode (Shift+Tab) in a workshop project yet',
+    'feature:model_switch': 'I have not seen the switch to Haiku yet (/model haiku, then confirm)',
+    'feature:subagent': 'I have not seen a subagent of yours start yet (ask Claude to use a subagent)',
+    'feature:skill_user': 'I have not seen your skill used yet: /exit, claude -c, then /<skill-name>',
+    'feature:loop': 'I have not seen /loop yet',
+    'feature:headless': 'I have not seen a claude -p session in the project folder yet',
+    'feature:memory_write': 'I have not seen Claude save a memory yet (memory_add)',
+    'file:skill': 'I cannot find .claude/skills/<name>/SKILL.md with a name and a description',
+    'file:user_hook': 'your PostToolUse hook is not in .claude/settings.local.json yet',
+    'file:edits_log': 'edits.log is still empty: ask Claude for an edit',
+    'file:user_statusline': 'your statusLine is not in .claude/settings.local.json yet',
+    'file:summary_txt': 'summary.txt (or resumo.txt) does not exist yet or is empty',
+    'file:memory_note': 'there is no note of the memory app for missions-project yet',
+    'tests:green_after_loop': 'the tests are not all green after /loop yet (npm test)',
+  },
+};
+function whyKey(c, ctx) {
+  if (c.feature) return `feature:${c.feature}`;
+  if (c.tests) return `tests:${c.tests}`;
+  if (c.file === 'user_hook_log') return ctx.projs.some((p) => userHook(localSettings(p))) ? 'file:edits_log' : 'file:user_hook';
+  return `file:${c.file}`;
+}
+export function missing(id, ctx, l = lingua()) {
+  const m = RULES.missions.find((x) => x.id === id);
+  if (!m || m.validated === false) return [];
+  const w = WHY[l] || WHY.en;
+  const quick = { ...ctx, runTests: null };
+  const fails = (m.all || m.any || []).filter((c) => !holds(c, quick)).map((c) => w[whyKey(c, ctx)]).filter(Boolean);
+  if (m.any) return fails.length === m.any.length ? [fails.join(` — ${(T[l] || T.en).ou} — `)] : [];
+  return fails;
+}
+
 export const VALIDATED = RULES.missions.filter((m) => m.validated !== false).map((m) => m.id);
 
 const T = {
-  pt: { titulo: 'Missões', proxima: 'Próxima', dica: 'dica, não é validada', todas: 'Fizeste todas as missões validadas. Experimenta a M7 numa espera.', semConfig: 'A caderneta de missões não está instalada (corre o setup do kit).', expirou: 'A caderneta expirou: o workshop já acabou.' },
-  en: { titulo: 'Missions', proxima: 'Next', dica: 'a hint, not validated', todas: 'You did every validated mission. Try M7 while you wait.', semConfig: 'The mission book is not installed (run the kit setup).', expirou: 'The mission book has expired: the workshop is over.' },
+  pt: { fora: 'Estás fora da pasta do workshop ({pasta}): o que fazes aqui não conta para as missões. Abre o Claude num dos projetos dessa pasta.', falta: 'Ainda falta', ou: 'ou', titulo: 'Missões', proxima: 'Próxima', dica: 'dica, não é validada', todas: 'Fizeste todas as missões validadas. Experimenta a M7 numa espera.', semConfig: 'A caderneta de missões não está instalada (corre o setup do kit).', expirou: 'A caderneta expirou: o workshop já acabou.' },
+  en: { fora: 'You are outside the workshop folder ({pasta}): what you do here does not count for the missions. Open Claude in one of the projects in that folder.', falta: 'Still missing', ou: 'or', titulo: 'Missions', proxima: 'Next', dica: 'a hint, not validated', todas: 'You did every validated mission. Try M7 while you wait.', semConfig: 'The mission book is not installed (run the kit setup).', expirou: 'The mission book has expired: the workshop is over.' },
 };
 
-export function render(book, l = lingua()) {
+// `extra` (from the status command): outside = the projects folder when Claude is outside it; why(id) = what is
+// still missing for a mission.
+export function render(book, l = lingua(), extra = {}) {
   const t = T[l] || T.en;
   const done = book?.done || {};
   const n = VALIDATED.filter((id) => done[id]).length;
   const out = [`${t.titulo} ${n}/${VALIDATED.length}`];
+  if (extra.outside) out.unshift(t.fora.replace('{pasta}', extra.outside), '');
   for (const m of RULES.missions) {
     const mark = m.validated === false ? '·' : done[m.id] ? '✔' : '○';
     out.push(`  ${mark} ${m.id.padEnd(3)} ${m.title[l] || m.title.en}${m.validated === false ? ` (${t.dica})` : ''}`);
@@ -212,6 +266,8 @@ export function render(book, l = lingua()) {
   const next = RULES.order.map((id) => RULES.missions.find((m) => m.id === id)).find((m) => m.validated !== false && !done[m.id]);
   if (next) {
     out.push('', `${t.proxima}: ${next.id} ${next.title[l] || next.title.en}`, `  → ${next.hint[l] || next.hint.en}`);
+    const why = extra.why?.(next.id) || [];
+    if (why.length) out.push(`  ${t.falta}: ${why.join('; ')}`);
   } else out.push('', t.todas, `  → ${RULES.missions.find((m) => m.id === 'M7').hint[l]}`);
   return out.join('\n');
 }
@@ -241,7 +297,10 @@ if (isMain(import.meta.url)) {
       else if (!active(cfg)) console.log((T[l] || T.en).expirou);
       else {
         const b = check({ P }) || readJson(P.missions, { done: {} });
-        console.log(rest.includes('--json') ? JSON.stringify({ done: Object.keys(b.done || {}), validated: VALIDATED }) : render(b, l));
+        const here = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+        const outside = scope(here, cfg) ? null : cfg.projects_dir || join(homeDir(), 'workshop-claude');
+        const ctx = context(P, cfg, process.env, { runTests: null });
+        console.log(rest.includes('--json') ? JSON.stringify({ done: Object.keys(b.done || {}), validated: VALIDATED, outside: !!outside }) : render(b, l, { outside, why: (id) => missing(id, ctx, l) }));
       }
     } else if (cmd === 'reset') reset(P);
     else {

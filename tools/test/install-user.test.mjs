@@ -89,7 +89,7 @@ test('instalar, verificar, repetir e desinstalar num HOME com espaco e acentos',
     const s = JSON.parse(readFileSync(join(claude, 'settings.json'), 'utf8'));
     assert.equal(s.model, 'claude-sonnet-5-5');
     assert.equal(s.statusLine.command, 'echo minha');
-    assert.equal(s.hooks.Stop.length, 2);
+    assert.equal(s.hooks.Stop.length, 3, 'o da pessoa, o de custo e o de telemetria');
     assert.equal(s.env.MEU, '1');
     assert.equal(s.env.DISABLE_AUTOUPDATER, '1');
     assert.equal(s.env.HTTPS_PROXY, 'http://proxy.empresa:8080');

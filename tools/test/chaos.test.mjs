@@ -12,12 +12,15 @@ import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadPricing, requestCost, tokensFromUsage } from '../../hooks/lib/cost.mjs';
-import { paths, readLines } from '../../telemetry/lib.mjs';
+import { paths, readConfig, readLines } from '../../telemetry/lib.mjs';
 import { register } from '../../telemetry/ctl.mjs';
 import { sendQueue } from '../../telemetry/send.mjs';
 import { startServer } from '../../panel/server.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// what runs in this process (register, record) never starts a sender by itself: the tests send with sendQueue, or
+// let a hook (a child process with its own environment) start send.mjs
+process.env.WORKSHOP_TELEMETRY_NO_SEND = '1';
 const PRICING = loadPricing(join(ROOT, 'pricing.json'));
 const MODEL = 'claude-sonnet-5-5';
 const usage = (i) => ({ input_tokens: 1000 + i, output_tokens: 200 + i, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 });
@@ -156,10 +159,20 @@ test('missions: M9 with summary.txt filled after the headless session started va
 // The local panel (panel/server.mjs, the same code as the Worker) in a temporary folder.
 async function panel() {
   const data = mkdtempSync(join(tmpdir(), 'ws-chaos-panel-'));
-  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
+  let srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
+  const port = Number(new URL(srv.url).port);
   const state = async () => (await fetch(`${srv.url}/state`)).json();
   const wipe = async () => (await fetch(`${srv.url}/admin/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: '{}' })).status;
-  return { url: srv.url, state, wipe, close: async () => (await srv.close(), rmSync(data, { recursive: true, force: true })) };
+  let up = true;
+  return {
+    url: srv.url,
+    state,
+    wipe,
+    // the network goes away and comes back: the same panel, the same address, its data kept
+    down: async () => (await srv.close(), (up = false)),
+    up: async () => ((srv = await startServer({ port, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 })), (up = true)),
+    close: async () => (up && (await srv.close()), rmSync(data, { recursive: true, force: true })),
+  };
 }
 
 // A GitHub account as gh would answer it (a fake gh: no network, no token), for ctl.mjs register.
@@ -247,6 +260,92 @@ test('unregister wins: a 401 after the person left the panel never registers the
     await new Promise((r) => setTimeout(r, 800));
     assert.equal(existsSync(l.P.registerStamp), false, 'no registration was even tried');
     assert.equal(JSON.parse(readFileSync(l.P.config, 'utf8')).participant, null);
+  } finally {
+    l.cleanup();
+  }
+});
+
+test('another folder: Claude opened outside the workshop records nothing, and the statusline and /missions say why', () => {
+  const l = laptop();
+  try {
+    const elsewhere = join(l.home, 'Documents', 'my-app');
+    mkdirSync(elsewhere, { recursive: true });
+    const env = { CLAUDE_PROJECT_DIR: elsewhere };
+    hook(l, 'telemetry.mjs', { hook_event_name: 'UserPromptSubmit', session_id: 'x1', permission_mode: 'plan', cwd: elsewhere }, env);
+    hook(l, 'stop.mjs', { session_id: 'x1', transcript_path: transcript(l, 'x1', [40]), cwd: elsewhere }, env);
+    assert.equal(readLines(l.P.local).length, 0, 'nothing recorded outside the workshop');
+    const sl = spawnSync(process.execPath, [join(ROOT, 'statusline', 'statusline.mjs')], { input: JSON.stringify({ model: { display_name: 'Sonnet 5.5' }, workspace: { project_dir: elsewhere } }), env: { ...l.env, ...env }, encoding: 'utf8' }).stdout;
+    assert.match(sl, /outside the workshop$/);
+    const st = spawnSync(process.execPath, [join(ROOT, 'missions', 'missions.mjs'), 'status'], { cwd: elsewhere, env: { ...l.env, ...env, WORKSHOP_TELEMETRY_NO_CHECK: '1' }, encoding: 'utf8' }).stdout;
+    assert.match(st.split('\n')[0], /outside the workshop folder/);
+    assert.ok(st.includes(l.projs), 'it names the folder to open Claude in');
+  } finally {
+    l.cleanup();
+  }
+});
+
+test('/missions says why the next mission has not counted yet (M5: the hook is there, edits.log is empty)', () => {
+  const l = laptop();
+  try {
+    // M1 to M4 done, so M5 is the next one
+    writeFileSync(l.P.missions, JSON.stringify({ v: 1, done: { M1: 'x', M2: 'x', M3: 'x', M4: 'x' } }));
+    const status = () => spawnSync(process.execPath, [join(ROOT, 'missions', 'missions.mjs'), 'status'], { cwd: l.missions, env: { ...l.env, WORKSHOP_TELEMETRY_NO_CHECK: '1' }, encoding: 'utf8' }).stdout;
+    assert.match(status(), /Next: M5[\s\S]*Still missing: your PostToolUse hook is not in \.claude\/settings\.local\.json yet/);
+    writeFileSync(join(l.missions, '.claude', 'settings.local.json'), JSON.stringify({ hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo x >> edits.log' }] }] } }));
+    assert.match(status(), /Still missing: edits\.log is still empty: ask Claude for an edit/);
+    writeFileSync(join(l.missions, 'edits.log'), 'x\n');
+    assert.match(status(), /✔ M5/, 'and /missions itself checks: M5 is done');
+  } finally {
+    l.cleanup();
+  }
+});
+
+test('offline for a block, then the network: the queue leaves at the next hook by itself, with nothing new to record', async () => {
+  const pn = await panel();
+  const l = laptop({ panel: pn.url });
+  try {
+    assert.equal(await register(undefined, { P: l.P, print: () => {}, account: account(14, 'Inês Rocha') }), 0);
+    await sendQueue({ P: l.P });
+    // the network goes away: M1 waits in the queue
+    await pn.down();
+    hook(l, 'telemetry.mjs', { hook_event_name: 'UserPromptSubmit', session_id: 's1', permission_mode: 'plan', cwd: l.missions }, CHECK);
+    await book(l, ['M1']);
+    assert.equal((await sendQueue({ P: l.P })).sent, 0);
+    assert.ok(readLines(l.P.queue).length + readLines(l.P.sending).length > 0, 'it waits');
+    // the network is back; the person only opens Claude again (a hook with nothing new to record)
+    await pn.up();
+    rmSync(l.P.sendStamp, { force: true });
+    hook(l, 'telemetry.mjs', { hook_event_name: 'SessionStart', session_id: 's2', source: 'resume', cwd: l.missions }, { WORKSHOP_TELEMETRY_NO_SEND: '', WORKSHOP_TELEMETRY_NO_CHECK: '1' });
+    let got = [];
+    for (let i = 0; i < 60 && !got.includes('M1'); i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      got = await mine(pn, 'Inês Rocha');
+    }
+    assert.deepEqual(got, ['M1']);
+  } finally {
+    l.cleanup();
+    await pn.close();
+  }
+});
+
+test('429: the sender keeps the rest and nobody kicks it again before Retry-After', async () => {
+  const l = laptop({ panel: 'http://127.0.0.1:9' });
+  try {
+    const cfg = JSON.parse(readFileSync(l.P.config, 'utf8'));
+    writeFileSync(l.P.config, JSON.stringify({ ...cfg, enabled: true, participant: { p: 'a'.repeat(32), credential: 'c', name: 'Ana' } }));
+    const e = (i) => ({ v: 1, ws: 'ws-t', p: 'a'.repeat(32), ev: 'feature', name: 'plan_mode', t: `2026-11-20T09:00:0${i}.000Z`, kit: 'v2' });
+    writeFileSync(l.P.queue, [1, 2, 3].map((i) => JSON.stringify(e(i))).join('\n') + '\n');
+    const r = await sendQueue({ P: l.P, fetchImpl: async () => new Response(JSON.stringify({ processed: 1 }), { status: 429, headers: { 'Retry-After': '30' } }) });
+    assert.deepEqual(r, { sent: 1, left: 2 });
+    const until = Number(readFileSync(l.P.retryAt, 'utf8'));
+    assert.ok(until > Date.now() + 25000 && until <= Date.now() + 30000);
+    const { kickSender } = await import('../../telemetry/lib.mjs');
+    rmSync(l.P.sendStamp, { force: true });
+    assert.equal(kickSender(l.P, readConfig(l.P), { ...l.env, WORKSHOP_TELEMETRY_NO_SEND: '' }), false, 'not before Retry-After');
+    writeFileSync(l.P.retryAt, String(Date.now() - 1));
+    const ok = await sendQueue({ P: l.P, fetchImpl: async () => new Response(null, { status: 204 }) });
+    assert.deepEqual(ok, { sent: 2, left: 0 });
+    assert.equal(existsSync(l.P.retryAt), false);
   } finally {
     l.cleanup();
   }

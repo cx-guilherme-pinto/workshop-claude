@@ -14,8 +14,8 @@ import { lingua, textos } from '../hooks/lib/language.mjs';
 
 const L = lingua();
 const T = textos({
-  pt: { sessao: 'sessão', projeto: 'projeto', de: 'de', teto: 'acima do teto', alvo: 'acima do alvo', enxame: 'swarm', missoes: 'missões' },
-  en: { sessao: 'session', projeto: 'project', de: 'of', teto: 'over the cap', alvo: 'over the target', enxame: 'swarm', missoes: 'missions' },
+  pt: { sessao: 'sessão', projeto: 'projeto', de: 'de', teto: 'acima do teto', alvo: 'acima do alvo', enxame: 'swarm', missoes: 'missões', fora: 'fora do workshop' },
+  en: { sessao: 'session', projeto: 'project', de: 'of', teto: 'over the cap', alvo: 'over the target', enxame: 'swarm', missoes: 'missions', fora: 'outside the workshop' },
 }, L);
 
 const chunks = [];
@@ -121,7 +121,8 @@ function caderneta() {
   const exp = Date.parse(cfg.expires_at || '');
   if (cfg.v !== 1 || (!Number.isNaN(exp) && Date.now() >= exp)) return null;
   const r = cfg.projects_dir ? relative(resolve(cfg.projects_dir), resolve(proj)) : '..';
-  if ((r.startsWith('..') || isAbsolute(r)) && !existsSync(ws)) return null;
+  // outside the workshop folder nothing counts: say so, so nobody works a whole block in the wrong folder
+  if ((r.startsWith('..') || isAbsolute(r)) && !existsSync(ws)) return T.fora;
   let book = {};
   try {
     book = JSON.parse(readFileSync(join(dir, 'missions.json'), 'utf8'));

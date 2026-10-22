@@ -186,6 +186,9 @@ test('the statusline shows the mission book only in the workshop projects', () =
     assert.match(sl(t.proj, 'pt'), / · missões 2\/9$/);
     assert.match(sl(t.proj, 'en'), / · missions 2\/9$/);
     assert.doesNotMatch(sl(t.base, 'pt'), /missões/);
+    // outside the workshop folder, while the config is in force: it says so (nothing counts there)
+    assert.match(sl(t.base, 'pt'), / · fora do workshop$/);
+    assert.match(sl(t.base, 'en'), / · outside the workshop$/);
   } finally {
     rmSync(t.base, { recursive: true, force: true });
   }
