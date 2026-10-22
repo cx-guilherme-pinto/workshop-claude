@@ -7,7 +7,7 @@
 // The screenshots (a real browser) are tools/record/panel-screenshots.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -82,15 +82,17 @@ test('the texts: the same keys in pt and en, no empty text, the same {placeholde
     assert.equal(marks(at(TEXT.pt, k)), marks(at(TEXT.en, k)), k);
   }
   // every view and every mission in the grid has a name; the views are the aggregate's phases
-  assert.deepEqual(page.VIEWS, PHASES);
+  // 'auto' is a stored phase the server resolves into one of the views, never a view of its own
+  const shown = PHASES.filter((p) => p !== 'auto');
+  assert.deepEqual(page.VIEWS, shown);
   for (const l of ['pt', 'en']) {
-    assert.deepEqual(Object.keys(TEXT[l].views), PHASES);
+    assert.deepEqual(Object.keys(TEXT[l].views), shown);
     for (const m of MISSIONS) assert.ok(TEXT[l].missionNames[m], `${l} ${m}`);
   }
   // every t('key') used in panel.js exists
   for (const m of JS.matchAll(/\bt\(\s*'([\w.]+)'/g)) assert.ok(kp.includes(m[1]), m[1]);
   // the leaderboard's texts (D-34), and a name for every stage it can show
-  for (const k of ['boardHead', 'boardNote', 'boardEmpty', 'boardPeople', 'namesHead', 'namesEmpty', 'registeredHead', 'readyHead', 'noStage', 'noName']) assert.ok(kp.includes(k), k);
+  for (const k of ['viewAuto', 'viewAutoLocal', 'boardHead', 'boardNote', 'boardEmpty', 'boardPeople', 'namesHead', 'namesEmpty', 'registeredHead', 'readyHead', 'noStage', 'noName']) assert.ok(kp.includes(k), k);
   for (const l of ['pt', 'en']) {
     for (const s of page.P1_STAGES) assert.ok(TEXT[l].p1Stages[s], `${l} p1 ${s}`);
     for (const s of page.P2_STAGES) assert.ok(TEXT[l].p2Stages[s], `${l} p2 ${s}`);
@@ -208,7 +210,17 @@ const ms = (v) => {
   return m ? Number(m[1]) * (m[2] === 's' ? 1000 : 1) : null;
 };
 
-test('panel.css: text 24px or more, main numbers 64px or more, the /status dark theme, the local font', () => {
+// WCAG contrast of two #rrggbb colours (an rgba() or color-mix() is not a token and is checked by eye in the screenshots).
+const lum = (hex) => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+const contrast = (a, b) => {
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+};
+
+test('panel.css: text 24px or more, main numbers 64px or more, the Checkmarx light tokens, the local font', () => {
   const sizes = declarations(CSS, 'font-size');
   assert.ok(sizes.length > 5);
   for (const s of sizes) {
@@ -219,17 +231,43 @@ test('panel.css: text 24px or more, main numbers 64px or more, the /status dark 
   assert.ok(px('var(--t-num)') >= 64);
   assert.ok(px('var(--t-huge)') >= 64);
   assert.match(CSS, /\.num\s*\{[^}]*font-size:\s*var\(--t-num\)/);
-  const statusCss = readFileSync(join(ROOT, 'demo-project', 'public', 'styles.css'), 'utf8');
-  const dark = /:root\[data-theme='dark'\]\s*\{([^}]*)\}/.exec(statusCss)[1];
-  for (const k of ['--bg', '--surface', '--surface-2', '--ink', '--muted', '--accent', '--status-gray', '--status-yellow', '--status-green', '--status-red']) {
-    assert.equal(vars[k], new RegExp(`${k}:\\s*([^;]+);`).exec(dark)[1].trim(), k);
+  // the palette of slides/build-v2.mjs (COR), a darker yellow for the light background
+  const COR = { '--bg': '#f4effe', '--surface': '#ffffff', '--surface-2': '#ebdafa', '--ink': '#140920', '--muted': '#4a405a', '--accent': '#6b34fd', '--status-green': '#1e9e57', '--status-red': '#d2463f' };
+  for (const [k, v] of Object.entries(COR)) assert.equal(vars[k], v, k);
+  const slides = readFileSync(join(ROOT, 'slides', 'build-v2.mjs'), 'utf8');
+  for (const [k, n] of [['--bg', 'bg'], ['--surface', 'surface'], ['--ink', 'ink'], ['--muted', 'muted'], ['--accent', 'accent'], ['--status-green', 'verde'], ['--status-red', 'vermelho']]) {
+    assert.match(slides, new RegExp(`${n}:\\s*'${vars[k].slice(1)}'`, 'i'), `${k} is the slides' ${n}`);
   }
+  assert.match(CSS, /color-scheme:\s*light/);
   assert.match(CSS, /font-family:\s*'Bricolage Grotesque'/);
   for (const [, u] of CSS.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
     assert.doesNotMatch(u, /^(?:[a-z]+:|\/)/i, `${u} is relative`);
     assert.ok(existsSync(join(PUB, u)), u);
   }
   assert.doesNotMatch(CSS, /@import/);
+  assert.ok(existsSync(join(PUB, 'logo.png')) && existsSync(join(PUB, 'wave.png')));
+  assert.ok(statSync(join(PUB, 'wave.png')).size < 60_000, 'the wave strip stays a few tens of KB');
+});
+
+test('panel.css: contrast AA, text 4.5:1 and UI elements 3:1, computed from the tokens', () => {
+  const on = (bgs, fg, min, what) => {
+    for (const bg of bgs) assert.ok(contrast(vars[fg], vars[bg]) >= min, `${what}: ${fg} on ${bg} is ${contrast(vars[fg], vars[bg]).toFixed(2)}`);
+  };
+  // text
+  on(['--bg', '--surface', '--surface-2'], '--ink', 4.5, 'ink');
+  on(['--bg', '--surface', '--surface-2'], '--muted', 4.5, 'muted');
+  on(['--bg', '--surface'], '--status-yellow', 4.5, 'yellow text');
+  on(['--bg', '--surface'], '--attention', 3, 'attention (large text only)');
+  on(['--accent'], '--accent-ink', 4.5, 'text on the podium');
+  on(['--ink'], '--accent-ink', 4.5, 'toast');
+  on(['--bg', '--surface'], '--accent', 4.5, 'violet text');
+  // UI elements: the dots of the scatter, the fills, the squares of the podium
+  for (const k of ['--par-4', '--par-8', '--par-12', '--status-green', '--status-red', '--accent', '--attention']) on(['--bg', '--surface'], k, 3, 'UI');
+  assert.ok(contrast(vars['--ink'], '#d2ecdc') >= 4.5, 'text on the green fill');
+  // the three scatter colours differ from each other and from the status colours
+  const par = ['--par-4', '--par-8', '--par-12'].map((k) => vars[k]);
+  assert.equal(new Set(par).size, 3);
+  for (const k of ['--status-green', '--status-yellow', '--status-red']) assert.ok(!par.includes(vars[k]), k);
 });
 
 test('panel.css: animations of 400 ms at most, only transform and opacity, none with reduced motion or ?lite=1', () => {
@@ -256,6 +294,8 @@ test('the local server serves the page, its modules and the replay under the str
       ['/panel.js', 'text/javascript'],
       ['/panel.css', 'text/css'],
       ['/fonts/bricolage-grotesque-latin.woff2', 'font/woff2'],
+      ['/logo.png', 'image/png'],
+      ['/wave.png', 'image/png'],
       ['/aggregate.mjs', 'text/javascript'],
       ['/schema.mjs', 'text/javascript'],
       ['/allowlist.json', 'application/json'],
