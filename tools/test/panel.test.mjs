@@ -343,7 +343,7 @@ test('daily wipe: at midnight everything is deleted (events, names, registration
   z.close();
 });
 
-test('daily wipe on the laptop: a credential the panel no longer knows (401) ends the registration and empties the queue', async () => {
+test('daily wipe on the laptop: a credential the panel no longer knows (401) ends the registration, empties the queue and asks for a new one (needs_register)', async () => {
   const data = mkdtempSync(join(tmpdir(), 'ws-401-'));
   const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
   const t = await telemetryHome(srv.url);
@@ -354,7 +354,8 @@ test('daily wipe on the laptop: a credential the panel no longer knows (401) end
     queue(t.P, [ev(1, 'mission_done', 2, { mission: 'M1' })]);
     assert.deepEqual(await sendQueue({ P: t.P }), { sent: 0, left: 0 });
     const c = JSON.parse(readFileSync(t.P.config, 'utf8'));
-    assert.deepEqual([c.enabled, c.participant], [false, null]);
+    // not silently off: the next hook registers again (needs_register), and the registration replays today's book
+    assert.deepEqual([c.enabled, c.participant, typeof c.needs_register], [true, null, 'string']);
   } finally {
     await srv.close();
     rmSync(t.base, { recursive: true, force: true });

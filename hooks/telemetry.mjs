@@ -113,6 +113,21 @@ function fresh(P, sessionId, list) {
   return novos;
 }
 
+// After the panel's midnight wipe (send.mjs got a 401 and wrote needs_register): register again in the background,
+// with gh, never asking anything; at most once every 10 minutes. Never after an unregister (the person said no).
+const REREGISTER_EVERY_MS = 10 * 60 * 1000;
+export function reRegister(P, cfg, env = process.env, now = Date.now()) {
+  if (!cfg?.needs_register || cfg.unregistered_at || cfg.participant?.p || !cfg.panel_url) return false;
+  if (env.WORKSHOP_TELEMETRY_NO_SEND === '1' && env.WORKSHOP_TELEMETRY_REREGISTER !== '1') return false;
+  if (age(P.registerStamp, now) < REREGISTER_EVERY_MS) return false;
+  touch(P.registerStamp);
+  const ctl = join(HERE, '..', 'telemetry', 'ctl.mjs');
+  if (!existsSync(ctl)) return false;
+  const c = spawn(process.execPath, [ctl, 'register'], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...env, WORKSHOP_TELEMETRY_DIR: P.dir } });
+  c.unref();
+  return true;
+}
+
 function startCheck(env = process.env, delay = 0) {
   if (env.WORKSHOP_TELEMETRY_NO_CHECK === '1') return;
   const m = join(HERE, '..', 'missions', 'missions.mjs');
@@ -156,6 +171,7 @@ export function handle(input, { env = process.env, P = paths(), now = new Date()
   if (!active(cfg, now)) return none;
   const sc = scope(env.CLAUDE_PROJECT_DIR || input?.cwd, cfg);
   if (!sc) return none;
+  reRegister(P, cfg, env, now.getTime());
   const novos = fresh(P, input.session_id, signals(input, env, sc.proj));
   for (const s of novos) record('feature', { name: s.name }, { local: { ...(s.family ? { family: s.family } : {}), project: sc.project }, P, now });
   if (!decide) return novos;

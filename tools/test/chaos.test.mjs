@@ -6,13 +6,16 @@
 // Never the real HOME, never Claude, no cost.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { loadPricing, requestCost, tokensFromUsage } from '../../hooks/lib/cost.mjs';
 import { paths, readLines } from '../../telemetry/lib.mjs';
+import { register } from '../../telemetry/ctl.mjs';
+import { sendQueue } from '../../telemetry/send.mjs';
+import { startServer } from '../../panel/server.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PRICING = loadPricing(join(ROOT, 'pricing.json'));
@@ -29,7 +32,7 @@ function laptop({ registered = false, panel = '' } = {}) {
   mkdirSync(join(missions, '.claude'), { recursive: true });
   const tel = join(home, '.workshop-claude', 'telemetry');
   mkdirSync(tel, { recursive: true });
-  const cfg = { v: 1, enabled: registered, workshop: 'ws-t', kit: 'v2', panel_url: panel, expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: null };
+  const cfg = { v: 1, enabled: registered, workshop: 'ws-t', kit: 'v2', panel_url: panel, email_domain: 'checkmarx.com', expires_at: '2099-01-01T00:00:00.000Z', projects_dir: projs, participant: null };
   writeFileSync(join(tel, 'config.json'), JSON.stringify(cfg));
   const env = { PATH: process.env.PATH, HOME: home, USERPROFILE: home, WS_HOME_OVERRIDE: home, WORKSHOP_TELEMETRY_DIR: tel, WORKSHOP_TELEMETRY_NO_SEND: '1', CLAUDE_PROJECT_DIR: missions, WORKSHOP_LANG: 'en' };
   return { home, projs, missions, tel, P: paths(tel), env, cleanup: () => rmSync(home, { recursive: true, force: true }) };
@@ -150,5 +153,104 @@ test('missions: M9 with summary.txt filled after the headless session started va
   }
 });
 
-export { laptop, hook, transcript, costs, sum, book, ROOT };
+// The local panel (panel/server.mjs, the same code as the Worker) in a temporary folder.
+async function panel() {
+  const data = mkdtempSync(join(tmpdir(), 'ws-chaos-panel-'));
+  const srv = await startServer({ port: 0, data, ws: 'ws-t', adminToken: 'adm', throttleMs: 20 });
+  const state = async () => (await fetch(`${srv.url}/state`)).json();
+  const wipe = async () => (await fetch(`${srv.url}/admin/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: '{}' })).status;
+  return { url: srv.url, state, wipe, close: async () => (await srv.close(), rmSync(data, { recursive: true, force: true })) };
+}
+
+// A GitHub account as gh would answer it (a fake gh: no network, no token), for ctl.mjs register.
+const account = (id, name) => () => ({ id, name, emails: [{ email: `${name.split(' ')[0].toLowerCase()}@checkmarx.com`, verified: true }] });
+function fakeGh(l, id, name) {
+  const f = join(l.home, 'fake-gh.mjs');
+  writeFileSync(f, `#!/usr/bin/env node
+const a = process.argv.slice(2).join(' ');
+if (a.endsWith('user/emails')) console.log(JSON.stringify([{ email: '${name.split(' ')[0].toLowerCase()}@checkmarx.com', verified: true }]));
+else console.log(JSON.stringify({ id: ${id}, login: 'x', name: '${name}' }));
+`);
+  chmodSync(f, 0o755);
+  return f;
+}
+const mine = async (pn, name) => ((await pn.state()).board.top.find((r) => r.name === name) || {}).missions || [];
+
+test('register: the missions done before registering reach the panel, with the time they were done', async () => {
+  const pn = await panel();
+  const l = laptop({ panel: pn.url });
+  try {
+    // M1 (plan mode) before registering: only the local book has it
+    hook(l, 'telemetry.mjs', { hook_event_name: 'UserPromptSubmit', session_id: 's1', permission_mode: 'plan', cwd: l.missions }, CHECK);
+    await book(l, ['M1']);
+    const at = readLines(l.P.local).find((e) => e.ev === 'mission_done').t;
+    assert.equal(readLines(l.P.queue).length, 0, 'nothing queued before registering');
+    // now the person registers (the setup's step 8, or ctl.mjs register later)
+    assert.equal(await register(undefined, { P: l.P, print: () => {}, account: account(11, 'Ana Silva') }), 0);
+    await sendQueue({ P: l.P });
+    assert.deepEqual(await mine(pn, 'Ana Silva'), ['M1']);
+    const first = (await pn.state()).feed.find((f) => /M1/.test(JSON.stringify(f)));
+    assert.equal(first?.t, at, 'with the time it was done, not the time of the registration');
+    // a register --again later replays the same events: the panel does not count them twice
+    assert.equal(await register(undefined, { P: l.P, print: () => {}, account: account(11, 'Ana Silva'), again: true }), 0);
+    await sendQueue({ P: l.P });
+    const row = (await pn.state()).board.top.find((r) => r.name === 'Ana Silva');
+    assert.deepEqual(row.missions, ['M1']);
+    assert.equal((await pn.state()).board.people, 1);
+  } finally {
+    l.cleanup();
+    await pn.close();
+  }
+});
+
+test('midnight wipe: the old credential gets a 401, the next hook registers again by itself and today goes back', async () => {
+  const pn = await panel();
+  const l = laptop({ panel: pn.url });
+  try {
+    assert.equal(await register(undefined, { P: l.P, print: () => {}, account: account(12, 'Rui Costa') }), 0);
+    hook(l, 'telemetry.mjs', { hook_event_name: 'UserPromptSubmit', session_id: 's1', permission_mode: 'plan', cwd: l.missions }, CHECK);
+    await book(l, ['M1']);
+    await sendQueue({ P: l.P });
+    assert.deepEqual(await mine(pn, 'Rui Costa'), ['M1']);
+    // midnight: the panel deletes everything (the admin reset does the same)
+    assert.equal(await pn.wipe(), 200);
+    // the next mission: the sender gets a 401
+    hook(l, 'telemetry.mjs', { hook_event_name: 'SessionStart', session_id: 's2', source: 'startup', model: 'claude-haiku-5-5', cwd: l.missions }, CHECK);
+    await book(l, ['M2']);
+    await sendQueue({ P: l.P });
+    let cfg = JSON.parse(readFileSync(l.P.config, 'utf8'));
+    assert.deepEqual([cfg.enabled, cfg.participant, typeof cfg.needs_register], [true, null, 'string'], 'not silently off');
+    // the next hook (any) registers again in the background, with gh, asking nothing
+    const gh = fakeGh(l, 12, 'Rui Costa');
+    hook(l, 'telemetry.mjs', { hook_event_name: 'Stop', session_id: 's2', cwd: l.missions }, { ...CHECK, WORKSHOP_GH: gh, WORKSHOP_TELEMETRY_REREGISTER: '1' });
+    for (let i = 0; i < 80 && !cfg.participant; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      cfg = JSON.parse(readFileSync(l.P.config, 'utf8'));
+    }
+    assert.ok(cfg.participant?.p, 'registered again');
+    assert.equal(cfg.needs_register, undefined);
+    await sendQueue({ P: l.P });
+    assert.deepEqual(await mine(pn, 'Rui Costa'), ['M1', 'M2'], "today's missions are back on the panel");
+  } finally {
+    l.cleanup();
+    await pn.close();
+  }
+});
+
+test('unregister wins: a 401 after the person left the panel never registers them again', async () => {
+  const l = laptop({ panel: 'http://127.0.0.1:9' });
+  try {
+    const cfg = JSON.parse(readFileSync(l.P.config, 'utf8'));
+    writeFileSync(l.P.config, JSON.stringify({ ...cfg, needs_register: '2026-11-20T00:00:00.000Z', unregistered_at: '2026-11-20T10:00:00.000Z' }));
+    const gh = fakeGh(l, 13, 'Eva Lopes');
+    hook(l, 'telemetry.mjs', { hook_event_name: 'Stop', session_id: 's1', cwd: l.missions }, { WORKSHOP_GH: gh, WORKSHOP_TELEMETRY_REREGISTER: '1' });
+    await new Promise((r) => setTimeout(r, 800));
+    assert.equal(existsSync(l.P.registerStamp), false, 'no registration was even tried');
+    assert.equal(JSON.parse(readFileSync(l.P.config, 'utf8')).participant, null);
+  } finally {
+    l.cleanup();
+  }
+});
+
+export { laptop, hook, transcript, costs, sum, book, panel, account, ROOT };
 void cpSync;

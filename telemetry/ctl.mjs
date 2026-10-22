@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
-import { active, paths, readConfig, readLines, record, writeJson } from './lib.mjs';
+import { active, backfill, paths, readConfig, readLines, record, writeJson } from './lib.mjs';
 
 const T = textos(
   {
@@ -39,6 +39,7 @@ const T = textos(
       mostrar: 'Os últimos {n} eventos, exatamente como saem do teu computador:',
       saiu: 'Saíste do painel: o kit não envia mais nada. A caderneta de missões e os teus dados locais ficam. Para voltar: ctl.mjs register --again',
       fora: 'Saíste do painel em {data} (unregister): nada é enviado. Para voltar: ctl.mjs register --again',
+      renovar: 'O painel foi limpo (um dia novo): o registo é refeito sozinho na próxima vez que usares o Claude, e o que fizeste hoje volta ao painel. Também podes correr: ctl.mjs register',
       uso: 'Uso: ctl.mjs register [--again] | unregister | status | show',
     },
     en: {
@@ -57,6 +58,7 @@ const T = textos(
       mostrar: 'The last {n} events, exactly as they leave your computer:',
       saiu: 'You left the panel: the kit sends nothing more. Your mission book and your local data stay. To come back: ctl.mjs register --again',
       fora: 'You left the panel on {data} (unregister): nothing is sent. To come back: ctl.mjs register --again',
+      renovar: 'The panel was cleared (a new day): you are registered again by yourself the next time you use Claude, and what you did today goes back to the panel. You can also run: ctl.mjs register',
       uso: 'Usage: ctl.mjs register [--again] | unregister | status | show',
     },
   },
@@ -122,8 +124,10 @@ export async function register(_room, { P = paths(), print = console.log, fetchI
   }
   const j = await r.json().catch(() => ({}));
   if (r.status === 200 && /^[0-9a-f]{32}$/.test(j.p || '') && j.credential) {
-    const { room: _old, unregistered_at: _left, ...rest } = cfg;
+    const { room: _old, unregistered_at: _left, needs_register: _wiped, ...rest } = cfg;
     writeJson(P.config, { ...rest, enabled: true, participant: { p: j.p, credential: j.credential, name: j.name, registered_at: now.toISOString() } });
+    // what was done before registering (or before the midnight wipe) goes to the panel too, with its own time
+    backfill({ P, now });
     record('join', { lang: lingua(), os: process.platform === 'win32' ? 'win' : 'mac' }, { P, now });
     return print(fmt(T.registado, { nome: j.name })), 0;
   }
@@ -155,7 +159,7 @@ export async function ctl(args, { P = paths(), print = console.log, now = new Da
       return unregister({ P, print, now });
     case 'status': {
       if (!active(cfg, now)) print(fmt(T.expirou, { data: day(cfg.expires_at) }));
-      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name }) : cfg.unregistered_at ? fmt(T.fora, { data: day(cfg.unregistered_at) }) : T.naoRegistado);
+      print(cfg.participant?.p ? fmt(T.registado, { nome: cfg.participant.name }) : cfg.unregistered_at ? fmt(T.fora, { data: day(cfg.unregistered_at) }) : cfg.needs_register ? T.renovar : T.naoRegistado);
       print(fmt(T.workshop, { ws: cfg.workshop || '-', data: day(cfg.expires_at) }));
       print(fmt(T.contagem, { local: readLines(P.local).length, fila: readLines(P.queue).length + readLines(P.sending).length }));
       return 0;

@@ -43,6 +43,7 @@ export function paths(dir = telemetryDir()) {
     dirty: join(dir, 'missions.dirty'),
     checkStamp: join(dir, 'check.stamp'),
     checkDelayed: join(dir, 'check.delayed'),
+    registerStamp: join(dir, 'register.stamp'),
     sending: join(dir, 'queue.sending.jsonl'),
     sent: join(dir, 'sent.jsonl'),
     sendLock: join(dir, 'send.lock'),
@@ -179,6 +180,39 @@ export function record(ev, fields = {}, { local = {}, P = paths(), now = new Dat
   }
   if (queued) kickSender(P, cfg);
   return { recorded: true, queued };
+}
+
+// After a registration (the first one, a register --again, or the automatic one after the panel's midnight wipe):
+// the events of today's local book go to the queue again, with their own time and the new participant id. So the
+// missions done before registering, and what the panel lost at midnight, reach the panel. The panel ignores an event
+// it already has (the key is the event itself), so a replay never counts twice. Only today's (the laptop's day):
+// yesterday's would land in today's panel. `join` is not replayed (the registration records a fresh one).
+// Returns how many events were queued.
+export function backfill({ P = paths(), now = new Date() } = {}) {
+  const cfg = readConfig(P);
+  const part = cfg?.participant;
+  if (!active(cfg, now) || !part?.p) return 0;
+  const allow = allowlist();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const queued = new Set([...readLines(P.queue), ...readLines(P.sending)].map((e) => JSON.stringify(e)));
+  let n = 0;
+  for (const l of readLines(P.local)) {
+    if (!l?.ev || l.ev === 'join' || !allow.events?.[l.ev] || !(Date.parse(l.t) >= start.getTime()) || Date.parse(l.t) > now.getTime()) continue;
+    const { t, ev, local: _local, ...fields } = l;
+    const s = sanitize(allow, ev, fields, {});
+    if (s.localOnly) continue;
+    const e = envelope(allow, { ws: cfg.workshop, p: part.p, kit: cfg.kit, ev, t }, s.fields);
+    if (!e || queued.has(JSON.stringify(e))) continue;
+    appendLine(P.queue, e);
+    queued.add(JSON.stringify(e));
+    n++;
+  }
+  if (n) {
+    capQueue(P.queue);
+    kickSender(P, readConfig(P));
+  }
+  return n;
 }
 
 // Starts send.mjs in the background, at most once every 2 s (spec 6.4). With HTTPS_PROXY in the environment (the

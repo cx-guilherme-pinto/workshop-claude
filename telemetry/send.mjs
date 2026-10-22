@@ -11,6 +11,8 @@
 //   is dropped: it would never be accepted. A wrong workshop code (403) keeps the events.
 // - The last 20 events sent go to sent.jsonl, for `ctl.mjs show`. The server ignores a duplicate (a retry after a
 //   timeout), so nothing is counted twice.
+// - 401 (the panel was wiped at midnight and no longer knows the credential): needs_register in config.json; the
+//   telemetry hook then runs ctl.mjs register in the background (hooks/telemetry.mjs), never silently giving up.
 import { closeSync, existsSync, openSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { isMain } from '../orchestrator/lib/is-main.mjs';
 import { QUEUE_MAX, active, paths, readConfig, readLines, writeJson } from './lib.mjs';
@@ -61,7 +63,8 @@ async function post(url, ws, part, events, fetchImpl) {
     }
     if (r.status === 400 || r.status === 413) return { done: events.length, dropped: true };
     // the panel no longer knows this credential (it deletes everything at the end of each day, D-34): the registration
-    // is gone and so are the waiting events; the next ctl.mjs register (the setup) starts again
+    // is gone, and the waiting events carry the old id. The next hook registers again by itself (needs_register) and
+    // the registration puts today's local book back in the queue (backfill)
     if (r.status === 401) return { done: 0, stop: true, unregistered: true };
     return { done: 0, stop: true };
   } catch {
@@ -100,7 +103,7 @@ export async function sendQueue({ P = paths(), fetchImpl = fetch, now = new Date
         }
         stop = !!r.stop;
         if (r.unregistered) {
-          writeJson(P.config, { ...readConfig(P), enabled: false, participant: null });
+          writeJson(P.config, { ...readConfig(P), participant: null, needs_register: now.toISOString() });
           rmSync(P.sending, { force: true });
           rmSync(P.queue, { force: true });
         }
