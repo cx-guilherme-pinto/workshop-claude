@@ -45,7 +45,7 @@ If the organizer provides access (by inviting people to their Console organizati
 
 ## The v2 deck and the stage (workshop v2)
 
-The v2 deck has 32 slides at 1280 × 1080: the slides take the left two thirds of a 1920 × 1080 screen and the live panel the right third. Each slide has a panel phase, so the panel's view follows the slides (D-36).
+The v2 deck has 33 slides at 1280 × 1080: the slides take the left two thirds of a 1920 × 1080 screen and the live panel the right third. Each slide has a panel phase, so the panel's view follows the slides (D-36).
 - **Build** (from `slides/`, after `npm install`): `node build-v2.mjs`. It writes `workshop-v2.en.pptx` and `workshop-v2.pptx`, `speaker-notes-v2.en.md` and `speaker-notes-v2.md`, and `palco.html`. With `--png` it also exports one image per slide to `slides/palco/<language>/`, with LibreOffice (local, or the Docker image: `docker build -t ws-libreoffice slides/libreoffice`). Without the images, the stage draws each slide in HTML from the same content.
 - **The stage:** open `slides/palco.html?lang=en#admin=<token>` in the browser, full screen (F). Arrows, space and PageUp/PageDown change slides. When the phase changes, the stage calls the Worker's `/admin/phase` with the token, which stays only in that browser. N opens the speaker notes in a second window (`palco.html?notes=1`), synced with the stage.
 - **Speaker notes:** for each slide, in this order: the goal, what to say (at most 3 sentences), what to read on the panel (sentences ready for each case), typical failures with the command that fixes them, and the clock.
