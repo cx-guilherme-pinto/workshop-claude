@@ -11,31 +11,32 @@ Cada slide: objetivo, o que dizer, o que ler no painel, falhas típicas e o rel�
 | 5 | 1 | 4:00 | Abertura | opening | Conceito | A tua memória aprende contigo |
 | 6 | 4 | 5:00 | Abertura | opening | Faz agora | Verifica e liga-te ao painel |
 | 7 | 2 | 9:00 | Abertura | opening | Faz agora | Algum passo falhou? |
-| 8 | 1 | 11:00 | Missões | missions | Painel | 10 missões, uma grelha vazia |
+| 8 | 1 | 11:00 | Missões | missions | Painel | 11 missões, uma grelha vazia |
 | 9 | 2 | 12:00 | Missões | missions | M1 | Planear sem tocar |
 | 10 | 2 | 14:00 | Missões | missions | M2 | O modelo certo |
 | 11 | 2 | 16:00 | Missões | missions | M3 | Um subagente |
-| 12 | 2 | 18:00 | Missões | missions | M4 | A tua skill |
-| 13 | 2 | 20:00 | Missões | missions | M5 | O teu hook |
-| 14 | 2 | 22:00 | Missões | missions | M6 | Até ficar verde |
-| 15 | 2 | 24:00 | Missões | missions | Painel | O que falta à sala (e as bónus M7 a M10) |
-| 16 | 2 | 26:00 | Projeto 1 | p1 | Painel | O que vamos construir: o Canivete |
-| 17 | 4 | 28:00 | Projeto 1 | p1 | Faz agora | Inventa a tua ferramenta |
-| 18 | 2 | 32:00 | Projeto 1 | p1 | Decide | Quantos agentes e que modelo? |
-| 19 | 1 | 34:00 | Projeto 1 | p1 | Faz agora | Planeia |
-| 20 | 7 | 35:00 | Projeto 1 | p1 | Faz agora | Solta o swarm |
-| 21 | 4 | 42:00 | Projeto 1 | p1 | Faz agora | Porque é que esta ferramenta falhou? |
-| 22 | 2 | 46:00 | Projeto 1 | p1 | Faz agora | Gate e custo: que decisão ganhou? |
-| 23 | 2 | 48:00 | Projeto 1 | p1 | Faz agora | Usa o teu Canivete |
-| 24 | 2 | 50:00 | Projeto 2 | p2 | Painel | O mesmo ciclo, noutro repositório |
-| 25 | 4 | 52:00 | Projeto 2 | p2 | Faz agora | Lê a issue |
-| 26 | 6 | 56:00 | Projeto 2 | p2 | Decide | Quantos agentes? |
-| 27 | 12 | 62:00 | Projeto 2 | p2 | Faz agora | Põe o swarm a trabalhar |
-| 28 | 5 | 74:00 | Projeto 2 | p2 | Faz agora | O gate |
-| 29 | 4 | 79:00 | Projeto 2 | p2 | Faz agora | O relatório e a memória |
-| 30 | 4 | 83:00 | Projeto 2 | p2 | Faz agora | Agora sozinho: EX-3 |
-| 31 | 2 | 87:00 | Fecho | closing | Painel | O dia em números e 3 ideias para levar |
-| 32 | 1 | 89:00 | Fecho | closing | — | Perguntas |
+| 12 | 1 | 18:00 | Missões | missions | Conceito | Tool ou skill? |
+| 13 | 2 | 19:00 | Missões | missions | M4 | A tua skill |
+| 14 | 2 | 21:00 | Missões | missions | M5 | O teu hook |
+| 15 | 2 | 23:00 | Missões | missions | M6 | Até ficar verde |
+| 16 | 1 | 25:00 | Missões | missions | Painel | O que falta à sala (e as bónus M7 a M10) |
+| 17 | 2 | 26:00 | Projeto 1 | p1 | Painel | O que vamos construir: o Canivete |
+| 18 | 4 | 28:00 | Projeto 1 | p1 | Faz agora | Inventa a tua ferramenta |
+| 19 | 2 | 32:00 | Projeto 1 | p1 | Decide | Quantos agentes e que modelo? |
+| 20 | 1 | 34:00 | Projeto 1 | p1 | Faz agora | Planeia |
+| 21 | 7 | 35:00 | Projeto 1 | p1 | Faz agora | Solta o swarm |
+| 22 | 4 | 42:00 | Projeto 1 | p1 | Faz agora | Porque é que esta ferramenta falhou? |
+| 23 | 2 | 46:00 | Projeto 1 | p1 | Faz agora | Gate e custo: que decisão ganhou? |
+| 24 | 2 | 48:00 | Projeto 1 | p1 | M11 | A tua ferramenta, pelo Claude |
+| 25 | 2 | 50:00 | Projeto 2 | p2 | Painel | O mesmo ciclo, noutro repositório |
+| 26 | 4 | 52:00 | Projeto 2 | p2 | Faz agora | Lê a issue |
+| 27 | 6 | 56:00 | Projeto 2 | p2 | Decide | Quantos agentes? |
+| 28 | 12 | 62:00 | Projeto 2 | p2 | Faz agora | Põe o swarm a trabalhar |
+| 29 | 5 | 74:00 | Projeto 2 | p2 | Faz agora | O gate |
+| 30 | 4 | 79:00 | Projeto 2 | p2 | Faz agora | O relatório e a memória |
+| 31 | 4 | 83:00 | Projeto 2 | p2 | Faz agora | Agora sozinho: EX-3 |
+| 32 | 2 | 87:00 | Fecho | closing | Painel | O dia em números e 3 ideias para levar |
+| 33 | 1 | 89:00 | Fecho | closing | — | Perguntas |
 
 Total: 90 min.
 
@@ -48,7 +49,7 @@ Total: 90 min.
 Objetivo: Abrir a sessão e apontar para o painel à direita.
 
 O que dizer:
-- Em 90 minutos vamos fazer, não ouvir: 10 missões curtas, um swarm de agentes e uma tarefa num repositório a sério.
+- Em 90 minutos vamos fazer, não ouvir: 11 missões curtas, um swarm de agentes e uma tarefa num repositório a sério.
 - O painel à direita mostra o que toda a gente já fez, ao vivo.
 
 Olha para o painel:
@@ -157,14 +158,14 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 9 min.
 
-### 8. 10 missões, uma grelha vazia
+### 8. 11 missões, uma grelha vazia
 
 [11:00 → 12:00] 1 min · missions
 
 Objetivo: Abrir o projeto das missões e lançar a corrida da sala.
 
 O que dizer:
-- São 6 missões guiadas, de 2 minutos cada, e 4 bónus para as esperas.
+- São 7 missões guiadas de 2 minutos (6 aqui, a última no Projeto 1) e 4 bónus para as esperas.
 - Ninguém carrega em "feito": o kit vê a funcionalidade a ser usada e acende a missão.
 - /missions mostra a tua caderneta a qualquer momento.
 
@@ -231,15 +232,35 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 16 min.
 
-### 12. A tua skill
+### 12. Tool ou skill?
 
-[18:00 → 20:00] 2 min · missions
+[18:00 → 19:00] 1 min · missions
+
+Objetivo: Separar tool de skill antes de a M4 criar uma skill e a M11 usar uma tool.
+
+O que dizer:
+- Uma tool é código: mesma entrada, mesma saída, e custa quase nada em tokens.
+- Uma skill é texto: escreve-se em minutos, mas o modelo interpreta-a e pode desviar-se.
+- As melhores skills chamam tools para as partes que têm de ser exatas.
+
+Olha para o painel:
+- Sem painel nesta: avança para a M4 em 1 minuto.
+
+Falhas típicas e resposta:
+- Perguntam se um MCP é uma tool ou uma skill → um servidor MCP oferece tools; a skill é só um ficheiro Markdown
+
+Relógio: deves estar aqui aos 18 min.
+
+### 13. A tua skill
+
+[19:00 → 21:00] 2 min · missions
 
 Objetivo: Mostrar que uma skill é só um ficheiro que qualquer pessoa escreve.
 
 O que dizer:
 - As skills do workshop (/demo-plan, /task-swarm…) são exatamente isto: Markdown com instruções.
 - O claude -c retoma a conversa anterior: nada se perde ao sair.
+- Lembra o slide anterior: a skill é a receita em texto, a tool é a função em código.
 
 Olha para o painel:
 - Se a M4 ficar baixa: "a skill só aparece depois de sair e voltar; /exit e claude -c".
@@ -247,11 +268,11 @@ Olha para o painel:
 Falhas típicas e resposta:
 - /resumo não existe → confirma o ficheiro .claude/skills/resumo/SKILL.md e reabre com claude -c
 
-Relógio: deves estar aqui aos 18 min.
+Relógio: deves estar aqui aos 19 min.
 
-### 13. O teu hook
+### 14. O teu hook
 
-[20:00 → 22:00] 2 min · missions
+[21:00 → 23:00] 2 min · missions
 
 Objetivo: Perceber que os hooks automatizam sem pedir ao modelo.
 
@@ -267,11 +288,11 @@ Falhas típicas e resposta:
 - O edits.log não aparece → o hook só corre na edição seguinte: pede outra edição
 - O hook ficou no settings.json do kit → pede para o mover para .claude/settings.local.json
 
-Relógio: deves estar aqui aos 20 min.
+Relógio: deves estar aqui aos 21 min.
 
-### 14. Até ficar verde
+### 15. Até ficar verde
 
-[22:00 → 24:00] 2 min · missions
+[23:00 → 25:00] 2 min · missions
 
 Objetivo: Ver o Claude a trabalhar sozinho com uma condição de paragem.
 
@@ -285,11 +306,11 @@ Olha para o painel:
 Falhas típicas e resposta:
 - O loop não para → Esc e diz: para o loop
 
-Relógio: deves estar aqui aos 22 min.
+Relógio: deves estar aqui aos 23 min.
 
-### 15. O que falta à sala (e as bónus M7 a M10)
+### 16. O que falta à sala (e as bónus M7 a M10)
 
-[24:00 → 26:00] 2 min · missions
+[25:00 → 26:00] 1 min · missions
 
 Objetivo: Fechar as missões guiadas e apontar as bónus para as esperas.
 
@@ -301,9 +322,9 @@ Olha para o painel:
 - Lê em voz alta a missão que pisca e chama quem a tem para mostrar ao vizinho.
 - Se a cobertura média passar de 70 %: "esta sala está mais rápida do que o ensaio".
 
-Relógio: deves estar aqui aos 24 min.
+Relógio: deves estar aqui aos 25 min.
 
-### 16. O que vamos construir: o Canivete
+### 17. O que vamos construir: o Canivete
 
 [26:00 → 28:00] 2 min · p1
 
@@ -321,7 +342,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 26 min.
 
-### 17. Inventa a tua ferramenta
+### 18. Inventa a tua ferramenta
 
 [28:00 → 32:00] 4 min · p1
 
@@ -340,7 +361,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 28 min.
 
-### 18. Quantos agentes e que modelo?
+### 19. Quantos agentes e que modelo?
 
 [32:00 → 34:00] 2 min · p1
 
@@ -355,7 +376,7 @@ Olha para o painel:
 
 Relógio: deves estar aqui aos 32 min.
 
-### 19. Planeia
+### 20. Planeia
 
 [34:00 → 35:00] 1 min · p1
 
@@ -373,7 +394,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 34 min.
 
-### 20. Solta o swarm
+### 21. Solta o swarm
 
 [35:00 → 42:00] 7 min · p1
 
@@ -394,7 +415,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 35 min.
 
-### 21. Porque é que esta ferramenta falhou?
+### 22. Porque é que esta ferramenta falhou?
 
 [42:00 → 46:00] 4 min · p1
 
@@ -414,7 +435,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 42 min.
 
-### 22. Gate e custo: que decisão ganhou?
+### 23. Gate e custo: que decisão ganhou?
 
 [46:00 → 48:00] 2 min · p1
 
@@ -433,21 +454,26 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 46 min.
 
-### 23. Usa o teu Canivete
+### 24. A tua ferramenta, pelo Claude
 
-[48:00 → 50:00] 2 min · p1 · PODE SALTAR
+[48:00 → 50:00] 2 min · p1
 
-Objetivo: Ver o resultado e ganhar confiança no que foi feito.
+Objetivo: Fechar a ideia tool ou skill: o que o swarm construiu o Claude chama como tool.
 
 O que dizer:
-- Tudo o que está ali foi escrito por agentes nos últimos 15 minutos, com testes.
+- Esta é uma tool: código com entradas tipadas, que o Claude chama pelo nome, sem ler uma receita.
+- Mesma ferramenta, duas formas de a usar: a página no browser e o Claude.
+
+Olha para o painel:
+- Se a M11 ficar baixa: "o Claude Code tem de estar aberto na pasta do Canivete; /mcp mostra se o servidor canivete está ligado".
 
 Falhas típicas e resposta:
-- A página não abre → o node server.js tem de estar a correr no outro terminal
+- O Claude não encontra a ferramenta → /mcp: o servidor canivete tem de estar ligado; reabre com claude -c
+- Responde sem chamar a tool → pede pelo nome: usa a ferramenta my-01
 
 Relógio: deves estar aqui aos 48 min.
 
-### 24. O mesmo ciclo, noutro repositório
+### 25. O mesmo ciclo, noutro repositório
 
 [50:00 → 52:00] 2 min · p2
 
@@ -463,7 +489,7 @@ Olha para o painel:
 
 Relógio: deves estar aqui aos 50 min.
 
-### 25. Lê a issue
+### 26. Lê a issue
 
 [52:00 → 56:00] 4 min · p2
 
@@ -481,7 +507,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 52 min.
 
-### 26. Quantos agentes?
+### 27. Quantos agentes?
 
 [56:00 → 62:00] 6 min · p2
 
@@ -499,7 +525,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 56 min.
 
-### 27. Põe o swarm a trabalhar
+### 28. Põe o swarm a trabalhar
 
 [62:00 → 74:00] 12 min · p2
 
@@ -518,7 +544,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 62 min.
 
-### 28. O gate
+### 29. O gate
 
 [74:00 → 79:00] 5 min · p2
 
@@ -536,7 +562,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 74 min.
 
-### 29. O relatório e a memória
+### 30. O relatório e a memória
 
 [79:00 → 83:00] 4 min · p2
 
@@ -554,7 +580,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 79 min.
 
-### 30. Agora sozinho: EX-3
+### 31. Agora sozinho: EX-3
 
 [83:00 → 87:00] 4 min · p2
 
@@ -572,7 +598,7 @@ Falhas típicas e resposta:
 
 Relógio: deves estar aqui aos 83 min.
 
-### 31. O dia em números e 3 ideias para levar
+### 32. O dia em números e 3 ideias para levar
 
 [87:00 → 89:00] 2 min · closing
 
@@ -588,7 +614,7 @@ Olha para o painel:
 
 Relógio: deves estar aqui aos 87 min.
 
-### 32. Perguntas
+### 33. Perguntas
 
 [89:00 → 90:00] 1 min · closing
 

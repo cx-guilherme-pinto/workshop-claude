@@ -28,7 +28,7 @@ export const SLIDES = [
     subtitulo: 'Missões, um swarm que constrói um canivete e uma tarefa a sério',
     notas: {
       objetivo: 'Abrir a sessão e apontar para o painel à direita.',
-      dizer: ['Em 90 minutos vamos fazer, não ouvir: 10 missões curtas, um swarm de agentes e uma tarefa num repositório a sério.', 'O painel à direita mostra o que toda a gente já fez, ao vivo.'],
+      dizer: ['Em 90 minutos vamos fazer, não ouvir: 11 missões curtas, um swarm de agentes e uma tarefa num repositório a sério.', 'O painel à direita mostra o que toda a gente já fez, ao vivo.'],
       painel: ['Se já houver nomes na classificação: "quem já está no painel fez o setup em casa, obrigado".'],
       falhas: [],
     },
@@ -59,7 +59,7 @@ export const SLIDES = [
     titulo: 'O que vamos fazer hoje',
     intro: 'Três blocos, sempre no teu portátil, sempre a fazer:',
     blocos: [
-      { titulo: 'Missões · 15 min', texto: '10 missões curtas: plan mode, modelos, subagentes, skills, hooks e /loop, uma de cada vez.' },
+      { titulo: 'Missões · 15 min', texto: '11 missões curtas: plan mode, modelos, subagentes, skills, hooks, /loop e uma tool tua, uma de cada vez.' },
       { titulo: 'Projeto 1 · 24 min', texto: 'Um swarm de agentes constrói o Canivete: 30 ferramentas e a tua. Tu decides quantos agentes e que modelo.' },
       { titulo: 'Projeto 2 · 37 min', texto: 'O mesmo ciclo numa tarefa a sério: uma issue do projeto de treino, ou do teu Jira ou GitHub.' },
     ],
@@ -153,13 +153,13 @@ export const SLIDES = [
   // ---------------- Missões (11–26)
   {
     min: 1, bloco: 'Missões', fase: 'missions', tipo: 'painel',
-    titulo: '10 missões, uma grelha vazia',
+    titulo: '11 missões, uma grelha vazia',
     pergunta: 'Quantas missões vai a sala acender em 15 minutos?',
     apoio: 'Cada missão valida-se sozinha: fazes, e o painel acende.',
     comandos: [{ rotulo: 'Terminal 1 · missões', cmd: MISSOES }],
     notas: {
       objetivo: 'Abrir o projeto das missões e lançar a corrida da sala.',
-      dizer: ['São 6 missões guiadas, de 2 minutos cada, e 4 bónus para as esperas.', 'Ninguém carrega em "feito": o kit vê a funcionalidade a ser usada e acende a missão.', '/missions mostra a tua caderneta a qualquer momento.'],
+      dizer: ['São 7 missões guiadas de 2 minutos (6 aqui, a última no Projeto 1) e 4 bónus para as esperas.', 'Ninguém carrega em "feito": o kit vê a funcionalidade a ser usada e acende a missão.', '/missions mostra a tua caderneta a qualquer momento.'],
       painel: ['A grelha está a 0 %: "vamos ver quantas acendemos até ao Projeto 1".'],
       falhas: [{ falha: 'A pasta missions-project não existe', resposta: 'corre o --check: o passo 9 monta-a' }],
     },
@@ -210,15 +210,31 @@ export const SLIDES = [
     },
   },
   {
+    min: 1, bloco: 'Missões', fase: 'missions', tipo: 'conceito',
+    titulo: 'Tool ou skill?',
+    intro: 'Duas formas de dar mais poder ao Claude. Vais usar as duas hoje:',
+    blocos: [
+      { titulo: 'Tool', texto: 'Função com entradas tipadas que o Claude chama (Read, Bash, memory_add, as do Canivete). Prós: determinista, testável, barata em tokens. Contra: precisa de código e servidor.' },
+      { titulo: 'Skill', texto: 'Receita em Markdown que o Claude segue (/demo-swarm, a tua /resumo). Prós: escreve-se em minutos, flexível. Contras: o modelo interpreta, custa tokens e pode desviar-se.' },
+      { titulo: 'Juntas', texto: 'Uma skill pode chamar tools: a receita decide o quê, a tool faz com exatidão.' },
+    ],
+    notas: {
+      objetivo: 'Separar tool de skill antes de a M4 criar uma skill e a M11 usar uma tool.',
+      dizer: ['Uma tool é código: mesma entrada, mesma saída, e custa quase nada em tokens.', 'Uma skill é texto: escreve-se em minutos, mas o modelo interpreta-a e pode desviar-se.', 'As melhores skills chamam tools para as partes que têm de ser exatas.'],
+      painel: ['Sem painel nesta: avança para a M4 em 1 minuto.'],
+      falhas: [{ falha: 'Perguntam se um MCP é uma tool ou uma skill', resposta: 'um servidor MCP oferece tools; a skill é só um ficheiro Markdown' }],
+    },
+  },
+  {
     min: 2, bloco: 'Missões', fase: 'missions', tipo: 'missao', id: 'M4',
     titulo: 'A tua skill',
-    conceito: 'Uma skill é uma receita com nome: um SKILL.md que o Claude Code segue quando a chamas.',
+    conceito: 'Uma skill é uma receita com nome, não uma tool: um SKILL.md que o Claude Code segue quando a chamas.',
     passos: ['Pede ao Claude para criar a skill', 'Sai e volta à mesma sessão', 'Usa a skill pelo nome'],
     comandos: [{ rotulo: 'No Claude Code', cmd: 'Cria .claude/skills/resumo/SKILL.md: resume um ficheiro em 3 linhas\n/exit\nclaude -c\n/resumo src/units.js' }],
     esperado: 'Um resumo em 3 linhas, feito pela tua skill',
     notas: {
       objetivo: 'Mostrar que uma skill é só um ficheiro que qualquer pessoa escreve.',
-      dizer: ['As skills do workshop (/demo-plan, /task-swarm…) são exatamente isto: Markdown com instruções.', 'O claude -c retoma a conversa anterior: nada se perde ao sair.'],
+      dizer: ['As skills do workshop (/demo-plan, /task-swarm…) são exatamente isto: Markdown com instruções.', 'O claude -c retoma a conversa anterior: nada se perde ao sair.', 'Lembra o slide anterior: a skill é a receita em texto, a tool é a função em código.'],
       painel: ['Se a M4 ficar baixa: "a skill só aparece depois de sair e voltar; /exit e claude -c".'],
       falhas: [{ falha: '/resumo não existe', resposta: 'confirma o ficheiro .claude/skills/resumo/SKILL.md e reabre com claude -c' }],
     },
@@ -255,7 +271,7 @@ export const SLIDES = [
     },
   },
   {
-    min: 2, bloco: 'Missões', fase: 'missions', tipo: 'painel',
+    min: 1, bloco: 'Missões', fase: 'missions', tipo: 'painel',
     titulo: 'O que falta à sala (e as bónus M7 a M10)',
     pergunta: 'Qual é a missão que menos gente fez?',
     apoio: 'As bónus fazem-se nas esperas dos projetos:',
@@ -388,16 +404,23 @@ export const SLIDES = [
     },
   },
   {
-    min: 2, bloco: 'Projeto 1', fase: 'p1', tipo: 'faca', saltar: true,
-    titulo: 'Usa o teu Canivete',
-    passos: ['Abre o Canivete no browser', 'Procura a tua ferramenta', 'Usa-a a sério'],
-    comandos: [{ rotulo: 'Browser', cmd: 'http://localhost:3000' }],
-    esperado: 'A tua ferramenta my-01 a funcionar ao lado das outras 30',
+    min: 2, bloco: 'Projeto 1', fase: 'p1', tipo: 'missao', id: 'M11',
+    titulo: 'A tua ferramenta, pelo Claude',
+    conceito: 'As ferramentas que o swarm construiu também são tools do Claude: chama-as pelo nome.',
+    passos: ['Abre o Claude Code no Canivete', 'Pede ao Claude para usar a tua ferramenta', 'Vê a chamada à tool'],
+    comandos: [
+      { rotulo: 'No Claude Code', cmd: 'Usa a ferramenta my-01 com um exemplo teu.' },
+      { rotulo: 'Opcional · no browser', cmd: 'http://localhost:3000' },
+    ],
+    esperado: 'O Claude chama mcp__canivete__my-01 e responde com o resultado da tua ferramenta',
     notas: {
-      objetivo: 'Ver o resultado e ganhar confiança no que foi feito.',
-      dizer: ['Tudo o que está ali foi escrito por agentes nos últimos 15 minutos, com testes.'],
-      painel: [],
-      falhas: [{ falha: 'A página não abre', resposta: 'o node server.js tem de estar a correr no outro terminal' }],
+      objetivo: 'Fechar a ideia tool ou skill: o que o swarm construiu o Claude chama como tool.',
+      dizer: ['Esta é uma tool: código com entradas tipadas, que o Claude chama pelo nome, sem ler uma receita.', 'Mesma ferramenta, duas formas de a usar: a página no browser e o Claude.'],
+      painel: ['Se a M11 ficar baixa: "o Claude Code tem de estar aberto na pasta do Canivete; /mcp mostra se o servidor canivete está ligado".'],
+      falhas: [
+        { falha: 'O Claude não encontra a ferramenta', resposta: '/mcp: o servidor canivete tem de estar ligado; reabre com claude -c' },
+        { falha: 'Responde sem chamar a tool', resposta: 'pede pelo nome: usa a ferramenta my-01' },
+      ],
     },
   },
 

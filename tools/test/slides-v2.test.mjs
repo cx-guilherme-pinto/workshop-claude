@@ -1,5 +1,5 @@
 // The v2 deck's content (docs/pt/WORKSHOP-V2-SPEC.md, section 8): slides/content-v2.mjs (pt) and content-v2.en.mjs
-// have the same shape, 32 slides (D-36: 2 overview slides and the memory app at the start) and 90 minutes, a panel phase on every slide, at most 3 slides without an action
+// have the same shape, 33 slides (D-36: 2 overview slides and the memory app at the start) and 90 minutes, a panel phase on every slide, at most 3 slides without an action
 // (section 2.2), the notes in the order of section 8.4, and missions M1 to M6 as in missions/rules.json.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,9 +22,9 @@ const shape = (s) => ({
   notas: [s.notas.dizer.length, s.notas.painel.length, s.notas.falhas.length],
 });
 
-test('v2 deck: 32 slides, 90 minutes, the same shape in pt and en', () => {
-  assert.equal(pt.length, 32);
-  assert.equal(en.length, 32);
+test('v2 deck: 33 slides, 90 minutes, the same shape in pt and en', () => {
+  assert.equal(pt.length, 33);
+  assert.equal(en.length, 33);
   for (const d of [pt, en]) assert.equal(d.reduce((a, s) => a + s.min, 0), 90);
   assert.deepEqual(en.map(shape), pt.map(shape));
 });
@@ -38,7 +38,7 @@ test('v2 deck: every slide has a panel phase and a type; at most 3 without an ac
   const order = pt.map((s) => PHASES.indexOf(s.fase));
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the phases never go back');
   // the agenda of section 3, with D-36 (3 minutes more at the opening, from EX-3): opening 11, missions 15,
-  // project 1 24, project 2 37, closing 3
+  // project 1 24, project 2 37, closing 3 (the "Tool or skill?" concept slide takes 1 minute from "what the room is missing")
   const per = Object.fromEntries(PHASES.map((p) => [p, pt.filter((s) => s.fase === p).reduce((a, s) => a + s.min, 0)]));
   assert.deepEqual(per, { opening: 11, missions: 15, p1: 24, p2: 37, closing: 3 });
 });
@@ -57,13 +57,30 @@ test('v2 deck: the action slides have steps, commands and an expected result; th
   }
 });
 
-test('v2 deck: missions M1 to M6 in order, with the titles of missions/rules.json', () => {
+test('v2 deck: missions M1 to M6 (missions phase) and M11 (p1 phase), with the titles of missions/rules.json', () => {
+  const inRules = (id) => RULES.missions.find((m) => m.id === id);
+  // M11 is added to missions/rules.json by another session: until it is there, only the ids present are compared
   const guided = RULES.missions.filter((m) => m.guided).map((m) => m.id);
+  const expected = inRules('M11') ? guided : [...guided, 'M11'];
   for (const [d, lang] of [[pt, 'pt'], [en, 'en']]) {
     const ms = d.filter((s) => s.tipo === 'missao');
-    assert.deepEqual(ms.map((s) => s.id), guided);
-    for (const s of ms) assert.equal(s.titulo, RULES.missions.find((m) => m.id === s.id).title[lang], `${lang} ${s.id}`);
+    assert.deepEqual(ms.map((s) => s.id), expected);
+    for (const s of ms) if (inRules(s.id)) assert.equal(s.titulo, inRules(s.id).title[lang], `${lang} ${s.id}`);
     assert.ok(ms.every((s) => s.conceito), 'each mission has its flash concept');
+    const m11 = ms.find((s) => s.id === 'M11');
+    assert.equal(m11.fase, 'p1');
+    assert.ok(!m11.saltar && m11.min === 2);
+    assert.ok(ms.filter((s) => s.id !== 'M11').every((s) => s.fase === 'missions'));
+  }
+});
+
+test('v2 deck: the "Tool or skill?" concept slide sits right before M4', () => {
+  for (const d of [pt, en]) {
+    const i = d.findIndex((s) => s.id === 'M4');
+    assert.equal(d[i - 1].tipo, 'conceito');
+    assert.equal(d[i - 1].min, 1);
+    assert.equal(d[i - 1].fase, 'missions');
+    assert.deepEqual(d[i - 1].blocos.length, 3);
   }
 });
 

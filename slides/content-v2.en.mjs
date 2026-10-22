@@ -17,7 +17,7 @@ export const SLIDES = [
     subtitulo: 'Missions, a swarm that builds a pocketknife and a real task',
     notas: {
       objetivo: 'Open the session and point at the panel on the right.',
-      dizer: ['For 90 minutes we do instead of listen: 10 short missions, a swarm of agents and a task in a real repository.', 'The panel on the right shows what everyone has done, live.'],
+      dizer: ['For 90 minutes we do instead of listen: 11 short missions, a swarm of agents and a task in a real repository.', 'The panel on the right shows what everyone has done, live.'],
       painel: ['If there are already names on the leaderboard: "whoever is on the panel ran the setup at home, thank you".'],
       falhas: [],
     },
@@ -48,7 +48,7 @@ export const SLIDES = [
     titulo: 'What we will do today',
     intro: 'Three blocks, always on your laptop, always hands-on:',
     blocos: [
-      { titulo: 'Missions · 15 min', texto: '10 short missions: plan mode, models, subagents, skills, hooks and /loop, one at a time.' },
+      { titulo: 'Missions · 15 min', texto: '11 short missions: plan mode, models, subagents, skills, hooks, /loop and a tool of your own, one at a time.' },
       { titulo: 'Project 1 · 24 min', texto: 'A swarm of agents builds the Pocketknife: 30 tools plus yours. You decide how many agents and which model.' },
       { titulo: 'Project 2 · 37 min', texto: 'The same cycle on a real task: an issue from the practice project, or from your Jira or GitHub.' },
     ],
@@ -142,13 +142,13 @@ export const SLIDES = [
   // ---------------- Missions (11–26)
   {
     min: 1, bloco: 'Missions', fase: 'missions', tipo: 'painel',
-    titulo: '10 missions, an empty grid',
+    titulo: '11 missions, an empty grid',
     pergunta: 'How many missions will the room light up in 15 minutes?',
     apoio: 'Each mission checks itself: you do it, and the panel lights up.',
     comandos: [{ rotulo: 'Terminal 1 · missions', cmd: MISSIONS }],
     notas: {
       objetivo: 'Open the missions project and start the room race.',
-      dizer: ['There are 6 guided missions of 2 minutes each, and 4 bonus ones for the waits.', 'Nobody clicks "done": the kit sees the feature being used and lights up the mission.', '/missions shows your mission book at any time.'],
+      dizer: ['There are 7 guided missions of 2 minutes (6 here, the last one in Project 1) and 4 bonus ones for the waits.', 'Nobody clicks "done": the kit sees the feature being used and lights up the mission.', '/missions shows your mission book at any time.'],
       painel: ['The grid is at 0 %: "let us see how many we light up before Project 1".'],
       falhas: [{ falha: 'The missions-project folder does not exist', resposta: 'run --check: step 9 sets it up' }],
     },
@@ -199,15 +199,31 @@ export const SLIDES = [
     },
   },
   {
+    min: 1, bloco: 'Missions', fase: 'missions', tipo: 'conceito',
+    titulo: 'Tool or skill?',
+    intro: 'Two ways to give Claude more power. You will use both today:',
+    blocos: [
+      { titulo: 'Tool', texto: 'A function with typed inputs that Claude calls (Read, Bash, memory_add, the Pocketknife\'s). For: deterministic, testable, cheap in tokens. Against: needs code and a server.' },
+      { titulo: 'Skill', texto: 'A Markdown recipe Claude follows (/demo-swarm, your /summary). For: written in minutes, flexible. Against: the model interprets it, costs tokens, can drift.' },
+      { titulo: 'Together', texto: 'A skill can call tools: the recipe decides what, the tool does it exactly.' },
+    ],
+    notas: {
+      objetivo: 'Tell tool from skill before M4 creates a skill and M11 uses a tool.',
+      dizer: ['A tool is code: same input, same output, and almost free in tokens.', 'A skill is text: written in minutes, but the model interprets it and can drift.', 'The best skills call tools for the parts that must be exact.'],
+      painel: ['No panel cue here: move on to M4 within 1 minute.'],
+      falhas: [{ falha: 'Someone asks whether an MCP is a tool or a skill', resposta: 'an MCP server offers tools; a skill is just a Markdown file' }],
+    },
+  },
+  {
     min: 2, bloco: 'Missions', fase: 'missions', tipo: 'missao', id: 'M4',
     titulo: 'Your skill',
-    conceito: 'A skill is a named recipe: a SKILL.md that Claude Code follows when you call it.',
+    conceito: 'A skill is a named recipe, not a tool: a SKILL.md that Claude Code follows when you call it.',
     passos: ['Ask Claude to create the skill', 'Leave and come back to the same session', 'Use the skill by name'],
     comandos: [{ rotulo: 'In Claude Code', cmd: 'Create .claude/skills/summary/SKILL.md: summarise a file in 3 lines\n/exit\nclaude -c\n/summary src/units.js' }],
     esperado: 'A 3-line summary, made by your skill',
     notas: {
       objetivo: 'Show that a skill is just a file anyone can write.',
-      dizer: ['The workshop skills (/demo-plan, /task-swarm…) are exactly this: Markdown with instructions.', 'claude -c resumes the previous conversation: nothing is lost when you leave.'],
+      dizer: ['The workshop skills (/demo-plan, /task-swarm…) are exactly this: Markdown with instructions.', 'claude -c resumes the previous conversation: nothing is lost when you leave.', 'Recall the last slide: the skill is the recipe in text, the tool is the function in code.'],
       painel: ['If M4 stays low: "the skill only shows after you leave and come back; /exit and claude -c".'],
       falhas: [{ falha: '/summary does not exist', resposta: 'check the file .claude/skills/summary/SKILL.md and reopen with claude -c' }],
     },
@@ -244,7 +260,7 @@ export const SLIDES = [
     },
   },
   {
-    min: 2, bloco: 'Missions', fase: 'missions', tipo: 'painel',
+    min: 1, bloco: 'Missions', fase: 'missions', tipo: 'painel',
     titulo: 'What the room is missing (and the bonus M7 to M10)',
     pergunta: 'Which mission did the fewest people do?',
     apoio: 'The bonus ones are for the waits in the projects:',
@@ -377,16 +393,23 @@ export const SLIDES = [
     },
   },
   {
-    min: 2, bloco: 'Project 1', fase: 'p1', tipo: 'faca', saltar: true,
-    titulo: 'Use your Pocketknife',
-    passos: ['Open the Pocketknife in the browser', 'Find your tool', 'Use it for real'],
-    comandos: [{ rotulo: 'Browser', cmd: 'http://localhost:3000' }],
-    esperado: 'Your tool my-01 working next to the other 30',
+    min: 2, bloco: 'Project 1', fase: 'p1', tipo: 'missao', id: 'M11',
+    titulo: 'Your tool, used by Claude',
+    conceito: 'The tools the swarm built are Claude tools too: call them by name.',
+    passos: ['Open Claude Code in the Pocketknife', 'Ask Claude to use your tool', 'See the tool call'],
+    comandos: [
+      { rotulo: 'In Claude Code', cmd: 'Use the my-01 tool with an example of your own.' },
+      { rotulo: 'Optional · in the browser', cmd: 'http://localhost:3000' },
+    ],
+    esperado: 'Claude calls mcp__canivete__my-01 and answers with your tool\'s result',
     notas: {
-      objetivo: 'See the result and trust what was made.',
-      dizer: ['Everything there was written by agents in the last 15 minutes, with tests.'],
-      painel: [],
-      falhas: [{ falha: 'The page does not open', resposta: 'node server.js must be running in the other terminal' }],
+      objetivo: 'Close the tool-or-skill idea: what the swarm built, Claude calls as a tool.',
+      dizer: ['This is a tool: code with typed inputs, called by name, with no recipe to read.', 'Same tool, two ways to use it: the page in the browser and Claude.'],
+      painel: ['If M11 stays low: "Claude Code must be open in the Pocketknife folder; /mcp shows whether the canivete server is connected".'],
+      falhas: [
+        { falha: 'Claude cannot find the tool', resposta: '/mcp: the canivete server must be connected; reopen with claude -c' },
+        { falha: 'It answers without calling the tool', resposta: 'ask by name: use the my-01 tool' },
+      ],
     },
   },
 
