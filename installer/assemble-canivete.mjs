@@ -9,6 +9,9 @@
 //     installed for the user) and the demo agents to .claude/, the agents with the names of workshop.project.json
 //     filled in (lib/project-agents.mjs: tools/CONTRACT.md, tools/<id>/tool.js);
 //   - writes .claude/settings.json with absolute paths (node, hooks, statusline) and the permissions of the swarm;
+//   - writes .mcp.json (the MCP server "canivete", mcp-server.mjs: every tools/<id>/tool.js is a Claude Code tool,
+//     mcp__canivete__<id>). settings.json approves it (enabledMcpjsonServers, which Claude Code honours because the
+//     setup marks the folder as trusted, D-34) and allows its tools, so there is no approval prompt;
 //   - git init with the kit's isolated git (lib/kit-repo.mjs), a first commit and the tag canivete-start.
 //
 //   node installer/assemble-canivete.mjs --dest <folder> [--language pt|en] [--node <node>] [--force] [--no-git]
@@ -50,8 +53,15 @@ export function args(argv) {
   return o;
 }
 
+export const MCP_SERVER = 'canivete';
+
 const slash = (p) => p.replace(/\\/g, '/');
 const q = (p) => `"${slash(p)}"`;
+
+// The project's MCP server: the Pocketknife's tools for Claude Code. Absolute node and path, like the hooks.
+export function mcpConfig(dest, node) {
+  return { mcpServers: { [MCP_SERVER]: { command: slash(node), args: [slash(join(dest, 'mcp-server.mjs'))] } } };
+}
 
 export function settingsCanivete(dest, node) {
   const engine = join(dest, 'tools', 'workshop');
@@ -79,11 +89,13 @@ export function settingsCanivete(dest, node) {
         'mcp__agent-memory__memory_search',
         'mcp__agent-memory__memory_related',
         'mcp__agent-memory__memory_add',
+        `mcp__${MCP_SERVER}`,
       ],
       // The tools' specs and tests are the contract: no agent changes them. A person completes a broken tool's spec.md
       // by hand (specs/tools.json "spec_gaps") and runs it again with /demo-swarm --retry <id>.
       deny: ['Read(.env)', 'Read(.env.*)', 'Bash(curl *)', 'Bash(wget *)', 'Bash(rm -rf *)', 'Bash(git push*)', 'Edit(tools/*/spec.md)', 'Edit(tools/*/tool.test.js)'],
     },
+    enabledMcpjsonServers: [MCP_SERVER],
     hooks: {
       SubagentStop: [{ hooks: [hook('hooks/subagent-stop.mjs')] }],
       Stop: [{ hooks: [hook('hooks/stop.mjs')] }],
@@ -141,6 +153,7 @@ export async function montar(o) {
   copy(join(KIT, 'skills-shared'), skills, { without: [resolve(KIT, 'skills-shared', 'missions')] });
   copyDemoAgents(join(KIT, 'agents', 'demo'), o.dest);
   writeFileSync(join(o.dest, '.claude', 'settings.json'), JSON.stringify(settingsCanivete(o.dest, o.node), null, 2) + '\n');
+  writeFileSync(join(o.dest, '.mcp.json'), JSON.stringify(mcpConfig(o.dest, o.node), null, 2) + '\n');
   mkdirSync(join(o.dest, '.workshop'), { recursive: true });
   writeFileSync(join(o.dest, '.gitignore'), '.workshop/\nnode_modules/\n.DS_Store\n');
   writeFileSync(mark, JSON.stringify({ version: kitVersion(), language: l, assembled_at: new Date().toISOString() }, null, 2) + '\n');
