@@ -8,11 +8,11 @@
     "check_ok": { "fields": {} },
     "feature": {
       "fields": {
-        "name": ["plan_mode", "model_switch", "subagent", "skill_user", "hook_user", "loop", "statusline_user", "headless", "memory_write"]
+        "name": ["plan_mode", "model_switch", "subagent", "skill_user", "hook_user", "loop", "statusline_user", "headless", "memory_write", "pocketknife_tool"]
       },
       "local": { "family": ["haiku", "sonnet", "opus", "other"], "project": ["missions", "p1", "p2"] }
     },
-    "mission_done": { "fields": { "mission": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10"] } },
+    "mission_done": { "fields": { "mission": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "M10", "M11"] } },
     "tests_run": { "local_only": true, "fields": { "green": "int", "red": "int" } },
     "p1_tool_created": { "fields": { "tool_template": ["calc", "convert", "text", "generate", "choice", "spot-the-flaw", "order", "answer"] } },
     "p1_plan": { "fields": { "parallel": [4, 8, 12], "model": ["haiku", "sonnet"], "forecast_min": "int_or_null", "tasks": "int" } },

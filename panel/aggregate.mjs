@@ -10,7 +10,7 @@
 
 // The missions shown in the grid: M7 (/btw) is not observable (docs/OBSERVABILITY.md). tools/test/panel.test.mjs
 // checks this list against missions/rules.json.
-export const MISSIONS = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10'];
+export const MISSIONS = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10', 'M11'];
 export const PHASES = ['opening', 'missions', 'p1', 'p2', 'closing'];
 // 'auto' (the default, rc.3): the view follows the room, the block where most of the active people are (the last
 // block of each one: missions, p1 or p2). The presenter's keys 1 to 5 force a view, 0 goes back to auto.

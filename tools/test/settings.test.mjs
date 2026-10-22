@@ -280,7 +280,7 @@ test('workshop v2: o hook de telemetria fica nos 8 eventos, "async", com o match
     const nossos = s.hooks[ev].filter((g) => g.hooks.some((h) => h.command === tel));
     assert.equal(nossos.length, 1, ev);
     assert.deepEqual(nossos[0].hooks, [{ type: 'command', command: tel, timeout: 5, async: true }], ev);
-    assert.equal(nossos[0].matcher, ev === 'PostToolUse' ? 'Skill|CronCreate|mcp__agent-memory__memory_add' : undefined, ev);
+    assert.equal(nossos[0].matcher, ev === 'PostToolUse' ? 'Skill|CronCreate|mcp__agent-memory__memory_add|mcp__canivete__.*' : undefined, ev);
   }
   assert.deepEqual(s.hooks.PostToolUse[0], cur.hooks.PostToolUse[0], 'o hook da pessoa fica igual e no mesmo sitio');
   assert.deepEqual(s.hooks.PreToolUse, cur.hooks.PreToolUse);

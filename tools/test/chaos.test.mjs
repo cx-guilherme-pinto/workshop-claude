@@ -390,5 +390,23 @@ test('auto view: the panel follows the block where most active people are; a for
   }
 });
 
+test('M11: Claude calls a Pocketknife tool (mcp__canivete__<id>) in the Pocketknife folder; nothing of the call leaves', async () => {
+  const l = laptop();
+  try {
+    const canivete = join(l.projs, 'canivete-project');
+    mkdirSync(canivete, { recursive: true });
+    const env = { ...CHECK, CLAUDE_PROJECT_DIR: canivete };
+    // another MCP tool (not the Pocketknife's) does not count
+    hook(l, 'telemetry.mjs', { hook_event_name: 'PostToolUse', session_id: 'k1', tool_name: 'mcp__other__thing', tool_input: { q: 'x' }, cwd: canivete }, env);
+    hook(l, 'telemetry.mjs', { hook_event_name: 'PostToolUse', session_id: 'k1', tool_name: 'mcp__canivete__my-01', tool_input: { text: 'my secret example' }, tool_response: { content: [{ type: 'text', text: 'result' }] }, cwd: canivete }, env);
+    assert.ok((await book(l, ['M11'])).includes('M11'));
+    const local = readFileSync(l.P.local, 'utf8');
+    assert.match(local, /"pocketknife_tool"/);
+    assert.doesNotMatch(local, /my secret example|my-01|result/, 'neither the input, nor the tool name, nor the answer is kept');
+  } finally {
+    l.cleanup();
+  }
+});
+
 export { laptop, hook, transcript, costs, sum, book, panel, account, ROOT };
 void cpSync;

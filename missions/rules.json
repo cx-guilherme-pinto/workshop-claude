@@ -1,7 +1,7 @@
 {
   "v": 1,
   "about": "The 10 missions (docs/pt/WORKSHOP-V2-SPEC.md, section 4.2) and how each one is validated (docs/OBSERVABILITY.md). A mission is done when every condition in \"all\" holds (or one in \"any\"). Conditions: {feature, family?} = a feature event in the local book; {file: ...} = a file check in the workshop projects; {tests: \"green_after_loop\"} = a green npm test after /loop. A mission with \"validated\": false is a hint only (M7: /btw fires no hook event).",
-  "order": ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M9", "M10", "M7"],
+  "order": ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M9", "M10", "M11", "M7"],
   "missions": [
     {
       "id": "M1", "guided": true, "all": [{ "feature": "plan_mode" }],
@@ -81,6 +81,14 @@
       "hint": {
         "pt": "/memory guarda uma lição sobre o conversor",
         "en": "/memory save a lesson about the converter"
+      }
+    },
+    {
+      "id": "M11", "guided": true, "all": [{ "feature": "pocketknife_tool" }],
+      "title": { "pt": "A tua ferramenta, pelo Claude", "en": "Your tool, used by Claude" },
+      "hint": {
+        "pt": "No Canivete, pede ao Claude: «Usa a ferramenta my-01 com um exemplo teu.» Ele chama a tool mcp__canivete__my-01 (o /mcp mostra o servidor canivete).",
+        "en": "In the Pocketknife, ask Claude: \"Use the my-01 tool with an example of yours.\" It calls the mcp__canivete__my-01 tool (/mcp shows the canivete server)."
       }
     }
   ]

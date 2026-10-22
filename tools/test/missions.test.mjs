@@ -32,9 +32,9 @@ const done = (b) => Object.keys(b.done).sort();
 const local = (proj, obj) => writeFileSync(join(proj, '.claude', 'settings.local.json'), JSON.stringify(obj));
 const KIT_CMD = '"/Users/a/.workshop-claude/kit/node" "/Users/a/.workshop-claude/kit/hooks/stop.mjs"';
 
-test('rules.json: 10 missions, M7 not validated, every condition is known', () => {
-  assert.equal(RULES.missions.length, 10);
-  assert.deepEqual(VALIDATED, ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10']);
+test('rules.json: 11 missions, M7 not validated, every condition is known', () => {
+  assert.equal(RULES.missions.length, 11);
+  assert.deepEqual(VALIDATED, ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10', 'M11']);
   for (const m of RULES.missions) {
     assert.ok(m.title.pt && m.title.en && m.hint.pt && m.hint.en, m.id);
     for (const c of [...(m.all || []), ...(m.any || [])]) assert.ok(c.feature || ['skill', 'user_hook_log', 'user_statusline', 'summary_txt', 'memory_note'].includes(c.file) || c.tests === 'green_after_loop', JSON.stringify(c));
@@ -153,13 +153,13 @@ test('the book in pt and en: count, marks, the next mission and its hint; reset 
     t.feature('plan_mode');
     const b = t.run();
     const pt = render(b, 'pt');
-    assert.match(pt, /^Missões 1\/9/);
+    assert.match(pt, /^Missões 1\/10/);
     assert.match(pt, /✔ M1 +Planear sem tocar/);
     assert.match(pt, /○ M2 +O modelo certo/);
     assert.match(pt, /· M7 +Pergunta ao lado \(dica, não é validada\)/);
     assert.match(pt, /Próxima: M2 O modelo certo\n {2}→ \/model haiku/);
     const en = render(b, 'en');
-    assert.match(en, /^Missions 1\/9/);
+    assert.match(en, /^Missions 1\/10/);
     assert.match(en, /Next: M2 The right model/);
     assert.doesNotMatch(en, /Missões|Próxima|dica/);
     reset(t.P);
@@ -183,8 +183,8 @@ test('the statusline shows the mission book only in the workshop projects', () =
         encoding: 'utf8',
         env: { PATH: process.env.PATH, HOME: t.base, WORKSHOP_TELEMETRY_DIR: t.dir, WORKSHOP_LANG: lang },
       }).stdout;
-    assert.match(sl(t.proj, 'pt'), / · missões 2\/9$/);
-    assert.match(sl(t.proj, 'en'), / · missions 2\/9$/);
+    assert.match(sl(t.proj, 'pt'), / · missões 2\/10$/);
+    assert.match(sl(t.proj, 'en'), / · missions 2\/10$/);
     assert.doesNotMatch(sl(t.base, 'pt'), /missões/);
     // outside the workshop folder, while the config is in force: it says so (nothing counts there)
     assert.match(sl(t.base, 'pt'), / · fora do workshop$/);

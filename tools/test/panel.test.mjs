@@ -73,7 +73,7 @@ test('aggregate: every metric of spec 6.3, for everybody (no rooms, D-34)', () =
   assert.equal(A.cost_avg_usd, 1);
   assert.deepEqual([A.missions.M1.done, A.missions.M1.pct, A.missions.M2.pct], [2, 100, 50]);
   assert.equal(A.least_done, 'M3');
-  assert.equal(A.coverage_avg, 0.111);
+  assert.equal(A.coverage_avg, 0.1);
   assert.deepEqual(A.p1.points.sort((x, y) => x.duration_s - y.duration_s), [
     { duration_s: 180, cost_usd: 0.5, parallel: 12, model: 'sonnet' },
     { duration_s: 240, cost_usd: 1, parallel: 8, model: 'haiku' },
@@ -600,7 +600,7 @@ test('presenter view: for each mission, how many people are at it and who; only 
   a.apply(ev(1, 'mission_done', 26, { mission: 'M2' }));
   a.apply(ev(2, 'mission_done', 28, { mission: 'M1' }));
   a.apply(ev(3, 'check_ok', 5)); // quiet for 25 minutes: not active
-  for (const m of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10']) a.apply(ev(4, 'mission_done', 29, { mission: m }));
+  for (const m of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10', 'M11']) a.apply(ev(4, 'mission_done', 29, { mission: m }));
   a.apply(ev(9, 'mission_done', 29, { mission: 'M1' })); // an unregistered person is never listed
   a.hide('Rui Costa');
   const v = a.presenter(now);

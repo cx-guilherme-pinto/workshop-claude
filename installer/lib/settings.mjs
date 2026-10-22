@@ -7,7 +7,8 @@
 import { join } from 'node:path';
 
 // [evento, ficheiro, opcoes]. O hook de telemetria corre em segundo plano ("async": true): nunca atrasa o Claude Code.
-export const TELEMETRY_MATCHER = 'Skill|CronCreate|mcp__agent-memory__memory_add';
+// mcp__canivete__.*: the Pocketknife's own tools called by Claude (M11, canivete-project/mcp-server.mjs)
+export const TELEMETRY_MATCHER = 'Skill|CronCreate|mcp__agent-memory__memory_add|mcp__canivete__.*';
 const TEL = { async: true, timeout: 5 };
 export const HOOKS = [
   ['SubagentStop', 'hooks/subagent-stop.mjs'],

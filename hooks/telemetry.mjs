@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Telemetry hook of the workshop (docs/pt/WORKSHOP-V2-SPEC.md, section 6.4; what each event carries is in
 // docs/OBSERVABILITY.md). Registered by the installer, "async": true, on SessionStart, UserPromptSubmit,
-// UserPromptExpansion, SubagentStart, PostToolUse (Skill|CronCreate|mcp__agent-memory__memory_add),
+// UserPromptExpansion, SubagentStart, PostToolUse (Skill|CronCreate|mcp__agent-memory__memory_add|mcp__canivete__.*),
 // PostModelSwitch, ConfigChange and Stop.
 //
 // From the input it keeps only the name of a Claude Code feature that was used (plan_mode, loop…) and drops the
@@ -87,6 +87,8 @@ export function signals(input, env = process.env, proj = null) {
       }
       if (t === 'CronCreate') return [{ name: 'loop' }];
       if (t === 'mcp__agent-memory__memory_add') return [{ name: 'memory_write' }];
+      // M11: Claude called one of the tools the swarm built (the Pocketknife's MCP server); only that it happened
+      if (typeof t === 'string' && t.startsWith('mcp__canivete__')) return [{ name: 'pocketknife_tool' }];
       return [];
     }
     case 'PostModelSwitch':

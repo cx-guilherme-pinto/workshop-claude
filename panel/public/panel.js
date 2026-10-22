@@ -57,7 +57,7 @@ export const TEXT = {
       swarm: 'acabou o primeiro swarm',
       report: 'fechou a primeira issue',
     },
-    missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagente', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memória' },
+    missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagente', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memória', M11: 'tool do Canivete' },
     presenter: {
       head: 'Vista do apresentador',
       note: 'Só neste ecrã · P ou Esc fecha',
@@ -127,7 +127,7 @@ export const TEXT = {
       swarm: 'finished the first swarm',
       report: 'closed the first issue',
     },
-    missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagent', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memory' },
+    missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagent', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memory', M11: 'Pocketknife tool' },
     presenter: {
       head: 'Presenter view',
       note: 'This screen only · P or Esc closes',
