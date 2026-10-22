@@ -61,6 +61,14 @@ for (const l of ['pt', 'en']) {
       assert.ok(existsSync(join(dest, 'tools', 'workshop', 'orchestrator', 'lib', 'telemetry.mjs')));
       const s = JSON.parse(readFileSync(join(dest, '.claude', 'settings.json'), 'utf8'));
       assert.ok(s.permissions.deny.includes('Edit(tools/*/spec.md)') && s.permissions.deny.includes('Edit(tools/*/tool.test.js)'));
+      // the tools are also Claude Code tools (mcp__canivete__<id>): .mcp.json with the absolute node, approved and allowed in settings
+      const mcp = JSON.parse(readFileSync(join(dest, '.mcp.json'), 'utf8'));
+      assert.deepEqual(mcp, { mcpServers: { canivete: { command: process.execPath.replace(/\\/g, '/'), args: [join(dest, 'mcp-server.mjs').replace(/\\/g, '/')] } } });
+      assert.ok(existsSync(join(dest, 'mcp-server.mjs')));
+      assert.deepEqual(s.enabledMcpjsonServers, ['canivete']);
+      assert.ok(s.permissions.allow.includes('mcp__canivete'));
+      const init = spawnSync(process.execPath, [join(dest, 'mcp-server.mjs')], { cwd: dest, encoding: 'utf8', input: '{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n' });
+      assert.deepEqual(JSON.parse(init.stdout).result.tools, [], 'no tool.js yet: no tools');
       // the demo agents name the Pocketknife's contract and files, never the Arena's cards (installer/lib/project-agents.mjs)
       const worker = readFileSync(join(dest, '.claude', 'agents', 'worker.md'), 'utf8');
       assert.ok(worker.includes('tools/CONTRACT.md') && worker.includes('tools/<id>/tool.js'), 'worker.md names the Pocketknife files');

@@ -36,6 +36,7 @@ Uma ferramenta que ainda não existe aparece como "Por construir" (a cinzento) e
 | `pages/` | A pesquisa e as categorias (`catalog.js`, onda 2); o teste já vem pronto |
 | `public/` | A casca: `app.js` (a grelha e a pesquisa), `tool-view.js` (o painel de uma ferramenta), `status.js` (`/status`), `styles.css` (tokens do `DESIGN.md`) e a fonte |
 | `server.js` | O servidor, sem dependências e com CSP estrita. Só serve `public/`, `templates/`, `lib/`, `pages/`, `replays/` e, de `tools/`, só os `tool.js` e `tool.test.js` |
+| `mcp-server.mjs` | O servidor MCP: cada `tools/<id>/tool.js` passa a ser uma ferramenta do Claude Code (`mcp__canivete__<id>`) |
 | `test/app.test.js` | Testes de segurança da app: cabeçalhos, caminhos recusados, `/api/tools` e fonte sem padrões perigosos |
 | `replays/` | Repetições para o `/status` (formato em `replays/README.md`) |
 | `specs/tasks.json` e `specs/*.md` | As tarefas de suporte: `index-page`, `integration` e `review` |
@@ -55,6 +56,10 @@ No Claude Code, dentro desta pasta:
 3. `/demo-reset` volta ao início com `node tools/reset.mjs`. O histórico de cada execução fica em `.workshop/history/`.
 
 Os resultados de cada tarefa ficam em `.workshop/status/` e os custos em `.workshop/usage.jsonl`. O `/status` lê os dois.
+
+## As ferramentas no Claude Code
+
+O `.mcp.json` regista o servidor `canivete` (`mcp-server.mjs`, sem dependências). Cada `tools/<id>/tool.js` válido é uma ferramenta do Claude Code com o nome `mcp__canivete__<id>` (por exemplo `mcp__canivete__my-01`); as entradas da ferramenta são os argumentos e a saída vem em JSON. O servidor volta a ler `tools/` de cada vez que o Claude pede a lista, por isso uma ferramenta aparece assim que fica verde (se não aparecer, `/mcp` e reconectar). O `.claude/settings.json` já aprova o servidor e permite as suas ferramentas: não há pedido de aprovação. Para o ver a trabalhar: «usa a minha ferramenta para …».
 
 ## As tuas decisões
 
