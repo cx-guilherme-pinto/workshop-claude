@@ -54,7 +54,7 @@ const { child, url } = await startServer();
 const browser = await chromium.launch();
 
 async function open({ path, name = path, width = 640, height = 1080, lang = 'pt-PT' }) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, colorScheme: 'dark', locale: lang, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, colorScheme: 'light', locale: lang, reducedMotion: 'reduce' });
   const page = await context.newPage();
   await page.addInitScript(() => {
     window.__csp = [];
@@ -154,7 +154,7 @@ try {
   await button.click();
   await page.waitForTimeout(1500);
   const after = await (await fetch(`${url}/state`)).json();
-  if (!victim || after.board.all.top.some((r) => r.name === victim)) problems.push(`live: H + click did not hide ${victim} on the server`);
+  if (!victim || after.board.top.some((r) => r.name === victim)) problems.push(`live: H + click did not hide ${victim} on the server`);
   if (!(await page.locator('.board-list .brow .anon').count())) problems.push('live: the hidden name is not "—" on the page');
   await page.waitForFunction(() => !document.getElementById('toast').classList.contains('on'), null, { timeout: 5000 });
   const r = await check(page, 'panel-live-p1.png');

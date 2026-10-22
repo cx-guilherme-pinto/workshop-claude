@@ -1,4 +1,4 @@
-/* The live panel (docs/pt/WORKSHOP-V2-SPEC.md, section 6.1; D-34): the dark theme of /status (demo-project/DESIGN.md),
+/* The live panel (docs/pt/WORKSHOP-V2-SPEC.md, section 6.1; D-34): the light Checkmarx identity of the v2 slides (slides/build-v2.mjs, COR),
    legible on a projector at 640 x 1080 and wide. Every view is the top strip plus at most 3 elements, the leaderboard
    being the main one. Main numbers are 64px or more, every text 24px or more. Only transform and opacity move, for
    400ms at most, and nothing moves with prefers-reduced-motion or ?lite=1. */
@@ -23,20 +23,24 @@
 }
 
 :root {
-  color-scheme: dark;
-  --bg: #0f1311;
-  --surface: #1a201d;
-  --surface-2: #252c28;
-  --ink: #e8ede9;
-  --muted: #9ba59f;
-  --accent: #7d9bff;
-  --accent-ink: #0b1020;
-  --status-gray: #3a423e;
-  --status-yellow: #f1c232;
-  --status-green: #2fbf6c;
-  --status-red: #ef5b52;
-  /* a mission square filling up: green, dark enough for --ink on top of it */
-  --green-fill: color-mix(in srgb, var(--status-green) 46%, var(--surface));
+  color-scheme: light;
+  --bg: #f4effe;
+  --surface: #ffffff;
+  --surface-2: #ebdafa;
+  --ink: #140920;
+  --muted: #4a405a;
+  --accent: #6b34fd;
+  --accent-ink: #ffffff;
+  --attention: #d9491a;
+  --status-gray: #d9cdee;
+  --status-yellow: #8f5f00;
+  --status-green: #1e9e57;
+  --status-red: #d2463f;
+  --par-4: #0f7f8f;
+  --par-8: #b0327a;
+  --par-12: #140920;
+  /* a mission square filling up: a light green, dark enough text on top of it */
+  --green-fill: color-mix(in srgb, var(--status-green) 26%, var(--surface));
   --font: 'Bricolage Grotesque', system-ui, sans-serif;
   --t-text: 24px;
   --t-title: 32px;
@@ -46,6 +50,8 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --move: 320ms;
   --gutter: 16px;
+  --r: 12px;
+  --r-s: 6px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -63,6 +69,9 @@ body {
 }
 h2, h3, p, figure, ol { margin: 0; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
+.logo { display: block; flex: none; height: 30px; width: auto; }
+.brand { flex: none; display: flex; align-items: center; gap: 16px; padding: 0 4px; }
+.wave { flex: 1; min-width: 0; height: 30px; border-radius: var(--r-s); background: url('wave.png') center / cover no-repeat; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
@@ -71,7 +80,7 @@ h2, h3, p, figure, ol { margin: 0; }
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   padding: var(--gutter);
   overflow: hidden;
 }
@@ -82,7 +91,7 @@ h2, h3, p, figure, ol { margin: 0; }
 .label, .note, .head, .status { color: var(--muted); }
 
 /* bars: a gray track and a fill scaled with --v (0 to 1), set through CSSOM */
-.bar { position: relative; height: 16px; background: var(--status-gray); overflow: hidden; }
+.bar { position: relative; height: 16px; border-radius: var(--r-s); background: var(--status-gray); overflow: hidden; }
 .fill {
   position: absolute;
   inset: 0;
@@ -101,8 +110,9 @@ h2, h3, p, figure, ol { margin: 0; }
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 24px;
-  padding: 12px 16px;
+  padding: 10px 20px;
   background: var(--surface);
+  border-radius: var(--r);
 }
 .strip-cell { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .cost-line { display: flex; align-items: center; gap: 16px; min-width: 0; }
@@ -111,11 +121,11 @@ h2, h3, p, figure, ol { margin: 0; }
 
 /* ---------- views ---------- */
 
-.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .view > * { flex: none; }
 .view-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
 .view-title { font-size: var(--t-title); font-weight: 650; line-height: 1.15; text-wrap: balance; }
-.status[data-tone='yellow'] { color: var(--status-yellow); }
+.status[data-tone='yellow'] { color: var(--attention); }
 .block { min-width: 0; }
 .block .head { font-weight: 600; margin-bottom: 10px; text-wrap: balance; }
 .waiting { color: var(--muted); }
@@ -147,28 +157,32 @@ h2, h3, p, figure, ol { margin: 0; }
   align-items: center;
   gap: 12px;
   min-height: 44px;
-  padding: 4px 12px 4px 8px;
+  padding: 4px 14px 4px 10px;
   background: var(--surface);
-  border-left: 6px solid transparent;
+  border-radius: var(--r-s);
 }
 .brow .rank { flex: none; width: 2ch; text-align: right; font-weight: 700; color: var(--muted); }
 .brow .name { flex: 1 1 auto; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brow .anon { color: var(--muted); }
 .brow .pts { flex: none; min-width: 2ch; text-align: right; font-size: var(--t-title); font-weight: 700; line-height: 1; }
-/* the first three, subtly: the accent on the rank and on the left edge */
-.brow.podium { border-left-color: var(--accent); }
-.brow.podium .rank { color: var(--accent); }
+/* the podium: the first three in violet, with bigger numbers */
+.brow.podium { min-height: 56px; background: var(--accent); color: var(--accent-ink); border-radius: var(--r); }
+.brow.podium .rank { color: var(--accent-ink); font-size: var(--t-mid); width: 1.4ch; line-height: 1; }
+.brow.podium .pts { font-size: var(--t-mid); }
+.brow.podium .anon, .brow.podium .stage-name, .brow.podium .stage-name.none { color: var(--accent-ink); }
+.brow.podium .sq, .brow.podium .seg { background: rgba(255, 255, 255, 0.32); }
+.brow.podium .sq.on, .brow.podium .seg.on, .brow.podium .seg.on.warn, .brow.podium .seg.on.ok { background: var(--accent-ink); }
 .board-list > .empty { padding: 8px 0; }
 
 /* each person's missions: one small square per mission */
 .squares { flex: none; display: flex; gap: 3px; }
-.sq { display: block; width: 16px; height: 16px; background: var(--status-gray); }
+.sq { display: block; width: 16px; height: 16px; border-radius: 3px; background: var(--status-gray); }
 .sq.on { background: var(--status-green); }
 
 /* the stage of a project: one segment per stage, then its name */
 .stage { flex: none; display: flex; align-items: center; gap: 10px; }
 .segs { display: flex; gap: 3px; }
-.seg { display: block; width: 16px; height: 12px; background: var(--status-gray); }
+.seg { display: block; width: 16px; height: 12px; border-radius: 3px; background: var(--status-gray); }
 .seg.on { background: var(--accent); }
 .seg.on.warn { background: var(--status-yellow); }
 .seg.on.ok { background: var(--status-green); }
@@ -177,10 +191,13 @@ h2, h3, p, figure, ol { margin: 0; }
 
 /* the closing: the full leaderboard (15 to 20 rows), a points bar */
 .mode-points .board-list { gap: 3px; }
-.mode-points .brow { min-height: 36px; padding-block: 2px; }
+.mode-points .brow { min-height: 32px; padding-block: 2px; }
+.mode-points .brow.podium { min-height: 40px; }
+.mode-points .brow.podium .rank, .mode-points .brow.podium .pts { font-size: var(--t-title); }
 .pbar { flex: 0 1 34%; min-width: 60px; height: 12px; }
 .pbar .fill { background: var(--accent); }
-.podium .pbar .fill { background: var(--status-green); }
+.podium .pbar { background: rgba(255, 255, 255, 0.32); }
+.podium .pbar .fill { background: var(--accent-ink); }
 
 /* the opening's names: as many columns as fit */
 .names-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); grid-auto-rows: min-content; align-content: start; }
@@ -195,6 +212,7 @@ h2, h3, p, figure, ol { margin: 0; }
   min-height: 72px;
   padding: 4px 2px;
   background: var(--surface);
+  border-radius: var(--r-s);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -205,19 +223,21 @@ h2, h3, p, figure, ol { margin: 0; }
 .mcell > :not(.fill) { position: relative; }
 .mcell .id { font-size: var(--t-text); font-weight: 600; color: var(--muted); }
 .mcell .pct { font-size: var(--t-text); font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; }
-.mcell.least { outline: 4px solid var(--status-yellow); outline-offset: -4px; }
+.mcell.least { outline: 4px solid var(--attention); outline-offset: -4px; }
 .try {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 16px;
   margin-top: 10px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   background: var(--surface);
-  border-left: 8px solid var(--status-yellow);
+  border-radius: var(--r);
+  box-shadow: inset 8px 0 0 var(--attention);
+  padding-left: 24px;
 }
 .try-label { font-size: var(--t-text); color: var(--muted); }
-.try-what { font-size: var(--t-text); font-weight: 700; }
+.try-what { font-size: var(--t-text); font-weight: 700; color: var(--attention); }
 
 /* the feed */
 .feed { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -229,7 +249,7 @@ h2, h3, p, figure, ol { margin: 0; }
   color: var(--ink);
   background: var(--surface-2);
   border: 0;
-  border-radius: 0;
+  border-radius: var(--r-s);
   padding: 0 8px;
   text-align: left;
   cursor: pointer;
@@ -245,9 +265,9 @@ h2, h3, p, figure, ol { margin: 0; }
 .gridline { stroke: var(--surface-2); stroke-width: 2; }
 .axisline { stroke: var(--status-gray); stroke-width: 2; }
 .dot { fill: var(--muted); }
-.dot.par-4 { fill: var(--status-yellow); }
-.dot.par-8 { fill: var(--accent); }
-.dot.par-12 { fill: var(--ink); }
+.dot.par-4 { fill: var(--par-4); }
+.dot.par-8 { fill: var(--par-8); }
+.dot.par-12 { fill: var(--par-12); }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 8px; }
 .legend .key { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-text); }
 .legend .key.text { color: var(--muted); margin-right: 8px; }
@@ -259,6 +279,7 @@ h2, h3, p, figure, ol { margin: 0; }
   min-height: 84px;
   padding: 6px 10px;
   background: var(--surface);
+  border-radius: var(--r-s);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -279,9 +300,10 @@ h2, h3, p, figure, ol { margin: 0; }
   left: var(--gutter);
   right: var(--gutter);
   bottom: var(--gutter);
-  padding: 12px 16px;
-  background: var(--surface-2);
-  color: var(--ink);
+  padding: 14px 20px;
+  background: var(--ink);
+  color: var(--accent-ink);
+  border-radius: var(--r);
   font-size: var(--t-text);
   opacity: 0;
   transform: translateY(8px);
@@ -292,14 +314,15 @@ h2, h3, p, figure, ol { margin: 0; }
 
 /* a wide window: the leaderboard on the left, the rest of the view on the right */
 @media (min-width: 1100px) {
-  .panel { padding: 24px 32px; gap: 28px; }
-  .strip { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); padding: 14px 24px; }
+  .panel { padding: 20px 32px; gap: 16px; }
+  .strip { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); padding: 14px 28px; }
+  .logo, .wave { height: 44px; }
   .cost-line .meter { max-width: 640px; }
   .view {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     grid-template-rows: auto auto auto 1fr;
-    gap: 28px 56px;
+    gap: 18px 56px;
   }
   .view-head, .view > .waiting { grid-column: 1 / -1; }
   .view > .main { grid-column: 1; grid-row: 2 / -1; }
@@ -328,13 +351,13 @@ h2, h3, p, figure, ol { margin: 0; }
 .pv-title { margin: 0; font-size: var(--t-title); }
 .pv-note { font-size: var(--t-text); color: var(--muted); }
 .pv-people { margin: 6px 0 18px; font-size: var(--t-text); color: var(--muted); }
-.pv-row { padding: 12px 0; border-top: 1px solid var(--surface-2); }
+.pv-row { margin-bottom: 10px; padding: 12px 16px; background: var(--surface); border-radius: var(--r); }
 .pv-top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .pv-mission { font-size: var(--t-text); font-weight: 700; min-width: 11ch; }
-.pv-at { font-size: var(--t-text); color: var(--status-yellow); font-variant-numeric: tabular-nums; }
+.pv-at { font-size: var(--t-text); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .pv-done { font-size: var(--t-text); color: var(--muted); font-variant-numeric: tabular-nums; }
 .pv-names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.pv-name { font-size: var(--t-text); padding: 3px 10px; border-radius: 999px; background: var(--surface-2); }
-.pv-name.off { color: var(--muted); background: var(--surface); }
+.pv-name { font-size: var(--t-text); padding: 3px 10px; border-radius: var(--r-s); background: var(--accent); color: var(--accent-ink); }
+.pv-name.off { color: var(--muted); background: var(--surface-2); }
 .pv-none { font-size: var(--t-text); color: var(--muted); }
-.pv-skip { color: var(--status-yellow); }
+.pv-skip { color: inherit; font-weight: 700; }

@@ -93,6 +93,8 @@ export const TEXT = {
     viewShared: 'Vista {v} em todos os ecrãs',
     viewLocal: 'Vista {v} só nesta página (0 volta à partilhada)',
     viewFollow: 'A seguir a vista partilhada',
+    viewAuto: 'Vista automática em todos os ecrãs: segue o workshop',
+    viewAutoLocal: 'A seguir a vista automática desta página (sem token, não muda os outros ecrãs)',
     adminRefused: 'Token de admin recusado: a vista mudou só aqui',
     hideMode: 'Clica num nome para o esconder (Esc cancela)',
     hidden: 'Nome escondido',
@@ -161,6 +163,8 @@ export const TEXT = {
     viewShared: '{v} view on every screen',
     viewLocal: '{v} view on this page only (0 goes back to the shared one)',
     viewFollow: 'Following the shared view',
+    viewAuto: 'Automatic view on every screen: follows the workshop',
+    viewAutoLocal: 'Following this page\'s automatic view (without the token, other screens stay as they are)',
     adminRefused: 'Admin token refused: the view changed here only',
     hideMode: 'Click a name to hide it (Esc cancels)',
     hidden: 'Name hidden',
@@ -730,6 +734,27 @@ function boot() {
     toast(status === 403 ? t('adminRefused') : t('viewLocal', { v: name }));
   }
 
+  // Key 0: with the admin token the shared phase becomes 'auto' (the server follows the workshop); without it, only this page's override is cleared.
+  async function followRoom() {
+    S.override = null;
+    if (S.conn === 'replay' || !admin) {
+      render();
+      return toast(t('viewFollow'));
+    }
+    let status = 0;
+    try {
+      status = await post('/admin/phase', { phase: 'auto' });
+    } catch {
+      status = 0;
+    }
+    if (status === 403) {
+      admin = null;
+      forgetAdmin();
+    }
+    render();
+    toast(status === 200 ? t('viewAuto') : status === 403 ? t('adminRefused') : t('viewAutoLocal'));
+  }
+
   // The names on screen now: the leaderboard, the Opening's list and the feed.
   function namesOnScreen() {
     const s = S.state || {};
@@ -834,11 +859,7 @@ function boot() {
     if (ev.key === 'p' || ev.key === 'P') return PV.open ? presenterClose() : presenterOpen();
     if (ev.key === 'Escape' && PV.open) return presenterClose();
     if (/^[1-5]$/.test(ev.key)) choose(VIEWS[Number(ev.key) - 1]);
-    else if (ev.key === '0') {
-      S.override = null;
-      render();
-      toast(t('viewFollow'));
-    } else if (ev.key === 'h' || ev.key === 'H') setHiding(!S.hiding);
+    else if (ev.key === '0') followRoom(); else if (ev.key === 'h' || ev.key === 'H') setHiding(!S.hiding);
     else if (ev.key === 'Escape') setHiding(false);
   });
   let resizeTimer = null;
