@@ -8,7 +8,9 @@
 //
 // Keys: 1-5 = Opening, Missions, Project 1, Project 2, Closing (with the admin token the shared view on every screen,
 // without it this page only); 0 = follow the shared view again; H then a click on a name (in the leaderboard, the
-// list of names or the feed) hides it, for everyone with the admin token.
+// list of names or the feed) hides it, for everyone with the admin token; P (only with the admin token, or in a
+// replay) opens the presenter's view on top of this one: for each mission, how many people are at it and who
+// (GET /admin/presenter, never in the public /state). It shows only on this screen, only while open; P or Esc closes.
 //
 // Every view has the leaderboard (D-34: one board of people for the whole workshop, ranked by points for coverage and
 // quality, never by spend) as its main element, at most 4 elements with the top strip. The leaderboard shows the names
@@ -55,6 +57,19 @@ export const TEXT = {
       report: 'fechou a primeira issue',
     },
     missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagente', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memória' },
+    presenter: {
+      head: 'Vista do apresentador',
+      note: 'Só neste ecrã · P ou Esc fecha',
+      people: '{n} pessoas registadas',
+      at: '{n} aqui',
+      done: '{n} já fizeram',
+      finished: 'Fizeram todas',
+      nobody: 'ninguém',
+      hidden: '—',
+      needsToken: 'A vista do apresentador precisa do token de admin (#admin=…)',
+      refused: 'Token de admin recusado',
+      error: 'Não consegui ler a vista do apresentador',
+    },
     p1Stages: { plan: 'plan', swarm: 'swarm', gate: 'gate', approved: 'aprovado' },
     p2Stages: { intake: 'intake', plan: 'plan', swarm: 'swarm', gate: 'gate', report: 'report', approved: 'aprovado' },
     scatterHead: 'Tempo do swarm × custo do Projeto 1',
@@ -109,6 +124,19 @@ export const TEXT = {
       report: 'closed the first issue',
     },
     missionNames: { M1: 'plan mode', M2: '/model haiku', M3: 'subagent', M4: 'skill', M5: 'hook', M6: '/loop', M7: '/btw', M8: 'statusline', M9: 'claude -p', M10: 'memory' },
+    presenter: {
+      head: 'Presenter view',
+      note: 'This screen only · P or Esc closes',
+      people: '{n} registered people',
+      at: '{n} here',
+      done: '{n} done it',
+      finished: 'Did them all',
+      nobody: 'nobody',
+      hidden: '—',
+      needsToken: 'The presenter view needs the admin token (#admin=…)',
+      refused: 'Admin token refused',
+      error: 'Could not read the presenter view',
+    },
     p1Stages: { plan: 'plan', swarm: 'swarm', gate: 'gate', approved: 'approved' },
     p2Stages: { intake: 'intake', plan: 'plan', swarm: 'swarm', gate: 'gate', report: 'report', approved: 'approved' },
     scatterHead: 'Swarm time × Project 1 cost',
@@ -734,8 +762,69 @@ function boot() {
     }
   }
 
+  // ----- the presenter's view (key P): who is at each mission -----
+  const PV = { open: false, timer: null, root: null };
+  function presenterRender(d) {
+    const root = PV.root;
+    clear(root);
+    const head = el('div', 'pv-head');
+    head.append(el('h2', 'pv-title', t('presenter.head')), el('span', 'pv-note', t('presenter.note')));
+    root.append(head, el('p', 'pv-people', t('presenter.people', { n: num(d.people) })));
+    const rows = [...d.missions.map((m) => ({ label: `${m.id} · ${t(`missionNames.${m.id}`)}`, at: m.at, done: m.done, names: m.names })), { label: t('presenter.finished'), at: d.finished.at, done: null, names: d.finished.names }];
+    for (const r of rows) {
+      const row = el('section', 'pv-row');
+      const top = el('div', 'pv-top');
+      top.append(el('span', 'pv-mission', r.label), el('span', 'pv-at', t('presenter.at', { n: num(r.at) })));
+      if (r.done !== null) top.append(el('span', 'pv-done', t('presenter.done', { n: num(r.done) })));
+      const names = el('div', 'pv-names');
+      if (!r.names.length) names.append(el('span', 'pv-none', t('presenter.nobody')));
+      for (const n of r.names) names.append(el('span', n.active ? 'pv-name' : 'pv-name off', n.name ?? t('presenter.hidden')));
+      row.append(top, names);
+      root.append(row);
+    }
+  }
+  async function presenterLoad() {
+    if (!PV.open) return;
+    if (S.conn === 'replay') {
+      if (S.agg) presenterRender(S.agg.presenter(Date.parse(S.state?.now) || Date.now()));
+      return;
+    }
+    try {
+      const r = await fetch(`${S.api}/admin/presenter`, { headers: { 'X-Admin-Token': admin }, cache: 'no-store', referrerPolicy: 'no-referrer' });
+      if (r.status === 403) {
+        presenterClose();
+        admin = null;
+        forgetAdmin();
+        return toast(t('presenter.refused'));
+      }
+      if (!r.ok) throw new Error(String(r.status));
+      presenterRender(await r.json());
+    } catch {
+      toast(t('presenter.error'));
+    }
+  }
+  function presenterOpen() {
+    if (S.conn !== 'replay' && !admin) return toast(t('presenter.needsToken'));
+    if (!PV.root) {
+      PV.root = el('aside', 'presenter');
+      PV.root.setAttribute('aria-label', t('presenter.head'));
+      document.body.append(PV.root);
+    }
+    PV.open = true;
+    PV.root.classList.add('on');
+    presenterLoad();
+    PV.timer = setInterval(presenterLoad, 5000);
+  }
+  function presenterClose() {
+    PV.open = false;
+    clearInterval(PV.timer);
+    PV.root?.classList.remove('on');
+  }
+
   addEventListener('keydown', (ev) => {
     if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
+    if (ev.key === 'p' || ev.key === 'P') return PV.open ? presenterClose() : presenterOpen();
+    if (ev.key === 'Escape' && PV.open) return presenterClose();
     if (/^[1-5]$/.test(ev.key)) choose(VIEWS[Number(ev.key) - 1]);
     else if (ev.key === '0') {
       S.override = null;

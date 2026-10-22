@@ -66,6 +66,7 @@ O painel é uma página projetada ao lado dos slides, alimentada pelos eventos d
   - Todos os ecrãs abrem a mesma `<página>/`: um só board e os mesmos números para toda a gente, sem salas (D-34).
   - O apresentador acrescenta `#admin=<token>` uma vez: o token fica no browser e as teclas 1 a 5 mudam a vista em todos os ecrãs (Abertura, Missões, Projeto 1, Projeto 2, Fecho).
   - Para esconder uma alcunha do feed, carrega em `H` e clica nela.
+  - **Quem está em cada missão:** com o token de admin, a tecla `P` abre a vista do apresentador, só nesse ecrã: em cada missão, quantas pessoas estão nela (a primeira que ainda não fizeram, pela ordem da caderneta), quantas já a fizeram e os nomes; quem não mandou nenhum evento nos últimos 10 minutos fica a cinzento. `P` ou `Esc` fecha. Abre-a no teu portátil, não no ecrã projetado. Nunca está no `/state` público.
   - Num projetor lento, usa `?lite=1`.
 - **Plano B:**
   - Sem rede ou sem a Worker, usa `<página>/?replay=simulated&x=10`. Depois do ensaio, usa `?replay=rehearsal`, a partir de `panel/replays/rehearsal.jsonl`.

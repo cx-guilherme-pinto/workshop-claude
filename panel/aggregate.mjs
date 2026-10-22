@@ -288,6 +288,30 @@ export class Aggregate {
     };
   }
 
+  // The presenter's view (GET /admin/presenter, only with the admin token; key P on the page): for each mission, how
+  // many registered people are at it and who. A person is "at" the first mission of the book's order they have not
+  // done yet; the ones who did them all are in "finished". A hidden name stays hidden (null) but is counted. Active =
+  // an event in the last 10 minutes; the active ones come first. Never part of the public /state.
+  presenter(now = Date.now()) {
+    const missions = MISSIONS.map((id) => ({ id, done: 0, names: [] }));
+    const finished = [];
+    for (const p of this.people.values()) {
+      if (!p.name) continue;
+      for (const m of missions) if (p.missions.has(m.id)) m.done++;
+      const row = { name: this.hidden.has(p.name) ? null : p.name, active: p.last !== null && now - p.last <= ACTIVE_MS };
+      const at = MISSIONS.findIndex((m) => !p.missions.has(m));
+      (at < 0 ? finished : missions[at].names).push(row);
+    }
+    const order = (a, b) => Number(b.active) - Number(a.active) || (a.name ?? '\uffff').localeCompare(b.name ?? '\uffff');
+    return {
+      v: 1,
+      now: new Date(now).toISOString(),
+      people: missions.reduce((n, m) => n + m.names.length, finished.length),
+      missions: missions.map((m) => ({ id: m.id, done: m.done, at: m.names.length, names: m.names.sort(order) })),
+      finished: { at: finished.length, names: finished.sort(order) },
+    };
+  }
+
   // What the page receives (GET /state and each SSE message).
   state(now = Date.now()) {
     return {

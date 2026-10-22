@@ -320,3 +320,21 @@ h2, h3, p, figure, ol { margin: 0; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 .lite *, .lite *::before, .lite *::after { transition: none !important; animation: none !important; }
+
+/* The presenter's view (key P, only with the admin token): who is at each mission. On top of the view, this screen only. */
+.presenter { position: fixed; inset: 0; z-index: 30; display: none; overflow-y: auto; padding: 24px; background: var(--bg); color: var(--ink); font-family: var(--font); }
+.presenter.on { display: block; }
+.pv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.pv-title { margin: 0; font-size: var(--t-title); }
+.pv-note { font-size: var(--t-text); color: var(--muted); }
+.pv-people { margin: 6px 0 18px; font-size: var(--t-text); color: var(--muted); }
+.pv-row { padding: 12px 0; border-top: 1px solid var(--surface-2); }
+.pv-top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.pv-mission { font-size: var(--t-text); font-weight: 700; min-width: 11ch; }
+.pv-at { font-size: var(--t-text); color: var(--status-yellow); font-variant-numeric: tabular-nums; }
+.pv-done { font-size: var(--t-text); color: var(--muted); font-variant-numeric: tabular-nums; }
+.pv-names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pv-name { font-size: var(--t-text); padding: 3px 10px; border-radius: 999px; background: var(--surface-2); }
+.pv-name.off { color: var(--muted); background: var(--surface); }
+.pv-none { font-size: var(--t-text); color: var(--muted); }
+

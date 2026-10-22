@@ -12,6 +12,8 @@
 //   POST /admin/phase    {phase}, header X-Admin-Token: the view every screen shows
 //   POST /admin/hide     {nickname, on}: hide a nickname from the feed (key H on the page)
 //   POST /admin/reset    deletes everything: events, registrations and the signing secret (the old credentials stop working)
+//   GET  /admin/presenter header X-Admin-Token: for each mission, how many people are at it and who (key P on the page;
+//                        never in the public /state)
 //   POST /admin/register {name, p?}: registers a person without GitHub (the simulator, a rehearsal, someone the
 //                        organizer lets in by hand); answers {p, name, credential}
 //   POST /register       {name, account}: registers a person (D-34). No token and no email ever reach the
@@ -344,6 +346,10 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
         if (req.method === 'GET' && path === '/state') return json(req, 200, agg.state(now()));
         if (req.method === 'GET' && path === '/stream') return stream(req);
         if (req.method === 'GET' && path === '/health') return json(req, 200, { ok: true });
+        if (req.method === 'GET' && path === '/admin/presenter') {
+          if (!adminToken || req.headers.get('X-Admin-Token') !== adminToken) return json(req, 403, { error: 'admin token' });
+          return json(req, 200, agg.presenter(now()));
+        }
         if (req.method === 'POST' && path.startsWith('/admin/')) {
           const what = path.slice(7);
           if (['phase', 'hide', 'reset', 'register'].includes(what)) return await admin(req, what);

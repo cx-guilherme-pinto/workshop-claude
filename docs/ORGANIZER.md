@@ -66,6 +66,7 @@ The panel is a page projected next to the slides, fed by the events of the lapto
   - Every screen opens the same `<page>/`: one leaderboard and one set of numbers for everybody, with no rooms (D-34).
   - The presenter adds `#admin=<token>` once: the token stays in the browser and keys 1 to 5 change the view on every screen (Opening, Missions, Project 1, Project 2, Closing).
   - To hide a nickname from the feed, press `H` and click it.
+  - **Who is at each mission:** with the admin token, `P` opens the presenter view on that screen only: for each mission, how many people are at it (the first one they have not done yet, in the book's order), how many have done it, and their names; the ones with no event in the last 10 minutes are greyed. `P` or `Esc` closes it. Open it on your own laptop, not on the projected screen. It is never in the public `/state`.
   - On a slow projector, use `?lite=1`.
 - **Plan B:**
   - Without network or the Worker, use `<page>/?replay=simulated&x=10`. After the rehearsal, use `?replay=rehearsal`, from `panel/replays/rehearsal.jsonl`.

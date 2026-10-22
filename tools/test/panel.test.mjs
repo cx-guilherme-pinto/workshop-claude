@@ -590,3 +590,37 @@ test('ctl.mjs unregister: nothing more is sent, the local book stays; register n
     rmSync(data, { recursive: true, force: true });
   }
 });
+
+test('presenter view: for each mission, how many people are at it and who; only with the admin token, never in /state', async () => {
+  const a = new Aggregate({ ws: 'ws-t' });
+  const now = T0 + 30 * 60000;
+  for (const [n, name] of [[1, 'Ana Silva'], [2, 'Rui Costa'], [3, 'Eva Lima'], [4, 'Zé Faria']]) a.apply(ev(n, 'register', 0, { name }));
+  a.apply(ev(1, 'mission_done', 25, { mission: 'M1' }));
+  a.apply(ev(1, 'mission_done', 26, { mission: 'M2' }));
+  a.apply(ev(2, 'mission_done', 28, { mission: 'M1' }));
+  a.apply(ev(3, 'check_ok', 5)); // quiet for 25 minutes: not active
+  for (const m of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10']) a.apply(ev(4, 'mission_done', 29, { mission: m }));
+  a.apply(ev(9, 'mission_done', 29, { mission: 'M1' })); // an unregistered person is never listed
+  a.hide('Rui Costa');
+  const v = a.presenter(now);
+  const at = Object.fromEntries(v.missions.map((m) => [m.id, [m.at, m.done, m.names.map((x) => [x.name, x.active])]]));
+  assert.equal(v.people, 4);
+  assert.deepEqual(at.M1, [1, 3, [['Eva Lima', false]]], 'Eva has not done M1 yet; 3 registered did it');
+  assert.deepEqual(at.M2, [1, 2, [[null, true]]], 'Rui is at M2, his name hidden but counted');
+  assert.deepEqual(at.M3, [1, 1, [['Ana Silva', true]]]);
+  assert.deepEqual(v.finished, { at: 1, names: [{ name: 'Zé Faria', active: true }] });
+  assert.equal(a.state(now).presenter, undefined);
+  // the API: 403 without the token, 200 with it
+  const { x } = await api();
+  try {
+    await reg(x, 1, 'Ana Silva');
+    assert.equal((await x.fetch(new Request('http://p/admin/presenter'))).status, 403);
+    assert.equal((await x.fetch(new Request('http://p/admin/presenter', { headers: { 'X-Admin-Token': 'wrong' } }))).status, 403);
+    const r = await x.fetch(new Request('http://p/admin/presenter', { headers: { 'X-Admin-Token': 'adm-secret' } }));
+    assert.equal(r.status, 200);
+    const j = await r.json();
+    assert.deepEqual([j.people, j.missions[0].id, j.missions[0].names[0].name], [1, 'M1', 'Ana Silva']);
+  } finally {
+    x.close();
+  }
+});

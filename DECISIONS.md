@@ -668,3 +668,8 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - o `ctl.mjs register` sem `--again` recusa-se (código 6). O setup corre-o sem argumentos no passo 8, por isso voltar a instalar não põe a pessoa de volta; o `install-user` mantém o `unregistered_at` numa reinstalação do mesmo workshop, e o `--check` deixa de pedir o registo (E-TEL-04);
   - `ctl.mjs register --again` volta a registar;
   - o comando aparece como opcional no slide "O mesmo ciclo, noutro repositório" (o início do Projeto 2, para quem vai trabalhar no seu repositório) e no `PRIVACY.md`.
+- **Quem está em cada missão (pedido do organizador, 22 out.: "por missão, quantas pessoas e quem está, apenas na vista do apresentador"):**
+  - `GET /admin/presenter`, só com o token de admin: em cada missão, quantas pessoas registadas estão nela e quem. A pessoa "está" na primeira missão que ainda não fez, pela ordem da caderneta (M1 a M6, depois M8 a M10; a M7 não é validada). A lista inclui também quantas pessoas já fizeram cada missão e quem fez todas;
+  - um nome escondido com H continua escondido, mas conta; os ativos (um evento nos últimos 10 minutos) vêm primeiro e os outros ficam a cinzento;
+  - a página só abre esta vista com a tecla P e com o token (ou num replay), por cima da vista atual e só nesse ecrã. Nunca entra no `/state` público nem no SSE, porque o painel é projetado;
+  - não muda nada no portátil: os dados são os mesmos `mission_done` e o registo.
