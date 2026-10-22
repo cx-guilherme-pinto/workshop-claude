@@ -351,5 +351,44 @@ test('429: the sender keeps the rest and nobody kicks it again before Retry-Afte
   }
 });
 
+test('auto view: the panel follows the block where most active people are; a forced view wins until key 0', async () => {
+  const pn = await panel();
+  try {
+    const now = Date.now();
+    const iso = (s) => new Date(now - s * 1000).toISOString();
+    const people = [];
+    for (const [i, name] of ['Ana', 'Rui', 'Eva'].entries()) {
+      const r = await (await fetch(`${pn.url}/admin/register`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': 'adm' }, body: JSON.stringify({ name }) })).json();
+      people.push({ ...r, i });
+    }
+    const send = (who, list) => fetch(`${pn.url}/e`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Workshop-Code': 'ws-t', 'X-Participant': `${who.p}.${who.credential}` }, body: JSON.stringify(list.map((e) => ({ v: 1, ws: 'ws-t', p: who.p, kit: 'v2', ...e }))) });
+    const view = async () => {
+      const s = await pn.state();
+      return [s.phase, s.phase_mode];
+    };
+    const phase = (body, token = 'adm') => fetch(`${pn.url}/admin/phase`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Admin-Token': token } : {}) }, body: JSON.stringify(body) });
+    assert.deepEqual(await (await fetch(`${pn.url}/health`)).json(), { ok: true, build: 'dev' }, '/health says which build answers');
+    assert.deepEqual(await view(), ['opening', 'auto'], 'nobody did anything yet: the opening, in auto');
+    // everybody does missions
+    for (const w of people) await send(w, [{ ev: 'mission_done', mission: 'M1', t: iso(300) }]);
+    assert.deepEqual(await view(), ['missions', 'auto']);
+    // two of three start Project 1 (one skipped ahead): the view follows the majority
+    await send(people[0], [{ ev: 'p1_plan', parallel: 4, model: 'sonnet', forecast_min: 5, tasks: 6, t: iso(120) }]);
+    assert.deepEqual(await view(), ['missions', 'auto'], 'one person ahead does not move the room');
+    await send(people[1], [{ ev: 'cost', cost_usd: 0.1, model: 'sonnet', block: 'p1', t: iso(60) }]);
+    assert.deepEqual(await view(), ['p1', 'auto']);
+    // the presenter forces the missions view (key 2) without the token: refused; with it: forced
+    assert.equal((await phase({ phase: 'missions' }, '')).status, 403);
+    assert.equal((await phase({ phase: 'missions' })).status, 200);
+    assert.deepEqual(await view(), ['missions', 'forced']);
+    // key 0: back to auto
+    assert.equal((await phase({ phase: 'auto' })).status, 200);
+    assert.deepEqual(await view(), ['p1', 'auto']);
+    assert.equal((await phase({ phase: 'nonsense' })).status, 400);
+  } finally {
+    await pn.close();
+  }
+});
+
 export { laptop, hook, transcript, costs, sum, book, panel, account, ROOT };
 void cpSync;

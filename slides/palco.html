@@ -58,6 +58,8 @@
   .nwrap .clock { font: bold 34px "Courier New", monospace; color: #F1C232; }
   .nwrap pre { white-space: pre-wrap; font: 20px/1.5 Arial; background: #1c1c1c; padding: 18px; border-radius: 6px; }
   .nwrap .next { color: #aaa; }
+  #aviso { position: fixed; left: 24px; right: 24px; top: 24px; z-index: 5; background: #F25928; color: #fff; font: 600 28px/1.35 system-ui, sans-serif; padding: 22px 28px; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  #aviso small { display: block; font-weight: 400; font-size: 24px; margin-top: 6px; }
   .nwrap button { font-size: 20px; padding: 8px 18px; margin-right: 8px; }
 </style>
 </head>
@@ -116,13 +118,25 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
   const m = location.hash.match(/admin=([^&]+)/);
   if (m) { guardar('ws-palco-admin', decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); }
   const token = ler('ws-palco-admin') || '';
+  // Without the admin token the slides cannot move the panel's view: the panel follows the room by itself (auto view,
+  // rc.3). A big warning on the first slide, so the presenter knows before the room fills; Esc hides it.
+  const AVISO = {
+    pt: ['Sem token de admin: os slides não mudam a vista do painel.', 'O painel segue a sala sozinho (vista automática). Para o comandar, abre palco.html#admin=&lt;token&gt;. Esc esconde este aviso.'],
+    en: ['No admin token: the slides do not move the panel\'s view.', 'The panel follows the room by itself (auto view). To drive it, open palco.html#admin=&lt;token&gt;. Esc hides this warning.'],
+  }[lang] || null;
+  let avisoVisto = false;
+  const aviso = (i) => {
+    let el = document.getElementById('aviso');
+    if (token || !AVISO || avisoVisto || i !== 0) return el && el.remove();
+    if (!el) { el = document.createElement('div'); el.id = 'aviso'; el.innerHTML = `${AVISO[0]}<small>${AVISO[1]}</small>`; document.body.appendChild(el); }
+  };
   const panel = document.getElementById('panel');
   const page = q.get('panel') || DADOS.panelPage;
   if (page) panel.src = `${page.replace(/\/+$/, '')}/?lang=${lang}`;
   const api = (q.get('api') || DADOS.panelApi || '').replace(/\/+$/, '');
   let fase = null;
   let estado = '';
-  const status = () => { document.getElementById('status').textContent = `${atual + 1}/${deck.length} · ${deck[atual].fase}${estado ? ` · ${estado}` : ''}${token ? '' : ' · sem token: a fase muda à mão (teclas 1-5 no painel)'}`; };
+  const status = () => { document.getElementById('status').textContent = `${atual + 1}/${deck.length} · ${deck[atual].fase}${estado ? ` · ${estado}` : ''}${token ? '' : lang === 'pt' ? ' · sem token: o painel segue a sala (vista automática)' : ' · no token: the panel follows the room (auto view)'}`; };
   async function mudarFase(f) {
     if (f === fase) return;
     fase = f;
@@ -141,6 +155,7 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
     el.innerHTML = DADOS.imagens[lang] >= deck.length ? `<img alt="${esc(d.titulo)}" src="palco/${lang}/${String(atual + 1).padStart(2, '0')}.png">` : desenhar(d);
     canal?.postMessage({ type: 'slide', lang, i: atual });
     mudarFase(d.fase);
+    aviso(atual);
     status();
   }
   const escala = () => {
@@ -155,6 +170,7 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
   addEventListener('keydown', (e) => {
     if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); mostrar(atual + 1); }
     else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); mostrar(atual - 1); }
+    else if (e.key === 'Escape') { avisoVisto = true; aviso(-1); }
     else if (e.key === 'Home') mostrar(0);
     else if (e.key === 'End') mostrar(deck.length - 1);
     else if (e.key === 'n' || e.key === 'N') open(`${location.pathname}?notas=1&lang=${lang}`, 'ws-notas', 'width=1000,height=800');

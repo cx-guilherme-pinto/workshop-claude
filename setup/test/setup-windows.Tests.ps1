@@ -4245,7 +4245,8 @@ Describe 'o painel no -Check (passo 8) e o check_ok no fim' {
     @{ Mode = 'check'; Faltam = 0; Want = $true },
     @{ Mode = 'check'; Faltam = 1; Want = $false },
     @{ Mode = 'check'; Faltam = 3; Want = $false },
-    @{ Mode = 'install'; Faltam = 0; Want = $false },
+    @{ Mode = 'install'; Faltam = 0; Want = $true },
+    @{ Mode = 'install'; Faltam = 2; Want = $false },
     @{ Mode = 'doctor'; Faltam = 0; Want = $false },
     @{ Mode = 'uninstall'; Faltam = 0; Want = $false }
   ) {
@@ -4267,11 +4268,14 @@ Describe 'o painel no -Check (passo 8) e o check_ok no fim' {
       $script:Calls[0][0] | Should -BeExactly 'node-do-kit'
       ($script:Calls[0][1] -join '|') | Should -BeExactly ($script:Emit + '|check_ok')
     }
-    It 'nunca com falhas, na instalacao nem no -Doctor' {
+    It 'nunca com falhas nem no -Doctor; a instalacao sem falhas envia' {
       Send-WsCheckOk 1
-      $script:Mode = 'install'; Send-WsCheckOk 0
       $script:Mode = 'doctor'; Send-WsCheckOk 0
       $script:Calls.Count | Should -Be 0
+      $script:Mode = 'install'; Send-WsCheckOk 1
+      $script:Calls.Count | Should -Be 0
+      $script:Mode = 'install'; Send-WsCheckOk 0
+      $script:Calls.Count | Should -Be 1
     }
     It 'um erro do emit.mjs (ou do node) e ignorado' {
       Mock Invoke-WsProcess { throw 'boom' }

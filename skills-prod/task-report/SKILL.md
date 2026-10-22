@@ -26,6 +26,7 @@ Argument: `$ARGUMENTS` (destination: `jira`, `github` or `both`; by default, the
 **Rule:** nothing is written to Jira or GitHub without a clear yes from the user **for that write**. If the answer is ambiguous, do not publish.
 
 1. Run `node "{{KIT_DIR}}/orchestrator/publish-text.mjs"`. It prepares, without publishing, `.workshop/publish.json`, `.workshop/pr-body.md` and the same texts as files in `.workshop/publish/` (for `acli`).
+   For a local task (source `local`, such as the practice project's `issues/EX-1.json`) there is nothing to publish to Jira or GitHub: the report is `.workshop/report.md`. Say so, show its first lines and go to step 5.
 2. Read `.workshop/publish.json` and show the user **exactly** what will be published:
    - the comments, one per subtask, each with agent, model, duration and cost;
    - the total summary;

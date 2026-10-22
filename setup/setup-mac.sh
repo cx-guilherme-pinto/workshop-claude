@@ -2604,9 +2604,11 @@ ws_s8_panel_check() {
   else ws_warn E-TEL-01 "$(ws_url_base "$u") · $WS_TEL_WHY"; fi
   return 0
 }
-# check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. So no fim de um --check sem falhas (avisos podem
-# ficar); nunca noutro modo. O emit.mjs nunca escreve nada e sai sempre com 0; um erro dele nunca muda o resultado.
-ws_check_ok_want() { [ "$1" = check ] && [ "$2" = 0 ]; } # modo faltam
+# check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. No fim de uma instalacao ou de um --check sem
+# falhas (avisos podem ficar); nunca no --doctor nem no --uninstall (rc.3: antes so o --check, e a vista ficava em 0).
+# Quem ainda nao esta registado fica com ele na caderneta local, e o register leva-o ao painel (backfill).
+# O emit.mjs nunca escreve nada e sai sempre com 0; um erro dele nunca muda o resultado.
+ws_check_ok_want() { { [ "$1" = check ] || [ "$1" = install ]; } && [ "$2" = 0 ]; } # modo faltam
 ws_check_ok_emit() {
   ws_check_ok_want "${WS_MODE:-}" "${WS_FALTAM:-1}" || return 0
   local e="$WS_HOME/kit/telemetry/emit.mjs" n=${WS_NODE:-}

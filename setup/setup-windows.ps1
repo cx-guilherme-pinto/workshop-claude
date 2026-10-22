@@ -3558,10 +3558,11 @@ function Test-WsStep8Panel {
 }
 
 function Test-WsCheckOkWanted {
-  # check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. So no fim de um -Check sem falhas (avisos podem
-  # ficar); nunca noutro modo.
+  # check_ok (spec 6.4): o "pronto" da vista de Abertura do painel. No fim de uma instalacao ou de um -Check sem
+  # falhas (avisos podem ficar); nunca no -Doctor nem no -Uninstall (rc.3: antes so o -Check, e a vista ficava em 0).
+  # Quem ainda nao esta registado fica com ele na caderneta local, e o register leva-o ao painel (backfill).
   param([string]$Mode, [int]$Faltam)
-  return ($Mode -eq 'check' -and $Faltam -eq 0)
+  return (($Mode -eq 'check' -or $Mode -eq 'install') -and $Faltam -eq 0)
 }
 
 function Send-WsCheckOk {

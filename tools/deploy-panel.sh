@@ -62,10 +62,17 @@ echo "Workshop panel: code $CODE · Pages project $PROJECT"
 echo
 echo "1. Worker (panel/worker): API and Durable Object, workshop code $CODE, allowed origin ${PAGE:-<none yet>}, daily wipe at midnight ${TZ_WIPE:-UTC}"
 if ask "Deploy the Worker?"; then
-  out=$(cd "$ROOT/panel/worker" && run wrangler deploy --var "WORKSHOP_CODE:$CODE" --var "ALLOWED_ORIGINS:${PAGE:-}" --var "DAY_TZ:${TZ_WIPE:-UTC}" 2>&1) || { echo "$out"; exit 1; }
+  BUILD=$(git -C "$ROOT" rev-parse --short=12 HEAD 2>/dev/null || echo dev)
+  out=$(cd "$ROOT/panel/worker" && run wrangler deploy --var "WORKSHOP_CODE:$CODE" --var "ALLOWED_ORIGINS:${PAGE:-}" --var "DAY_TZ:${TZ_WIPE:-UTC}" --var "BUILD:$BUILD" 2>&1) || { echo "$out"; exit 1; }
   echo "$out"
   url=$(printf '%s\n' "$out" | grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -n 1 || true)
   [ -z "$API" ] && [ -n "$url" ] && API=$url
+  # the Durable Object keeps the old code while panel pages stay open: check which build answers
+  if [ -n "$API" ] && [ "${DRY:-0}" != 1 ]; then
+    live=$(curl -fsS --max-time 10 "$API/health" 2>/dev/null | grep -Eo '"build":"[^"]*"' | cut -d'"' -f4 || true)
+    if [ "$live" = "$BUILD" ]; then echo "Live build: $live (the new code answers)"
+    else echo "WARNING: /health answers build '${live:-?}', not $BUILD: close every panel tab, wait a minute and check $API/health again"; fi
+  fi
 fi
 
 # 2. The admin token (a secret; wrangler asks for it, nothing is echoed)

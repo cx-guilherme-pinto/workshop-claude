@@ -9,7 +9,7 @@
 //                        is stored.
 //   GET  /state          the aggregate state (panel/aggregate.mjs)
 //   GET  /stream         the same state as Server-Sent Events, at most 2 per second (?lite=1: 1 per second)
-//   POST /admin/phase    {phase}, header X-Admin-Token: the view every screen shows
+//   POST /admin/phase    {phase}, header X-Admin-Token: the view every screen shows; 'auto' (the default) follows the room
 //   POST /admin/hide     {nickname, on}: hide a nickname from the feed (key H on the page)
 //   POST /admin/reset    deletes everything: events, registrations and the signing secret (the old credentials stop working)
 //   GET  /admin/presenter header X-Admin-Token: for each mission, how many people are at it and who (key P on the page;
@@ -21,7 +21,7 @@
 //                        email of the company domain, and sends only the name and "account", a SHA-256 of the
 //                        workshop code and the GitHub account id (the same account keeps its participant id). Answers
 //                        {p, name, credential}: the credential (an HMAC) is all that goes with the events afterwards.
-//   GET  /health
+//   GET  /health        {ok, build}: the commit of the code that answers
 //
 // Every day is wiped (D-34, the organizer's decision): when the day changes in dayTz (the Worker's DAY_TZ, from
 // repos.conf PANEL_TIMEZONE), the first request — or the Durable Object's alarm at midnight, panel/worker/ — deletes
@@ -30,7 +30,7 @@
 // store: { append(event, key) → seq | null (duplicate), since(seq) → [{seq, e}], getMeta(k), setMeta(k, v), reset() }
 // (sync or async). The aggregate is rebuilt from the last snapshot plus the events after it.
 import { checkIncoming } from '../telemetry/schema.mjs';
-import { Aggregate, PHASES } from './aggregate.mjs';
+import { AUTO, Aggregate, PHASES } from './aggregate.mjs';
 
 export const BATCH_MAX = 50;
 export const BODY_MAX = 64 * 1024;
@@ -68,7 +68,7 @@ async function hmac(secret, text) {
   return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
 }
 
-export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500, dayTz = 'UTC' }) {
+export async function createApi({ allow, wsCode, adminToken, store, now = () => Date.now(), allowedOrigins = [], throttleMs = 500, dayTz = 'UTC', build = 'dev' }) {
   if (!wsCode) throw new Error('createApi: wsCode is required');
   // a store from another day is wiped before anything is read from it; so is one without a day at all (made before
   // the daily wipe existed: nobody can tell which day its data is from)
@@ -266,7 +266,7 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
       return json(req, 200, await enrol(p, body.name));
     }
     if (what === 'phase') {
-      if (!PHASES.includes(body?.phase)) return json(req, 400, { error: `phase: ${PHASES.join('|')}` });
+      if (!PHASES.includes(body?.phase) && body?.phase !== AUTO) return json(req, 400, { error: `phase: ${[AUTO, ...PHASES].join('|')}` });
       agg.setPhase(body.phase);
     } else if (what === 'hide') {
       if (!agg.hide(body?.name ?? body?.nickname, body?.on !== false)) return json(req, 400, { error: 'name' });
@@ -275,7 +275,7 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     }
     await snapshot();
     changed();
-    return json(req, 200, { ok: true, phase: agg.phase });
+    return json(req, 200, { ok: true, phase: agg.shown(now()), mode: agg.phase === AUTO ? 'auto' : 'forced' });
   }
 
   function stream(req) {
@@ -346,7 +346,9 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
         if (req.method === 'POST' && path === '/register') return await register(req);
         if (req.method === 'GET' && path === '/state') return json(req, 200, agg.state(now()));
         if (req.method === 'GET' && path === '/stream') return stream(req);
-        if (req.method === 'GET' && path === '/health') return json(req, 200, { ok: true });
+        // build: the commit the running code came from (deploy-panel.sh --var BUILD). Answered by the Durable Object,
+        // so after a deploy it tells whether the old object is still the one running (it is while panel tabs stay open)
+        if (req.method === 'GET' && path === '/health') return json(req, 200, { ok: true, build });
         if (req.method === 'GET' && path === '/admin/presenter') {
           if (!adminToken || req.headers.get('X-Admin-Token') !== adminToken) return json(req, 403, { error: 'admin token' });
           return json(req, 200, agg.presenter(now()));

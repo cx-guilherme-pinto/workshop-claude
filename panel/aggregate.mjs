@@ -12,6 +12,9 @@
 // checks this list against missions/rules.json.
 export const MISSIONS = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8', 'M9', 'M10'];
 export const PHASES = ['opening', 'missions', 'p1', 'p2', 'closing'];
+// 'auto' (the default, rc.3): the view follows the room, the block where most of the active people are (the last
+// block of each one: missions, p1 or p2). The presenter's keys 1 to 5 force a view, 0 goes back to auto.
+export const AUTO = 'auto';
 // The agenda (spec 3): the minute each block starts. A replay moves the view by it.
 export const AGENDA = [
   ['opening', 0],
@@ -22,7 +25,7 @@ export const AGENDA = [
 ];
 export const ACTIVE_MS = 10 * 60 * 1000;
 // The snapshot's format: 2 since each person keeps the last mission done (the presenter's view).
-export const SNAPSHOT_V = 2;
+export const SNAPSHOT_V = 3;
 export const BUDGET_USD = 5;
 const FUNNEL = ['intake', 'plan', 'swarm', 'gate', 'report'];
 const FEED_MAX = 5;
@@ -67,7 +70,8 @@ export const MAX_POINTS = MISSIONS.length * POINTS.mission + POINTS.p1_swarm + P
 export class Aggregate {
   constructor({ ws = null } = {}) {
     this.ws = ws;
-    this.phase = 'opening';
+    this.phase = AUTO;
+    this.lastAuto = 'opening';
     this.people = new Map();
     this.feed = [];
     this.hidden = new Set();
@@ -150,6 +154,12 @@ export class Aggregate {
       default:
         break;
     }
+    // the block this person is in now (for the auto view): what their latest event belongs to
+    const block = e.ev === 'mission_done' ? 'missions' : e.ev.startsWith('p1_') ? 'p1' : e.ev.startsWith('p2_') ? 'p2' : e.ev === 'cost' && ['missions', 'p1', 'p2'].includes(e.block) ? e.block : null;
+    if (block && Number.isFinite(t) && !(p.blockT > t)) {
+      p.block = block;
+      p.blockT = t;
+    }
     const pts = pointsOf(p);
     if (pts > p.points) {
       p.points = pts;
@@ -181,9 +191,30 @@ export class Aggregate {
   }
 
   setPhase(phase) {
-    if (!PHASES.includes(phase) || phase === this.phase) return false;
+    if ((!PHASES.includes(phase) && phase !== AUTO) || phase === this.phase) return false;
     this.phase = phase;
     return true;
+  }
+
+  // The auto view: the block of most of the people active now (ties go to the later block, the room moves forward).
+  // Nobody active (a break): the last one stays. Nobody in a block yet: the opening. Never the closing by itself.
+  autoPhase(now = Date.now()) {
+    const n = { missions: 0, p1: 0, p2: 0 };
+    let opening = 0;
+    for (const p of this.people.values()) {
+      if (p.last === null || now - p.last > ACTIVE_MS) continue;
+      if (p.block in n) n[p.block]++;
+      else opening++;
+    }
+    const best = ['p2', 'p1', 'missions'].reduce((a, b) => (n[b] > n[a] ? b : a), 'p2');
+    // most of the room still only registered (no block yet): the view stays where it was
+    if (n[best] > 0 && n[best] >= opening) this.lastAuto = best;
+    return this.lastAuto;
+  }
+
+  // The view every screen shows now.
+  shown(now = Date.now()) {
+    return this.phase === AUTO ? this.autoPhase(now) : this.phase;
   }
 
   // Hides a name on the panel (key H on the page): the person stays in the board, as "—".
@@ -324,7 +355,8 @@ export class Aggregate {
     return {
       v: 1,
       ws: this.ws,
-      phase: this.phase,
+      phase: this.shown(now),
+      phase_mode: this.phase === AUTO ? 'auto' : 'forced',
       now: new Date(now).toISOString(),
       events: this.count,
       budget_usd: BUDGET_USD,
@@ -347,6 +379,7 @@ export class Aggregate {
       v: SNAPSHOT_V,
       ws: this.ws,
       phase: this.phase,
+      lastAuto: this.lastAuto,
       count: this.count,
       lastT: this.lastT,
       regSeq: this.regSeq,
@@ -363,12 +396,14 @@ export class Aggregate {
     // a snapshot of an older version (v1 had no lastMission): only the presenter's choices (phase, hidden names) are
     // kept, and a.stale tells the API to rebuild the rest from every event
     if (j.v !== SNAPSHOT_V) {
-      a.phase = PHASES.includes(j.phase) ? j.phase : 'opening';
+      // before rc.3 there was no auto view and 'opening' was the default nobody chose: it becomes auto
+      a.phase = PHASES.includes(j.phase) && j.phase !== 'opening' ? j.phase : AUTO;
       a.hidden = new Set(Array.isArray(j.hidden) ? j.hidden : []);
       a.stale = true;
       return a;
     }
-    a.phase = PHASES.includes(j.phase) ? j.phase : 'opening';
+    a.phase = PHASES.includes(j.phase) || j.phase === AUTO ? j.phase : AUTO;
+    a.lastAuto = PHASES.includes(j.lastAuto) ? j.lastAuto : 'opening';
     a.count = j.count || 0;
     a.lastT = j.lastT ?? null;
     a.regSeq = j.regSeq || 0;

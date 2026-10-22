@@ -6,7 +6,7 @@
 // wrangler.toml; the events are the allowlisted ones only (telemetry/schema.mjs, checked again in api.mjs).
 //
 // Environment (wrangler.toml and secrets): WORKSHOP_CODE (var, from repos.conf), ALLOWED_ORIGINS (var: the Pages
-// address, comma separated), DAY_TZ (var: the time zone of the daily wipe, repos.conf PANEL_TIMEZONE), ADMIN_TOKEN
+// address, comma separated), BUILD (var: the commit, from deploy-panel.sh), DAY_TZ (var: the time zone of the daily wipe, repos.conf PANEL_TIMEZONE), ADMIN_TOKEN
 // (secret: `wrangler secret put ADMIN_TOKEN`, typed by the organizer).
 //
 // The daily wipe (D-34): an alarm at each midnight of DAY_TZ deletes every event, registration and the signing secret,
@@ -62,6 +62,7 @@ export class PanelRoom {
         store: sqlStore(this.ctx.storage.sql),
         allowedOrigins: origins(this.env),
         dayTz: this.env.DAY_TZ || 'UTC',
+        build: this.env.BUILD || 'dev',
       });
     }
     if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(this.api.nextWipe() + 5000);

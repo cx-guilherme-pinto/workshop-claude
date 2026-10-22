@@ -1046,8 +1046,8 @@ if [ -n "$NODE" ]; then
   eq "$(rp "http://127.0.0.1:$TP/ok")" "1|curl 7" "painel (curl): porta fechada"
 fi
 
-# check_ok: so no fim de um --check sem falhas (avisos podem ficar), com o node e o emit.mjs do kit.
-for c in "check 0 0" "check 1 1" "check 3 1" "install 0 1" "doctor 0 1" "uninstall 0 1"; do
+# check_ok: no fim de uma instalacao ou de um --check sem falhas (avisos podem ficar), com o node e o emit.mjs do kit.
+for c in "check 0 0" "check 1 1" "check 3 1" "install 0 0" "install 2 1" "doctor 0 1" "uninstall 0 1"; do
   read -r cm cf cw <<EOF
 $c
 EOF
@@ -1060,7 +1060,8 @@ if [ -n "$NODE" ]; then
     ws_check_ok_emit; printf '%s|%s' "$?" "$(cat "$CK/out")" ); }
   eq "$(ck check 0)" "0|check_ok" "check_ok: --check sem falhas chama o emit.mjs check_ok"
   eq "$(ck check 1)" "0|" "check_ok: --check com falhas nao envia"
-  eq "$(ck install 0)" "0|" "check_ok: a instalacao nunca envia"
+  eq "$(ck install 0)" "0|check_ok" "check_ok: a instalacao sem falhas envia"
+  eq "$(ck install 2)" "0|" "check_ok: a instalacao com falhas nao envia"
   eq "$(ck doctor 0)" "0|" "check_ok: o --doctor nunca envia"
   eq "$(CK_RC=3; export CK_RC; ck check 0)" "0|check_ok" "check_ok: um erro do emit.mjs e ignorado"
   eq "$(ck check 0 '')" "0|" "check_ok: sem node nao envia (nem falha)"

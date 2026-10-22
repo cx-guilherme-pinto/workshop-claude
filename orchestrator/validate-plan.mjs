@@ -16,6 +16,7 @@ import { estimar, tabelaEstimativa } from './estimate.mjs';
 import { normalizarPlano } from './lib/state.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { opt } from './lib/args.mjs';
+import { blockOf, emit } from './lib/telemetry.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
 
 export const PLAN_MD = 'PLAN.md';
@@ -265,4 +266,6 @@ if (isMain(import.meta.url)) {
   const md = planoMd(r.plano, r.avisos, estimar(r.plano));
   writeFileSync(join(ws, PLAN_MD), md);
   console.log(md);
+  // the panel's Project 2 funnel: how many agents the plan uses (Project 1 has its own p1_plan)
+  if (blockOf(projeto) === 'p2') await emit('p2_plan', { n_agents: r.plano.tasks.length });
 }

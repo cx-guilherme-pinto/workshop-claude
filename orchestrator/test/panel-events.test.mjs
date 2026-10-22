@@ -78,3 +78,36 @@ test('Project 2 (no workshop.project.json): p2_swarm_done, and no p1_retry_green
     rmSync(p.base, { recursive: true, force: true });
   }
 });
+
+test('Project 2 funnel: /task-intake, /task-plan and /task-report scripts record p2_intake, p2_plan and p2_report; a local task gets report.md', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const KIT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+  const base = mkdtempSync(join(tmpdir(), 'ws-p2-'));
+  try {
+    const repo = join(base, 'practice-project');
+    mkdirSync(join(repo, 'issues'), { recursive: true });
+    writeFileSync(join(repo, 'issues', 'EX-1.json'), JSON.stringify({ id: 'EX-1', title: 'Fix the date filter' }));
+    const tel = join(base, 'telemetry');
+    mkdirSync(tel);
+    writeFileSync(join(tel, 'config.json'), JSON.stringify({ v: 1, enabled: false, expires_at: '2099-01-01T00:00:00.000Z' }));
+    const env = { PATH: process.env.PATH, HOME: base, WORKSHOP_TELEMETRY_DIR: tel, WORKSHOP_LANG: 'en', GIT_AUTHOR_NAME: 'a', GIT_AUTHOR_EMAIL: 'a@b', GIT_COMMITTER_NAME: 'a', GIT_COMMITTER_EMAIL: 'a@b' };
+    const run = (cmd, ...args) => spawnSync(cmd, args, { cwd: repo, env, encoding: 'utf8' });
+    run('git', 'init', '-q');
+    run('git', 'add', '-A');
+    run('git', 'commit', '-qm', 'init');
+    assert.equal(run('node', join(KIT, 'init-workshop.mjs')).status, 0);
+    writeFileSync(join(repo, '.workshop', 'plan-proposal.json'), JSON.stringify({ tarefas: [{ id: 'a', agente: 'ws-worker', ficheiros: ['a.js'], teste: ['npm', 'test'], instrucoes: 'Do thing A carefully.' }] }));
+    assert.equal(run('node', join(KIT, 'validate-plan.mjs'), '.workshop/plan-proposal.json', '--global-test', '["npm","test"]').status, 0);
+    writeFileSync(join(repo, '.workshop', 'task.json'), JSON.stringify({ source: 'local', id: 'EX-1', title: 'Fix the date filter' }));
+    assert.equal(run('node', join(KIT, 'publish-text.mjs')).status, 0);
+    const evs = readFileSync(join(tel, 'local.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(evs.map((e) => e.ev), ['p2_intake', 'p2_plan', 'p2_report']);
+    assert.equal(evs[0].origin, 'practice');
+    assert.ok(evs[1].n_agents >= 1);
+    assert.equal(evs[2].destination, 'file');
+    assert.ok(existsSync(join(repo, '.workshop', 'report.md')), 'the report of a local task is a file');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

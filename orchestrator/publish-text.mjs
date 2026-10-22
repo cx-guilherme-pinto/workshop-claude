@@ -12,6 +12,7 @@ import { caminhos, lerPonteiro, primeiroQueExiste } from './lib/state.mjs';
 import { lerVeredito } from './gate.mjs';
 import { usd, tempo, nomeModelo } from './lib/table.mjs';
 import { opt } from './lib/args.mjs';
+import { blockOf, emit } from './lib/telemetry.mjs';
 import { lingua, textos } from '../hooks/lib/language.mjs';
 
 const L = lingua();
@@ -125,4 +126,9 @@ const out = {
 };
 writeFileSync(join(ws, 'publish.json'), JSON.stringify(out, null, 2) + '\n');
 writeFileSync(join(ws, 'pr-body.md'), prBody);
+// A local task (the practice project's issues/EX-*.json) has no Jira or GitHub to publish to: the report is a file,
+// .workshop/report.md (the same text as the PR body). The panel's Project 2 funnel gets its last step either way.
+const destination = out.source === 'jira' ? 'jira' : out.source === 'github' ? 'github' : 'file';
+if (destination === 'file') writeFileSync(join(ws, 'report.md'), prBody);
+if (blockOf(dir) === 'p2') await emit('p2_report', { destination });
 console.log(JSON.stringify({ target: alvo, source: out.source, comments: comentarios.length, worklog: out.worklog?.jira_time || null, pr: out.pr.title }, null, 2));
