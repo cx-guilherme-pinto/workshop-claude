@@ -50,7 +50,10 @@ What Claude Code **2.1.292** (the version in `repos.conf`) tells a hook for each
 - `SubagentStart`;
 - `PostToolUse` with the matcher `Skill|CronCreate|mcp__agent-memory__memory_add`;
 - `PostModelSwitch`;
-- `ConfigChange`.
+- `ConfigChange`;
+- `Stop` (rc.3): it records nothing, it only runs the mission check again.
+
+**When the missions are checked** (rc.3): after a new feature, at the end of each turn (`Stop`) and at the start of a session (`SessionStart`). The file missions (M4, M5, M8, M9) become true while Claude works, not when a feature shows up. The check runs at most once every 10 s: inside that window the hook asks for one delayed check (`missions.mjs check --delay`), so the last turn before the person closes Claude is still checked. If two checks meet, the second leaves `missions.dirty` and the first looks once more before it ends.
 
 ## Other findings
 

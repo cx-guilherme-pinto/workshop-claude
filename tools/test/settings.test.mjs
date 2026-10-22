@@ -39,7 +39,7 @@ test('mantem chaves, hooks e statusLine alheios e acrescenta os hooks do worksho
   assert.deepEqual(s.statusLine, cur.statusLine, 'statusLine alheia mantida');
   assert.deepEqual(warnings, ['E-CFG-06']);
   assert.equal(record.statusline_mantida, true);
-  assert.equal(s.hooks.Stop.length, 2, 'hook alheio + o nosso');
+  assert.equal(s.hooks.Stop.length, 3, 'hook alheio + os nossos (custo e telemetria)');
   assert.equal(s.hooks.Stop[0].hooks[0].command, 'echo meu-hook');
   assert.equal(s.hooks.PreToolUse[0].hooks[0].command, '/usr/local/bin/guarda');
   assert.equal(s.hooks.SubagentStop[0].hooks[0].command, `"${NODE_MAC}" "${KIT_MAC}/hooks/subagent-stop.mjs"`);
@@ -82,7 +82,7 @@ test('atualiza o caminho do node sem duplicar os hooks', () => {
   const a = mergeSettings(alheio(), { node: NODE_MAC, kitDir: KIT_MAC });
   const b = mergeSettings(a.settings, { node: '/opt/homebrew/bin/node', kitDir: KIT_MAC }, a.record);
   assert.equal(b.settings.hooks.SubagentStop.length, 1);
-  assert.equal(b.settings.hooks.Stop.length, 2);
+  assert.equal(b.settings.hooks.Stop.length, 3);
   assert.ok(b.settings.hooks.Stop[1].hooks[0].command.startsWith('"/opt/homebrew/bin/node"'));
 });
 
@@ -90,7 +90,7 @@ test('stop.mjs e subagent-stop.mjs nao se confundem', () => {
   const s = { hooks: { Stop: [{ hooks: [{ type: 'command', command: command(NODE_MAC, `${KIT_MAC}/hooks/subagent-stop.mjs`) }] }] } };
   const r = mergeSettings(s, { node: NODE_MAC, kitDir: KIT_MAC });
   assert.equal(r.settings.hooks.Stop[0].hooks.length, 1, 'o hook (estranho) do subagente no Stop fica');
-  assert.equal(r.settings.hooks.Stop.length, 2, 'e o stop.mjs e acrescentado');
+  assert.equal(r.settings.hooks.Stop.length, 3, 'e o stop.mjs e o telemetry.mjs sao acrescentados');
 });
 
 test('unmerge repoe exatamente o original', () => {
@@ -174,6 +174,7 @@ test('checkSettings deteta o que falta e statusline alheia', () => {
     'hook PostModelSwitch',
     'hook PostToolUse',
     'hook SessionStart',
+    'hook Stop',
     'hook Stop',
     'hook SubagentStart',
     'hook SubagentStop',
@@ -269,13 +270,13 @@ test('checkSettings encontra o proxy nosso que esta execucao ja nao pede (o pass
   assert.deepEqual(r2.faltam.filter((f) => f.startsWith('env')), []);
 });
 
-test('workshop v2: o hook de telemetria fica nos 7 eventos, "async", com o matcher no PostToolUse, sem tocar nos alheios', () => {
+test('workshop v2: o hook de telemetria fica nos 8 eventos, "async", com o matcher no PostToolUse, sem tocar nos alheios', () => {
   const opts = { node: NODE_MAC, kitDir: KIT_MAC, env: { DISABLE_AUTOUPDATER: '1' } };
   const cur = alheio();
   cur.hooks.PostToolUse = [{ matcher: 'Edit|Write', hooks: [{ type: 'command', command: 'echo meu >> edits.log' }] }];
   const { settings: s } = mergeSettings(cur, opts);
   const tel = command(NODE_MAC, `${KIT_MAC}/hooks/telemetry.mjs`);
-  for (const ev of ['SessionStart', 'UserPromptSubmit', 'UserPromptExpansion', 'SubagentStart', 'PostToolUse', 'PostModelSwitch', 'ConfigChange']) {
+  for (const ev of ['SessionStart', 'UserPromptSubmit', 'UserPromptExpansion', 'SubagentStart', 'PostToolUse', 'PostModelSwitch', 'ConfigChange', 'Stop']) {
     const nossos = s.hooks[ev].filter((g) => g.hooks.some((h) => h.command === tel));
     assert.equal(nossos.length, 1, ev);
     assert.deepEqual(nossos[0].hooks, [{ type: 'command', command: tel, timeout: 5, async: true }], ev);
@@ -284,7 +285,7 @@ test('workshop v2: o hook de telemetria fica nos 7 eventos, "async", com o match
   assert.deepEqual(s.hooks.PostToolUse[0], cur.hooks.PostToolUse[0], 'o hook da pessoa fica igual e no mesmo sitio');
   assert.deepEqual(s.hooks.PreToolUse, cur.hooks.PreToolUse);
   // os de custo nao sao async
-  assert.equal(s.hooks.Stop.at(-1).hooks[0].async, undefined);
+  assert.equal(s.hooks.Stop.find((g) => g.hooks.some((h) => h.command.endsWith('stop.mjs"') && !h.command.includes('telemetry'))).hooks[0].async, undefined);
   // repetir nao muda nada; o --check fica ok
   assert.equal(mergeSettings(s, opts).changed, false);
   assert.equal(checkSettings(s, opts).ok, true);

@@ -2,14 +2,15 @@
 // Telemetry hook of the workshop (docs/pt/WORKSHOP-V2-SPEC.md, section 6.4; what each event carries is in
 // docs/OBSERVABILITY.md). Registered by the installer, "async": true, on SessionStart, UserPromptSubmit,
 // UserPromptExpansion, SubagentStart, PostToolUse (Skill|CronCreate|mcp__agent-memory__memory_add),
-// PostModelSwitch and ConfigChange.
+// PostModelSwitch, ConfigChange and Stop.
 //
 // From the input it keeps only the name of a Claude Code feature that was used (plan_mode, loop…) and drops the
 // rest without writing it anywhere: prompts, paths, cwd, transcript_path, tool_input and tool_response never
 // leave this process. It acts only in the workshop projects (the projects folder the setup wrote in config.json,
 // or a project with .workshop/), records each feature once per session, never does network, prints nothing and
-// always exits with 0 within 1 s. When it records something new, it starts the mission check in the background.
-import { existsSync, readFileSync } from 'node:fs';
+// always exits with 0 within 1 s. When it records something new, at the end of each turn (Stop) and at the start of a
+// session, it starts the mission check in the background (at most once every 10 s).
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -20,6 +21,8 @@ import { active, family, paths, readConfig, readJson, record, scope, writeJson }
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LIMIT_MS = 1000;
 const SEEN_MAX = 200;
+// the tests make it shorter (WORKSHOP_CHECK_EVERY_MS), so they do not wait 10 s
+const CHECK_EVERY_MS = Number(process.env.WORKSHOP_CHECK_EVERY_MS) || 10000;
 
 // Skills and agents of the kit: using them is not "your own skill" (M4) or "a subagent" (M3).
 export const KIT_SKILLS = new Set([
@@ -110,23 +113,56 @@ function fresh(P, sessionId, list) {
   return novos;
 }
 
-function startCheck(env = process.env) {
+function startCheck(env = process.env, delay = 0) {
   if (env.WORKSHOP_TELEMETRY_NO_CHECK === '1') return;
   const m = join(HERE, '..', 'missions', 'missions.mjs');
   if (!existsSync(m)) return;
-  const c = spawn(process.execPath, [m, 'check', '--quiet'], { detached: true, stdio: 'ignore', windowsHide: true, env });
+  const c = spawn(process.execPath, [m, 'check', '--quiet', ...(delay ? ['--delay', String(delay)] : [])], { detached: true, stdio: 'ignore', windowsHide: true, env });
   c.unref();
 }
 
-// One hook call. Returns the features recorded (for the tests).
-export function handle(input, { env = process.env, P = paths(), now = new Date() } = {}) {
+const age = (f, now) => {
+  try {
+    return now - statSync(f).mtimeMs;
+  } catch {
+    return Infinity;
+  }
+};
+const touch = (f) => {
+  try {
+    writeFileSync(f, '');
+  } catch {
+    /* best effort */
+  }
+};
+
+// When to check the missions: always after a new feature; and at the end of each turn (Stop) and at the start of a
+// session, because the file missions (M4, M5, M8, M9) become true while Claude works, not when a feature shows up.
+// At most once every CHECK_EVERY_MS: inside that window one delayed check is asked for instead, so the last
+// turn before the person closes Claude is never left unchecked. Returns 0 (none), 'now' or the delay in ms.
+export function whenToCheck(input, novos, P, now = Date.now()) {
+  const ev = input?.hook_event_name;
+  if (!novos.length && ev !== 'Stop' && ev !== 'SessionStart') return 0;
+  const a = age(P.checkStamp, now);
+  if (a >= CHECK_EVERY_MS) return 'now';
+  if (age(P.checkDelayed, now) < CHECK_EVERY_MS + 5000) return 0;
+  return Math.max(Math.ceil(CHECK_EVERY_MS - a), 1);
+}
+
+// One hook call. Returns the features recorded (for the tests); with { decide: true }, also when to check.
+export function handle(input, { env = process.env, P = paths(), now = new Date(), decide = false } = {}) {
+  const none = decide ? { novos: [], check: 0 } : [];
   const cfg = readConfig(P);
-  if (!active(cfg, now)) return [];
+  if (!active(cfg, now)) return none;
   const sc = scope(env.CLAUDE_PROJECT_DIR || input?.cwd, cfg);
-  if (!sc) return [];
+  if (!sc) return none;
   const novos = fresh(P, input.session_id, signals(input, env, sc.proj));
   for (const s of novos) record('feature', { name: s.name }, { local: { ...(s.family ? { family: s.family } : {}), project: sc.project }, P, now });
-  return novos;
+  if (!decide) return novos;
+  const check = whenToCheck(input, novos, P, now.getTime());
+  if (check === 'now') touch(P.checkStamp);
+  else if (check) touch(P.checkDelayed);
+  return { novos, check };
 }
 
 async function main() {
@@ -135,7 +171,8 @@ async function main() {
     const chunks = [];
     for await (const c of process.stdin) chunks.push(c);
     const input = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
-    if (handle(input).length) startCheck();
+    const { check } = handle(input, { decide: true });
+    if (check) startCheck(process.env, check === 'now' ? 0 : check);
   } catch {
     /* never block, never complain */
   }

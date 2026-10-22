@@ -4,7 +4,7 @@
 import { join } from 'node:path';
 import { runHook, workshopDir, appendJsonl, telemetryCost } from './lib/workshop.mjs';
 import { loadPricing, tokensFromUsage, requestCost } from './lib/cost.mjs';
-import { summarize, readJsonl } from './lib/transcript.mjs';
+import { summarize, readJsonl, messageCosts } from './lib/transcript.mjs';
 import { budgetMessage } from './budget.mjs';
 
 function costByModel(path, pricing) {
@@ -44,6 +44,7 @@ runHook('stop', async (input) => {
     tokens: s.tokens,
     custo_usd: s.usd,
   });
-  await telemetryCost(input, { byModel: porModelo });
+  // the panel gets each request once, by message id (a resumed session repeats the old ones)
+  await telemetryCost(input, { messages: messageCosts(input.transcript_path, pricing, { onlyMainThread: true }) });
   return budgetMessage(ws, pricing);
 });

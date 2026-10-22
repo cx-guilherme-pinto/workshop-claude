@@ -11,7 +11,7 @@
 //   queue.sending.jsonl, sent.jsonl, cost-seen.json   used by send.mjs and the cost events
 // Nothing here ever does network: record() only starts send.mjs (detached, at most once every 2 s) when it queued
 // something and the config has a panel address. Past expires_at nothing is recorded.
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -40,11 +40,16 @@ export function paths(dir = telemetryDir()) {
     seen: join(dir, 'seen.json'),
     missions: join(dir, 'missions.json'),
     lock: join(dir, 'missions.lock'),
+    dirty: join(dir, 'missions.dirty'),
+    checkStamp: join(dir, 'check.stamp'),
+    checkDelayed: join(dir, 'check.delayed'),
     sending: join(dir, 'queue.sending.jsonl'),
     sent: join(dir, 'sent.jsonl'),
     sendLock: join(dir, 'send.lock'),
     sendStamp: join(dir, 'send.stamp'),
     costSeen: join(dir, 'cost-seen.json'),
+    counted: join(dir, 'cost-counted.json'),
+    costLock: join(dir, 'cost.lock'),
   };
 }
 
@@ -224,14 +229,80 @@ export const family = (m) => {
   return s.includes('haiku') ? 'haiku' : s.includes('sonnet') ? 'sonnet' : s.includes('opus') ? 'opus' : 'other';
 };
 
-// Cost events from the kit's cost hooks: a subagent's cost once (SubagentStop), the main session's growth since the
-// last Stop of the same session (Stop records the session's cumulative cost per model).
-export function recordCosts({ proj, sessionId, sub = null, byModel = null, P = paths(), now = new Date() }) {
+const COUNTED_MAX = 20000;
+
+// A short lock (cost.lock) around the counted set: two sessions of the same person (two terminals) must not both
+// count the same messages. Waits up to ~1 s; a lock older than 10 s is stale.
+function withCostLock(P, fn) {
+  let fd = null;
+  for (let i = 0; i < 20 && fd === null; i++) {
+    try {
+      fd = openSync(P.costLock, 'wx');
+    } catch {
+      try {
+        if (Date.now() - statSync(P.costLock).mtimeMs > 10000) rmSync(P.costLock, { force: true });
+      } catch {
+        /* gone meanwhile */
+      }
+      const until = Date.now() + 50;
+      while (Date.now() < until) {
+        /* wait */
+      }
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    if (fd !== null) {
+      closeSync(fd);
+      rmSync(P.costLock, { force: true });
+    }
+  }
+}
+
+// Cost events from the kit's cost hooks. `messages` ([{id, model, usd}] from hooks/lib/transcript.mjs messageCosts):
+// each message id is counted once, whatever session or transcript it shows up in again (claude -c copies the history
+// into the new session; a resumed subagent keeps its own); a message whose cost grew counts only the growth. The
+// event is recorded before the ids are marked as counted, so a killed hook can only count twice, never lose cost.
+// `sub` and `byModel` are the older form (a project engine assembled before v1.1.0-rc.3).
+export function recordCosts({ proj, sessionId, sub = null, byModel = null, messages = null, P = paths(), now = new Date() }) {
   const cfg = readConfig(P);
   if (!active(cfg, now)) return 0;
   const sc = scope(proj, cfg);
   if (!sc) return 0;
   const out = [];
+  if (Array.isArray(messages)) {
+    return withCostLock(P, () => {
+      const counted = readJson(P.counted, { v: 1, m: {} }) || { v: 1, m: {} };
+      const m = counted.m && typeof counted.m === 'object' ? counted.m : {};
+      const byFamily = {};
+      const fresh = {};
+      for (const msg of messages) {
+        if (!msg || typeof msg.usd !== 'number' || !(msg.usd > 0) || !msg.id) continue;
+        const k = createHash('sha256').update(String(msg.id)).digest('hex').slice(0, 16);
+        const d = msg.usd - (m[k] || 0);
+        if (d <= 0.000001) continue;
+        const f = family(msg.model);
+        byFamily[f] = (byFamily[f] || 0) + d;
+        fresh[k] = msg.usd;
+      }
+      let n = 0;
+      for (const [f, usd] of Object.entries(byFamily)) {
+        record('cost', { cost_usd: Math.min(usd, 1000), model: f, block: sc.project }, { P, now });
+        n++;
+      }
+      if (Object.keys(fresh).length) {
+        for (const [k, v] of Object.entries(fresh)) {
+          delete m[k];
+          m[k] = v;
+        }
+        const keys = Object.keys(m);
+        if (keys.length > COUNTED_MAX) for (const k of keys.slice(0, keys.length - COUNTED_MAX)) delete m[k];
+        writeJson(P.counted, { v: 1, m });
+      }
+      return n;
+    });
+  }
   if (sub && typeof sub.usd === 'number' && sub.usd > 0) out.push({ usd: sub.usd, model: sub.model });
   if (byModel && typeof byModel === 'object') {
     const seen = readJson(P.costSeen, {}) || {};

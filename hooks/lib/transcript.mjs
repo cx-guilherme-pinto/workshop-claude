@@ -86,6 +86,28 @@ export function summarize(path, pricing, { onlyMainThread = false } = {}) {
   };
 }
 
+// The cost of each request of a transcript, by message id (the streaming repeats a message with partial
+// output_tokens: the largest wins). The workshop panel counts each id once (telemetry/lib.mjs recordCosts): a resumed
+// session (claude -c) copies the old messages into the new transcript, and a resumed subagent keeps its history.
+export function messageCosts(path, pricing, { onlyMainThread = false } = {}) {
+  const byId = new Map();
+  for (const r of readJsonl(path)) {
+    if (onlyMainThread && r.isSidechain) continue;
+    const m = r.message;
+    if (r.type !== 'assistant' || !m?.usage || m.model === '<synthetic>') continue;
+    const id = m.id || r.requestId || r.uuid;
+    if (!id) continue;
+    const prev = byId.get(id);
+    if (!prev || (m.usage.output_tokens || 0) >= (prev.usage.output_tokens || 0)) byId.set(id, { model: m.model, usage: m.usage });
+  }
+  const out = [];
+  for (const [id, { model, usage }] of byId) {
+    const c = requestCost(tokensFromUsage(usage), model, pricing);
+    if (typeof c.usd === 'number' && c.usd > 0) out.push({ id: String(id), model: c.model || model || '?', usd: c.usd });
+  }
+  return out;
+}
+
 // Markers the orchestrator puts in each subagent's prompt (TASK:, AGENT:, ATTEMPT:;
 // older versions wrote TAREFA:, AGENTE:, TENTATIVA:, which are still read).
 export function parseMarkers(text) {

@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { runHook, workshopDir, appendJsonl, readJsonSafe, projectDir, telemetryCost } from './lib/workshop.mjs';
 import { loadPricing } from './lib/cost.mjs';
-import { summarize, parseMarkers } from './lib/transcript.mjs';
+import { summarize, parseMarkers, messageCosts } from './lib/transcript.mjs';
 import { budgetMessage } from './budget.mjs';
 
 runHook('subagent-stop', async (input) => {
@@ -36,7 +36,7 @@ runHook('subagent-stop', async (input) => {
     custo_usd: s.usd,
   };
   appendJsonl(join(ws, 'usage.jsonl'), rec);
-  await telemetryCost(input, { sub: { usd: rec.custo_usd, model: rec.modelo } });
+  await telemetryCost(input, { messages: messageCosts(input.agent_transcript_path, pricing) });
   appendJsonl(join(ws, 'events.jsonl'), {
     ts: rec.ts,
     tipo: 'custo',

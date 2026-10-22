@@ -2,13 +2,13 @@
 // The mission book (docs/pt/WORKSHOP-V2-SPEC.md, sections 4.3, 4.4 and 6.7):
 //
 //   node ~/.workshop-claude/kit/missions/missions.mjs status [--json]   the book: ✔/○ per mission, the next one and a hint
-//   node missions.mjs check [--quiet]                                   evaluates rules.json and records mission_done
+//   node missions.mjs check [--quiet] [--delay ms]                      evaluates rules.json and records mission_done
 //   node missions.mjs reset                                             starts the book again (for a rehearsal)
 //
 // The rules read the local book (~/.workshop-claude/telemetry/local.jsonl, written by the telemetry hook and the
 // npm test reporter) and a few files in the workshop projects (the folder in config.json). Each mission counts once
 // per person: once done, it stays done. With participation on, mission_done also goes to the panel queue.
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -163,15 +163,28 @@ export function check({ P = paths(), env = process.env, now = new Date(), runTes
   const cfg = readConfig(P);
   if (!active(cfg, now)) return null;
   const book = readJson(P.missions, null) || { v: 1, done: {} };
-  if (!lock(P)) return book;
+  if (!lock(P)) {
+    // Someone else is checking right now: leave a mark, and the one with the lock looks once more at the end
+    // (a file that became true meanwhile, e.g. edits.log written while the check was running, is not lost).
+    try {
+      writeFileSync(P.dirty, String(Date.now()));
+    } catch {
+      /* best effort */
+    }
+    return book;
+  }
   try {
-    const ok = evaluate(context(P, cfg, env, runTests ? { runTests } : {}), book.done);
     let changed = false;
-    for (const id of RULES.order) {
-      if (!ok[id] || book.done[id]) continue;
-      book.done[id] = now.toISOString();
-      record('mission_done', { mission: id }, { P, now });
-      changed = true;
+    for (let round = 0; round < 2; round++) {
+      rmSync(P.dirty, { force: true });
+      const ok = evaluate(context(P, cfg, env, runTests ? { runTests } : {}), book.done);
+      for (const id of RULES.order) {
+        if (!ok[id] || book.done[id]) continue;
+        book.done[id] = now.toISOString();
+        record('mission_done', { mission: id }, { P, now });
+        changed = true;
+      }
+      if (!existsSync(P.dirty)) break;
     }
     if (changed || !existsSync(P.missions)) writeJson(P.missions, { ...book, updated: now.toISOString() });
     return book;
@@ -215,6 +228,11 @@ if (isMain(import.meta.url)) {
   const l = lingua();
   try {
     if (cmd === 'check') {
+      // --delay <ms>: the telemetry hook asks for a check a little later (it ran one less than 10 s ago)
+      const i = rest.indexOf('--delay');
+      const ms = i >= 0 ? Math.min(Math.max(Number(rest[i + 1]) || 0, 0), 15000) : 0;
+      if (ms) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+      if (ms) rmSync(P.checkDelayed, { force: true });
       const b = check({ P });
       if (!rest.includes('--quiet')) console.log(b ? render(b, l) : (T[l] || T.en).semConfig);
     } else if (cmd === 'status') {
@@ -227,7 +245,7 @@ if (isMain(import.meta.url)) {
       }
     } else if (cmd === 'reset') reset(P);
     else {
-      console.log('usage: missions.mjs status [--json] | check [--quiet] | reset');
+      console.log('usage: missions.mjs status [--json] | check [--quiet] [--delay ms] | reset');
       process.exitCode = 2;
     }
   } catch (e) {

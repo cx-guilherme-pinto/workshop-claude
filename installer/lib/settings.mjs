@@ -19,6 +19,8 @@ export const HOOKS = [
   ['PostToolUse', 'hooks/telemetry.mjs', { ...TEL, matcher: TELEMETRY_MATCHER }],
   ['PostModelSwitch', 'hooks/telemetry.mjs', TEL],
   ['ConfigChange', 'hooks/telemetry.mjs', TEL],
+  // the file missions (M4, M5, M8, M9) become true during a turn: checked again when it ends
+  ['Stop', 'hooks/telemetry.mjs', TEL],
 ];
 export const STATUSLINE_FILE = 'statusline/statusline.mjs';
 export const HOOK_TIMEOUT = 30;
