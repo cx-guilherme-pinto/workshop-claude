@@ -609,6 +609,17 @@ test('presenter view: for each mission, how many people are at it and who; only 
   assert.deepEqual(at.M2, [1, 2, [[null, true]]], 'Rui is at M2, his name hidden but counted');
   assert.deepEqual(at.M3, [1, 1, [['Ana Silva', true]]]);
   assert.deepEqual(v.finished, { at: 1, names: [{ name: 'Zé Faria', active: true }] });
+  // someone who skipped M2: at the mission after the last one done, with M2 as missing
+  a.apply(ev(5, 'register', 0, { name: 'Lia Mota' }));
+  for (const m of ['M1', 'M3', 'M4']) a.apply(ev(5, 'mission_done', 29, { mission: m }));
+  const w = a.presenter(now);
+  const lia = w.missions.flatMap((m) => m.names.map((x) => ({ ...x, at: m.id }))).find((x) => x.name === 'Lia Mota');
+  assert.deepEqual([lia.at, lia.skipped], ['M5', ['M2']]);
+  assert.deepEqual(w.missions.find((m) => m.id === 'M3').names.find((x) => x.name === 'Ana Silva').skipped, [], 'nothing skipped');
+  // an old snapshot (v1, no last mission) is rebuilt from the events, keeping the phase and the hidden names
+  const old = { ...JSON.parse(JSON.stringify(a)), v: 1, phase: 'missions' };
+  const b = Aggregate.fromJSON(old);
+  assert.deepEqual([b.stale, b.phase, [...b.hidden], b.people.size], [true, 'missions', ['Rui Costa'], 0]);
   assert.equal(a.state(now).presenter, undefined);
   // the API: 403 without the token, 200 with it
   const { x } = await api();
@@ -620,6 +631,26 @@ test('presenter view: for each mission, how many people are at it and who; only 
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.deepEqual([j.people, j.missions[0].id, j.missions[0].names[0].name], [1, 'M1', 'Ana Silva']);
+  } finally {
+    x.close();
+  }
+});
+
+test('API: a snapshot of the old format is rebuilt from every event (the last mission of each person), keeping the phase', async () => {
+  const store = memoryStore();
+  store.setMeta('day', new Date(T0 + 60 * 60000).toLocaleDateString('en-CA', { timeZone: 'UTC' }));
+  store.append(ev(1, 'register', 0, { name: 'Ana Silva' }), 'r1');
+  store.append(ev(1, 'mission_done', 5, { mission: 'M1' }), 'm1');
+  store.append(ev(1, 'mission_done', 6, { mission: 'M3' }), 'm3');
+  store.setMeta('snapshot', JSON.stringify({ v: 1, ws: 'ws-t', phase: 'p1', hidden: [], people: [] }));
+  store.setMeta('snapshot_seq', '3');
+  const { x } = await api({ store });
+  try {
+    const s = await get(x, '/state');
+    assert.deepEqual([s.phase, s.board.people, s.summary.missions.M3.done], ['p1', 1, 1]);
+    const v = await (await x.fetch(new Request('http://p/admin/presenter', { headers: { 'X-Admin-Token': 'adm-secret' } }))).json();
+    const ana = v.missions.find((m) => m.names.some((n) => n.name === 'Ana Silva'));
+    assert.deepEqual([ana.id, ana.names[0].skipped], ['M4', ['M2']]);
   } finally {
     x.close();
   }

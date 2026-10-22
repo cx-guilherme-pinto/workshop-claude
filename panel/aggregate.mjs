@@ -21,6 +21,8 @@ export const AGENDA = [
   ['closing', 87],
 ];
 export const ACTIVE_MS = 10 * 60 * 1000;
+// The snapshot's format: 2 since each person keeps the last mission done (the presenter's view).
+export const SNAPSHOT_V = 2;
 export const BUDGET_USD = 5;
 const FUNNEL = ['intake', 'plan', 'swarm', 'gate', 'report'];
 const FEED_MAX = 5;
@@ -104,6 +106,7 @@ export class Aggregate {
       case 'mission_done':
         if (MISSIONS.includes(e.mission) && !p.missions.has(e.mission)) {
           p.missions.add(e.mission);
+          p.lastMission = e.mission;
           this.first(`mission:${e.mission}`, e, p, { kind: 'mission', mission: e.mission });
         }
         break;
@@ -289,9 +292,10 @@ export class Aggregate {
   }
 
   // The presenter's view (GET /admin/presenter, only with the admin token; key P on the page): for each mission, how
-  // many registered people are at it and who. A person is "at" the first mission of the book's order they have not
-  // done yet; the ones who did them all are in "finished". A hidden name stays hidden (null) but is counted. Active =
-  // an event in the last 10 minutes; the active ones come first. Never part of the public /state.
+  // many registered people are at it and who. A person is "at" the first mission they have not done after the last
+  // one they did (where they are working now: people skip missions), and "skipped" lists the ones they left behind;
+  // the ones who did them all are in "finished". A hidden name stays hidden (null) but is counted. Active = an event
+  // in the last 10 minutes; the active ones come first. Never part of the public /state.
   presenter(now = Date.now()) {
     const missions = MISSIONS.map((id) => ({ id, done: 0, names: [] }));
     const finished = [];
@@ -299,7 +303,10 @@ export class Aggregate {
       if (!p.name) continue;
       for (const m of missions) if (p.missions.has(m.id)) m.done++;
       const row = { name: this.hidden.has(p.name) ? null : p.name, active: p.last !== null && now - p.last <= ACTIVE_MS };
-      const at = MISSIONS.findIndex((m) => !p.missions.has(m));
+      const last = MISSIONS.indexOf(p.lastMission);
+      let at = MISSIONS.findIndex((m, i) => i > last && !p.missions.has(m));
+      if (at < 0) at = MISSIONS.findIndex((m) => !p.missions.has(m));
+      if (at >= 0) row.skipped = MISSIONS.slice(0, at).filter((m) => !p.missions.has(m));
       (at < 0 ? finished : missions[at].names).push(row);
     }
     const order = (a, b) => Number(b.active) - Number(a.active) || (a.name ?? '\uffff').localeCompare(b.name ?? '\uffff');
@@ -337,7 +344,7 @@ export class Aggregate {
   // A snapshot for the Durable Object storage (the Worker does not replay every event on a cold start).
   toJSON() {
     return {
-      v: 1,
+      v: SNAPSHOT_V,
       ws: this.ws,
       phase: this.phase,
       count: this.count,
@@ -352,7 +359,15 @@ export class Aggregate {
 
   static fromJSON(j) {
     const a = new Aggregate({ ws: j?.ws ?? null });
-    if (!j || j.v !== 1) return a;
+    if (!j) return a;
+    // a snapshot of an older version (v1 had no lastMission): only the presenter's choices (phase, hidden names) are
+    // kept, and a.stale tells the API to rebuild the rest from every event
+    if (j.v !== SNAPSHOT_V) {
+      a.phase = PHASES.includes(j.phase) ? j.phase : 'opening';
+      a.hidden = new Set(Array.isArray(j.hidden) ? j.hidden : []);
+      a.stale = true;
+      return a;
+    }
     a.phase = PHASES.includes(j.phase) ? j.phase : 'opening';
     a.count = j.count || 0;
     a.lastT = j.lastT ?? null;

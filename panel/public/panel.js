@@ -10,7 +10,8 @@
 // without it this page only); 0 = follow the shared view again; H then a click on a name (in the leaderboard, the
 // list of names or the feed) hides it, for everyone with the admin token; P (only with the admin token, or in a
 // replay) opens the presenter's view on top of this one: for each mission, how many people are at it and who
-// (GET /admin/presenter, never in the public /state). It shows only on this screen, only while open; P or Esc closes.
+// (GET /admin/presenter, never in the public /state): each person is at the mission after the last one they did,
+// with the ones they skipped ("missing M2"). It shows only on this screen, only while open; P or Esc closes.
 //
 // Every view has the leaderboard (D-34: one board of people for the whole workshop, ranked by points for coverage and
 // quality, never by spend) as its main element, at most 4 elements with the top strip. The leaderboard shows the names
@@ -66,6 +67,7 @@ export const TEXT = {
       finished: 'Fizeram todas',
       nobody: 'ninguém',
       hidden: '—',
+      skipped: 'falta {m}',
       needsToken: 'A vista do apresentador precisa do token de admin (#admin=…)',
       refused: 'Token de admin recusado',
       error: 'Não consegui ler a vista do apresentador',
@@ -133,6 +135,7 @@ export const TEXT = {
       finished: 'Did them all',
       nobody: 'nobody',
       hidden: '—',
+      skipped: 'missing {m}',
       needsToken: 'The presenter view needs the admin token (#admin=…)',
       refused: 'Admin token refused',
       error: 'Could not read the presenter view',
@@ -778,7 +781,12 @@ function boot() {
       if (r.done !== null) top.append(el('span', 'pv-done', t('presenter.done', { n: num(r.done) })));
       const names = el('div', 'pv-names');
       if (!r.names.length) names.append(el('span', 'pv-none', t('presenter.nobody')));
-      for (const n of r.names) names.append(el('span', n.active ? 'pv-name' : 'pv-name off', n.name ?? t('presenter.hidden')));
+      for (const n of r.names) {
+        const chip = el('span', n.active ? 'pv-name' : 'pv-name off', n.name ?? t('presenter.hidden'));
+        // the missions this person left behind (they went on to later ones)
+        if (n.skipped?.length) chip.append(el('span', 'pv-skip', ` · ${t('presenter.skipped', { m: n.skipped.join(', ') })}`));
+        names.append(chip);
+      }
       row.append(top, names);
       root.append(row);
     }

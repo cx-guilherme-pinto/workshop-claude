@@ -78,7 +78,8 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
   }
   let agg = Aggregate.fromJSON(JSON.parse((await store.getMeta('snapshot')) || 'null'));
   agg.ws = wsCode;
-  let lastSeq = Number((await store.getMeta('snapshot_seq')) || 0);
+  // an old snapshot (agg.stale): rebuilt from the first event
+  let lastSeq = agg.stale ? 0 : Number((await store.getMeta('snapshot_seq')) || 0);
   for (const { seq, e } of await store.since(lastSeq)) {
     agg.apply(e);
     lastSeq = Math.max(lastSeq, seq);

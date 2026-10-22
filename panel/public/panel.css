@@ -337,4 +337,4 @@ h2, h3, p, figure, ol { margin: 0; }
 .pv-name { font-size: var(--t-text); padding: 3px 10px; border-radius: 999px; background: var(--surface-2); }
 .pv-name.off { color: var(--muted); background: var(--surface); }
 .pv-none { font-size: var(--t-text); color: var(--muted); }
-
+.pv-skip { color: var(--status-yellow); }
