@@ -2,8 +2,8 @@
 // Gera os ficheiros que contem URLs a partir do repos.conf (+ variaveis de ambiente com o mesmo nome):
 // O ingles e a versao principal (D-21): docs/ e README.md em ingles, docs/pt/ e README.pt.md em portugues,
 // e o README e o guia de instalacao tambem em hindi e hebraico.
-//   tools/templates/en/*.tmpl  -> README.md, docs/PUBLISHING.md, docs/INSTALL.md
-//   tools/templates/pt/*.tmpl  -> README.pt.md, docs/pt/PUBLISHING.md, docs/pt/INSTALL.md
+//   tools/templates/en/*.tmpl  -> README.md, docs/PUBLISHING.md, docs/INSTALL.md, docs/EMAIL.md
+//   tools/templates/pt/*.tmpl  -> README.pt.md, docs/pt/PUBLISHING.md, docs/pt/INSTALL.md, docs/pt/EMAIL.md
 //   tools/templates/hi/*.tmpl  -> README.hi.md, docs/hi/INSTALL.md
 //   tools/templates/he/*.tmpl  -> README.he.md, docs/he/INSTALL.md
 //   setup/messages.en.json     -> docs/TROUBLESHOOTING.md (catalogo de erros, por sistema operativo)
@@ -26,9 +26,11 @@ export const TEMPLATES = [
   ['tools/templates/en/README.md.tmpl', 'README.md', 'en'],
   ['tools/templates/en/PUBLISHING.md.tmpl', 'docs/PUBLISHING.md', 'en'],
   ['tools/templates/en/INSTALL.md.tmpl', 'docs/INSTALL.md', 'en'],
+  ['tools/templates/en/EMAIL.md.tmpl', 'docs/EMAIL.md', 'en'],
   ['tools/templates/pt/README.md.tmpl', 'README.pt.md', 'pt'],
   ['tools/templates/pt/PUBLISHING.md.tmpl', 'docs/pt/PUBLISHING.md', 'pt'],
   ['tools/templates/pt/INSTALL.md.tmpl', 'docs/pt/INSTALL.md', 'pt'],
+  ['tools/templates/pt/EMAIL.md.tmpl', 'docs/pt/EMAIL.md', 'pt'],
   ['tools/templates/hi/README.md.tmpl', 'README.hi.md', 'hi'],
   ['tools/templates/hi/INSTALL.md.tmpl', 'docs/hi/INSTALL.md', 'hi'],
   ['tools/templates/he/README.md.tmpl', 'README.he.md', 'he'],

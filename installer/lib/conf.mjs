@@ -57,6 +57,9 @@ export function rawFileUrl(conf, which, path) {
 export const kitArchiveName = (version, ext) => `workshop-kit-${version}.${ext}`;
 
 // Valores derivados usados nos templates, nas mensagens e nos slides.
+// A file of the repository at a tag, as the web page shows it (GitHub: /blob/<tag>/; Gitea: /src/tag/<tag>/).
+const docUrl = (conf, repo, ver, path) => `${repo}/${conf.RELEASE_PROVIDER === 'gitea' ? 'src/tag' : 'blob'}/${ver}/${path}`;
+
 export function derived(conf) {
   const w = repoParts(conf.WORKSHOP_REPO_URL);
   const m = repoParts(conf.MEMORY_APP_REPO_URL);
@@ -75,6 +78,9 @@ export function derived(conf) {
     RELEASE_URL: expand(conf.RELEASE_PAGE_URL || '{repo}/releases/tag/{version}', { ...w, version: ver }),
     MEMORY_RELEASE_URL: expand(conf.RELEASE_PAGE_URL || '{repo}/releases/tag/{version}', { ...m, version: conf.MEMORY_APP_VERSION }),
     SHA256SUMS_URL: releaseFileUrl(conf, 'workshop', 'SHA256SUMS'),
+    // the installation guide of this version on the repository's web page (the pre-workshop email links to it)
+    INSTALL_GUIDE_URL: docUrl(conf, w.repo, ver, 'docs/INSTALL.md'),
+    INSTALL_GUIDE_URL_PT: docUrl(conf, w.repo, ver, 'docs/pt/INSTALL.md'),
     SETUP_MAC_URL: setupMac,
     SETUP_WINDOWS_URL: setupWin,
     BOOTSTRAP_WINDOWS_URL: bootstrap,
