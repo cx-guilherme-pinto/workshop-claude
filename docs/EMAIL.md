@@ -2,21 +2,21 @@
 
 # Email to send before the workshop
 
-For the organizer: copy the subject and the body into the email. Fill in the fields in [brackets]. Send it about a week before the workshop, with a reminder 2 days before. The links point to the kit release v1.1.0-rc.2: after a new release, run `node tools/render.mjs` and copy the email again.
+For the organizer: copy the subject and the body into the email. Send it about a week before the workshop, with a reminder 2 days before. The links point to the kit release v1.1.0-rc.3: after a new release, run `node tools/render.mjs` and copy the email again.
 
 ---
 
-**Subject:** Agent Orchestration with Claude, [date]: 15 minutes of setup before the day
+**Subject:** Agent Orchestration with Claude, Monday 26 October: 15 minutes of setup before the day
 
 Hi everyone,
 
-On **[date], [time]**, at **[place / meeting link]**, we have the workshop **Agent Orchestration with Claude**. It is 90 minutes of hands-on work: short missions with Claude Code, a swarm of agents that builds a Pocketknife of tools, and a real task in a practice repository. A live panel on the screen shows what the room has already done.
+On **Monday 26 October, 2:00 to 3:30 pm**, in the **Cafeteria, Braga**, we have the workshop **Agent Orchestration with Claude**. It is 90 minutes of hands-on work: short missions with Claude Code, a swarm of agents that builds a Pocketknife of tools, and a real task in a practice repository. A live panel on the screen shows what the room has already done.
 
-To spend the session building and not installing, please do this **by [deadline]**. It takes 10 to 20 minutes, and you don't need admin rights.
+To spend the session building and not installing, please do this **by Sunday 25 October**. It takes 10 to 20 minutes, and you don't need admin rights.
 
 **1. Before you start**
 
-- An account on the [Anthropic Console](https://platform.claude.com) with credits (Billing). The whole day costs about US$ 5. Set a spend limit well above US$ 10.
+- Your corporate Claude account. It is the only Claude account you need.
 - A GitHub account logged in on github.com. To appear on the panel's leaderboard, it needs a verified **@checkmarx.com** email (github.com → Settings → Emails). Without it you do the workshop all the same; you just don't appear on the panel.
 - **Mac:** open Terminal and run `xcode-select --install`. Click "Install" and wait until it finishes. If it says it is already installed, that's fine.
 - **Windows:** nothing to prepare. Use Windows PowerShell (not PowerShell ISE).
@@ -26,27 +26,39 @@ To spend the session building and not installing, please do this **by [deadline]
 On a Mac, in Terminal:
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-mac.sh | bash
 ```
 
 On Windows, in PowerShell:
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.2/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/bootstrap-windows.ps1 | iex
 ```
 
-The setup asks a few questions. For example, the Console login and the GitHub login each open the browser. It shows one line per step and a summary at the end.
+The setup asks a few questions. For example, the Claude login and the GitHub login each open the browser. It shows one line per step and a summary at the end.
 
 **3. Confirm**
 
 At the end you should see **"Everything is ready for the workshop."** Then close and reopen the terminal.
 
+A few warnings may appear during or after the installation. If you see some warnings, or even errors, that is fine: do not worry.
+
 **If something fails**
 
 - Run the same command again: the steps already done are skipped.
 - On a company network, if something fails on the network, try your phone's hotspot.
-- The full guide and the error codes are in the [installation guide](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.2/docs/INSTALL.md).
+- The full guide and the error codes are in the [installation guide](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.3/docs/INSTALL.md).
 - Still stuck? Reply to this email and attach the file `summary.txt`, which is in the `.workshop-claude` folder of your home folder. It has no passwords or tokens.
+
+**Need help?**
+
+The whole setup should work with the install script alone, and nothing else. On the morning of Monday 26 October, all of us will be available to help with the pre-installation for the workshop. You can also contact me directly, or any of the other organizers:
+
+- guilherme.pinto@checkmarx.com
+- Pedro.Fernandes@checkmarx.com
+- joao.delgado@checkmarx.com
+- Tiago.PSilva@checkmarx.com
+- Rui.Nogueira@checkmarx.com
 
 **What the panel sees**
 
@@ -55,4 +67,4 @@ The panel sees which missions you did, your choices (number of agents, model) an
 On the day, bring your laptop with the charger, with the setup done.
 
 See you there,
-[name]
+Guilherme

@@ -28,7 +28,7 @@ What Claude Code **2.1.292** (the version in `repos.conf`) tells a hook for each
 
 `"async": true` works: an async hook that slept 4 s did not hold up the turn, which had already run its tools when the hook finished.
 
-## Proposed validation of M1 to M10
+## Proposed validation of M1 to M11
 
 | Mission | Validation | Notes |
 |---|---|---|
@@ -38,17 +38,18 @@ What Claude Code **2.1.292** (the version in `repos.conf`) tells a hook for each
 | M4 | `UserPromptExpansion` with `command_source: "projectSettings"` (or `userSettings` and a name that is not a kit skill), or `PostToolUse` `Skill` with a non-kit skill, plus `.claude/skills/<name>/SKILL.md` with valid frontmatter → feature `skill_user` | The slide must say to restart (`/exit`, then `claude -c`) after creating the skill |
 | M5 | `ConfigChange` with `source: "local_settings"` → the file has a `PostToolUse` hook that is not the kit's, and `edits.log` has ≥ 1 line → feature `hook_user` | The hook Claude wrote used `jq` (present on macOS, not on Windows) |
 | M6 | `UserPromptExpansion` with `command_name: "loop"` → feature `loop`; done when, after it, a `tests_run` with 0 red follows one with red | The "≥ 2 turns without a prompt" condition is dropped: no field shows who started a turn |
-| M7 | Not observable → a hint without validation, outside the panel grid (the spec's plan B) | The grid shows 9 missions; the average coverage uses the 9 |
+| M7 | Not observable → a hint without validation, outside the panel grid (the spec's plan B) | The grid shows 10 missions; the average coverage uses the 10 |
 | M8 | `UserPromptExpansion` `statusline` or `ConfigChange` `local_settings`, and `settings.local.json` with a `statusLine` that is not the kit's → feature `statusline_user` | |
 | M9 | Any event whose hook environment has `CLAUDE_CODE_ENTRYPOINT=sdk-cli`, in the missions project → feature `headless`; plus `resumo.txt` not empty | |
 | M10 | `PostToolUse` with `tool_name: "mcp__agent-memory__memory_add"` → feature `memory_write`; fallback: a new file in the Agent Memory folder for `missions-project` | Fires inside the `memory-extractor` subagent |
+| M11 | `PostToolUse` with a `tool_name` that starts with `mcp__canivete__` → feature `pocketknife_tool` | The Pocketknife MCP tools (Project 1) |
 
 **Hook registration for the kit** (Phase 1), all `type: "command"` and `"async": true`:
 - `SessionStart`;
 - `UserPromptSubmit`;
 - `UserPromptExpansion`;
 - `SubagentStart`;
-- `PostToolUse` with the matcher `Skill|CronCreate|mcp__agent-memory__memory_add`;
+- `PostToolUse` with the matcher `Skill|CronCreate|mcp__agent-memory__memory_add|mcp__canivete__.*`;
 - `PostModelSwitch`;
 - `ConfigChange`;
 - `Stop` (rc.3): it records nothing, it only runs the mission check again.

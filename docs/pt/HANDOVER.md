@@ -6,9 +6,9 @@ Para a sessão do Claude que continua o trabalho na máquina da empresa, onde h�
 
 Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-27: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
 
-## Pausa, 23 out. 2026 (a caminho da v1.1.0-rc.3)
+## v1.1.0-rc.3 (23 out. 2026)
 
-O que está feito e o que falta antes da rc.3: [`RC3-TODO.md`](../RC3-TODO.md).
+Construída e testada localmente, **ainda não publicada** (precisa do "sim" do organizador): custo contado uma vez por mensagem, missões verificadas na `Stop` e na `SessionStart`, registo que repõe o dia e volta a registar sozinho depois do apagamento da meia-noite, fila de envio com `Retry-After`, vista `auto` do painel e build no `/health`, eventos do funil do Projeto 2, missão M11 (o Canivete como tools MCP; 11 missões, 10 na grelha), painel claro da Checkmarx e deck de 33 slides. 15 cenários de caos, incluindo cinco portáteis contra um painel (D-37). O que falta (publicar, painel, rodar o token de admin, teste real): [`RC3-TODO.md`](../RC3-TODO.md), secções 6 e 7.
 
 ## Atualização, 17 out. 2026 (v1.0.0-rc.2)
 

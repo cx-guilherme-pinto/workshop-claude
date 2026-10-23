@@ -35,7 +35,7 @@ Os eventos acrescentam:
 | `join` | língua (pt/en), sistema (mac/win) |
 | `check_ok` | — |
 | `feature` | o nome de uma funcionalidade do Claude Code que usaste, uma vez por sessão: `plan_mode`, `model_switch`, `subagent`, `skill_user`, `hook_user`, `loop`, `statusline_user`, `headless`, `memory_write` |
-| `mission_done` | o id da missão (M1 a M10) |
+| `mission_done` | o id da missão (M1 a M11) |
 | `cost` | um custo em US$ (dos tokens dos transcripts × `pricing.json`), a família do modelo (haiku/sonnet/opus/other), o bloco (missions/p1/p2) |
 | `p1_*`, `p2_*` | as tuas escolhas e os resultados dos Projetos 1 e 2: paralelismo, modelo, previsão em minutos, número de tarefas, duração, verdes e vermelhos, o id de uma ferramenta do catálogo, o veredito do gate, o número de agentes, `EX-1`/`EX-2`/`EX-3` ou `own` (nunca a chave real da issue), o destino do relatório (file/jira/github) |
 

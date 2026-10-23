@@ -408,5 +408,90 @@ test('M11: Claude calls a Pocketknife tool (mcp__canivete__<id>) in the Pocketkn
   }
 });
 
+test('five laptops, five stories, one panel: /state and /admin/presenter equal the sum of the local books', async () => {
+  const pn = await panel();
+  const people = ['Ana Silva', 'Rui Costa', 'Marta Dias', 'Hugo Reis', 'Eva Lopes'].map((name, i) => ({ name, id: 100 + i, l: laptop({ panel: pn.url }) }));
+  const [ana, rui, marta, hugo, eva] = people;
+  const reg = (w) => register(undefined, { P: w.l.P, print: () => {}, account: account(w.id, w.name) });
+  const plan = (w, sid) => hook(w.l, 'telemetry.mjs', { hook_event_name: 'UserPromptSubmit', session_id: sid, permission_mode: 'plan', cwd: w.l.missions }, CHECK);
+  const model = (w, sid) => hook(w.l, 'telemetry.mjs', { hook_event_name: 'SessionStart', session_id: sid, source: 'startup', model: 'claude-haiku-5-5', cwd: w.l.missions }, CHECK);
+  const stop = (w, sid, ids) => hook(w.l, 'stop.mjs', { session_id: sid, transcript_path: transcript(w.l, sid, ids), cwd: w.l.missions });
+  try {
+    // Ana: registered from the start, does M1 and M2 in order, pays for three answers
+    assert.equal(await reg(ana), 0);
+    plan(ana, 'a1');
+    await book(ana.l, ['M1']);
+    model(ana, 'a2');
+    await book(ana.l, ['M1', 'M2']);
+    stop(ana, 'a2', [1, 2, 3]);
+    // Rui: works for a while, registers in the middle (the day comes back with its original times)
+    plan(rui, 'r1');
+    await book(rui.l, ['M1']);
+    stop(rui, 'r1', [10, 11]);
+    assert.equal(await reg(rui), 0);
+    model(rui, 'r2');
+    await book(rui.l, ['M1', 'M2']);
+    // Marta: claude -c and two terminals; the shared history is paid once
+    assert.equal(await reg(marta), 0);
+    plan(marta, 'm1');
+    await book(marta.l, ['M1']);
+    stop(marta, 'm1', [20, 21]);
+    stop(marta, 'm2', [20, 21, 22]);
+    stop(marta, 'm3', [20, 21, 22, 23]);
+    stop(marta, 'm2', [20, 21, 22]);
+    // Hugo: the network goes away during a block, M1 and M2 wait in the queue, then it comes back
+    assert.equal(await reg(hugo), 0);
+    const real = JSON.parse(readFileSync(hugo.l.P.config, 'utf8'));
+    writeFileSync(hugo.l.P.config, JSON.stringify({ ...real, panel_url: 'http://127.0.0.1:9' }));
+    plan(hugo, 'h1');
+    model(hugo, 'h2');
+    await book(hugo.l, ['M1', 'M2']);
+    stop(hugo, 'h2', [30, 31]);
+    assert.equal((await sendQueue({ P: hugo.l.P })).sent, 0, 'offline: nothing leaves');
+    writeFileSync(hugo.l.P.config, JSON.stringify(real));
+    // Eva: skips ahead, M11 (a Pocketknife tool) before M4, and then M1
+    assert.equal(await reg(eva), 0);
+    const canivete = join(eva.l.projs, 'canivete-project');
+    mkdirSync(canivete, { recursive: true });
+    hook(eva.l, 'telemetry.mjs', { hook_event_name: 'PostToolUse', session_id: 'e1', tool_name: 'mcp__canivete__my-01', tool_input: {}, tool_response: {}, cwd: canivete }, { ...CHECK, CLAUDE_PROJECT_DIR: canivete });
+    await book(eva.l, ['M11']);
+    plan(eva, 'e2');
+    await book(eva.l, ['M1', 'M11']);
+    stop(eva, 'e2', [40]);
+    // everybody sends what is left
+    for (const w of people) await sendQueue({ P: w.l.P });
+
+    // what each laptop's book really says
+    const MISSIONS = (await pn.state()).missions;
+    const local = people.map((w) => {
+      const done = new Set(readLines(w.l.P.local).filter((e) => e.ev === 'mission_done').map((e) => e.mission));
+      return { name: w.name, missions: MISSIONS.filter((m) => done.has(m)), cost: sum(costs(w.l)) };
+    });
+    assert.deepEqual(local.map((x) => x.missions), [['M1', 'M2'], ['M1', 'M2'], ['M1'], ['M1', 'M2'], ['M1', 'M11']]);
+    assert.equal(local[2].cost, round(costOf(20) + costOf(21) + costOf(22) + costOf(23)), "Marta's shared history was paid once");
+
+    const st = await pn.state();
+    assert.equal(st.board.people, 5);
+    for (const x of local) {
+      const row = st.board.top.find((r) => r.name === x.name);
+      assert.deepEqual(row.missions, x.missions, x.name);
+    }
+    const pointsPerMission = st.board.top[0].points / st.board.top[0].missions.length;
+    assert.ok(st.board.top.every((r) => r.points === r.missions.length * pointsPerMission), 'points are the missions and nothing else');
+    const withCost = local.filter((x) => x.cost > 0);
+    assert.equal(st.summary.cost_avg_usd, Math.round((withCost.reduce((a, x) => a + x.cost, 0) / withCost.length) * 1000) / 1000, 'the cost on the panel is the sum of the books');
+
+    const pres = await (await fetch(`${pn.url}/admin/presenter`, { headers: { 'X-Admin-Token': 'adm' } })).json();
+    assert.equal(pres.people, 5);
+    for (const m of pres.missions) assert.equal(m.done, local.filter((x) => x.missions.includes(m.id)).length, m.id);
+    // Eva did M11 first and M1 last: she is at the first mission she lacks after M1, nothing is left behind
+    const evaAt = pres.missions.flatMap((m) => m.names.map((n) => ({ ...n, at: m.id }))).find((n) => n.name === 'Eva Lopes');
+    assert.deepEqual([evaAt.at, evaAt.skipped], ['M2', []]);
+  } finally {
+    for (const w of people) w.l.cleanup();
+    await pn.close();
+  }
+});
+
 export { laptop, hook, transcript, costs, sum, book, panel, account, ROOT };
 void cpSync;

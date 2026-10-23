@@ -1,6 +1,6 @@
 ---
 name: missions
-description: Shows your workshop mission book — the 10 missions with ✔ or ○, the next one to try and a one-line hint. The missions are checked automatically; this skill never does a mission for you.
+description: Shows your workshop mission book — the 11 missions with ✔ or ○, the next one to try and a one-line hint. The missions are checked automatically; this skill never does a mission for you.
 model: claude-haiku-5-5
 disable-model-invocation: true
 allowed-tools:

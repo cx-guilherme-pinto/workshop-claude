@@ -17,7 +17,7 @@ import { AGENDA } from './aggregate.mjs';
 
 export { AGENDA };
 const GUIDED = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
-const FEATURE = { M1: 'plan_mode', M2: 'model_switch', M3: 'subagent', M4: 'skill_user', M5: 'hook_user', M6: 'loop', M8: 'statusline_user', M9: 'headless', M10: 'memory_write' };
+const FEATURE = { M1: 'plan_mode', M2: 'model_switch', M3: 'subagent', M4: 'skill_user', M5: 'hook_user', M6: 'loop', M8: 'statusline_user', M9: 'headless', M10: 'memory_write', M11: 'pocketknife_tool' };
 const NICKS = ['Ana', 'Rui', 'Marta', 'Joao', 'Ines', 'Pedro', 'Sara', 'Tiago', 'Rita', 'Nuno', 'Lara', 'Hugo'];
 
 function rng(seed) {
@@ -48,9 +48,9 @@ function personEvents(r, i) {
     at(t, 'feature', { name: FEATURE[m] });
     at(t + 0.05, 'mission_done', { mission: m });
   });
-  for (const m of ['M8', 'M9', 'M10']) {
+  for (const m of ['M8', 'M9', 'M10', 'M11']) {
     if (!chance(0.25 + skill * 0.35)) continue;
-    const t = between(33, 85);
+    const t = m === 'M11' ? between(29, 40) : between(33, 85);
     at(t, 'feature', { name: FEATURE[m] });
     at(t + 0.05, 'mission_done', { mission: m });
   }

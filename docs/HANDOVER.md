@@ -6,9 +6,9 @@ For the Claude session that continues the work on the company machine, which has
 
 Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-27: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
 
-## Paused, 23 Oct 2026 (towards v1.1.0-rc.3)
+## v1.1.0-rc.3 (23 Oct 2026)
 
-What is done and what is left before the rc.3 (in Portuguese): [`RC3-TODO.md`](RC3-TODO.md).
+Built and tested locally, **not published yet** (needs the organizer's "yes"): cost counted once per message, missions checked at `Stop`/`SessionStart`, register backfill and automatic re-register after the midnight wipe, send queue with `Retry-After`, panel `auto` view and `/health` build, Project 2 funnel events, mission M11 (Pocketknife as MCP tools; 11 missions, 10 in the grid), light Checkmarx panel, 33-slide deck. 15 chaos scenarios, including five laptops against one panel (D-37). What is left (publish, deploy the panel, rotate the admin token, real test): [`RC3-TODO.md`](RC3-TODO.md), section 6 and 7 (in Portuguese).
 
 ## Update, 17 Oct 2026 (v1.0.0-rc.2)
 

@@ -673,3 +673,18 @@ Uma execução completa como participante (HOME novo, Claude Code 2.1.292 do kit
   - um nome escondido com H continua escondido, mas conta; os ativos (um evento nos últimos 10 minutos) vêm primeiro e os outros ficam a cinzento;
   - a página só abre esta vista com a tecla P e com o token (ou num replay), por cima da vista atual e só nesse ecrã. Nunca entra no `/state` público nem no SSE, porque o painel é projetado;
   - não muda nada no portátil: os dados são os mesmos `mission_done` e o registo.
+
+## D-37 · v1.1.0-rc.3: o que o ensaio com 5 pessoas mostrou (23 out. 2026)
+
+- **Porquê:** no ensaio com 5 pessoas o painel não acompanhava a sala (a vista ficava presa, o custo contava a mais, missões e registos perdiam-se). A rc.3 corrige o que correu mal e acrescenta a M11.
+- **O que mudou:**
+  - **Custo:** cada mensagem conta uma vez (`cost-counted.json`). Resolve o `claude -c`, os subagentes retomados e quem trabalha em dois terminais;
+  - **Missões:** verificadas também na `Stop` e na `SessionStart` (no máximo de 10 em 10 s, mais um `--delay`); se duas verificações se cruzam, o `missions.dirty` repete a última;
+  - **Registo:** o `register` repõe na fila os eventos do dia, com a hora original; um 401 (apagamento da meia-noite) escreve `needs_register` e o hook seguinte volta a registar sozinho, nunca depois de um `unregister`;
+  - **Fila de envio:** arranca em cada hook e um 429 respeita o `Retry-After`;
+  - **Fora da pasta do workshop:** a statusline e o `/missions` dizem em que pasta abrir o Claude;
+  - **Painel:** a vista `auto` (a fase onde está a maioria dos ativos) é a por defeito, com a tecla 0 a voltar a ela; sem token, o palco mostra um aviso; o `/health` responde `{ok, build}` e o `deploy-panel.sh` confirma que build responde; o `check_ok` sai também no fim de uma instalação sem falhas;
+  - **Projeto 2:** os eventos `p2_intake`, `p2_plan` e `p2_report` saem do `init-workshop`, do `validate-plan` e do `publish-text`;
+  - **M11:** o Canivete passa a tools MCP (`mcp__canivete__*`); a funcionalidade `pocketknife_tool` valida a M11. São 11 missões, 10 na grelha (a M7 é só uma dica); o deck passa a 33 slides, com "Tool ou skill?".
+- **Desvio ao `DESIGN.md`, só para o painel:** o violeta e o tema claro da Checkmarx (o painel é projetado ao lado dos slides). O resto do kit mantém o `DESIGN.md`.
+- **Validado:** 15 cenários de caos em `tools/test/chaos.test.mjs`, incluindo cinco portáteis contra o mesmo painel (registado desde o início, registado a meio, `claude -c` com dois terminais, sem rede durante um bloco, M11 antes da M4): o `/state` (missões, pontos, custo) e o `/admin/presenter` são iguais à soma das cadernetas locais.

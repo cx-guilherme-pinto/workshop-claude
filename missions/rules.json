@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "about": "The 10 missions (docs/pt/WORKSHOP-V2-SPEC.md, section 4.2) and how each one is validated (docs/OBSERVABILITY.md). A mission is done when every condition in \"all\" holds (or one in \"any\"). Conditions: {feature, family?} = a feature event in the local book; {file: ...} = a file check in the workshop projects; {tests: \"green_after_loop\"} = a green npm test after /loop. A mission with \"validated\": false is a hint only (M7: /btw fires no hook event).",
+  "about": "The 11 missions (docs/pt/WORKSHOP-V2-SPEC.md, section 4.2) and how each one is validated (docs/OBSERVABILITY.md). A mission is done when every condition in \"all\" holds (or one in \"any\"). Conditions: {feature, family?} = a feature event in the local book; {file: ...} = a file check in the workshop projects; {tests: \"green_after_loop\"} = a green npm test after /loop. A mission with \"validated\": false is a hint only (M7: /btw fires no hook event).",
   "order": ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M9", "M10", "M11", "M7"],
   "missions": [
     {
