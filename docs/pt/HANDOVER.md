@@ -6,6 +6,10 @@ Para a sessão do Claude que continua o trabalho na máquina da empresa, onde h�
 
 Lê também o `CLAUDE.md` (regras e comandos), o `DECISIONS.md` (D-01 a D-27: o que se decidiu e porquê) e o `docs/HANDOVER.md` da app Agent Memory, no repositório `claude-memory-app`.
 
+## Pausa, 23 out. 2026 (a caminho da v1.1.0-rc.3)
+
+O que está feito e o que falta antes da rc.3: [`RC3-TODO.md`](../RC3-TODO.md).
+
 ## Atualização, 17 out. 2026 (v1.0.0-rc.2)
 
 - **Testes de caos (D-26):** 155 cenários de ambientes estragados num Mac real, cada um num HOME isolado, em três rondas. Ronda 1: 56 falhas e mais 12 problemas do Windows numa revisão estática. Ronda 2: nenhuma voltou; 46 novas (categorias novas), todas corrigidas. Ronda 3: limpa.

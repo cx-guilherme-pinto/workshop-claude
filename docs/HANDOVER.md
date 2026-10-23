@@ -6,6 +6,10 @@ For the Claude session that continues the work on the company machine, which has
 
 Also read [`CLAUDE.md`](../CLAUDE.md) (rules and commands), [`DECISIONS.md`](../DECISIONS.md) (D-01 to D-27: what was decided and why, in Portuguese) and the Agent Memory app's `docs/HANDOVER.md`, in the `claude-memory-app` repository.
 
+## Paused, 23 Oct 2026 (towards v1.1.0-rc.3)
+
+What is done and what is left before the rc.3 (in Portuguese): [`RC3-TODO.md`](RC3-TODO.md).
+
 ## Update, 17 Oct 2026 (v1.0.0-rc.2)
 
 - **Chaos tests (D-26):** 155 broken-environment scenarios on a real Mac, each in an isolated HOME, in three rounds. Round 1: 56 failures plus 12 Windows problems from a static review. Round 2: none of them came back; 46 new ones (new categories), all fixed. Round 3: clean.
