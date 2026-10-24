@@ -227,7 +227,7 @@ export async function createApi({ allow, wsCode, adminToken, store, now = () => 
     if (req.headers.get('X-Workshop-Code') !== wsCode) return json(req, 403, { error: 'workshop code' });
     const t = now();
     registrations = registrations.filter((x) => t - x < 60000);
-    if (registrations.length >= 120) return json(req, 429, { error: 'too many registrations' });
+    if (registrations.length >= 400) return json(req, 429, { error: 'too many registrations' });
     registrations.push(t);
     const { body, error } = await readBody(req);
     if (error) return json(req, error, { error: 'body' });

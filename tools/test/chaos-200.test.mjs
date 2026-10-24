@@ -193,6 +193,8 @@ test(`${N} laptops, eight stories, one panel: the panel equals the sum of the re
     // the room registers again in the same minute (the burst story registered above; a re-run is the same account)
     const retry = people.filter((l) => !l.registered && story(l) !== 'never' && story(l) !== 'leaves');
     const rejected = retry.length;
+    // the panel takes 400 registrations a minute (a room of 200 re-registering after the midnight wipe is not refused)
+    if (N <= 300) assert.equal(rejected, 0, 'nobody is refused in the burst');
     const waiting = () => people.filter((x) => !x.registered && story(x) !== 'never' && !x.left);
     for (let round = 0; round < 4 && waiting().length; round++) {
       skew += 61000;
