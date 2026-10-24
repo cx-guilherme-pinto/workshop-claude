@@ -421,7 +421,8 @@ test('end to end: record() queues the event and starts the sender, which posts i
   try {
     assert.deepEqual(record('mission_done', { mission: 'M4' }, { P: t.P }), { recorded: true, queued: true });
     let s = null;
-    for (let i = 0; i < 60 && !s?.summary.missions.M4.done; i++) {
+    // the panel can show it a moment before the sender writes sent.jsonl (after the 204): wait for both
+    for (let i = 0; i < 60 && !(s?.summary.missions.M4.done && readLines(t.P.sent).at(-1)?.mission); i++) {
       await new Promise((ok) => setTimeout(ok, 100));
       s = await (await fetch(`${srv.url}/state`)).json();
     }
