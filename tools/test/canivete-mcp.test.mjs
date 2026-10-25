@@ -1,5 +1,6 @@
 // The Pocketknife's MCP server (canivete-project/mcp-server.mjs): initialize, tools/list with the schema of each
-// input, tools/call ok and error, and a tool that appears after the server started.
+// input, tools/call ok and error, a tool that appears after the server started, and the list_changed notification
+// that makes Claude Code ask for the list again (a tool the swarm builds after the session started, M11).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -38,8 +39,9 @@ function project() {
   return { dir, put };
 }
 
-function client(dir) {
-  const child = spawn(process.execPath, [join(dir, 'mcp-server.mjs')], { stdio: ['pipe', 'pipe', 'pipe'] });
+function client(dir, env = {}) {
+  const child = spawn(process.execPath, [join(dir, 'mcp-server.mjs')], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ...env } });
+  const notes = [];
   let buf = '';
   let id = 0;
   const waiting = new Map();
@@ -49,7 +51,8 @@ function client(dir) {
     while ((i = buf.indexOf('\n')) >= 0) {
       const m = JSON.parse(buf.slice(0, i));
       buf = buf.slice(i + 1);
-      waiting.get(m.id)?.(m);
+      if (m.id === undefined) notes.push(m.method);
+      else waiting.get(m.id)?.(m);
     }
   });
   const rpc = (method, params) => new Promise((ok) => {
@@ -57,7 +60,7 @@ function client(dir) {
     waiting.set(n, ok);
     child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: n, method, params })}\n`);
   });
-  return { rpc, notify: (method) => child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method })}\n`), close: () => child.kill() };
+  return { rpc, notes, notify: (method) => child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method })}\n`), close: () => child.kill() };
 }
 
 test('mcp server: initialize, tools/list with the input schema, tools/call ok and error, a tool added later', async () => {
@@ -103,6 +106,38 @@ test('mcp server: initialize, tools/list with the input schema, tools/call ok an
 
     put('ge-01', DICE.replace('Roll', 'Roll again'));
     assert.equal((await c.rpc('tools/list')).result.tools[1].title, 'Roll again', 'an edited tool.js is read again');
+  } finally {
+    c.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('mcp server: tools/list_changed when a tool.js appears, changes or goes away after initialize (and not before)', async () => {
+  const { dir, put } = project();
+  const c = client(dir, { CANIVETE_MCP_POLL_MS: '200' });
+  const until = async (n) => {
+    for (let i = 0; i < 40 && c.notes.length < n; i++) await new Promise((ok) => setTimeout(ok, 100));
+    return c.notes.length;
+  };
+  try {
+    await c.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
+    c.notify('notifications/initialized');
+    await new Promise((ok) => setTimeout(ok, 600));
+    assert.deepEqual(c.notes, [], 'nothing changed: no notification');
+    // the swarm makes a new tool green while the session is open
+    put('ge-01', DICE);
+    assert.equal(await until(1), 1);
+    assert.deepEqual(c.notes, ['notifications/tools/list_changed']);
+    assert.deepEqual((await c.rpc('tools/list')).result.tools.map((t) => t.name), ['ca-01', 'ge-01']);
+    // a retry rewrites a tool
+    await new Promise((ok) => setTimeout(ok, 50));
+    put('ge-01', DICE.replace('Roll', 'Roll again'));
+    assert.equal(await until(2), 2);
+    // a tool goes away (demo-reset)
+    rmSync(join(dir, 'tools', 'ge-01'), { recursive: true, force: true });
+    assert.equal(await until(3), 3);
+    await new Promise((ok) => setTimeout(ok, 600));
+    assert.equal(c.notes.length, 3, 'one notification per change, not one per poll');
   } finally {
     c.close();
     rmSync(dir, { recursive: true, force: true });

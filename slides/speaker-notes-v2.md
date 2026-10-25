@@ -468,8 +468,8 @@ Olha para o painel:
 - Se a M11 ficar baixa: "o Claude Code tem de estar aberto na pasta do Canivete; /mcp mostra se o servidor canivete está ligado".
 
 Falhas típicas e resposta:
-- O Claude não encontra a ferramenta → /mcp: o servidor canivete tem de estar ligado; reabre com claude -c
-- Responde sem chamar a tool → pede pelo nome: usa a ferramenta my-01
+- O Claude não encontra a ferramenta → /mcp: o servidor canivete tem de estar ligado. Plano B: /exit e claude -c, e volta a pedir (a sessão nova lê as ferramentas todas)
+- Responde sem chamar a tool (lê o tool.js com cat) → pede pelo nome: usa a ferramenta my-01; se continuar, /exit e claude -c
 
 Relógio: deves estar aqui aos 48 min.
 

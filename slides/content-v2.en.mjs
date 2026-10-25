@@ -407,8 +407,8 @@ export const SLIDES = [
       dizer: ['This is a tool: code with typed inputs, called by name, with no recipe to read.', 'Same tool, two ways to use it: the page in the browser and Claude.'],
       painel: ['If M11 stays low: "Claude Code must be open in the Pocketknife folder; /mcp shows whether the canivete server is connected".'],
       falhas: [
-        { falha: 'Claude cannot find the tool', resposta: '/mcp: the canivete server must be connected; reopen with claude -c' },
-        { falha: 'It answers without calling the tool', resposta: 'ask by name: use the my-01 tool' },
+        { falha: 'Claude cannot find the tool', resposta: '/mcp: the canivete server must be connected. Plan B: /exit and claude -c, then ask again (a new session reads every tool)' },
+        { falha: 'It answers without calling the tool (it reads tool.js with cat)', resposta: 'ask by name: use the my-01 tool; if it still does, /exit and claude -c' },
       ],
     },
   },

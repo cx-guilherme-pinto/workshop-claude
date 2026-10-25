@@ -5,7 +5,10 @@
 //   node mcp-server.mjs [--root <project folder>]     (default: the folder this file is in)
 //
 // The tools are read again on every tools/list (and every tools/call), with a cache-buster on the import as
-// public/tool-view.js does, so a tool shows up as soon as the swarm makes it green, with no restart.
+// public/tool-view.js does. Claude Code only asks for tools/list again when the server says the list changed, so
+// after initialize the server looks at tools/ every 2 s (CANIVETE_MCP_POLL_MS) and sends
+// notifications/tools/list_changed when a tool.js appears, changes or goes away: a tool the swarm builds after the
+// session started shows up in that session, with no restart (M11).
 // tools/CONTRACT.md: a tool is { id, title, inputs, run(values, { seed }) → { output } | { error } }.
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -142,6 +145,34 @@ async function call(name, args) {
   }
 }
 
+// What tools/ holds now (each tool.js and when it last changed): a change means the list may have changed.
+function signature() {
+  return ids()
+    .map((id) => {
+      try {
+        const st = statSync(join(ROOT, 'tools', id, 'tool.js'));
+        return `${id}:${st.mtimeMs}:${st.size}`;
+      } catch {
+        return id;
+      }
+    })
+    .join('|');
+}
+
+let watching = null;
+function watchTools() {
+  if (watching) return;
+  let last = signature();
+  const every = Math.max(200, Number(process.env.CANIVETE_MCP_POLL_MS) || 2000);
+  watching = setInterval(() => {
+    const now = signature();
+    if (now === last) return;
+    last = now;
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })}\n`);
+  }, every);
+  watching.unref();
+}
+
 // ---------- JSON-RPC ----------
 
 const reply = (id, result) => process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
@@ -152,6 +183,7 @@ async function handle(m) {
   if (id === undefined || id === null) return; // notifications (initialized, cancelled…): nothing to answer
   switch (method) {
     case 'initialize':
+      watchTools();
       return reply(id, {
         protocolVersion: PROTOCOLS.includes(params?.protocolVersion) ? params.protocolVersion : PROTOCOLS[0],
         capabilities: { tools: { listChanged: true } },

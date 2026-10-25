@@ -418,8 +418,8 @@ export const SLIDES = [
       dizer: ['Esta é uma tool: código com entradas tipadas, que o Claude chama pelo nome, sem ler uma receita.', 'Mesma ferramenta, duas formas de a usar: a página no browser e o Claude.'],
       painel: ['Se a M11 ficar baixa: "o Claude Code tem de estar aberto na pasta do Canivete; /mcp mostra se o servidor canivete está ligado".'],
       falhas: [
-        { falha: 'O Claude não encontra a ferramenta', resposta: '/mcp: o servidor canivete tem de estar ligado; reabre com claude -c' },
-        { falha: 'Responde sem chamar a tool', resposta: 'pede pelo nome: usa a ferramenta my-01' },
+        { falha: 'O Claude não encontra a ferramenta', resposta: '/mcp: o servidor canivete tem de estar ligado. Plano B: /exit e claude -c, e volta a pedir (a sessão nova lê as ferramentas todas)' },
+        { falha: 'Responde sem chamar a tool (lê o tool.js com cat)', resposta: 'pede pelo nome: usa a ferramenta my-01; se continuar, /exit e claude -c' },
       ],
     },
   },

@@ -468,8 +468,8 @@ Look at the panel:
 - If M11 stays low: "Claude Code must be open in the Pocketknife folder; /mcp shows whether the canivete server is connected".
 
 Typical failures and the answer:
-- Claude cannot find the tool → /mcp: the canivete server must be connected; reopen with claude -c
-- It answers without calling the tool → ask by name: use the my-01 tool
+- Claude cannot find the tool → /mcp: the canivete server must be connected. Plan B: /exit and claude -c, then ask again (a new session reads every tool)
+- It answers without calling the tool (it reads tool.js with cat) → ask by name: use the my-01 tool; if it still does, /exit and claude -c
 
 Clock: you should be here at 48 min.
 
