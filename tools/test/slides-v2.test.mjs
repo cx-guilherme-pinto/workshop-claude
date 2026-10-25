@@ -126,6 +126,9 @@ test('v2 deck: commands-v2.txt (pt) and commands-v2.en.txt, the commands to past
       assert.ok(lines.has(cmd), `${lang}: "${cmd}" alone on a line`);
     }
     assert.ok(lines.has('/task-plan') && lines.has('/exit') && lines.has('claude -c'), `${lang}: /task-plan and the M11 plan B`);
+    // the short commands (installer/lib/commands.mjs) and, for an older setup, the long ones
+    for (const c of ['workshop-register', 'workshop-check', 'workshop-doctor', 'workshop-gen', 'workshop-server', 'workshop-dashboard', 'workshop-unregister']) assert.ok(lines.has(c), `${lang}: ${c}`);
+    assert.ok(lines.has('node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register'), `${lang}: the long register as a fallback`);
     assert.ok(!lines.has('--parallel 8'), `${lang}: a bare flag is not a command to paste`);
     // the generator puts the same slides in the same order (the {{...}} values aside)
     const heads = (t) => t.split('\n').filter((l) => /^# \[\d+:\d\d\] /.test(l));
