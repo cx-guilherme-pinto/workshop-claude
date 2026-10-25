@@ -88,6 +88,7 @@ function valores() {
     CHECK_MAC: d.CHECK_MAC, CHECK_WIN: d.CHECK_WINDOWS, DOCTOR_MAC: d.DOCTOR_MAC, DOCTOR_WIN: d.DOCTOR_WINDOWS,
     WORKSHOP_REPO: d.WORKSHOP_REPO_URL.replace(/\.git$/, ''), WORKSHOP_VERSION: d.WORKSHOP_VERSION,
     PANEL_URL: d.PANEL_URL, PANEL_PAGE_URL: d.PANEL_PAGE_URL,
+    ONE_LINER_MAC: d.ONE_LINER_MAC, ONE_LINER_WINDOWS: d.ONE_LINER_WINDOWS,
   };
 }
 const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? (FALTAM.add(k), `{{${k}}}`)) : s);

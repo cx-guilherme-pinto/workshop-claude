@@ -23,4 +23,4 @@ Rules:
 - M7 (`/btw`) leaves no trace a hook can see, so it is a hint and never ticks.
 - If the book says they are outside the workshop folder, say it first: nothing done there counts, and they should open Claude in one of the workshop projects.
 - If the book shows a "Still missing" line, explain it in one sentence: that is why the mission has not counted yet.
-- Panel participation is the participant's choice: `node ~/.workshop-claude/kit/telemetry/ctl.mjs status` (or `register`, `register --again`, `unregister`, `show`) — tell them the command, do not run it for them.
+- Panel participation is the participant's choice: `workshop-status` (and `workshop-register`, `workshop-register --again`, `workshop-unregister`; on an older setup `node ~/.workshop-claude/kit/telemetry/ctl.mjs status|register|unregister|show`) — tell them the command, do not run it for them.

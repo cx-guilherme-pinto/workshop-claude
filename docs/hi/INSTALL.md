@@ -18,18 +18,18 @@
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-mac.sh | bash
 ```
 
-Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-mac.sh)`
+Alternative: `bash <(curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-mac.sh)`
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/bootstrap-windows.ps1 | iex
 ```
 
-अगर PowerShell ऊपर वाली command को block करे, तो [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-windows.ps1) download करें और जिस folder में उसे save किया है, वहीं यह चलाएँ:
+अगर PowerShell ऊपर वाली command को block करे, तो [setup-windows.ps1](https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-windows.ps1) download करें और जिस folder में उसे save किया है, वहीं यह चलाएँ:
 
 ```powershell
 Unblock-File .\setup-windows.ps1; powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1
@@ -57,4 +57,4 @@ Setup machine की language भी detect करता है। अगर Cla
 
 ## चलाने से पहले verify करें (optional)
 
-हर release file के SHA-256 checksums https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/SHA256SUMS पर हैं। Release page https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.1.0-rc.3 पर है।
+हर release file के SHA-256 checksums https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/SHA256SUMS पर हैं। Release page https://github.com/cx-guilherme-pinto/workshop-claude/releases/tag/v1.1.0-rc.4 पर है।

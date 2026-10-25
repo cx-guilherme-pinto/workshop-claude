@@ -112,31 +112,29 @@ export const SLIDES = [
   {
     min: 4, bloco: 'Abertura', fase: 'opening', tipo: 'faca',
     titulo: 'Verifica e liga-te ao painel',
-    passos: ['Num terminal, corre o comando do teu sistema', 'Procura o teu nome na classificação do painel'],
+    passos: ['Num terminal, liga-te ao painel e depois verifica o kit', 'Procura o teu nome na classificação do painel'],
     comandos: [
-      { rotulo: 'Mac', cmd: '{{CHECK_MAC}}' },
-      { rotulo: 'Windows (PowerShell)', cmd: '{{CHECK_WIN}}' },
-      { rotulo: 'Não estás no painel?', cmd: 'node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register' },
+      { rotulo: '1 · Liga-te ao painel (Mac e Windows)', cmd: 'workshop-register', alt: ['node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register'] },
+      { rotulo: '2 · Verifica o kit (Mac e Windows)', cmd: 'workshop-check', alt: [{ rotulo: 'Mac', cmd: '{{CHECK_MAC}}' }, { rotulo: 'Windows (PowerShell)', cmd: '{{CHECK_WIN}}' }] },
     ],
     esperado: 'A tabela-resumo sem falhas e o teu nome no painel, em "Inscritas"',
     notas: {
       objetivo: 'Toda a gente com o kit verificado e registada no painel.',
-      dizer: ['O --check não instala nada: só confirma cada passo e liga-te ao painel.', 'O registo usa o teu login do gh: confirma no teu portátil o email da empresa, e só o nome sai para o painel.'],
+      dizer: ['Primeiro o workshop-register, depois o workshop-check: o check não instala nada, só confirma cada passo.', 'O registo usa o teu login do gh: confirma no teu portátil o email da empresa, e só o nome sai para o painel.'],
       painel: ['Se "Prontas" estiver abaixo de metade aos 3 min: "quem já tem a tabela verde, ajuda o vizinho".', 'Se "Inscritas" for bem menor do que a sala: "o register a seguir à tabela resolve; sem email @checkmarx.com verificado no GitHub, fazes o workshop na mesma, só não apareces na classificação".'],
       falhas: [
         { falha: 'E-TEL-03: o gh não pode ler os emails', resposta: 'gh auth refresh -h github.com -s user:email e volta a correr o register' },
         { falha: 'E-TEL-02: sem email verificado da empresa', resposta: 'acrescenta-o em github.com/settings/emails; o workshop funciona sem isso' },
-        { falha: 'O comando não existe: o setup não foi feito', resposta: 'corre o one-liner do README agora e segue com o vizinho enquanto instala' },
+        { falha: 'command not found: workshop-register', resposta: 'o setup é anterior à rc.4: volta a correr o one-liner do setup, ou usa o comando longo do Teams' },
       ],
     },
   },
   {
     min: 2, bloco: 'Abertura', fase: 'opening', tipo: 'faca',
     titulo: 'Algum passo falhou?',
-    passos: ['Corre o --doctor do teu sistema', 'Segue o comando que ele sugere, um de cada vez', 'Continua sem resposta? Trabalha com o vizinho e chama-nos'],
+    passos: ['Corre o diagnóstico', 'Segue o comando que ele sugere, um de cada vez', 'Continua sem resposta? Trabalha com o vizinho e chama-nos'],
     comandos: [
-      { rotulo: 'Mac', cmd: '{{DOCTOR_MAC}}' },
-      { rotulo: 'Windows (PowerShell)', cmd: '{{DOCTOR_WIN}}' },
+      { rotulo: 'Mac e Windows', cmd: 'workshop-doctor', alt: [{ rotulo: 'Mac', cmd: '{{DOCTOR_MAC}}' }, { rotulo: 'Windows (PowerShell)', cmd: '{{DOCTOR_WIN}}' }] },
     ],
     esperado: 'A causa provável e o comando que a resolve',
     notas: {
@@ -303,8 +301,8 @@ export const SLIDES = [
     titulo: 'Inventa a tua ferramenta',
     passos: ['Copia o exemplo', 'Muda o título, o conceito, o modelo e os exemplos', 'Gera a spec e o teste'],
     comandos: [
-      { rotulo: 'Mac', cmd: 'cp specs/my-tool.example.json specs/my-tool.json\nnode tools/gen.mjs' },
-      { rotulo: 'Windows', cmd: 'Copy-Item specs\\my-tool.example.json specs\\my-tool.json\nnode tools/gen.mjs' },
+      { rotulo: 'Mac', cmd: 'cp specs/my-tool.example.json specs/my-tool.json\nworkshop-gen', alt: ['node tools/gen.mjs'] },
+      { rotulo: 'Windows', cmd: 'Copy-Item specs\\my-tool.example.json specs\\my-tool.json\nworkshop-gen', alt: ['node tools/gen.mjs'] },
     ],
     esperado: 'A tua ferramenta my-01, com spec e teste, pronta para o swarm',
     painel: 'Olha para o painel: ferramentas inventadas pela sala',
@@ -355,7 +353,7 @@ export const SLIDES = [
     passos: ['Lança o swarm', 'Noutro terminal, abre o /status', 'Nas esperas: uma missão bónus'],
     comandos: [
       { rotulo: 'Terminal 2 · Claude Code', cmd: '/demo-swarm' },
-      { rotulo: 'Outro terminal · o /status', cmd: 'cd ~/workshop-claude/canivete-project\nnode server.js\nhttp://localhost:3000/status' },
+      { rotulo: 'Outro terminal · o /status', cmd: 'workshop-server\nhttp://localhost:3000/status', alt: ['cd ~/workshop-claude/canivete-project', 'node server.js'] },
     ],
     esperado: 'A grelha enche-se de verdes; 2 ou 3 ferramentas ficam vermelhas',
     painel: 'Olha para o painel: cada ponto é um swarm acabado',
@@ -432,7 +430,7 @@ export const SLIDES = [
     apoio: 'intake → plan → swarm → gate → report → memória: a mesma orquestração, agora com as skills /task-*.',
     comandos: [
       { rotulo: 'Terminal 3 · projeto de treino', cmd: TREINO },
-      { rotulo: 'Opcional · deixar de enviar ao painel', cmd: 'cd "$HOME/.workshop-claude/kit/telemetry"\nnode ctl.mjs unregister' },
+      { rotulo: 'Opcional · deixar de enviar ao painel', cmd: 'workshop-unregister', alt: ['node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" unregister'] },
     ],
     notas: {
       objetivo: 'Ligar o Projeto 2 ao que já fizeram.',
@@ -481,7 +479,7 @@ export const SLIDES = [
     passos: ['Lança o swarm', 'Noutro terminal, abre o dashboard', 'Nas esperas: as missões bónus que faltam'],
     comandos: [
       { rotulo: 'Terminal 3 · Claude Code', cmd: '/task-swarm' },
-      { rotulo: 'Outro terminal · na pasta do projeto', cmd: 'node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"' },
+      { rotulo: 'Outro terminal · na pasta do projeto', cmd: 'workshop-dashboard', alt: ['node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"'] },
     ],
     esperado: 'As subtarefas a verde; o estado fica em .workshop/',
     painel: 'Olha para o painel: o funil avança',

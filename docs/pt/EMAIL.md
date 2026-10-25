@@ -2,7 +2,7 @@
 
 # Email a enviar antes do workshop
 
-Para o organizador: copia o assunto e o corpo para o email. Envia-o cerca de uma semana antes do workshop e um lembrete 2 dias antes. Os links apontam para a release v1.1.0-rc.3 do kit: depois de uma release nova, corre `node tools/render.mjs` e volta a copiar o email.
+Para o organizador: copia o assunto e o corpo para o email. Envia-o cerca de uma semana antes do workshop e um lembrete 2 dias antes. Os links apontam para a release v1.1.0-rc.4 do kit: depois de uma release nova, corre `node tools/render.mjs` e volta a copiar o email.
 
 ---
 
@@ -26,13 +26,13 @@ Para passarmos a sessão a construir e não a instalar, faz isto **até domingo,
 No Mac, no Terminal:
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-mac.sh | bash
 ```
 
 No Windows, no PowerShell:
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/bootstrap-windows.ps1 | iex
 ```
 
 O setup faz algumas perguntas: por exemplo, o login no Claude e o login no GitHub, que abrem o browser. Mostra uma linha por passo e um resumo no fim. O setup fala só inglês; o Claude responde-te na tua língua.
@@ -47,7 +47,7 @@ Durante ou depois da instalação podem aparecer alguns warnings. Se vires warni
 
 - Corre o mesmo comando outra vez: os passos já feitos são saltados.
 - Numa rede da empresa, se falhar a rede, experimenta o hotspot do telemóvel.
-- O guia completo e os códigos de erro estão no [guia de instalação](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.3/docs/pt/INSTALL.md).
+- O guia completo e os códigos de erro estão no [guia de instalação](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.4/docs/pt/INSTALL.md).
 - Continua sem dar? Responde a este email com o ficheiro `summary.txt` em anexo; está na pasta `.workshop-claude` da tua pasta pessoal. Não tem palavras-passe nem tokens.
 
 **Precisas de ajuda?**

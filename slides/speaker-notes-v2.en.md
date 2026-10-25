@@ -125,7 +125,7 @@ Clock: you should be here at 4 min.
 Goal: Everyone with the kit checked and registered on the panel.
 
 What to say:
-- --check installs nothing: it only confirms each step and connects you to the panel.
+- First workshop-register, then workshop-check: the check installs nothing, it only confirms each step.
 - The registration uses your gh login: it checks the company email on your laptop, and only the name goes to the panel.
 
 Look at the panel:
@@ -135,7 +135,7 @@ Look at the panel:
 Typical failures and the answer:
 - E-TEL-03: gh cannot read the emails → gh auth refresh -h github.com -s user:email and run register again
 - E-TEL-02: no verified company email → add it at github.com/settings/emails; the workshop works without it
-- The command does not exist: no setup yet → run the one-liner from the README now and pair with a neighbour while it installs
+- command not found: workshop-register → the setup is older than rc.4: run the setup one-liner again, or use the long command from Teams
 
 Clock: you should be here at 5 min.
 

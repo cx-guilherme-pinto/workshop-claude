@@ -125,7 +125,7 @@ Relógio: deves estar aqui aos 4 min.
 Objetivo: Toda a gente com o kit verificado e registada no painel.
 
 O que dizer:
-- O --check não instala nada: só confirma cada passo e liga-te ao painel.
+- Primeiro o workshop-register, depois o workshop-check: o check não instala nada, só confirma cada passo.
 - O registo usa o teu login do gh: confirma no teu portátil o email da empresa, e só o nome sai para o painel.
 
 Olha para o painel:
@@ -135,7 +135,7 @@ Olha para o painel:
 Falhas típicas e resposta:
 - E-TEL-03: o gh não pode ler os emails → gh auth refresh -h github.com -s user:email e volta a correr o register
 - E-TEL-02: sem email verificado da empresa → acrescenta-o em github.com/settings/emails; o workshop funciona sem isso
-- O comando não existe: o setup não foi feito → corre o one-liner do README agora e segue com o vizinho enquanto instala
+- command not found: workshop-register → o setup é anterior à rc.4: volta a correr o one-liner do setup, ou usa o comando longo do Teams
 
 Relógio: deves estar aqui aos 5 min.
 

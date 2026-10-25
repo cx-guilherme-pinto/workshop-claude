@@ -2,7 +2,7 @@
 
 # Email to send before the workshop
 
-For the organizer: copy the subject and the body into the email. Send it about a week before the workshop, with a reminder 2 days before. The links point to the kit release v1.1.0-rc.3: after a new release, run `node tools/render.mjs` and copy the email again.
+For the organizer: copy the subject and the body into the email. Send it about a week before the workshop, with a reminder 2 days before. The links point to the kit release v1.1.0-rc.4: after a new release, run `node tools/render.mjs` and copy the email again.
 
 ---
 
@@ -26,13 +26,13 @@ To spend the session building and not installing, please do this **by Sunday 25 
 On a Mac, in Terminal:
 
 ```
-curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/setup-mac.sh | bash
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-mac.sh | bash
 ```
 
 On Windows, in PowerShell:
 
 ```
-irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.3/bootstrap-windows.ps1 | iex
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/bootstrap-windows.ps1 | iex
 ```
 
 The setup asks a few questions. For example, the Claude login and the GitHub login each open the browser. It shows one line per step and a summary at the end.
@@ -47,7 +47,7 @@ A few warnings may appear during or after the installation. If you see some warn
 
 - Run the same command again: the steps already done are skipped.
 - On a company network, if something fails on the network, try your phone's hotspot.
-- The full guide and the error codes are in the [installation guide](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.3/docs/INSTALL.md).
+- The full guide and the error codes are in the [installation guide](https://github.com/cx-guilherme-pinto/workshop-claude/blob/v1.1.0-rc.4/docs/INSTALL.md).
 - Still stuck? Reply to this email and attach the file `summary.txt`, which is in the `.workshop-claude` folder of your home folder. It has no passwords or tokens.
 
 **Need help?**

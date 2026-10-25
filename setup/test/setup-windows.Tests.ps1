@@ -3945,11 +3945,11 @@ Describe 'painel do workshop (passos 6 e 8, D-34) e projeto das missoes (passo 9
       $script:Ctl[0][1] | Should -Match ' register$'
       $script:T['8'].Notas | Should -Contain 'Workshop panel: registered as ana-silva.'
     }
-    It 'ja registado (mesmo com uma sala antiga): sem pedido ao painel, so a nota' {
+    It 'ja registado noutro dia (mesmo com uma sala antiga): regista outra vez (o painel apaga tudo a meia-noite)' {
       Set-Cfg8 ('{"v":1,"enabled":true,"room":"A","panel_url":"https://panel.example.test","participant":{"p":"' + ('cd' * 16) + '","name":"ze"}}')
       Install-WsStep8 | Should -BeTrue
-      $script:Ctl.Count | Should -Be 0
-      $script:T['8'].Notas | Should -Contain 'Workshop panel: registered as ze.'
+      $script:Ctl.Count | Should -Be 1
+      $script:Ctl[0][1] | Should -Match ' register$'
     }
     It 'o resultado do registo: <Exit>' -ForEach @(
       @{ Exit = 3; Warn = 'E-TEL-02|@checkmarx.com'; Note = '' },

@@ -7,6 +7,16 @@ As linhas que começam por # são para ti (o slide, a hora da agenda, o que é).
 # Gerado por slides/build-v2.mjs a partir de slides/content-v2.mjs: não edites à mão.
 
 ########################################################################
+# Antes de começar · quem já instalou volta a correr o setup (atualiza o kit, junta os comandos curtos e regista-te no painel; depois fecha e abre o terminal)
+########################################################################
+
+# Mac (Terminal)
+curl -fsSL https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/setup-mac.sh | bash
+
+# Windows (PowerShell)
+irm https://github.com/cx-guilherme-pinto/workshop-claude/releases/download/v1.1.0-rc.4/bootstrap-windows.ps1 | iex
+
+########################################################################
 # [4:00] slide 5 · A tua memória aprende contigo
 ########################################################################
 
@@ -17,19 +27,30 @@ agent-memory-gui
 # [5:00] slide 6 · Verifica e liga-te ao painel
 ########################################################################
 
+# 1 · Liga-te ao painel (Mac e Windows)
+workshop-register
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
+node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register
+
+# 2 · Verifica o kit (Mac e Windows)
+workshop-check
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 # Mac
 bash ~/.workshop-claude/setup-mac.sh --check
 
 # Windows (PowerShell)
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check
 
-# Não estás no painel?
-node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register
-
 ########################################################################
 # [9:00] slide 7 · Algum passo falhou?
 ########################################################################
 
+# Mac e Windows
+workshop-doctor
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 # Mac
 bash ~/.workshop-claude/setup-mac.sh --doctor
 
@@ -133,11 +154,17 @@ claude
 # Mac
 cp specs/my-tool.example.json specs/my-tool.json
 
+workshop-gen
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 node tools/gen.mjs
 
 # Windows
 Copy-Item specs\my-tool.example.json specs\my-tool.json
 
+workshop-gen
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 node tools/gen.mjs
 
 ########################################################################
@@ -155,11 +182,14 @@ node tools/gen.mjs
 /demo-swarm
 
 # Outro terminal · o /status
+workshop-server
+
+http://localhost:3000/status
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 cd ~/workshop-claude/canivete-project
 
 node server.js
-
-http://localhost:3000/status
 
 ########################################################################
 # [42:00] slide 22 · Porque é que esta ferramenta falhou?
@@ -210,9 +240,10 @@ cd ~/workshop-claude/practice-project
 claude
 
 # Opcional · deixar de enviar ao painel
-cd "$HOME/.workshop-claude/kit/telemetry"
+workshop-unregister
 
-node ctl.mjs unregister
+# Se o comando não existir (setup anterior à rc.4), cola este:
+node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" unregister
 
 ########################################################################
 # [52:00] slide 26 · Lê a issue
@@ -249,6 +280,9 @@ mais agentes
 /task-swarm
 
 # Outro terminal · na pasta do projeto
+workshop-dashboard
+
+# Se o comando não existir (setup anterior à rc.4), cola este:
 node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"
 
 ########################################################################

@@ -3463,17 +3463,14 @@ function Set-WsStep8RegisterResult {
 
 function Invoke-WsStep8Register {
   # Regista a pessoa no painel (so ao instalar): node <kit instalado>\telemetry\ctl.mjs register, com o node do kit e
-  # o gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Ja registada
-  # (o config.json tem o participante): nada a pedir, so a nota.
+  # o gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Tambem quando
+  # o config.json ja tem o participante (rc.4): o painel apaga tudo a meia-noite, por isso o registo de outro dia ja
+  # nao vale, e o register e idempotente (a mesma conta fica na mesma linha). Voltar a correr o setup no dia regista.
   if ($script:Mode -ne 'install' -or -not (Test-WsTelemetryKit)) { return }
   $ctl = Join-Path $script:WsHome 'kit\telemetry\ctl.mjs'
   $cfg = Read-WsTelemetryConfig
   if (-not $cfg -or -not (Test-Path -LiteralPath $ctl -PathType Leaf)) { return }
-  if (Get-WsTelParticipant $cfg) {
-    Write-WsLog 'panel: already registered'
-    Add-WsStep8RegisteredNote $cfg
-    return
-  }
+  if (Get-WsTelParticipant $cfg) { Write-WsLog 'panel: registered before; registering again (the panel is cleared every midnight)' }
   $envs = @{}
   $gh = [string]$script:GhExe
   if ($gh) { $envs['WORKSHOP_GH'] = $gh; $envs['PATH'] = (Split-Path $gh -Parent) + ';' + $env:PATH }

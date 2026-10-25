@@ -857,8 +857,9 @@ if [ -n "$NODE" ]; then
   r=$(p8 0); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*"Workshop panel: registered as ana-silva.
 ##register gh=/opt/x/bin/gh") ok ;; *) ko "s8 registo: sem --room e register sem sala, registado [$r]" ;; esac
   r=$(p8 1); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*"registered as ana-silva."*"##register gh=/opt/x/bin/gh") ok ;; *) ko "s8 registo: config antiga com sala = a sala nao conta [$r]" ;; esac
+  # rc.4: ja registado noutro dia = regista outra vez (o painel apaga tudo a meia-noite; o register e idempotente)
   r=$(p8 2); case "$r" in "instalar --projects-dir $PF/h/workshop-claude#"*"Workshop panel: registered as ana-silva.
-##") ok ;; *) ko "s8 registo: ja registado = sem pedido ao painel [$r]" ;; esac
+##register gh=/opt/x/bin/gh") ok ;; *) ko "s8 registo: ja registado = regista outra vez [$r]" ;; esac
   r=$(FC_EXIT=3 p8 0); case "$r" in *"#E-TEL-02|@checkmarx.com
 #register gh=/opt/x/bin/gh") ok ;; *) ko "s8 registo: 3 = E-TEL-02 com o dominio [$r]" ;; esac
   r=$(FC_EXIT=4 p8 0); case "$r" in *"#E-TEL-03|gh auth refresh -h github.com -s user:email

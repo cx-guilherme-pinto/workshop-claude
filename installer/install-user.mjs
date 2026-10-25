@@ -24,6 +24,8 @@
 //   - com --lingua-maquina, escreve ~/.workshop-claude/kit/language.json (pt ou en: a lingua dos textos do kit)
 //   - escreve ~/.workshop-claude/telemetry/config.json (caderneta de missoes e painel, D-30 e D-34): pasta dos projetos (--projects-dir), codigo do workshop, painel, dominio dos emails e expiracao (WORKSHOP_CODE,
 //     PANEL_URL, PANEL_EMAIL_DOMAIN e WORKSHOP_DATE do repos.conf) e o registo anterior (ctl.mjs register)
+//   - escreve os comandos curtos do workshop (workshop-register, workshop-dashboard, workshop-check…) em
+//     ~/.workshop-claude/bin, a pasta que os dois setups poem no PATH (lib/commands.mjs)
 //   - regista tudo em ~/.workshop-claude/manifest.json, para o "desinstalar" o desfazer
 //
 // Saida: linhas "chave<TAB>valor" (faceis de ler em bash e PowerShell). Codigos de saida:
@@ -37,6 +39,7 @@ import { linguaMaquina } from './lib/languages.mjs';
 import { isMain as ehPrincipal } from './lib/is-main.mjs';
 import { LANGUAGE_FILE, storedLanguage } from '../hooks/lib/language.mjs';
 import { claudeJson, trustProjects, untrustProjects } from './lib/trust.mjs';
+import { installCommands, removeCommands } from './lib/commands.mjs';
 import { paths as telemetryPaths, readConfig as readTelemetry, readId, writeJson } from '../telemetry/lib.mjs';
 import {
   checkSettings,
@@ -365,6 +368,13 @@ export function instalar(flags, env = process.env) {
   if (lm) manifest.lingua = { maquina: lm.tag, kit: lm.kit };
   saveManifest(P, manifest);
   const tel = instalarTelemetria(flags, P, { conf: kitConf(kitSrc), versao, lingua: lm?.kit ?? linguaKitInstalada(P) });
+  // the short commands (workshop-register, workshop-dashboard…) in ~/.workshop-claude/bin, on the PATH
+  try {
+    manifest.comandos = installCommands({ node, wsDir: P.wsDir, projectsDir: tel.projects_dir, home: P.home }).map(fwd);
+    saveManifest(P, manifest);
+  } catch (e) {
+    out('aviso', `comandos: ${e.message}`);
+  }
 
   out('estado', 'instalado');
   out('versao', versao);
@@ -565,6 +575,7 @@ export function desinstalar(flags, env = process.env) {
   saidaRetirados(retirados);
   rmSync(P.kitDir, { recursive: true, force: true });
   out('removido', 'kit');
+  removeCommands(manifest.comandos);
   // A caderneta de missoes e a fila do painel (o id anonimo incluido): nada fica para tras.
   rmSync(join(P.wsDir, 'telemetry'), { recursive: true, force: true });
   out('removido', 'telemetry');

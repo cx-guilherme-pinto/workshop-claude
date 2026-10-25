@@ -101,31 +101,29 @@ export const SLIDES = [
   {
     min: 4, bloco: 'Opening', fase: 'opening', tipo: 'faca',
     titulo: 'Check and join the panel',
-    passos: ['In a terminal, run the command for your system', 'Look for your name on the panel leaderboard'],
+    passos: ['In a terminal, join the panel and then check the kit', 'Look for your name on the panel leaderboard'],
     comandos: [
-      { rotulo: 'Mac', cmd: '{{CHECK_MAC}}' },
-      { rotulo: 'Windows (PowerShell)', cmd: '{{CHECK_WIN}}' },
-      { rotulo: 'Not on the panel?', cmd: 'node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register' },
+      { rotulo: '1 · Join the panel (Mac and Windows)', cmd: 'workshop-register', alt: ['node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register'] },
+      { rotulo: '2 · Check the kit (Mac and Windows)', cmd: 'workshop-check', alt: [{ rotulo: 'Mac', cmd: '{{CHECK_MAC}}' }, { rotulo: 'Windows (PowerShell)', cmd: '{{CHECK_WIN}}' }] },
     ],
     esperado: 'The summary table with no failures and your name on the panel, under "Registered"',
     notas: {
       objetivo: 'Everyone with the kit checked and registered on the panel.',
-      dizer: ['--check installs nothing: it only confirms each step and connects you to the panel.', 'The registration uses your gh login: it checks the company email on your laptop, and only the name goes to the panel.'],
+      dizer: ['First workshop-register, then workshop-check: the check installs nothing, it only confirms each step.', 'The registration uses your gh login: it checks the company email on your laptop, and only the name goes to the panel.'],
       painel: ['If "Ready" is below half at 3 min: "whoever has a green table, help your neighbour".', 'If "Registered" is well below the room: "the register command under the table fixes it; without a verified @checkmarx.com email on GitHub you do the workshop all the same, you just do not appear on the leaderboard".'],
       falhas: [
         { falha: 'E-TEL-03: gh cannot read the emails', resposta: 'gh auth refresh -h github.com -s user:email and run register again' },
         { falha: 'E-TEL-02: no verified company email', resposta: 'add it at github.com/settings/emails; the workshop works without it' },
-        { falha: 'The command does not exist: no setup yet', resposta: 'run the one-liner from the README now and pair with a neighbour while it installs' },
+        { falha: 'command not found: workshop-register', resposta: 'the setup is older than rc.4: run the setup one-liner again, or use the long command from Teams' },
       ],
     },
   },
   {
     min: 2, bloco: 'Opening', fase: 'opening', tipo: 'faca',
     titulo: 'Did a step fail?',
-    passos: ['Run --doctor for your system', 'Follow the command it suggests, one at a time', 'Still stuck? Pair with a neighbour and call us'],
+    passos: ['Run the diagnosis', 'Follow the command it suggests, one at a time', 'Still stuck? Pair with a neighbour and call us'],
     comandos: [
-      { rotulo: 'Mac', cmd: '{{DOCTOR_MAC}}' },
-      { rotulo: 'Windows (PowerShell)', cmd: '{{DOCTOR_WIN}}' },
+      { rotulo: 'Mac and Windows', cmd: 'workshop-doctor', alt: [{ rotulo: 'Mac', cmd: '{{DOCTOR_MAC}}' }, { rotulo: 'Windows (PowerShell)', cmd: '{{DOCTOR_WIN}}' }] },
     ],
     esperado: 'The likely cause and the command that fixes it',
     notas: {
@@ -292,8 +290,8 @@ export const SLIDES = [
     titulo: 'Invent your tool',
     passos: ['Copy the example', 'Change the title, concept, template and examples', 'Generate the spec and the test'],
     comandos: [
-      { rotulo: 'Mac', cmd: 'cp specs/my-tool.example.json specs/my-tool.json\nnode tools/gen.mjs' },
-      { rotulo: 'Windows', cmd: 'Copy-Item specs\\my-tool.example.json specs\\my-tool.json\nnode tools/gen.mjs' },
+      { rotulo: 'Mac', cmd: 'cp specs/my-tool.example.json specs/my-tool.json\nworkshop-gen', alt: ['node tools/gen.mjs'] },
+      { rotulo: 'Windows', cmd: 'Copy-Item specs\\my-tool.example.json specs\\my-tool.json\nworkshop-gen', alt: ['node tools/gen.mjs'] },
     ],
     esperado: 'Your tool my-01, with spec and test, ready for the swarm',
     painel: 'Look at the panel: tools invented by the room',
@@ -344,7 +342,7 @@ export const SLIDES = [
     passos: ['Start the swarm', 'In another terminal, open /status', 'While you wait: a bonus mission'],
     comandos: [
       { rotulo: 'Terminal 2 · Claude Code', cmd: '/demo-swarm' },
-      { rotulo: 'Another terminal · /status', cmd: 'cd ~/workshop-claude/canivete-project\nnode server.js\nhttp://localhost:3000/status' },
+      { rotulo: 'Another terminal · /status', cmd: 'workshop-server\nhttp://localhost:3000/status', alt: ['cd ~/workshop-claude/canivete-project', 'node server.js'] },
     ],
     esperado: 'The grid fills with greens; 2 or 3 tools stay red',
     painel: 'Look at the panel: each dot is a finished swarm',
@@ -421,7 +419,7 @@ export const SLIDES = [
     apoio: 'intake → plan → swarm → gate → report → memory: the same orchestration, now with the /task-* skills.',
     comandos: [
       { rotulo: 'Terminal 3 · practice project', cmd: PRACTICE },
-      { rotulo: 'Optional · stop sending to the panel', cmd: 'cd "$HOME/.workshop-claude/kit/telemetry"\nnode ctl.mjs unregister' },
+      { rotulo: 'Optional · stop sending to the panel', cmd: 'workshop-unregister', alt: ['node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" unregister'] },
     ],
     notas: {
       objetivo: 'Connect Project 2 to what they already did.',
@@ -470,7 +468,7 @@ export const SLIDES = [
     passos: ['Start the swarm', 'In another terminal, open the dashboard', 'While you wait: the bonus missions you are missing'],
     comandos: [
       { rotulo: 'Terminal 3 · Claude Code', cmd: '/task-swarm' },
-      { rotulo: 'Another terminal · in the project folder', cmd: 'node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"' },
+      { rotulo: 'Another terminal · in the project folder', cmd: 'workshop-dashboard', alt: ['node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"'] },
     ],
     esperado: 'The subtasks green; the state stays in .workshop/',
     painel: 'Look at the panel: the funnel moves on',

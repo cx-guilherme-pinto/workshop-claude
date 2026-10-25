@@ -2521,14 +2521,13 @@ ws_s8_register_result() { # codigo config.json
   return 0
 }
 # Regista a pessoa no painel (so ao instalar): node <kit instalado>/telemetry/ctl.mjs register, com o node do kit e o
-# gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Ja registada
-# (o config.json tem o participante): nada a pedir, so a nota.
+# gh do passo 6 (no PATH e em WORKSHOP_GH). O proxy e os certificados ja estao no ambiente (passo 0). Tambem quando o
+# config.json ja tem o participante (rc.4): o painel apaga tudo a meia-noite, por isso o registo de outro dia ja nao
+# vale, e o register e idempotente (a mesma conta fica na mesma linha). Voltar a correr o setup no dia regista.
 ws_s8_register() {
   local ctl="$WS_HOME/kit/telemetry/ctl.mjs" cfg="$WS_HOME/telemetry/config.json" out rc gh
   [ "$WS_MODE" = install ] && ws_part_kit && [ -f "$ctl" ] && [ -f "$cfg" ] || return 0
-  if [ -n "$(ws_tel_participant "$cfg")" ]; then
-    ws_log "panel: already registered"; ws_s8_registered_note "$cfg"; return 0
-  fi
+  [ -n "$(ws_tel_participant "$cfg")" ] && ws_log "panel: registered before; registering again (the panel is cleared every midnight)"
   gh=${WS_GH_EXE:-$(command -v gh 2>/dev/null)}
   ws_log "\$ $WS_NODE $ctl register"
   out=$(PATH="${gh:+$(dirname "$gh"):}$PATH" WORKSHOP_GH="${gh:-gh}" ws_timeout 60 "$WS_NODE" "$ctl" register 2>&1 </dev/null); rc=$?

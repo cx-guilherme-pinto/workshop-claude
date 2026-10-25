@@ -15,6 +15,9 @@ const T = {
     slide: 'slide',
     opcoes: 'Opções (a pessoa escolhe uma)',
     tecla: 'tecla, não é para colar',
+    alt: 'Se o comando não existir (setup anterior à rc.4), cola este:',
+    // before the session: everyone runs the setup again (it updates the kit, adds the short commands and registers)
+    antesDeComecar: ['Antes de começar · quem já instalou volta a correr o setup (atualiza o kit, junta os comandos curtos e regista-te no painel; depois fecha e abre o terminal)', ['Mac (Terminal)', '{{ONE_LINER_MAC}}'], ['Windows (PowerShell)', '{{ONE_LINER_WINDOWS}}']],
     // the Project 2 decide slide asks for /task-plan first (in its footer, not in a command block)
     antes: { 'p2:decide': ['Primeiro, o plano', '/task-plan'] },
     planoB: {
@@ -32,6 +35,8 @@ const T = {
     slide: 'slide',
     opcoes: 'Options (each person picks one)',
     tecla: 'a key, not to paste',
+    alt: 'If the command does not exist (setup older than rc.4), paste this one:',
+    antesDeComecar: ['Before you start · if you already installed, run the setup again (it updates the kit, adds the short commands and registers you on the panel; then close and reopen the terminal)', ['Mac (Terminal)', '{{ONE_LINER_MAC}}'], ['Windows (PowerShell)', '{{ONE_LINER_WINDOWS}}']],
     antes: { 'p2:decide': ['First, the plan', '/task-plan'] },
     planoB: {
       M11: ['Plan B, if Claude does not find the tool (laptops with rc.3): leave and come back to the same session', '/exit', 'claude -c'],
@@ -57,6 +62,9 @@ function parse(line) {
 export function commandsText(slides, lang, sub = (s) => s) {
   const t = T[lang] || T.en;
   const out = [t.titulo, '='.repeat(t.titulo.length), '', ...t.intro, t.gerado, ''];
+  const [pre, ...os] = t.antesDeComecar;
+  out.push('#'.repeat(72), `# ${pre}`, '#'.repeat(72), '');
+  for (const [label, cmd] of os) out.push(`# ${label}`, sub(cmd), '');
   let clock = 0;
   slides.forEach((d, i) => {
     const start = clock;
@@ -70,7 +78,9 @@ export function commandsText(slides, lang, sub = (s) => s) {
         if (KEY.test(p.text)) items.push(`# ${p.text.replace(/\s+/g, ' ')} (${t.tecla})`);
         else items.push(...(p.label ? [`# ${p.label}`] : []), p.text, '');
       }
-      blocks.push([`# ${sub(c.rotulo) || ''}`.trimEnd(), ...items]);
+      // the long command, for a laptop whose setup did not install the short ones yet
+      const alt = (c.alt || []).flatMap((x) => (typeof x === 'string' ? [sub(x), ''] : [`# ${sub(x.rotulo)}`, sub(x.cmd), '']));
+      blocks.push([`# ${sub(c.rotulo) || ''}`.trimEnd(), ...items, ...(alt.length ? [`# ${t.alt}`, ...alt] : [])]);
     }
     const pre = t.antes[`${d.fase}:${d.tipo}`];
     if (pre) blocks.push([`# ${pre[0]}`, ...pre.slice(1).flatMap((x) => [x, ''])]);
