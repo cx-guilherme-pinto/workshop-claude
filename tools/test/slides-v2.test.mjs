@@ -112,3 +112,23 @@ test('v2 deck: the memory app is introduced at the opening, with the command to 
     assert.ok(d.slice(0, i).filter((s) => s.tipo === 'conceito').length === 2, 'after the 2 overview slides');
   }
 });
+
+test('v2 deck: commands-v2.txt (pt) and commands-v2.en.txt, the commands to paste into Teams, match the deck', async () => {
+  const { commandsText } = await import('../../slides/commands-text.mjs');
+  for (const [deck, lang, file] of [[pt, 'pt', 'commands-v2.txt'], [en, 'en', 'commands-v2.en.txt']]) {
+    const txt = readFileSync(join(ROOT, 'slides', file), 'utf8');
+    assert.doesNotMatch(txt, /\{\{\w+\}\}/, `${lang}: every {{...}} filled in`);
+    // every command line of the deck is there, on a line of its own (ready to paste)
+    const lines = new Set(txt.split('\n'));
+    for (const s of deck) for (const c of s.comandos || []) for (const l of c.cmd.split('\n')) {
+      const cmd = l.trim().replace(/^M\d+\s+/, '').replace(/\s{2,}\(.*\)$/, '');
+      if (!cmd || /^(Shift\+Tab|Esc)/.test(cmd) || /\{\{/.test(cmd)) continue;
+      assert.ok(lines.has(cmd), `${lang}: "${cmd}" alone on a line`);
+    }
+    assert.ok(lines.has('/task-plan') && lines.has('/exit') && lines.has('claude -c'), `${lang}: /task-plan and the M11 plan B`);
+    assert.ok(!lines.has('--parallel 8'), `${lang}: a bare flag is not a command to paste`);
+    // the generator puts the same slides in the same order (the {{...}} values aside)
+    const heads = (t) => t.split('\n').filter((l) => /^# \[\d+:\d\d\] /.test(l));
+    assert.deepEqual(heads(txt), heads(commandsText(deck, lang)));
+  }
+});

@@ -1,0 +1,283 @@
+Comandos do workshop · Orquestração de agentes com Claude
+=========================================================
+
+Para colar no chat do Teams, um de cada vez, no passo certo da apresentação.
+Cada comando está sozinho, entre linhas em branco: copia só a linha do comando.
+As linhas que começam por # são para ti (o slide, a hora da agenda, o que é).
+# Gerado por slides/build-v2.mjs a partir de slides/content-v2.mjs: não edites à mão.
+
+########################################################################
+# [4:00] slide 5 · A tua memória aprende contigo
+########################################################################
+
+# Num terminal
+agent-memory-gui
+
+########################################################################
+# [5:00] slide 6 · Verifica e liga-te ao painel
+########################################################################
+
+# Mac
+bash ~/.workshop-claude/setup-mac.sh --check
+
+# Windows (PowerShell)
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Check
+
+# Não estás no painel?
+node "$HOME/.workshop-claude/kit/telemetry/ctl.mjs" register
+
+########################################################################
+# [9:00] slide 7 · Algum passo falhou?
+########################################################################
+
+# Mac
+bash ~/.workshop-claude/setup-mac.sh --doctor
+
+# Windows (PowerShell)
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.workshop-claude\setup-windows.ps1" -Doctor
+
+########################################################################
+# [11:00] slide 8 · 11 missões, uma grelha vazia
+########################################################################
+
+# Terminal 1 · missões
+cd ~/workshop-claude/missions-project
+
+claude
+
+########################################################################
+# [12:00] slide 9 · M1 · Planear sem tocar
+########################################################################
+
+# No Claude Code
+# Shift+Tab → plan mode on (tecla, não é para colar)
+Como acrescentarias conversão de volume?
+
+########################################################################
+# [14:00] slide 10 · M2 · O modelo certo
+########################################################################
+
+# No Claude Code
+/model haiku
+
+O que faz o units.js? Uma frase.
+
+/model sonnet
+
+########################################################################
+# [16:00] slide 11 · M3 · Um subagente
+########################################################################
+
+# No Claude Code
+Usa um subagente Explore para listar as funções de src/units.js que não têm teste.
+
+########################################################################
+# [19:00] slide 13 · M4 · A tua skill
+########################################################################
+
+# No Claude Code
+Cria .claude/skills/resumo/SKILL.md: resume um ficheiro em 3 linhas
+
+/exit
+
+claude -c
+
+/resumo src/units.js
+
+########################################################################
+# [21:00] slide 14 · M5 · O teu hook
+########################################################################
+
+# No Claude Code
+Acrescenta em .claude/settings.local.json um hook PostToolUse (Edit|Write) que junta a hora e o ficheiro a edits.log.
+
+Acrescenta um comentário no topo do README.md.
+
+########################################################################
+# [23:00] slide 15 · M6 · Até ficar verde
+########################################################################
+
+# No Claude Code
+/loop 1m corre npm test e corrige o primeiro teste vermelho; quando estiver tudo verde, para o loop
+
+########################################################################
+# [25:00] slide 16 · O que falta à sala (e as bónus M7 a M10)
+########################################################################
+
+# Bónus
+# M7 · dica, sem validação
+/btw o que é um subagente?
+
+# M8
+/statusline mostra o modelo e a branch
+
+# M9
+claude -p "Resume o README" --model haiku > resumo.txt
+
+# M10
+/memory guarda uma lição sobre o conversor
+
+########################################################################
+# [26:00] slide 17 · O que vamos construir: o Canivete
+########################################################################
+
+# Terminal 2 · Canivete
+cd ~/workshop-claude/canivete-project
+
+claude
+
+########################################################################
+# [28:00] slide 18 · Inventa a tua ferramenta
+########################################################################
+
+# Mac
+cp specs/my-tool.example.json specs/my-tool.json
+
+node tools/gen.mjs
+
+# Windows
+Copy-Item specs\my-tool.example.json specs\my-tool.json
+
+node tools/gen.mjs
+
+########################################################################
+# [34:00] slide 20 · Planeia
+########################################################################
+
+# Terminal 2 · Claude Code
+/demo-plan --parallel 8 --model haiku
+
+########################################################################
+# [35:00] slide 21 · Solta o swarm
+########################################################################
+
+# Terminal 2 · Claude Code
+/demo-swarm
+
+# Outro terminal · o /status
+cd ~/workshop-claude/canivete-project
+
+node server.js
+
+http://localhost:3000/status
+
+########################################################################
+# [42:00] slide 22 · Porque é que esta ferramenta falhou?
+########################################################################
+
+# No Claude Code
+Porque falhou o nm-03?
+
+# No teu editor, depois
+# acrescenta a regra
+tools/nm-03/spec.md
+
+/demo-swarm --retry nm-03
+
+########################################################################
+# [46:00] slide 23 · Gate e custo: que decisão ganhou?
+########################################################################
+
+# Terminal 2 · Claude Code
+/demo-review
+
+/demo-cost
+
+########################################################################
+# [48:00] slide 24 · M11 · A tua ferramenta, pelo Claude
+########################################################################
+
+# No Claude Code
+Usa a ferramenta my-01 com um exemplo teu.
+
+# Opcional · no browser
+http://localhost:3000
+
+# Plano B, se o Claude não encontrar a ferramenta (portáteis com a rc.3): sai e volta à mesma sessão
+/exit
+
+claude -c
+
+Usa a ferramenta my-01 com um exemplo teu.
+
+########################################################################
+# [50:00] slide 25 · O mesmo ciclo, noutro repositório
+########################################################################
+
+# Terminal 3 · projeto de treino
+cd ~/workshop-claude/practice-project
+
+claude
+
+# Opcional · deixar de enviar ao painel
+cd "$HOME/.workshop-claude/kit/telemetry"
+
+node ctl.mjs unregister
+
+########################################################################
+# [52:00] slide 26 · Lê a issue
+########################################################################
+
+# Terminal 3 · Claude Code
+/task-intake issues/EX-1.json
+
+# Opcional · o teu repositório
+/task-intake ABC-123
+
+########################################################################
+# [56:00] slide 27 · Quantos agentes?
+########################################################################
+
+# Primeiro, o plano
+/task-plan
+
+# Opções (a pessoa escolhe uma)
+# Aprovar
+sim
+
+# Menos agentes
+menos agentes
+
+# Mais agentes
+mais agentes
+
+########################################################################
+# [62:00] slide 28 · Põe o swarm a trabalhar
+########################################################################
+
+# Terminal 3 · Claude Code
+/task-swarm
+
+# Outro terminal · na pasta do projeto
+node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"
+
+########################################################################
+# [74:00] slide 29 · O gate
+########################################################################
+
+# Terminal 3 · Claude Code
+/task-gate
+
+########################################################################
+# [79:00] slide 30 · O relatório e a memória
+########################################################################
+
+# Terminal 3 · Claude Code
+/task-report
+
+/memory guarda a lição da EX-1
+
+########################################################################
+# [83:00] slide 31 · Agora sozinho: EX-3
+########################################################################
+
+# Terminal 3 · Claude Code
+/task-intake issues/EX-3.json
+
+/task-plan
+
+/task-swarm
+
+/task-gate
+
+/task-report

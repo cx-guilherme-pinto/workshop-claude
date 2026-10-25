@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // O deck v2 (docs/pt/WORKSHOP-V2-SPEC.md, seccao 8 e D-36): 32 slides em 1280 x 1080 (o terco direito do ecra e do painel),
 // a partir de content-v2.mjs / content-v2.en.mjs + repos.conf:
-//   pt: slides/workshop-v2.pptx    + slides/speaker-notes-v2.md
-//   en: slides/workshop-v2.en.pptx + slides/speaker-notes-v2.en.md
+//   pt: slides/workshop-v2.pptx    + slides/speaker-notes-v2.md    + slides/commands-v2.txt
+//   en: slides/workshop-v2.en.pptx + slides/speaker-notes-v2.en.md + slides/commands-v2.en.txt
 //   e slides/palco.html: os slides a esquerda e o painel a direita; cada slide muda a vista do painel (fase).
 //
 //   cd slides && npm install && node build-v2.mjs [--lingua pt|en] [--png]
 //
 // --png exporta as imagens dos slides para slides/palco/<lingua>/ com o LibreOffice (local ou em Docker) e o
 // pdftoppm. Sem as imagens, o palco desenha cada slide em HTML a partir do mesmo conteudo. Corpo minimo 24 pt e codigo minimo 20 pt: o build avisa abaixo disso. Ferramenta do organizador.
+import { commandsText } from './commands-text.mjs';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -22,7 +23,7 @@ const BUILD = join(AQUI, 'build');
 
 const TEXTOS = {
   pt: {
-    conteudo: './content-v2.mjs', pptx: 'workshop-v2.pptx', notas: 'speaker-notes-v2.md',
+    conteudo: './content-v2.mjs', pptx: 'workshop-v2.pptx', notas: 'speaker-notes-v2.md', comandos: 'commands-v2.txt',
     titulo: 'Orquestração de agentes com Claude',
     decimal: ',',
     tipo: { faca: 'Faz agora', missao: 'Missão', decide: 'Decide', painel: 'Painel', preve: 'Prevê', conceito: 'Conceito' },
@@ -39,7 +40,7 @@ const TEXTOS = {
     aviso: (m) => `AVISO: o deck v2 soma ${m} min (devia ser 90).`,
   },
   en: {
-    conteudo: './content-v2.en.mjs', pptx: 'workshop-v2.en.pptx', notas: 'speaker-notes-v2.en.md',
+    conteudo: './content-v2.en.mjs', pptx: 'workshop-v2.en.pptx', notas: 'speaker-notes-v2.en.md', comandos: 'commands-v2.en.txt',
     titulo: 'Agent orchestration with Claude',
     decimal: '.',
     tipo: { faca: 'Do it now', missao: 'Mission', decide: 'Decide', painel: 'Panel', preve: 'Predict', conceito: 'Concept' },
@@ -475,7 +476,9 @@ async function construir(lingua, bg) {
   md.push('', T.total(relogio), '', T.porSlide, '', ...detalhe);
   await pres.writeFile({ fileName: join(AQUI, T.pptx) });
   writeFileSync(join(AQUI, T.notas), md.join('\n') + '\n');
-  console.log(`${T.pptx}: ${SLIDES.length} slides, ${relogio} min · ${T.notas}`);
+  // the commands to paste into the Teams chat, one at a time (slides/commands-text.mjs)
+  writeFileSync(join(AQUI, T.comandos), commandsText(SLIDES, lingua, sub));
+  console.log(`${T.pptx}: ${SLIDES.length} slides, ${relogio} min · ${T.notas} · ${T.comandos}`);
   return palco;
 }
 
