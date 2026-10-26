@@ -30,7 +30,7 @@ main() {
     if ls "$t"/*.test.mjs >/dev/null 2>&1; then corre "testes de $t" node --test "$t/*.test.mjs"; fi
   done
   if [ "$DOCKER" = 1 ] && command -v docker >/dev/null 2>&1; then
-    corre "shellcheck" docker run --rm -v "$KIT:/mnt" -w /mnt koalaman/shellcheck:stable -S warning setup/setup-mac.sh benchmark/run-benchmark.sh benchmark/run-projeto2.sh tools/record/gravar-apresentador.sh tools/record/sessao.sh tools/record/montar-preview.sh tools/test-all.sh
+    corre "shellcheck" docker run --rm -v "$KIT:/mnt" -w /mnt koalaman/shellcheck:stable -S warning setup/setup-mac.sh benchmark/run-benchmark.sh benchmark/run-projeto2.sh tools/record/gravar-apresentador.sh tools/record/sessao.sh tools/record/montar-preview.sh tools/test-all.sh tools/reset-panel.sh
   fi
   rm -f /tmp/ws-test-$$.log
   echo
