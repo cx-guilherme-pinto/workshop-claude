@@ -544,6 +544,7 @@ export const SLIDES = [
     titulo: 'Questions',
     subtitulo: 'No time limit',
     rodape: '{{WORKSHOP_REPO}}',
+    avaliacao: { rotulo: 'Rate the workshop', url: '{{FEEDBACK_URL}}', qr: 'feedback-qr.png' },
     notas: {
       objetivo: 'Open the questions.',
       dizer: ['Questions can go past 90 minutes. Anyone who did not run the setup installs now.', 'The panel deletes everything at midnight; your mission book and your memories stay on your laptop.'],

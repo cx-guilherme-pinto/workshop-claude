@@ -315,3 +315,10 @@ node "$HOME/.workshop-claude/kit/orchestrator/dashboard.mjs"
 /task-gate
 
 /task-report
+
+########################################################################
+# [89:00] slide 33 · Questions
+########################################################################
+
+# Rate the workshop
+https://forms.cloud.microsoft/r/qMtc41Gg32

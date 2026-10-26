@@ -555,6 +555,7 @@ export const SLIDES = [
     titulo: 'Perguntas',
     subtitulo: 'Sem limite de tempo',
     rodape: '{{WORKSHOP_REPO}}',
+    avaliacao: { rotulo: 'Avalia o workshop', url: '{{FEEDBACK_URL}}', qr: 'feedback-qr.png' },
     notas: {
       objetivo: 'Abrir as perguntas.',
       dizer: ['As perguntas podem passar dos 90 minutos. Quem não fez o setup instala agora.', 'O painel apaga tudo à meia-noite; a caderneta e as memórias ficam no vosso portátil.'],

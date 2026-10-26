@@ -89,6 +89,7 @@ function valores() {
     WORKSHOP_REPO: d.WORKSHOP_REPO_URL.replace(/\.git$/, ''), WORKSHOP_VERSION: d.WORKSHOP_VERSION,
     PANEL_URL: d.PANEL_URL, PANEL_PAGE_URL: d.PANEL_PAGE_URL,
     ONE_LINER_MAC: d.ONE_LINER_MAC, ONE_LINER_WINDOWS: d.ONE_LINER_WINDOWS,
+    FEEDBACK_URL: d.FEEDBACK_FORM_URL || '',
   };
 }
 const sub = (s) => (typeof s === 'string' ? s.replace(/\{\{(\w+)\}\}/g, (_, k) => V[k] ?? (FALTAM.add(k), `{{${k}}}`)) : s);
@@ -284,6 +285,16 @@ const R = {
     s.addText(d.titulo, { placeholder: 'title' });
     if (d.subtitulo) s.addText(sub(d.subtitulo), { placeholder: 'body' });
     if (d.rodape) texto(s, sub(d.rodape), { x: M, y: 7.1, w: W - 2 * M, h: 0.5, fontSize: 24, color: COR.escuroMuted, align: 'center', objectName: 'footer' });
+    // the evaluation form, above the title (the empty top of the closing slide): the QR on a white card and, at its
+    // right, the label and the address; the group centred
+    if (d.avaliacao) {
+      const q = 2.3, card = q + 0.3, tw = 4.4, gx = (W - (card + 0.35 + tw)) / 2, y = 0.6;
+      caixa(s, gx, y, card, card, 'FFFFFF', 'feedback-card');
+      s.addImage({ path: join(AQUI, 'media', d.avaliacao.qr), x: gx + 0.15, y: y + 0.15, w: q, h: q, objectName: 'feedback-qr', altText: sub(d.avaliacao.url) });
+      const tx = gx + card + 0.35;
+      texto(s, sub(d.avaliacao.rotulo), { x: tx, y: y + 0.55, w: tw, h: 0.65, fontFace: FONTE_TITULO, fontSize: 32, bold: true, wrap: false, color: COR.laranja, objectName: 'feedback-label' });
+      texto(s, sub(d.avaliacao.url).replace(/^https:\/\//, ''), { x: tx, y: y + 1.3, w: tw + 0.6, h: 0.5, fontSize: 24, wrap: false, color: COR.escuroMuted, objectName: 'feedback-url' });
+    }
   },
   regras(s, d) {
     s.addText(d.titulo, { placeholder: 'title' });

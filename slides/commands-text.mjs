@@ -87,6 +87,8 @@ export function commandsText(slides, lang, sub = (s) => s) {
     // an option that is only a flag (--parallel 8) is not a command to paste: the next slide has the whole command
     const opts = (d.opcoes || []).filter((o) => !String(o.cmd).trim().startsWith('--'));
     if (opts.length) blocks.push([`# ${t.opcoes}`, ...opts.flatMap((o) => [`# ${o.titulo}`, sub(o.cmd), ''])]);
+    // the evaluation form at the end (last slide)
+    if (d.avaliacao) blocks.push([`# ${sub(d.avaliacao.rotulo)}`, sub(d.avaliacao.url), '']);
     const b = d.id && t.planoB[d.id];
     // after coming back, the slide's own request again
     if (b) blocks.push([`# ${b[0]}`, ...[...b.slice(1), sub(d.comandos?.[0]?.cmd || '')].filter(Boolean).flatMap((x) => [x, ''])]);
