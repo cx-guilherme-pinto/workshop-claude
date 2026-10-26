@@ -854,8 +854,15 @@ function boot() {
     PV.root?.classList.remove('on');
   }
 
+  // inside the stage (slides/palco.html shows this page in an iframe): the slide keys go up to the stage, so a click
+  // on the panel does not leave the presenter without the clicker
+  const NAV = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ' ': 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 };
   addEventListener('keydown', (ev) => {
     if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
+    if (window.parent !== window && ev.key in NAV) {
+      ev.preventDefault();
+      return window.parent.postMessage({ type: 'ws-palco-nav', d: NAV[ev.key] }, '*');
+    }
     if (ev.key === 'p' || ev.key === 'P') return PV.open ? presenterClose() : presenterOpen();
     if (ev.key === 'Escape' && PV.open) return presenterClose();
     if (/^[1-5]$/.test(ev.key)) choose(VIEWS[Number(ev.key) - 1]);

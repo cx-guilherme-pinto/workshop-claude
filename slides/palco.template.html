@@ -3,7 +3,7 @@
      editar o modelo (palco.template.html), nunca o palco.html.
        palco.html[?lang=pt|en]#admin=<token>   os slides a esquerda (1280 x 1080) e o painel a direita (640 x 1080)
        palco.html?notas=1 (ou ?notes=1)         as notas do apresentador, numa segunda janela (BroadcastChannel)
-     Setas, espaco e PageUp/PageDown mudam de slide; N abre as notas; F ecra inteiro. Quando a fase do slide muda,
+     Setas (tambem cima e baixo), espaco e PageUp/PageDown mudam de slide; N abre as notas; F ecra inteiro. Quando a fase do slide muda,
      o palco chama POST <PANEL_URL>/admin/phase com o token de admin (guardado so neste browser). -->
 <html lang="pt">
 <head>
@@ -70,6 +70,9 @@ const q = new URLSearchParams(location.search);
 const lang = DADOS.decks[q.get('lang')] ? q.get('lang') : DADOS.decks.pt ? 'pt' : Object.keys(DADOS.decks)[0];
 const deck = DADOS.decks[lang];
 const canal = 'BroadcastChannel' in window ? new BroadcastChannel('ws-palco') : null;
+// a presenter's clicker sends PageDown/PageUp or the arrows (also up and down)
+const SEGUINTE = ['ArrowRight', 'ArrowDown', 'PageDown', ' '];
+const ANTERIOR = ['ArrowLeft', 'ArrowUp', 'PageUp'];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const ler = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -108,8 +111,8 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
   document.getElementById('n-prev').onclick = () => canal?.postMessage({ type: 'nav', lang, d: -1 });
   document.getElementById('n-next').onclick = () => canal?.postMessage({ type: 'nav', lang, d: 1 });
   addEventListener('keydown', (e) => {
-    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: 1 });
-    if (['ArrowLeft', 'PageUp'].includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: -1 });
+    if (SEGUINTE.includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: 1 });
+    if (ANTERIOR.includes(e.key)) canal?.postMessage({ type: 'nav', lang, d: -1 });
   });
 } else {
   // ---------- o palco ----------
@@ -168,8 +171,8 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
   addEventListener('resize', escala);
   escala();
   addEventListener('keydown', (e) => {
-    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); mostrar(atual + 1); }
-    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); mostrar(atual - 1); }
+    if (SEGUINTE.includes(e.key)) { e.preventDefault(); mostrar(atual + 1); }
+    else if (ANTERIOR.includes(e.key)) { e.preventDefault(); mostrar(atual - 1); }
     else if (e.key === 'Escape') { avisoVisto = true; aviso(-1); }
     else if (e.key === 'Home') mostrar(0);
     else if (e.key === 'End') mostrar(deck.length - 1);
@@ -177,6 +180,8 @@ if (q.get('notas') === '1' || q.get('notes') === '1') {
     else if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
   });
   canal?.addEventListener('message', (e) => { if (e.data?.lang === lang && e.data.type === 'nav') mostrar(atual + e.data.d); });
+  // with the focus on the panel (a click on it), the panel passes the navigation keys up to here (panel.js)
+  addEventListener('message', (e) => { if (e.source === panel.contentWindow && e.data?.type === 'ws-palco-nav' && (e.data.d === 1 || e.data.d === -1)) mostrar(atual + e.data.d); });
   mostrar(atual);
 }
 </script>
